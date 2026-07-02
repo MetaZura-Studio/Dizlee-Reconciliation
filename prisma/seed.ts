@@ -1,6 +1,11 @@
 import { PrismaClient } from "@prisma/client";
 
+import { hashPassword } from "../lib/auth/password";
+
 const prisma = new PrismaClient();
+
+/** Shared local dev password for all seed users — see docs/AUTH_SESSION.md */
+const SEED_PASSWORD = "Password123!";
 
 const LOOKUP_SEEDS: Record<string, string[]> = {
   USER_ROLE: ["ADMIN", "CLIENT", "OPCO", "PARTNER"],
@@ -150,6 +155,125 @@ async function main() {
         subject: template.subject,
         body: template.body,
         statusId: activeStatus.id,
+      },
+    });
+  }
+
+  const adminRole = await prisma.lookup.findFirst({
+    where: { code: "ADMIN", lookupType: { code: "USER_ROLE" } },
+  });
+  const clientRole = await prisma.lookup.findFirst({
+    where: { code: "CLIENT", lookupType: { code: "USER_ROLE" } },
+  });
+  const opcoRole = await prisma.lookup.findFirst({
+    where: { code: "OPCO", lookupType: { code: "USER_ROLE" } },
+  });
+  const partnerRole = await prisma.lookup.findFirst({
+    where: { code: "PARTNER", lookupType: { code: "USER_ROLE" } },
+  });
+
+  if (!adminRole || !clientRole || !opcoRole || !partnerRole) {
+    throw new Error("USER_ROLE lookups not found after seeding");
+  }
+
+  const currency = await prisma.currency.upsert({
+    where: { isoCode: "USD" },
+    update: {},
+    create: {
+      isoCode: "USD",
+      symbol: "$",
+      decimalPrecision: 2,
+    },
+  });
+
+  const opco = await prisma.opco.upsert({
+    where: { id: BigInt(1) },
+    update: {},
+    create: {
+      id: BigInt(1),
+      name: "Zain Demo OpCo",
+      defaultCurrencyId: currency.id,
+      statusId: activeStatus.id,
+    },
+  });
+
+  const partner = await prisma.partner.upsert({
+    where: { id: BigInt(1) },
+    update: {},
+    create: {
+      id: BigInt(1),
+      name: "Demo Partner",
+      statusId: activeStatus.id,
+    },
+  });
+
+  await prisma.opcoPartnerLink.upsert({
+    where: {
+      opcoId_partnerId: {
+        opcoId: opco.id,
+        partnerId: partner.id,
+      },
+    },
+    update: {},
+    create: {
+      opcoId: opco.id,
+      partnerId: partner.id,
+    },
+  });
+
+  const passwordHash = await hashPassword(SEED_PASSWORD);
+
+  const seedUsers = [
+    {
+      email: "admin@dizlee.com",
+      name: "Admin User",
+      roleId: adminRole.id,
+      opcoId: null,
+      partnerId: null,
+    },
+    {
+      email: "client@dizlee.com",
+      name: "Dizlee User",
+      roleId: clientRole.id,
+      opcoId: null,
+      partnerId: null,
+    },
+    {
+      email: "opco@dizlee.com",
+      name: "OpCo User",
+      roleId: opcoRole.id,
+      opcoId: opco.id,
+      partnerId: null,
+    },
+    {
+      email: "partner@dizlee.com",
+      name: "Partner User",
+      roleId: partnerRole.id,
+      opcoId: null,
+      partnerId: partner.id,
+    },
+  ] as const;
+
+  for (const seedUser of seedUsers) {
+    await prisma.user.upsert({
+      where: { email: seedUser.email },
+      update: {
+        name: seedUser.name,
+        roleId: seedUser.roleId,
+        statusId: activeStatus.id,
+        passwordHash,
+        opcoId: seedUser.opcoId,
+        partnerId: seedUser.partnerId,
+        isDeleted: false,
+      },
+      create: {
+        email: seedUser.email,
+        name: seedUser.name,
+        roleId: seedUser.roleId,
+        statusId: activeStatus.id,
+        passwordHash,
+        opcoId: seedUser.opcoId,
+        partnerId: seedUser.partnerId,
       },
     });
   }
