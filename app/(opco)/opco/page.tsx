@@ -1,22 +1,11 @@
-import { DashboardSummary } from "@/components/opco/DashboardSummary";
-import { requireOpcoSession } from "@/lib/opco/auth";
-import { parseDashboardPeriod } from "@/lib/opco/period";
-import { getOpcoDashboard } from "@/lib/opco/queries/dashboard";
-
-type OpcoDashboardPageProps = {
-  searchParams: Promise<{
-    year?: string;
-    month?: string;
-  }>;
-};
-
-export default async function OpcoDashboardPage({
-  searchParams,
-}: OpcoDashboardPageProps) {
-  const session = await requireOpcoSession();
-  const params = await searchParams;
-  const { year, month } = parseDashboardPeriod(params.year, params.month);
-  const data = await getOpcoDashboard(BigInt(session.opcoId), year, month);
-
-  return <DashboardSummary data={data} />;
+export default function OpcoPage() {
+  return (
+    <div className="mx-auto max-w-2xl space-y-4 p-8">
+      <h1 className="text-2xl font-semibold">OpCo Portal</h1>
+      <p className="text-zinc-600">
+        Placeholder — Shahrukh owns this portal. See{" "}
+        <code className="rounded bg-zinc-100 px-1">docs/HANDOFF_SHAHRUKH.md</code>.
+      </p>
+    </div>
+  );
 }
