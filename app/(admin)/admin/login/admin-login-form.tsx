@@ -4,6 +4,8 @@ import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
+import { ADMIN_DEFAULT_ROUTE } from "@/lib/admin/navigation";
+
 const ERROR_MESSAGES: Record<string, string> = {
   AccessDenied: "You do not have access to the Admin portal.",
   CredentialsSignin: "Invalid email or password.",
@@ -51,7 +53,7 @@ export function AdminLoginForm() {
       const destination =
         callbackUrl && callbackUrl.startsWith("/admin") && callbackUrl !== "/admin/login"
           ? callbackUrl
-          : "/admin";
+          : ADMIN_DEFAULT_ROUTE;
 
       router.push(destination);
       router.refresh();
