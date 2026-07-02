@@ -5,9 +5,6 @@ export default function AdminPage() {
       <p className="text-zinc-600">
         Scaffold placeholder. Hussnain will build Admin use cases here in Phase 2.
       </p>
-      <p className="text-sm text-zinc-500">
-        Run on a separate port: <code className="rounded bg-zinc-100 px-1">npm run dev:admin</code>
-      </p>
     </div>
   );
 }

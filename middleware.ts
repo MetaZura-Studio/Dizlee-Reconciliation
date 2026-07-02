@@ -2,19 +2,24 @@ import { getToken } from "next-auth/jwt";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-import { roleMayAccessPath } from "@/lib/auth/roles";
+import { getLoginPathForPathname, roleMayAccessPath } from "@/lib/auth/roles";
 import { isAppRole } from "@/lib/auth/types";
 
-const PROTECTED_PREFIXES = ["/admin", "/partner", "/opco", "/dizlee"];
+const MAIN_PORTAL_PREFIXES = ["/partner", "/opco", "/dizlee"];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  const isProtected = PROTECTED_PREFIXES.some((prefix) =>
+  if (pathname === "/admin/login") {
+    return NextResponse.next();
+  }
+
+  const isAdminRoute = pathname.startsWith("/admin");
+  const isMainPortalRoute = MAIN_PORTAL_PREFIXES.some((prefix) =>
     pathname.startsWith(prefix),
   );
 
-  if (!isProtected) {
+  if (!isAdminRoute && !isMainPortalRoute) {
     return NextResponse.next();
   }
 
@@ -23,26 +28,25 @@ export async function middleware(request: NextRequest) {
     secret: process.env.NEXTAUTH_SECRET,
   });
 
+  const loginPath = getLoginPathForPathname(pathname);
+  const loginUrl = new URL(loginPath, request.url);
+
   if (!token?.role || !isAppRole(token.role)) {
-    const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
   if (!roleMayAccessPath(token.role, pathname)) {
-    const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("error", "AccessDenied");
     return NextResponse.redirect(loginUrl);
   }
 
   if (token.role === "opco" && !token.opcoId) {
-    const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("error", "MissingOpcoScope");
     return NextResponse.redirect(loginUrl);
   }
 
   if (token.role === "partner" && !token.partnerId) {
-    const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("error", "MissingPartnerScope");
     return NextResponse.redirect(loginUrl);
   }
