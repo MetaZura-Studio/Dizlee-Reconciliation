@@ -12,12 +12,12 @@ Branch: `feature/shahrukh-local-setup`
 |------|------------------|--------|
 | Clone + checkout `develop` | `git pull origin develop` | Done |
 | Create branch | `git checkout -b feature/shahrukh-local-setup` | Done |
-| Env files | `cp .env.example .env` and `.env.local` | Done — **edit `DATABASE_URL` with your MySQL password** |
+| Env files | `cp .env.example .env` and `.env.local` | Done |
 | Install | `npm install` | Done |
-| Migrate | `npx prisma migrate dev` | **Pending** — set valid `DATABASE_URL` first |
-| Seed | `npm run seed` | **Pending** — after migrate |
-| Dev server | `npm run dev` | **Pending** — after migrate + seed |
-| OpCo login | `http://localhost:3000/login` | **Pending** — after seed |
+| Migrate | `npx prisma migrate dev` | Done |
+| Seed | `npm run seed` | Done |
+| Dev server | `npm run dev` | Run `npm run dev` then open `/login` |
+| OpCo login | `http://localhost:3000/login` | `opco@dizlee.com` / `Password123!` |
 | CI locally | `npm run lint && npm run typecheck && npm run test && npm run build` | Done (all green) |
 
 ### Windows notes
