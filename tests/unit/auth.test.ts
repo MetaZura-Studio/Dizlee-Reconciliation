@@ -33,7 +33,7 @@ describe("auth role helpers", () => {
   });
 
   it("maps roles to portal home paths", () => {
-    expect(getPortalHomePath("admin")).toBe("/admin");
+    expect(getPortalHomePath("admin")).toBe("/admin/users");
     expect(getPortalHomePath("client")).toBe("/dizlee");
     expect(getMainPortalHomePath("opco")).toBe("/opco");
     expect(getMainPortalHomePath("partner")).toBe("/partner");

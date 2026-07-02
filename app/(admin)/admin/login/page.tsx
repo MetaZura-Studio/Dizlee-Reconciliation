@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
+import { ADMIN_DEFAULT_ROUTE } from "@/lib/admin/navigation";
 import { getAppSessionUser } from "@/lib/auth/session";
 
 import { AdminLoginForm } from "./admin-login-form";
@@ -9,7 +10,7 @@ export default async function AdminLoginPage() {
   const user = await getAppSessionUser();
 
   if (user?.role === "admin") {
-    redirect("/admin");
+    redirect(ADMIN_DEFAULT_ROUTE);
   }
 
   return (
