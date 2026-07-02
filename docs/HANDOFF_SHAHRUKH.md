@@ -1,37 +1,37 @@
 # Handoff: Shahrukh — OpCo Portal
 
-> Placeholder. Full handoff prompt will be added before onboarding.
+**Full Cursor prompt:** [`02_SHAHRUKH_HANDOFF_PROMPT.md`](../02_SHAHRUKH_HANDOFF_PROMPT.md) — paste the section below the `---` line into Cursor Agent mode.
 
-## Repo
+**Repo:** https://github.com/MetaZura-Studio/Dizlee-Reconciliation
 
-https://github.com/MetaZura-Studio/Dizlee-Reconciliation
+---
 
-## Your scope
+## Quick reference
 
-- `app/(opco)/` — OpCo portal routes and pages
-- `app/api/opco/` — OpCo API routes
-- `lib/opco/` — OpCo business logic
-- `components/opco/` — OpCo UI components
-- `prisma/schema.prisma` — **Shahrukh block only** (`// ===== SHAHRUKH: OpCo Portal models =====`)
+### Your scope
+- `app/(opco)/`, `app/api/opco/`, `lib/opco/`, `components/opco/`
+- `prisma/schema.prisma` — **Shahrukh block only** (with ERD rules — see below)
 
-## Local setup
+### Database (CRITICAL)
+- **Source of truth:** [`04_DATABASE_SCHEMA_FOR_CURSOR.md`](../04_DATABASE_SCHEMA_FOR_CURSOR.md)
+- All tables **already migrated** — build app code against existing schema
+- **Never change the ERD** without explicit approval from Hussnain
+- **Never edit** Hussnain's or Haseeb's Prisma blocks
 
+### Git workflow
+1. `git checkout develop` → `git pull`
+2. `git checkout -b feature/shahrukh-<task>`
+3. Work → commit → `git push -u origin feature/shahrukh-<task>`
+4. Open PR on GitHub → **`develop`** (not `main`)
+5. Wait for CI green → merge → delete branch
+
+### Local setup
 See [LOCAL_DATABASE_SETUP.md](./LOCAL_DATABASE_SETUP.md).
 
 ```bash
 git clone https://github.com/MetaZura-Studio/Dizlee-Reconciliation.git
 cd Dizlee-Reconciliation
 git checkout develop
-cp .env.example .env.local
-# edit .env.local with your local MySQL credentials
-npm install
-npx prisma migrate dev
-npm run dev
+cp .env.example .env.local && cp .env.example .env
+npm install && npx prisma migrate dev && npm run dev
 ```
-
-## Rules
-
-- Do **not** edit Hussnain's folders (`app/(admin)/`, `app/(partner)/`, `lib/admin/`, etc.)
-- Do **not** edit Haseeb's folders (`app/(dizlee)/`, `lib/dizlee/`, etc.)
-- Only edit your Prisma comment block in `schema.prisma`
-- Open PRs into `develop`, not `main`
