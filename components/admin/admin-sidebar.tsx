@@ -134,7 +134,14 @@ export function AdminSidebar({
   );
 }
 
-export function readAdminSidebarCollapsed(): boolean {
+const collapsedListeners = new Set<() => void>();
+
+export function subscribeAdminSidebarCollapsed(listener: () => void): () => void {
+  collapsedListeners.add(listener);
+  return () => collapsedListeners.delete(listener);
+}
+
+export function getAdminSidebarCollapsedSnapshot(): boolean {
   if (typeof window === "undefined") {
     return false;
   }
@@ -142,9 +149,14 @@ export function readAdminSidebarCollapsed(): boolean {
   return window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "true";
 }
 
-export function writeAdminSidebarCollapsed(collapsed: boolean): void {
+export function getAdminSidebarCollapsedServerSnapshot(): boolean {
+  return false;
+}
+
+export function setAdminSidebarCollapsed(collapsed: boolean): void {
   window.localStorage.setItem(
     SIDEBAR_COLLAPSED_KEY,
     collapsed ? "true" : "false",
   );
+  collapsedListeners.forEach((listener) => listener());
 }
