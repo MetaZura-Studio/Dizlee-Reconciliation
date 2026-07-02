@@ -9,7 +9,7 @@ export default function LoginPage() {
         <div className="space-y-1">
           <h1 className="text-xl font-semibold">Sign in</h1>
           <p className="text-sm text-zinc-600">
-            Use your platform credentials. You will be redirected to your role
+            OpCo, Dizlee, and Partner sign-in. You will be redirected to your
             portal after login.
           </p>
         </div>

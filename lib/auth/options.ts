@@ -2,13 +2,19 @@ import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { z } from "zod";
 
-import { normalizeRoleCode } from "@/lib/auth/types";
 import { verifyPassword } from "@/lib/auth/password";
+import {
+  isAuthLoginScope,
+  roleAllowedForLoginScope,
+  type AuthLoginScope,
+} from "@/lib/auth/scopes";
+import { normalizeRoleCode } from "@/lib/auth/types";
 import prisma from "@/lib/prisma";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
+  scope: z.string().optional(),
 });
 
 export const authOptions: NextAuthOptions = {
@@ -25,6 +31,7 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
+        scope: { label: "Scope", type: "text" },
       },
       async authorize(rawCredentials) {
         const parsed = credentialsSchema.safeParse(rawCredentials);
@@ -32,7 +39,11 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        const { email, password } = parsed.data;
+        const { email, password, scope: rawScope } = parsed.data;
+        let scope: AuthLoginScope = "main";
+        if (rawScope && isAuthLoginScope(rawScope)) {
+          scope = rawScope;
+        }
 
         const user = await prisma.user.findFirst({
           where: {
@@ -55,6 +66,10 @@ export const authOptions: NextAuthOptions = {
         }
 
         const role = normalizeRoleCode(user.role.code);
+
+        if (!roleAllowedForLoginScope(role, scope)) {
+          return null;
+        }
 
         if (role === "opco" && !user.opcoId) {
           return null;

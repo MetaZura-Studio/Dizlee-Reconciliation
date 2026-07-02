@@ -1,27 +1,27 @@
 # Auth session contract
 
-Shared login is implemented with **NextAuth.js** (Credentials provider, JWT session). All portals use the same login page at `/login`.
+Login uses **NextAuth.js** (Credentials provider, JWT session) with **two separate entry points** on the same app (port 3000).
 
-**Owner:** Hussnain (`app/(auth)/`, `app/api/auth/`, `lib/auth/`, `middleware.ts`)
+**Owner:** Hussnain (`app/(auth)/`, `app/(admin)/admin/login/`, `app/api/auth/`, `lib/auth/`, `middleware.ts`)
 
-Other developers implement **portal-specific guards** in their own `lib/<portal>/auth.ts` by reading the same JWT session fields documented below. Do **not** import from `lib/admin/` or `lib/partner/`.
+Other developers implement **portal-specific guards** in their own `lib/<portal>/auth.ts`. Do **not** import from `lib/admin/` or `lib/partner/`.
 
 ---
 
-## Login flow
+## Two login URLs
 
-1. User opens `/login` and submits email + password.
-2. NextAuth validates against the `users` table (`password_hash`, `role_id`, `status_id`).
-3. On success, user is redirected by role:
+| URL | Who can sign in | Redirect after login |
+|-----|-----------------|----------------------|
+| `/login` | **OpCo, Dizlee, Partner only** | `/opco`, `/dizlee`, or `/partner` |
+| `/admin/login` | **Admin only** | `/admin` |
 
-| Role (JWT) | Lookup code | Portal home |
-|------------|-------------|-------------|
-| `admin` | `ADMIN` | `/admin` |
-| `client` | `CLIENT` | `/dizlee` |
-| `opco` | `OPCO` | `/opco` |
-| `partner` | `PARTNER` | `/partner` |
+**Rules:**
+- Admin credentials on `/login` → **rejected** (invalid email/password)
+- OpCo / Dizlee / Partner credentials on `/admin/login` → **rejected**
+- Unauthenticated `/admin/*` (except `/admin/login`) → redirect to `/admin/login`
+- Unauthenticated `/opco`, `/dizlee`, `/partner` → redirect to `/login`
 
-4. `middleware.ts` blocks unauthenticated access to `/admin`, `/partner`, `/opco`, `/dizlee` and enforces role-to-portal matching.
+Credentials include a hidden `scope` field: `main` or `admin` (enforced in `lib/auth/options.ts`).
 
 ---
 
@@ -31,7 +31,7 @@ After login, `session.user` contains:
 
 ```typescript
 {
-  id: string;           // users.id as string
+  id: string;
   email: string;
   name?: string | null;
   role: "admin" | "client" | "opco" | "partner";
@@ -45,7 +45,6 @@ Type definitions: `lib/auth/types.ts`, `types/next-auth.d.ts`
 ### Reading session in a portal (example for Shahrukh)
 
 ```typescript
-// lib/opco/auth.ts — Shahrukh owns this file
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/options";
 
@@ -58,27 +57,23 @@ export async function requireOpcoSession() {
 }
 ```
 
-**Allowed:** import `@/lib/auth/options` and `@/lib/auth/types` for session reads.  
-**Not allowed:** import `lib/admin/` or `lib/partner/`.
+**Allowed:** `@/lib/auth/options`, `@/lib/auth/types`  
+**Not allowed:** `lib/admin/`, `lib/partner/`, `lib/dizlee/`
 
 ---
 
 ## Local dev seed users
 
-Run after migrate:
-
 ```bash
 npm run seed
 ```
 
-| Email | Password | Role | Portal |
-|-------|----------|------|--------|
-| `admin@dizlee.com` | `Password123!` | Admin | `/admin` |
-| `client@dizlee.com` | `Password123!` | Dizlee | `/dizlee` |
-| `opco@dizlee.com` | `Password123!` | OpCo | `/opco` |
-| `partner@dizlee.com` | `Password123!` | Partner | `/partner` |
-
-Seed also creates: USD currency, demo OpCo, demo Partner, and an OpCo–Partner link.
+| Email | Password | Role | Sign in at |
+|-------|----------|------|------------|
+| `admin@dizlee.com` | `Password123!` | Admin | `/admin/login` |
+| `client@dizlee.com` | `Password123!` | Dizlee | `/login` |
+| `opco@dizlee.com` | `Password123!` | OpCo | `/login` |
+| `partner@dizlee.com` | `Password123!` | Partner | `/login` |
 
 ---
 
@@ -91,7 +86,7 @@ NEXTAUTH_URL="http://localhost:3000"
 
 ---
 
-## Not in this release (Hussnain Phase 2 later)
+## Not in this release
 
 - UC-02-COMMON Change Password UI
 - UC-03-COMMON Forgot Password flow
