@@ -7,21 +7,685 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ===== HUSSNAIN: Admin/Platform models =====
+// ===== HUSSNAIN: Admin/Platform/Auth/Partner models =====
+
+model LookupType {
+  id              Int       @id @default(autoincrement())
+  code            String    @unique @db.VarChar(64)
+  name            String    @db.VarChar(255)
+  description     String?   @db.VarChar(500)
+  createdByUserId BigInt?   @map("created_by_user_id")
+  updatedByUserId BigInt?   @map("updated_by_user_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  isDeleted       Boolean   @default(false) @map("is_deleted")
+  deletedByUserId BigInt?   @map("deleted_by_user_id")
+  deletedAt       DateTime? @map("deleted_at")
+
+  createdByUser User?    @relation("LookupTypeCreatedBy", fields: [createdByUserId], references: [id])
+  updatedByUser User?    @relation("LookupTypeUpdatedBy", fields: [updatedByUserId], references: [id])
+  lookups       Lookup[]
+
+  @@map("lookup_types")
+}
+
+model Lookup {
+  id              Int       @id @default(autoincrement())
+  lookupTypeId    Int       @map("lookup_type_id")
+  code            String    @db.VarChar(64)
+  label           String    @db.VarChar(255)
+  sortOrder       Int       @default(0) @map("sort_order")
+  isActive        Boolean   @default(true) @map("is_active")
+  createdByUserId BigInt?   @map("created_by_user_id")
+  updatedByUserId BigInt?   @map("updated_by_user_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  isDeleted       Boolean   @default(false) @map("is_deleted")
+  deletedByUserId BigInt?   @map("deleted_by_user_id")
+  deletedAt       DateTime? @map("deleted_at")
+
+  lookupType              LookupType               @relation(fields: [lookupTypeId], references: [id])
+  createdByUser           User?                    @relation("LookupCreatedBy", fields: [createdByUserId], references: [id])
+  updatedByUser           User?                    @relation("LookupUpdatedBy", fields: [updatedByUserId], references: [id])
+  userRoles               User[]                   @relation("UserRole")
+  userStatuses            User[]                   @relation("UserStatus")
+  opcoStatuses            Opco[]                   @relation("OpcoStatus")
+  partnerStatuses         Partner[]                @relation("PartnerStatus")
+  notificationStatuses    Notification[]           @relation("NotificationStatus")
+  notificationRecipientTypes NotificationRecipient[] @relation("NotificationRecipientType")
+  notificationTemplateStatuses NotificationTemplate[] @relation("NotificationTemplateStatus")
+  auditActions            AuditLog[]               @relation("AuditAction")
+  auditEntityTypes        AuditLog[]               @relation("AuditEntityType")
+  reportStatuses          Report[]                 @relation("ReportStatus")
+  reportChangeRequestStatuses ReportChangeRequest[] @relation("ReportChangeRequestStatus")
+  consolidationStatuses   Consolidation[]          @relation("ConsolidationStatus")
+  reconciliationStatuses  Reconciliation[]         @relation("ReconciliationStatus")
+  reconciliationMatchStatuses ReconciliationItem[] @relation("ReconciliationMatchStatus")
+  invoiceTypes            Invoice[]                @relation("InvoiceType")
+  invoiceStatuses         Invoice[]                @relation("InvoiceStatus")
+  invoicePaymentStatuses  Invoice[]                @relation("InvoicePaymentStatus")
+  invoiceActivityActions  InvoiceActivityLog[]     @relation("InvoiceActivityAction")
+
+  @@unique([lookupTypeId, code], map: "uq_lookups_type_code")
+  @@map("lookups")
+}
+
+model Currency {
+  id               BigInt   @id @default(autoincrement())
+  isoCode          String   @unique @map("iso_code") @db.VarChar(8)
+  symbol           String?  @db.VarChar(16)
+  decimalPrecision Int      @default(2) @map("decimal_precision")
+  createdByUserId  BigInt?  @map("created_by_user_id")
+  updatedByUserId  BigInt?  @map("updated_by_user_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+  isDeleted        Boolean  @default(false) @map("is_deleted")
+  deletedByUserId  BigInt?  @map("deleted_by_user_id")
+  deletedAt        DateTime? @map("deleted_at")
+
+  createdByUser        User?                 @relation("CurrencyCreatedBy", fields: [createdByUserId], references: [id])
+  updatedByUser        User?                 @relation("CurrencyUpdatedBy", fields: [updatedByUserId], references: [id])
+  opcos                Opco[]
+  currencyMonthlyRates CurrencyMonthlyRate[]
+  reports              Report[]
+  invoices             Invoice[]
+
+  @@map("currencies")
+}
+
+model Opco {
+  id                BigInt   @id @default(autoincrement())
+  name              String   @db.VarChar(255)
+  defaultCurrencyId BigInt   @map("default_currency_id")
+  statusId          Int      @map("status_id")
+  createdByUserId   BigInt?  @map("created_by_user_id")
+  updatedByUserId   BigInt?  @map("updated_by_user_id")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  isDeleted         Boolean  @default(false) @map("is_deleted")
+  deletedByUserId   BigInt?  @map("deleted_by_user_id")
+  deletedAt         DateTime? @map("deleted_at")
+
+  defaultCurrency   Currency          @relation(fields: [defaultCurrencyId], references: [id])
+  status            Lookup            @relation("OpcoStatus", fields: [statusId], references: [id])
+  createdByUser     User?             @relation("OpcoCreatedBy", fields: [createdByUserId], references: [id])
+  updatedByUser     User?             @relation("OpcoUpdatedBy", fields: [updatedByUserId], references: [id])
+  users             User[]            @relation("UserOpco")
+  opcoPartnerLinks  OpcoPartnerLink[]
+  reports           Report[]
+  consolidations    Consolidation[]
+  reconciliations   Reconciliation[]
+  invoices          Invoice[]
+
+  @@map("opcos")
+}
+
+model Partner {
+  id              BigInt   @id @default(autoincrement())
+  name            String   @db.VarChar(255)
+  statusId        Int      @map("status_id")
+  createdByUserId BigInt?  @map("created_by_user_id")
+  updatedByUserId BigInt?  @map("updated_by_user_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  isDeleted       Boolean  @default(false) @map("is_deleted")
+  deletedByUserId BigInt?  @map("deleted_by_user_id")
+  deletedAt       DateTime? @map("deleted_at")
+
+  status            Lookup              @relation("PartnerStatus", fields: [statusId], references: [id])
+  createdByUser     User?               @relation("PartnerCreatedBy", fields: [createdByUserId], references: [id])
+  updatedByUser     User?               @relation("PartnerUpdatedBy", fields: [updatedByUserId], references: [id])
+  users             User[]              @relation("UserPartner")
+  opcoPartnerLinks  OpcoPartnerLink[]
+  reports           Report[]
+  consolidationItems ConsolidationItem[]
+  reconciliations   Reconciliation[]
+  invoices          Invoice[]
+
+  @@map("partners")
+}
 
 model User {
-  id        BigInt   @id @default(autoincrement())
-  email     String   @unique @db.VarChar(255)
-  password  String   @db.VarChar(255)
-  role      String   @default("admin") @db.VarChar(50)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id                      BigInt    @id @default(autoincrement())
+  email                   String    @unique @db.VarChar(255)
+  passwordHash            String?   @map("password_hash") @db.VarChar(255)
+  name                    String?   @db.VarChar(255)
+  roleId                  Int       @map("role_id")
+  statusId                Int       @map("status_id")
+  opcoId                  BigInt?   @map("opco_id")
+  partnerId               BigInt?   @map("partner_id")
+  lastLoginAt             DateTime? @map("last_login_at")
+  passwordResetToken      String?   @map("password_reset_token") @db.VarChar(255)
+  passwordResetExpiresAt  DateTime? @map("password_reset_expires_at")
+  createdByUserId         BigInt?   @map("created_by_user_id")
+  updatedByUserId         BigInt?   @map("updated_by_user_id")
+  createdAt               DateTime  @default(now()) @map("created_at")
+  updatedAt               DateTime  @updatedAt @map("updated_at")
+  isDeleted               Boolean   @default(false) @map("is_deleted")
+  deletedByUserId         BigInt?   @map("deleted_by_user_id")
+  deletedAt               DateTime? @map("deleted_at")
+
+  role                    Lookup    @relation("UserRole", fields: [roleId], references: [id])
+  status                  Lookup    @relation("UserStatus", fields: [statusId], references: [id])
+  opco                    Opco?     @relation("UserOpco", fields: [opcoId], references: [id])
+  partner                 Partner?  @relation("UserPartner", fields: [partnerId], references: [id])
+  createdByUser           User?     @relation("UserCreatedBy", fields: [createdByUserId], references: [id])
+  updatedByUser           User?     @relation("UserUpdatedBy", fields: [updatedByUserId], references: [id])
+  usersCreated            User[]    @relation("UserCreatedBy")
+  usersUpdated            User[]    @relation("UserUpdatedBy")
+  lookupTypesCreated      LookupType[] @relation("LookupTypeCreatedBy")
+  lookupTypesUpdated      LookupType[] @relation("LookupTypeUpdatedBy")
+  lookupsCreated          Lookup[]  @relation("LookupCreatedBy")
+  lookupsUpdated          Lookup[]  @relation("LookupUpdatedBy")
+  currenciesCreated       Currency[] @relation("CurrencyCreatedBy")
+  currenciesUpdated       Currency[] @relation("CurrencyUpdatedBy")
+  opcosCreated            Opco[]    @relation("OpcoCreatedBy")
+  opcosUpdated            Opco[]    @relation("OpcoUpdatedBy")
+  partnersCreated         Partner[] @relation("PartnerCreatedBy")
+  partnersUpdated         Partner[] @relation("PartnerUpdatedBy")
+  filesUploaded           File[]    @relation("FileUploader")
+  filesUpdated            File[]    @relation("FileUpdatedBy")
+  auditLogs               AuditLog[]
+  notificationsCreated    Notification[] @relation("NotificationCreatedBy")
+  notificationsUpdated    Notification[] @relation("NotificationUpdatedBy")
+  notificationRecipientsFrom NotificationRecipient[] @relation("NotificationRecipientFrom")
+  notificationReads       NotificationRead[]
+  reportsUploaded         Report[]  @relation("ReportUploader")
+  reportChangeRequests    ReportChangeRequest[] @relation("ReportChangeRequester")
+  reportChangeDecisions   ReportChangeRequest[] @relation("ReportChangeDecider")
+  consolidationsRun       Consolidation[] @relation("ConsolidationRunner")
+  reconciliationsRun      Reconciliation[] @relation("ReconciliationRunner")
+  invoicesUploaded        Invoice[] @relation("InvoiceUploader")
+  invoiceActivityLogs     InvoiceActivityLog[]
 
   @@map("users")
 }
 
+model CurrencyMonthlyRate {
+  id              Int      @id @default(autoincrement())
+  currencyId      BigInt   @map("currency_id")
+  month           Int
+  year            Int
+  rateToUsd       Decimal  @map("rate_to_usd") @db.Decimal(18, 8)
+  createdByUserId BigInt?  @map("created_by_user_id")
+  updatedByUserId BigInt?  @map("updated_by_user_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  isDeleted       Boolean  @default(false) @map("is_deleted")
+  deletedByUserId BigInt?  @map("deleted_by_user_id")
+  deletedAt       DateTime? @map("deleted_at")
+
+  currency Currency @relation(fields: [currencyId], references: [id])
+
+  @@unique([currencyId, year, month], map: "uq_currency_monthly_rates")
+  @@map("currency_monthly_rates")
+}
+
+model OpcoPartnerLink {
+  opcoId          BigInt   @map("opco_id")
+  partnerId       BigInt   @map("partner_id")
+  createdByUserId BigInt?  @map("created_by_user_id")
+  updatedByUserId BigInt?  @map("updated_by_user_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  isDeleted       Boolean  @default(false) @map("is_deleted")
+  deletedByUserId BigInt?  @map("deleted_by_user_id")
+  deletedAt       DateTime? @map("deleted_at")
+
+  opco    Opco    @relation(fields: [opcoId], references: [id])
+  partner Partner @relation(fields: [partnerId], references: [id])
+
+  @@id([opcoId, partnerId])
+  @@map("opco_partner_links")
+}
+
+model File {
+  id                BigInt   @id @default(autoincrement())
+  filename          String   @db.VarChar(255)
+  storageKey        String   @map("storage_key") @db.VarChar(512)
+  mimeType          String?  @map("mime_type") @db.VarChar(128)
+  sizeBytes         BigInt?  @map("size_bytes")
+  checksum          String?  @db.VarChar(128)
+  uploadedByUserId  BigInt?  @map("uploaded_by_user_id")
+  updatedByUserId   BigInt?  @map("updated_by_user_id")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  isDeleted         Boolean  @default(false) @map("is_deleted")
+  deletedByUserId   BigInt?  @map("deleted_by_user_id")
+  deletedAt         DateTime? @map("deleted_at")
+
+  uploadedByUser           User?                    @relation("FileUploader", fields: [uploadedByUserId], references: [id])
+  updatedByUser            User?                    @relation("FileUpdatedBy", fields: [updatedByUserId], references: [id])
+  reports                  Report[]
+  notificationAttachments  NotificationAttachment[]
+  invoices                 Invoice[]
+
+  @@map("files")
+}
+
+model AppSettings {
+  id                              Int      @id @default(1)
+  emailEnabled                    Boolean  @default(false) @map("email_enabled")
+  smtpHost                        String?  @map("smtp_host") @db.VarChar(255)
+  smtpPort                        Int?     @map("smtp_port")
+  senderAddress                   String?  @map("sender_address") @db.VarChar(255)
+  remindersEnabled                Boolean  @default(false) @map("reminders_enabled")
+  reminderValue                   Int?     @map("reminder_value")
+  reminderUnit                    String?  @map("reminder_unit") @db.VarChar(16)
+  reconciliationNegligiblePercent Decimal? @map("reconciliation_negligible_percent") @db.Decimal(5, 2)
+  opcoInvoiceBankDetailsJson      String?  @map("opco_invoice_bank_details_json") @db.Text
+
+  @@map("app_settings")
+}
+
+model AuditLog {
+  id           BigInt   @id @default(autoincrement())
+  actorUserId  BigInt   @map("actor_user_id")
+  actionId     Int      @map("action_id")
+  entityTypeId Int      @map("entity_type_id")
+  entityId     BigInt   @map("entity_id")
+  message      String?  @db.Text
+  metadata     Json?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  actorUser  User   @relation(fields: [actorUserId], references: [id])
+  action     Lookup @relation("AuditAction", fields: [actionId], references: [id])
+  entityType Lookup @relation("AuditEntityType", fields: [entityTypeId], references: [id])
+
+  @@map("audit_logs")
+}
+
+model Notification {
+  id              BigInt    @id @default(autoincrement())
+  subject         String    @db.VarChar(255)
+  body            String    @db.Text
+  statusId        Int       @map("status_id")
+  priority        String?   @db.VarChar(32)
+  expiresAt       DateTime? @map("expires_at")
+  sentAt          DateTime? @map("sent_at")
+  createdByUserId BigInt?   @map("created_by_user_id")
+  updatedByUserId BigInt?   @map("updated_by_user_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  isDeleted       Boolean   @default(false) @map("is_deleted")
+  deletedByUserId BigInt?   @map("deleted_by_user_id")
+  deletedAt       DateTime? @map("deleted_at")
+
+  status      Lookup                  @relation("NotificationStatus", fields: [statusId], references: [id])
+  createdByUser User?                 @relation("NotificationCreatedBy", fields: [createdByUserId], references: [id])
+  updatedByUser User?                 @relation("NotificationUpdatedBy", fields: [updatedByUserId], references: [id])
+  recipients  NotificationRecipient[]
+  reads       NotificationRead[]
+  attachments NotificationAttachment[]
+
+  @@map("notifications")
+}
+
+model NotificationRecipient {
+  id              BigInt   @id @default(autoincrement())
+  notificationId  BigInt   @map("notification_id")
+  recipientTypeId Int      @map("recipient_type_id")
+  recipientId     BigInt   @map("recipient_id")
+  fromUserId      BigInt   @map("from_user_id")
+  createdByUserId BigInt?  @map("created_by_user_id")
+  updatedByUserId BigInt?  @map("updated_by_user_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  isDeleted       Boolean  @default(false) @map("is_deleted")
+  deletedByUserId BigInt?  @map("deleted_by_user_id")
+  deletedAt       DateTime? @map("deleted_at")
+
+  notification  Notification @relation(fields: [notificationId], references: [id])
+  recipientType Lookup       @relation("NotificationRecipientType", fields: [recipientTypeId], references: [id])
+  fromUser      User         @relation("NotificationRecipientFrom", fields: [fromUserId], references: [id])
+
+  @@map("notification_recipients")
+}
+
+model NotificationRead {
+  id             BigInt   @id @default(autoincrement())
+  notificationId BigInt   @map("notification_id")
+  userId         BigInt   @map("user_id")
+  readAt         DateTime @default(now()) @map("read_at")
+
+  notification Notification @relation(fields: [notificationId], references: [id])
+  user         User         @relation(fields: [userId], references: [id])
+
+  @@unique([notificationId, userId], map: "uq_notification_reads")
+  @@map("notification_reads")
+}
+
+model NotificationAttachment {
+  id              BigInt   @id @default(autoincrement())
+  notificationId  BigInt   @map("notification_id")
+  fileId          BigInt   @map("file_id")
+  createdByUserId BigInt?  @map("created_by_user_id")
+  updatedByUserId BigInt?  @map("updated_by_user_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  isDeleted       Boolean  @default(false) @map("is_deleted")
+  deletedByUserId BigInt?  @map("deleted_by_user_id")
+  deletedAt       DateTime? @map("deleted_at")
+
+  notification Notification @relation(fields: [notificationId], references: [id])
+  file         File         @relation(fields: [fileId], references: [id])
+
+  @@map("notification_attachments")
+}
+
+model NotificationTemplate {
+  id              Int      @id @default(autoincrement())
+  code            String   @unique @db.VarChar(64)
+  name            String   @db.VarChar(255)
+  subject         String   @db.VarChar(255)
+  body            String   @db.Text
+  statusId        Int      @map("status_id")
+  createdByUserId BigInt?  @map("created_by_user_id")
+  updatedByUserId BigInt?  @map("updated_by_user_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  isDeleted       Boolean  @default(false) @map("is_deleted")
+  deletedByUserId BigInt?  @map("deleted_by_user_id")
+  deletedAt       DateTime? @map("deleted_at")
+
+  status   Lookup                 @relation("NotificationTemplateStatus", fields: [statusId], references: [id])
+  versions EmailTemplateVersion[]
+
+  @@map("notification_templates")
+}
+
+model EmailTemplateVersion {
+  id                     BigInt   @id @default(autoincrement())
+  notificationTemplateId Int      @map("notification_template_id")
+  version                Int
+  subject                String   @db.VarChar(255)
+  body                   String   @db.Text
+  isEnabled              Boolean  @default(true) @map("is_enabled")
+  changeNote             String?  @map("change_note") @db.VarChar(500)
+  createdByUserId        BigInt?  @map("created_by_user_id")
+  createdAt              DateTime @default(now()) @map("created_at")
+
+  notificationTemplate NotificationTemplate @relation(fields: [notificationTemplateId], references: [id])
+
+  @@unique([notificationTemplateId, version], map: "uq_etv_template_version")
+  @@map("email_template_versions")
+}
+
 // ===== SHAHRUKH: OpCo Portal models =====
-// Add OpCo models here. Only edit this block.
+
+model Report {
+  id                BigInt   @id @default(autoincrement())
+  month             Int
+  year              Int
+  opcoId            BigInt   @map("opco_id")
+  partnerId         BigInt   @map("partner_id")
+  fileId            BigInt?  @map("file_id")
+  currencyId        BigInt   @map("currency_id")
+  statusId          Int      @map("status_id")
+  version           Int      @default(1)
+  createdByUserId   BigInt?  @map("created_by_user_id")
+  uploadedByUserId  BigInt?  @map("uploaded_by_user_id")
+  updatedByUserId   BigInt?  @map("updated_by_user_id")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  isDeleted         Boolean  @default(false) @map("is_deleted")
+  deletedByUserId   BigInt?  @map("deleted_by_user_id")
+  deletedAt         DateTime? @map("deleted_at")
+
+  opco                   Opco                  @relation(fields: [opcoId], references: [id])
+  partner                Partner               @relation(fields: [partnerId], references: [id])
+  file                   File?                 @relation(fields: [fileId], references: [id])
+  currency               Currency              @relation(fields: [currencyId], references: [id])
+  status                 Lookup                @relation("ReportStatus", fields: [statusId], references: [id])
+  uploadedByUser         User?                 @relation("ReportUploader", fields: [uploadedByUserId], references: [id])
+  lineItems              ReportLineItem[]
+  changeRequests         ReportChangeRequest[]
+  opcoReconciliations    Reconciliation[]      @relation("OpcoReport")
+  partnerReconciliations Reconciliation[]      @relation("PartnerReport")
+
+  @@unique([opcoId, partnerId, year, month, version], map: "uq_reports")
+  @@map("reports")
+}
+
+model ReportLineItem {
+  id                  BigInt   @id @default(autoincrement())
+  reportId            BigInt   @map("report_id")
+  lineNumber          Int      @map("line_number")
+  description         String?  @db.VarChar(255)
+  usageAmount         Decimal? @map("usage_amount") @db.Decimal(18, 4)
+  usageUsd            Decimal? @map("usage_usd") @db.Decimal(18, 4)
+  amount              Decimal? @db.Decimal(18, 4)
+  exchangeRate        Decimal? @map("exchange_rate") @db.Decimal(18, 4)
+  usageUnit           String?  @map("usage_unit") @db.VarChar(32)
+  sourceColumns       Json?    @map("source_columns")
+  reconciliationBasis String?  @map("reconciliation_basis") @db.VarChar(64)
+  isDeleted           Boolean  @default(false) @map("is_deleted")
+  deletedByUserId     BigInt?  @map("deleted_by_user_id")
+  deletedAt           DateTime? @map("deleted_at")
+
+  report              Report              @relation(fields: [reportId], references: [id])
+  opcoLineItems       ReconciliationItem[] @relation("OpcoLineItem")
+  partnerLineItems    ReconciliationItem[] @relation("PartnerLineItem")
+
+  @@map("report_line_items")
+}
+
+model ReportChangeRequest {
+  id                BigInt    @id @default(autoincrement())
+  reportId          BigInt    @map("report_id")
+  requestedByUserId BigInt    @map("requested_by_user_id")
+  statusId          Int       @map("status_id")
+  reason            String?   @db.Text
+  decisionNote      String?   @map("decision_note") @db.Text
+  decidedByUserId   BigInt?   @map("decided_by_user_id")
+  decidedAt         DateTime? @map("decided_at")
+  completedAt       DateTime? @map("completed_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  report      Report @relation(fields: [reportId], references: [id])
+  requestedBy User   @relation("ReportChangeRequester", fields: [requestedByUserId], references: [id])
+  decidedBy   User?  @relation("ReportChangeDecider", fields: [decidedByUserId], references: [id])
+  status      Lookup @relation("ReportChangeRequestStatus", fields: [statusId], references: [id])
+
+  @@map("report_change_requests")
+}
+
+model Consolidation {
+  id              Int      @id @default(autoincrement())
+  opcoId          BigInt   @map("opco_id")
+  month           Int
+  year            Int
+  statusId        Int      @map("status_id")
+  totalAmountUsd  Decimal? @map("total_amount_usd") @db.Decimal(18, 4)
+  generatedAt     DateTime @map("generated_at")
+  runByUserId     BigInt   @map("run_by_user_id")
+  createdByUserId BigInt?  @map("created_by_user_id")
+  updatedByUserId BigInt?  @map("updated_by_user_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  isDeleted       Boolean  @default(false) @map("is_deleted")
+  deletedByUserId BigInt?  @map("deleted_by_user_id")
+  deletedAt       DateTime? @map("deleted_at")
+
+  opco    Opco                @relation(fields: [opcoId], references: [id])
+  status  Lookup              @relation("ConsolidationStatus", fields: [statusId], references: [id])
+  runBy   User                @relation("ConsolidationRunner", fields: [runByUserId], references: [id])
+  items   ConsolidationItem[]
+
+  @@unique([opcoId, year, month], map: "uq_consolidations")
+  @@map("consolidations")
+}
+
+model ConsolidationItem {
+  id               BigInt   @id @default(autoincrement())
+  consolidationId  Int      @map("consolidation_id")
+  partnerId        BigInt?  @map("partner_id")
+  partnerName      String   @map("partner_name") @db.VarChar(255)
+  serviceCode      String?  @map("service_code") @db.VarChar(128)
+  description      String   @db.VarChar(255)
+  usageAmount      Decimal  @map("usage_amount") @db.Decimal(18, 4)
+  usageUsd         Decimal? @map("usage_usd") @db.Decimal(18, 4)
+  exchangeRate     Decimal? @map("exchange_rate") @db.Decimal(18, 4)
+  usageUnit        String?  @map("usage_unit") @db.VarChar(32)
+  revenueBasis     String?  @map("revenue_basis") @db.VarChar(64)
+  createdByUserId  BigInt?  @map("created_by_user_id")
+  updatedByUserId  BigInt?  @map("updated_by_user_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+  isDeleted        Boolean  @default(false) @map("is_deleted")
+  deletedByUserId  BigInt?  @map("deleted_by_user_id")
+  deletedAt        DateTime? @map("deleted_at")
+
+  consolidation Consolidation @relation(fields: [consolidationId], references: [id])
+  partner       Partner?      @relation(fields: [partnerId], references: [id])
+
+  @@unique([consolidationId, partnerName, serviceCode], map: "uq_consolidation_items")
+  @@map("consolidation_items")
+}
 
 // ===== HASEEB: Dizlee Portal models =====
-// Add Dizlee models here. Only edit this block.
+
+model Reconciliation {
+  id                Int      @id @default(autoincrement())
+  opcoId            BigInt   @map("opco_id")
+  partnerId         BigInt   @map("partner_id")
+  month             Int
+  year              Int
+  opcoReportId      BigInt   @map("opco_report_id")
+  partnerReportId   BigInt   @map("partner_report_id")
+  statusId          Int      @map("status_id")
+  totalVariance     Decimal? @map("total_variance") @db.Decimal(18, 4)
+  matchedCount      Int?     @map("matched_count")
+  unmatchedCount    Int?     @map("unmatched_count")
+  runByUserId       BigInt   @map("run_by_user_id")
+  runAt             DateTime @map("run_at")
+  createdByUserId   BigInt?  @map("created_by_user_id")
+  updatedByUserId   BigInt?  @map("updated_by_user_id")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  isDeleted         Boolean  @default(false) @map("is_deleted")
+  deletedByUserId   BigInt?  @map("deleted_by_user_id")
+  deletedAt         DateTime? @map("deleted_at")
+
+  opco          Opco                 @relation(fields: [opcoId], references: [id])
+  partner       Partner              @relation(fields: [partnerId], references: [id])
+  opcoReport    Report               @relation("OpcoReport", fields: [opcoReportId], references: [id])
+  partnerReport Report               @relation("PartnerReport", fields: [partnerReportId], references: [id])
+  status        Lookup               @relation("ReconciliationStatus", fields: [statusId], references: [id])
+  runBy         User                 @relation("ReconciliationRunner", fields: [runByUserId], references: [id])
+  items         ReconciliationItem[]
+
+  @@unique([opcoId, partnerId, year, month, opcoReportId, partnerReportId], map: "uq_reconciliations")
+  @@map("reconciliations")
+}
+
+model ReconciliationItem {
+  id                 BigInt   @id @default(autoincrement())
+  reconciliationId   Int      @map("reconciliation_id")
+  serviceCode        String   @map("service_code") @db.VarChar(128)
+  description        String?  @db.VarChar(255)
+  opcoLineItemId     BigInt?  @map("opco_line_item_id")
+  partnerLineItemId  BigInt?  @map("partner_line_item_id")
+  opcoAmount         Decimal? @map("opco_amount") @db.Decimal(18, 4)
+  partnerAmount      Decimal? @map("partner_amount") @db.Decimal(18, 4)
+  varianceAmount     Decimal? @map("variance_amount") @db.Decimal(18, 4)
+  confirmedValue     Decimal? @map("confirmed_value") @db.Decimal(18, 4)
+  matchStatusId      Int      @map("match_status_id")
+  createdByUserId    BigInt?  @map("created_by_user_id")
+  updatedByUserId    BigInt?  @map("updated_by_user_id")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+  isDeleted          Boolean  @default(false) @map("is_deleted")
+  deletedByUserId    BigInt?  @map("deleted_by_user_id")
+  deletedAt          DateTime? @map("deleted_at")
+
+  reconciliation  Reconciliation  @relation(fields: [reconciliationId], references: [id])
+  opcoLineItem    ReportLineItem? @relation("OpcoLineItem", fields: [opcoLineItemId], references: [id])
+  partnerLineItem ReportLineItem? @relation("PartnerLineItem", fields: [partnerLineItemId], references: [id])
+  matchStatus     Lookup          @relation("ReconciliationMatchStatus", fields: [matchStatusId], references: [id])
+
+  @@unique([reconciliationId, serviceCode], map: "uq_reconciliation_items")
+  @@map("reconciliation_items")
+}
+
+model Invoice {
+  id                BigInt    @id @default(autoincrement())
+  invoiceNumber     String?   @unique @map("invoice_number") @db.VarChar(64)
+  month             Int
+  year              Int
+  opcoId            BigInt    @map("opco_id")
+  partnerId         BigInt?   @map("partner_id")
+  invoiceTypeId     Int       @map("invoice_type_id")
+  fileId            BigInt?   @map("file_id")
+  currencyId        BigInt    @map("currency_id")
+  uploadedByUserId  BigInt?   @map("uploaded_by_user_id")
+  invoiceStatusId   Int       @map("invoice_status_id")
+  paymentStatusId   Int?      @map("payment_status_id")
+  sentAt            DateTime? @map("sent_at")
+  acknowledgedAt    DateTime? @map("acknowledged_at")
+  paidAt            DateTime? @map("paid_at")
+  settledAt         DateTime? @map("settled_at")
+  createdByUserId   BigInt?   @map("created_by_user_id")
+  updatedByUserId   BigInt?   @map("updated_by_user_id")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  isDeleted         Boolean   @default(false) @map("is_deleted")
+  deletedByUserId   BigInt?   @map("deleted_by_user_id")
+  deletedAt         DateTime? @map("deleted_at")
+
+  opco           Opco                 @relation(fields: [opcoId], references: [id])
+  partner        Partner?             @relation(fields: [partnerId], references: [id])
+  invoiceType    Lookup               @relation("InvoiceType", fields: [invoiceTypeId], references: [id])
+  file           File?                @relation(fields: [fileId], references: [id])
+  currency       Currency             @relation(fields: [currencyId], references: [id])
+  uploadedByUser User?                @relation("InvoiceUploader", fields: [uploadedByUserId], references: [id])
+  invoiceStatus  Lookup               @relation("InvoiceStatus", fields: [invoiceStatusId], references: [id])
+  paymentStatus  Lookup?              @relation("InvoicePaymentStatus", fields: [paymentStatusId], references: [id])
+  items          InvoiceItem[]
+  activityLogs   InvoiceActivityLog[]
+
+  @@unique([opcoId, partnerId, month, year, invoiceTypeId], map: "uq_invoices_business_key")
+  @@map("invoices")
+}
+
+model InvoiceItem {
+  id              BigInt   @id @default(autoincrement())
+  invoiceId       BigInt   @map("invoice_id")
+  description     String   @db.VarChar(255)
+  quantity        Decimal  @db.Decimal(18, 4)
+  unitPrice       Decimal  @map("unit_price") @db.Decimal(18, 4)
+  discount        Decimal? @default(0) @db.Decimal(18, 4)
+  tax             Decimal? @default(0) @db.Decimal(18, 4)
+  lineTotal       Decimal  @map("line_total") @db.Decimal(18, 4)
+  sortOrder       Int      @default(0) @map("sort_order")
+  createdByUserId BigInt?  @map("created_by_user_id")
+  updatedByUserId BigInt?  @map("updated_by_user_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  isDeleted       Boolean  @default(false) @map("is_deleted")
+  deletedByUserId BigInt?  @map("deleted_by_user_id")
+  deletedAt       DateTime? @map("deleted_at")
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id])
+
+  @@map("invoice_items")
+}
+
+model InvoiceActivityLog {
+  id             BigInt   @id @default(autoincrement())
+  invoiceId      BigInt   @map("invoice_id")
+  actorUserId    BigInt   @map("actor_user_id")
+  actionId       Int      @map("action_id")
+  statusField    String?  @map("status_field") @db.VarChar(32)
+  previousStatus String?  @map("previous_status") @db.VarChar(64)
+  newStatus      String?  @map("new_status") @db.VarChar(64)
+  metadata       Json?
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id])
+  actor   User    @relation(fields: [actorUserId], references: [id])
+  action  Lookup  @relation("InvoiceActivityAction", fields: [actionId], references: [id])
+
+  @@map("invoice_activity_logs")
+}

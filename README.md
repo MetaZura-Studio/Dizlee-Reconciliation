@@ -2,7 +2,9 @@
 
 Multi-portal reconciliation platform built with Next.js, Prisma, and MySQL.
 
-## Tech stack
+## Database schema
+
+The database schema is defined in [`04_DATABASE_SCHEMA_FOR_CURSOR.md`](04_DATABASE_SCHEMA_FOR_CURSOR.md). All Prisma models must match this document exactly.
 
 - **Framework:** Next.js 14+ (App Router, TypeScript, strict mode)
 - **Database:** MySQL 8 (local dev) → TiDB Cloud (staging/production, Phase 4)
