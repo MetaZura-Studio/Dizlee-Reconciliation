@@ -1,11 +1,8 @@
-export default function DizleeDashboardPage() {
-  return (
-    <div className="mx-auto max-w-4xl space-y-4">
-      <h1 className="text-2xl font-semibold text-zinc-900">Dashboard</h1>
-      <p className="text-zinc-600">
-        Billing KPIs, report monitoring, and reconciliation overview will appear
-        here in Feature 2.
-      </p>
-    </div>
-  );
+import { DashboardView } from "@/components/dizlee/dashboard-view";
+import { currentPeriod, getDashboardData } from "@/lib/dizlee/dashboard";
+
+export default async function DizleeDashboardPage() {
+  const data = await getDashboardData(currentPeriod());
+
+  return <DashboardView initialData={data} />;
 }
