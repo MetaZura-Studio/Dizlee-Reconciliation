@@ -14,7 +14,18 @@
 
 ### NOT your scope
 - **UC-6B Consolidation** — Dizlee (Haseeb). You only upload reports that consolidation reads.
+- **Shared login / NextAuth** — Hussnain built this; see **Auth (already done)** below
 - Admin, Partner, Dizlee portals — never touch
+
+### Auth (already done)
+
+**Hussnain built:** `/login`, NextAuth (`app/api/auth/`), `middleware.ts`, seed users.  
+**You build:** `lib/opco/auth.ts` only — read session via `getServerSession(authOptions)`, verify `role === "opco"` + `opcoId`.  
+**Do not rebuild** login or NextAuth. Details: [`AUTH_SESSION.md`](./AUTH_SESSION.md)
+
+| Dev login | Password |
+|-----------|----------|
+| `opco@dizlee.com` | `Password123!` |
 
 ### Database (CRITICAL)
 - **Source of truth:** [`04_DATABASE_SCHEMA_FOR_CURSOR.md`](../04_DATABASE_SCHEMA_FOR_CURSOR.md)

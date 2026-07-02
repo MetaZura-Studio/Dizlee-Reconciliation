@@ -154,9 +154,55 @@ git checkout -b feature/shahrukh-next-task
 
 ---
 
-## 1. My own auth check
+## Shared auth — already done by Hussnain (do NOT rebuild)
 
-In `lib/opco/auth.ts`, write my own session/role check scoped to the OPCO role. Reference the existing `users` table (do not redefine it). Verify session has OPCO role and `opcoId` set; redirect to login otherwise.
+Hussnain has shipped **minimal shared login** on `develop`. You use it; you do not reimplement it.
+
+### What is already built
+
+| Piece | Location | Purpose |
+|-------|----------|---------|
+| Login page | `app/(auth)/login/` | Single sign-in for all roles |
+| NextAuth API | `app/api/auth/[...nextauth]/` | Credentials provider, JWT session |
+| Auth config | `lib/auth/options.ts`, `lib/auth/types.ts` | Session shape + provider setup |
+| Route protection | `middleware.ts` | Blocks unauthenticated access to `/opco/*`; enforces OpCo role |
+| Seed users | `prisma/seed.ts` | Local dev accounts (run `npm run seed`) |
+| Full reference | `docs/AUTH_SESSION.md` | Session fields, seed passwords, examples |
+
+After login, **OpCo users are redirected to `/opco`**. `middleware.ts` already rejects non-OpCo roles from OpCo routes.
+
+### Local dev login (after `npm run seed`)
+
+| Email | Password | Portal |
+|-------|----------|--------|
+| `opco@dizlee.com` | `Password123!` | `/opco` |
+
+### What I build (my auth work only)
+
+1. Create **`lib/opco/auth.ts`** — my own OpCo-scoped session helper (I own this file).
+2. Use `getServerSession(authOptions)` from `@/lib/auth/options` to read the JWT.
+3. Verify `session.user.role === "opco"` and `session.user.opcoId` is set.
+4. Use `opcoId` from the session to scope **all** OpCo queries and API routes.
+5. In OpCo layouts/API routes, redirect to `/login` if the session is missing or wrong role.
+
+**Allowed imports:** `@/lib/auth/options`, `@/lib/auth/types`  
+**Do NOT import:** `lib/admin/`, `lib/partner/`, `lib/dizlee/`  
+**Do NOT build:** login page, NextAuth route, password reset, or shared middleware — Hussnain owns those.
+
+Example pattern (also in `docs/AUTH_SESSION.md`):
+
+```typescript
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth/options";
+
+export async function requireOpcoSession() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id || session.user.role !== "opco" || !session.user.opcoId) {
+    return null;
+  }
+  return session.user;
+}
+```
 
 ---
 
@@ -180,8 +226,7 @@ Reference SRS: `SRS_Reconciliation_Professional.docx`. Full ownership map: `docs
 
 ### Phase 1 — Auth + navigation
 - UC-01-OPCO: Access Side Navigation Bar (Dashboard, Upload Report, Reports history, Invoices, Notifications; footer Settings)
-- Shared login at `/login` is already implemented — see [`docs/AUTH_SESSION.md`](../docs/AUTH_SESSION.md)
-- Implement `lib/opco/auth.ts` using `getServerSession(authOptions)`; verify OPCO role + `opcoId`
+- **Auth:** use shared login (see section above) — implement `lib/opco/auth.ts` only; add sign-out in OpCo shell if needed via `signOut()` from `next-auth/react`
 
 ### Phase 2 — Dashboard + Reports
 - UC-02-OPCO: View Dashboard (OpCo) — period-scoped partner submission summary

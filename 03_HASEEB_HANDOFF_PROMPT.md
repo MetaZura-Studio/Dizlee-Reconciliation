@@ -133,9 +133,55 @@ git checkout -b feature/haseeb-reconciliation
 
 ---
 
-## 1. My own auth check
+## Shared auth — already done by Hussnain (do NOT rebuild)
 
-In `lib/dizlee/auth.ts`, write my own session/role check scoped to the CLIENT (Dizlee) role. Reference the existing `users` table (do not redefine it). Verify session has CLIENT role; redirect to login otherwise.
+Hussnain has shipped **minimal shared login** on `develop`. You use it; you do not reimplement it.
+
+### What is already built
+
+| Piece | Location | Purpose |
+|-------|----------|---------|
+| Login page | `app/(auth)/login/` | Single sign-in for all roles |
+| NextAuth API | `app/api/auth/[...nextauth]/` | Credentials provider, JWT session |
+| Auth config | `lib/auth/options.ts`, `lib/auth/types.ts` | Session shape + provider setup |
+| Route protection | `middleware.ts` | Blocks unauthenticated access to `/dizlee/*`; enforces Dizlee (CLIENT) role |
+| Seed users | `prisma/seed.ts` | Local dev accounts (run `npm run seed`) |
+| Full reference | `docs/AUTH_SESSION.md` | Session fields, seed passwords, examples |
+
+After login, **Dizlee users are redirected to `/dizlee`**. `middleware.ts` already rejects non-CLIENT roles from Dizlee routes.
+
+### Local dev login (after `npm run seed`)
+
+| Email | Password | Portal |
+|-------|----------|--------|
+| `client@dizlee.com` | `Password123!` | `/dizlee` |
+
+### What I build (my auth work only)
+
+1. Create **`lib/dizlee/auth.ts`** — my own Dizlee-scoped session helper (I own this file).
+2. Use `getServerSession(authOptions)` from `@/lib/auth/options` to read the JWT.
+3. Verify `session.user.role === "client"` (Dizlee / CLIENT lookup code).
+4. Use `session.user.id` as the acting Dizlee user on writes (audit, notifications, etc.).
+5. In Dizlee layouts/API routes, redirect to `/login` if the session is missing or wrong role.
+
+**Allowed imports:** `@/lib/auth/options`, `@/lib/auth/types`  
+**Do NOT import:** `lib/admin/`, `lib/partner/`, `lib/opco/`  
+**Do NOT build:** login page, NextAuth route, password reset, or shared middleware — Hussnain owns those.
+
+Example pattern (also in `docs/AUTH_SESSION.md`):
+
+```typescript
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth/options";
+
+export async function requireDizleeSession() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id || session.user.role !== "client") {
+    return null;
+  }
+  return session.user;
+}
+```
 
 ---
 
@@ -166,8 +212,7 @@ Reference SRS: `SRS_Reconciliation_Professional.docx`. Full ownership map: `docs
 
 ### Phase 1 — Auth + navigation
 - UC-01-CLIENT: Access Side Navigation Bar (Dashboard, Reports history, Invoices, Reconciliation, Consolidation, Notifications, Reporting)
-- Shared login at `/login` is already implemented — see [`docs/AUTH_SESSION.md`](../docs/AUTH_SESSION.md)
-- Implement `lib/dizlee/auth.ts` using `getServerSession(authOptions)`; verify CLIENT role
+- **Auth:** use shared login (see section above) — implement `lib/dizlee/auth.ts` only; add sign-out in Dizlee shell if needed via `signOut()` from `next-auth/react`
 - Header notifications bell → Notifications inbox tab
 
 ### Phase 2 — Dashboard

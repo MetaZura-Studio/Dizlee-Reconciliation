@@ -16,6 +16,16 @@
 - **UC-6B Consolidation** (Generate, History, Excel) — SRS actor is Dizlee, not OpCo
 - Reupload approve/reject, monitoring tabs, create OpCo invoice, Reporting page
 
+### Auth (already done)
+
+**Hussnain built:** `/login`, NextAuth (`app/api/auth/`), `middleware.ts`, seed users.  
+**You build:** `lib/dizlee/auth.ts` only — read session via `getServerSession(authOptions)`, verify `role === "client"`.  
+**Do not rebuild** login or NextAuth. Details: [`AUTH_SESSION.md`](./AUTH_SESSION.md)
+
+| Dev login | Password |
+|-----------|----------|
+| `client@dizlee.com` | `Password123!` |
+
 ### Database (CRITICAL)
 - **Source of truth:** [`04_DATABASE_SCHEMA_FOR_CURSOR.md`](../04_DATABASE_SCHEMA_FOR_CURSOR.md)
 - All tables **already migrated** — build against existing schema
