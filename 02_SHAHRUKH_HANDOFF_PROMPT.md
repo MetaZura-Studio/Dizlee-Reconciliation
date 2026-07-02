@@ -1,82 +1,198 @@
 # Cursor prompt — Shahrukh (OpCo Portal)
 
-## Before opening Cursor
+**Repo:** https://github.com/MetaZura-Studio/Dizlee-Reconciliation
+
+---
+
+## Before opening Cursor — run this in your terminal
 
 ```bash
-git clone <REPO_URL_FROM_HUSSNAIN>
-cd dizlee-reconciliation-platform
+git clone https://github.com/MetaZura-Studio/Dizlee-Reconciliation.git
+cd Dizlee-Reconciliation
 git checkout develop
 git pull origin develop
 git checkout -b feature/shahrukh-opco-setup
 cp .env.example .env.local
-docker compose up -d
+cp .env.example .env
+# Edit both files — set DATABASE_URL with your local MySQL password
+# URL-encode special chars in password (e.g. @ becomes %40)
 npm install
 npx prisma migrate dev
 npm run dev
 ```
 
-Confirm the app runs at `http://localhost:3000` before continuing. Your local MySQL (from `docker compose up -d`) is yours alone — it is not shared with Hussnain or Haseeb. You do not need anyone else's local database or any cloud database to start working.
+Confirm the app runs at `http://localhost:3000/opco` before continuing.
 
-## Then paste everything below into Cursor's chat (Composer/Agent mode), opened in this repo
+**Local database:** Each developer runs their **own** local MySQL on their Mac (no Docker, no shared cloud DB). See `docs/LOCAL_DATABASE_SETUP.md` for MySQL install steps.
 
 ---
 
-I am Shahrukh, one of three developers on the Dizlee Reconciliation Platform. The repo has already been bootstrapped by Hussnain with Next.js, Prisma, NextAuth, Tailwind/shadcn, CI/CD, and his own Admin/Partner portal work. I am now building my own portal — **the OpCo Portal** — completely independently. I do not touch any code outside my own folders, I do not depend on Hussnain's or Haseeb's auth/UI components, and I build my own scoped versions of everything I need.
+## Then paste everything below into Cursor's chat (Agent mode), opened in this repo
+
+---
+
+I am Shahrukh, one of three developers on the **Dizlee Reconciliation Platform**. The repo has been bootstrapped by Hussnain with Next.js, Prisma, Tailwind, CI/CD, the full database schema, and placeholder portals. I am building **the OpCo Portal** only. I do not touch code outside my own folders.
+
+## Database / ERD rules (CRITICAL — read before writing any code)
+
+The **single source of truth** for the database is:
+
+```
+04_DATABASE_SCHEMA_FOR_CURSOR.md
+```
+
+**All 27 tables are already defined and migrated** — including my tables (`reports`, `report_line_items`, `report_change_requests`, `consolidations`, `consolidation_items`). The Prisma models already exist in `prisma/schema.prisma`.
+
+### What I must NEVER do without explicit approval from Hussnain
+
+- Change any column name, type, constraint, or index defined in the ERD
+- Modify tables in Hussnain's block (`lookup_types`, `users`, `opcos`, `partners`, etc.)
+- Modify tables in Haseeb's block (`reconciliations`, `invoices`, etc.)
+- Revert any **[FIX APPLIED]** items documented in `04_DATABASE_SCHEMA_FOR_CURSOR.md`
+- Add new tables or columns on my own — **ask Hussnain explicitly first**
+- Run `prisma migrate` that alters anything outside my comment block without approval
+
+### What I CAN do
+
+- **Read** Hussnain's and Haseeb's tables via Prisma queries (read-only)
+- **Edit** only inside my Prisma block: `// ===== SHAHRUKH: OpCo Portal models =====` — and only if Hussnain has explicitly approved a change
+- **Build** screens, API routes, and business logic in my own folders against the existing schema
+- Write **new migrations** only for changes inside my block that Hussnain has approved
+
+If Cursor suggests changing the database schema, **stop and ask Hussnain before applying**. Do not improvise schema changes.
+
+---
 
 ## My ownership boundary (do not cross these)
-- `app/(opco)/` — all my screens
-- `app/api/opco/` — all my API routes (create this folder if it doesn't exist)
-- `lib/opco/` — my own auth/session check, validation schemas, utilities
-- `components/opco/` — my own data table, modal, file upload component (do NOT import from `components/admin/` or `components/partner/` — build my own minimal versions scoped to what my screens need)
-- `prisma/schema.prisma` — I ONLY add/edit models inside the `// ===== SHAHRUKH: OpCo Portal models =====` comment block. I never touch the Hussnain or Haseeb blocks.
 
-I never wait on Hussnain or Haseeb to finish anything. If I need to reference a table they own (read-only), I query it directly — that's a read, not a build dependency.
+| Folder / file | I own it? |
+|---------------|-----------|
+| `app/(opco)/` | Yes — all my screens |
+| `app/api/opco/` | Yes — all my API routes |
+| `lib/opco/` | Yes — my auth check, validation, utilities |
+| `components/opco/` | Yes — my own UI components |
+| `prisma/schema.prisma` — Shahrukh block only | Yes — read/write only with ERD rules above |
+| `app/(admin)/`, `app/(partner)/`, `app/(dizlee)/` | **No — never touch** |
+| `lib/admin/`, `lib/partner/`, `lib/dizlee/` | **No — never touch** |
+| `components/admin/`, `components/partner/`, `components/dizlee/` | **No — never touch** |
+| Hussnain's or Haseeb's Prisma blocks | **No — never touch** |
 
-## Tech stack (already set up by Hussnain, just use it — do not reinitialize)
-Next.js 14+ App Router, TypeScript strict, Prisma + MySQL (TiDB-compatible — keep schema vanilla-MySQL, no proprietary features), NextAuth.js (Credentials, JWT), Tailwind + shadcn/ui, React Hook Form + Zod, TanStack Table + TanStack Query, ExcelJS for report parsing/export, Vitest + RTL + Playwright.
+Do NOT import from `components/admin/`, `components/partner/`, or `lib/admin/`. Build my own minimal scoped versions.
+
+I never wait on Hussnain or Haseeb to finish. If I need their tables, I query them read-only.
+
+---
+
+## Tech stack (already set up — do not reinitialize)
+
+Next.js 16 App Router, TypeScript strict, Prisma + local MySQL (TiDB-compatible schema), Tailwind CSS, React Hook Form + Zod, TanStack Table + TanStack Query, ExcelJS, Vitest + Playwright.
+
+---
+
+## Git & GitHub workflow (follow exactly)
+
+### Branch strategy
+
+| Branch | Purpose |
+|--------|---------|
+| `main` | Production — **never push here directly** |
+| `develop` | Integration — **never push here directly** (protected) |
+| `feature/shahrukh-*` | My work branches — **always branch from `develop`** |
+
+### Every task — step by step
+
+```bash
+# 1. Start from latest develop
+git checkout develop
+git pull origin develop
+
+# 2. Create feature branch
+git checkout -b feature/shahrukh-upload-report
+
+# 3. Build, commit often
+git add .
+git commit -m "feat(opco): add report upload screen"
+
+# 4. Push feature branch to GitHub
+git push -u origin feature/shahrukh-upload-report
+
+# 5. On GitHub: Open Pull Request → base: develop ← compare: feature/shahrukh-upload-report
+# 6. Wait for CI to pass (Lint, Unit Tests, Build — all must be green)
+# 7. Request review from Hussnain or Haseeb
+# 8. Merge PR on GitHub (do not merge locally)
+# 9. Delete feature branch after merge
+
+# 10. Start next task from develop again
+git checkout develop
+git pull origin develop
+git checkout -b feature/shahrukh-next-task
+```
+
+### Rules
+
+- **Never** push directly to `develop` or `main`
+- **Never** force push (`git push --force`)
+- One branch per use case: `feature/shahrukh-<short-description>`
+- PRs always target **`develop`**, never `main`
+- Pull `develop` before starting each new branch
+- If CI fails on my PR, fix on the same feature branch and push again — CI re-runs automatically
+- When Hussnain's or Haseeb's PRs merge to `develop`, run `npx prisma migrate dev` locally to stay in sync
+
+### Using GitHub Desktop (alternative to terminal)
+
+1. **Current Branch** → select `develop` → **Pull origin**
+2. **Branch** → **New Branch** → `feature/shahrukh-upload-report`
+3. Make changes → commit with message → **Push origin**
+4. GitHub website → **Compare & pull request** → base: `develop`
+5. Wait for CI green → Merge → delete branch
+
+---
 
 ## 1. My own auth check
 
-In `lib/opco/auth.ts`, write my own lightweight session/role check scoped to the OPCO role only. Read the existing `users` table (already modeled by Hussnain in his Prisma block — do not redefine it, just reference it). Verify session has `role: 'OPCO'` and `opcoId` set; redirect to login otherwise.
+In `lib/opco/auth.ts`, write my own session/role check scoped to the OPCO role. Reference the existing `users` table (do not redefine it). Verify session has OPCO role and `opcoId` set; redirect to login otherwise.
 
-## 2. My Prisma models
+---
 
-Add to my comment block in `prisma/schema.prisma`: `reports`, `report_line_items`, `report_change_requests`, `consolidations`, `consolidation_items`. Cross-reference the ERD (ask me for it if you don't have it) for exact columns. Apply these fixes we already identified project-wide: FK columns should match the type of the PK they reference (use BIGINT, not VARCHAR), and every table gets the shared soft-delete pattern (`is_deleted`, `deleted_at`, `deleted_by_user_id`).
+## 2. Database — use existing schema, do not recreate
 
-Run: `npx prisma migrate dev --name opco_portal_schema`
+My Prisma models **already exist** in `prisma/schema.prisma` under the Shahrukh block:
+
+- `reports`
+- `report_line_items`
+- `report_change_requests`
+- `consolidations`
+- `consolidation_items`
+
+Match `04_DATABASE_SCHEMA_FOR_CURSOR.md` exactly. **Do not run a new init migration.** Only run `npx prisma migrate dev` if Hussnain approved a change to my block.
+
+---
 
 ## 3. Build these use cases, in this order
 
 ### Phase 1 — Auth + navigation
-- UC-01-OPCO: Access Side Navigation Bar (5 items: Dashboard, Upload Report, Reports history, Invoices, Notifications; footer Settings)
-- Login/role redirect using my own auth check from step 1
+- UC-01-OPCO: Access Side Navigation Bar (Dashboard, Upload Report, Reports history, Invoices, Notifications; footer Settings)
+- Login/role redirect using my own auth check
 
 ### Phase 2 — Reports
-- UC-02-OPCO: View Dashboard (OpCo) — period selector, summary cards (partners to report for / submitted / missing), reports table per linked partner, Dizlee→OpCo invoice section
-- UC-03-OPCO: Upload Report (OpCo) — Excel upload (.xlsx/.xls), period + partner selection (partner dropdown limited to admin-linked partners only — query `opco_partner_links`, owned by Hussnain's block, read-only), parse via ExcelJS, one report per period+partner+OpCo (reject duplicates), FX conversion using `currency_monthly_rates` (Hussnain's block, read-only)
-- UC-04-OPCO: Request Report Upload (OpCo) — creates a `report_change_requests` row with status PENDING, notifies Dizlee (stub the notification call for now if Haseeb's notification module isn't ready yet — do not block on it, just leave a TODO comment and a no-op function)
-- UC-05-OPCO: View Reports (OpCo) — paginated grid, period filter, sort by Uploaded/Period/Filename
-- UC-06-OPCO: Find reports in Reports history (same screen as above, this is the filter/sort behavior — implement together with UC-05)
+- UC-02-OPCO: View Dashboard (OpCo)
+- UC-03-OPCO: Upload Report (OpCo) — Excel upload, partner dropdown from `opco_partner_links` (read-only)
+- UC-04-OPCO: Request Report Upload (OpCo)
+- UC-05-OPCO / UC-06-OPCO: View Reports (OpCo) — paginated grid, filters
 
-### Phase 3 — Invoices (view + acknowledge only — OpCo does not upload invoices)
-- UC-08-OPCO: View and respond to invoices (OpCo) — list Dizlee-issued invoices scoped to this OpCo, auto-acknowledge on detail open, show payment status read-only (Dizlee marks payment, not OpCo)
-- UC-07-OPCO: Print Invoice (OpCo) — browser print/Save-as-PDF using a print-friendly layout of the invoice detail screen
+### Phase 3 — Invoices (view + acknowledge only)
+- UC-08-OPCO: View and respond to invoices (OpCo)
+- UC-07-OPCO: Print Invoice (OpCo)
 
 ### Phase 4 — Consolidation
-- UC-6B: Consolidation (OpCo monthly) — this one is actually triggered by Dizlee per the SRS, but the OpCo-side data (linked partner reports) must be ready for it to run. Build the aggregation logic and Excel export here since it reads OpCo-side data I own: validate every partner linked to the OpCo has uploaded a report for the period before allowing generation, aggregate by partner+service+description+unit, store in `consolidations`/`consolidation_items`, Excel export with filename pattern `opco_consolidated_{opcoId}_{period}.xlsx`
+- UC-6B: Consolidation (OpCo monthly) — aggregation + Excel export into `consolidations`/`consolidation_items`
 
 ### Phase 5 — Self-QA
-- Write unit tests for the report upload validation logic and the consolidation aggregation logic
-- Write at least one integration test per API route I built
-- Manually walk through every use case above against its Main/Alternate/Exception courses from the SRS
+- Unit tests for report upload validation and consolidation aggregation
+- Integration test per API route I built
 
-## 4. Git workflow
+---
 
-- One branch per use case or logical chunk: `feature/shahrukh-<short-desc>`, branched from `develop`
-- PRs target `develop`, never `main`
-- I am never the sole approver of my own PR — tag Hussnain or Haseeb as reviewer
-- Don't touch `app/(admin)/`, `app/(partner)/`, `app/(dizlee)/`, or anyone else's `lib/`/`components/` subfolder without flagging it first
+## 4. When I'm done
 
-## 5. When I'm done with my own Phase 0–5
-
-Stop and wait for Hussnain to coordinate the joint Phase 6 (QA) — merging all three portals, end-to-end QA, UAT with the manager. I don't need to merge with Haseeb's work myself; that's handled in the joint integration phase.
+Stop and coordinate with Hussnain for joint QA / UAT. Do not merge `develop` → `main` myself.
