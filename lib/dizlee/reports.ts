@@ -1,0 +1,231 @@
+import type { Prisma } from "@prisma/client";
+
+import { currentPeriod, type DashboardPeriod } from "@/lib/dizlee/dashboard";
+import { prisma } from "@/lib/prisma";
+
+export type ReportSortField = "uploaded" | "period" | "filename";
+export type SortDirection = "asc" | "desc";
+
+export type ReportListFilters = {
+  month: number;
+  year: number;
+  opcoId?: string;
+  partnerId?: string;
+  sortBy: ReportSortField;
+  sortDir: SortDirection;
+  page: number;
+};
+
+export type ReportListItem = {
+  id: string;
+  period: DashboardPeriod;
+  opcoName: string;
+  partnerName: string;
+  filename: string | null;
+  uploadedAt: string;
+  status: string;
+  uploadedBy: string;
+};
+
+export type ReportListResult = {
+  items: ReportListItem[];
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  totalCount: number;
+  filters: ReportListFilters;
+};
+
+export type ReportDetail = {
+  id: string;
+  period: DashboardPeriod;
+  lane: string;
+  opcoName: string;
+  partnerName: string;
+  uploadedBy: string;
+  uploadedAt: string;
+  status: string;
+  filename: string | null;
+  fileSizeBytes: number | null;
+  previewUrl: string | null;
+};
+
+export type ReportFilterOptions = {
+  opcos: Array<{ id: string; name: string }>;
+  partners: Array<{ id: string; name: string }>;
+};
+
+const PAGE_SIZE = 10;
+
+function periodFromParts(month: number, year: number): DashboardPeriod {
+  return {
+    month,
+    year,
+    label: new Date(year, month - 1, 1).toLocaleString("en-US", {
+      month: "long",
+      year: "numeric",
+    }),
+  };
+}
+
+function uploadedByLabel(roleCode: string | undefined): string {
+  switch (roleCode) {
+    case "OPCO":
+      return "OpCo";
+    case "PARTNER":
+      return "Partner";
+    case "CLIENT":
+      return "Dizlee";
+    case "ADMIN":
+      return "Admin";
+    default:
+      return "Unknown";
+  }
+}
+
+function buildOrderBy(
+  sortBy: ReportSortField,
+  sortDir: SortDirection,
+): Prisma.ReportOrderByWithRelationInput | Prisma.ReportOrderByWithRelationInput[] {
+  switch (sortBy) {
+    case "period":
+      return [{ year: sortDir }, { month: sortDir }];
+    case "filename":
+      return { file: { filename: sortDir } };
+    case "uploaded":
+    default:
+      return { createdAt: sortDir };
+  }
+}
+
+export function parseReportListFilters(
+  searchParams: URLSearchParams,
+): ReportListFilters {
+  const fallback = currentPeriod();
+  const month = Number(searchParams.get("month"));
+  const year = Number(searchParams.get("year"));
+  const page = Number(searchParams.get("page"));
+  const sortBy = searchParams.get("sortBy");
+  const sortDir = searchParams.get("sortDir");
+
+  return {
+    month:
+      Number.isInteger(month) && month >= 1 && month <= 12 ? month : fallback.month,
+    year:
+      Number.isInteger(year) && year >= 2000 && year <= 2100 ? year : fallback.year,
+    opcoId: searchParams.get("opcoId") ?? undefined,
+    partnerId: searchParams.get("partnerId") ?? undefined,
+    sortBy:
+      sortBy === "period" || sortBy === "filename" || sortBy === "uploaded"
+        ? sortBy
+        : "uploaded",
+    sortDir: sortDir === "asc" ? "asc" : "desc",
+    page: Number.isInteger(page) && page >= 1 ? page : 1,
+  };
+}
+
+export async function getReportFilterOptions(): Promise<ReportFilterOptions> {
+  const [opcos, partners] = await Promise.all([
+    prisma.opco.findMany({
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+    prisma.partner.findMany({
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+  ]);
+
+  return {
+    opcos: opcos.map((row) => ({ id: row.id.toString(), name: row.name })),
+    partners: partners.map((row) => ({ id: row.id.toString(), name: row.name })),
+  };
+}
+
+export async function listReports(
+  filters: ReportListFilters,
+): Promise<ReportListResult> {
+  const where: Prisma.ReportWhereInput = {
+    month: filters.month,
+    year: filters.year,
+  };
+
+  if (filters.opcoId) {
+    where.opcoId = BigInt(filters.opcoId);
+  }
+  if (filters.partnerId) {
+    where.partnerId = BigInt(filters.partnerId);
+  }
+
+  const [totalCount, rows] = await Promise.all([
+    prisma.report.count({ where }),
+    prisma.report.findMany({
+      where,
+      orderBy: buildOrderBy(filters.sortBy, filters.sortDir),
+      skip: (filters.page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+      include: {
+        opco: { select: { name: true } },
+        partner: { select: { name: true } },
+        status: { select: { code: true } },
+        file: { select: { filename: true } },
+        uploadedByUser: { select: { role: { select: { code: true } } } },
+      },
+    }),
+  ]);
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+
+  return {
+    items: rows.map((row) => ({
+      id: row.id.toString(),
+      period: periodFromParts(row.month, row.year),
+      opcoName: row.opco.name,
+      partnerName: row.partner.name,
+      filename: row.file?.filename ?? null,
+      uploadedAt: row.createdAt.toISOString(),
+      status: row.status.code.replaceAll("_", " "),
+      uploadedBy: uploadedByLabel(row.uploadedByUser?.role?.code),
+    })),
+    page: filters.page,
+    pageSize: PAGE_SIZE,
+    totalPages,
+    totalCount,
+    filters,
+  };
+}
+
+export async function getReportDetail(id: string): Promise<ReportDetail | null> {
+  const report = await prisma.report.findFirst({
+    where: { id: BigInt(id) },
+    include: {
+      opco: { select: { name: true } },
+      partner: { select: { name: true } },
+      status: { select: { code: true } },
+      file: { select: { id: true, filename: true, sizeBytes: true } },
+      uploadedByUser: { select: { role: { select: { code: true } } } },
+    },
+  });
+
+  if (!report) {
+    return null;
+  }
+
+  const fileId = report.file?.id.toString() ?? null;
+
+  return {
+    id: report.id.toString(),
+    period: periodFromParts(report.month, report.year),
+    lane: `${report.opco.name} / ${report.partner.name}`,
+    opcoName: report.opco.name,
+    partnerName: report.partner.name,
+    uploadedBy: uploadedByLabel(report.uploadedByUser?.role?.code),
+    uploadedAt: report.createdAt.toISOString(),
+    status: report.status.code.replaceAll("_", " "),
+    filename: report.file?.filename ?? null,
+    fileSizeBytes: report.file?.sizeBytes ? Number(report.file.sizeBytes) : null,
+    previewUrl: fileId ? `/api/dizlee/reports/${report.id.toString()}/preview` : null,
+  };
+}
+
+export { PAGE_SIZE as REPORTS_PAGE_SIZE };

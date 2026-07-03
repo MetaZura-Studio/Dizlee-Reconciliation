@@ -42,6 +42,10 @@ function formatDateTime(value: string | null): string {
   });
 }
 
+function reportsLink(month: number, year: number): string {
+  return `/dizlee/reports?month=${month}&year=${year}&from=dashboard`;
+}
+
 type DashboardViewProps = {
   initialData: DashboardData;
 };
@@ -148,7 +152,11 @@ export function DashboardView({ initialData }: DashboardViewProps) {
 
       <BillingSectionView billing={billing} kpis={kpis} />
 
-      <ReportsReconSectionView reportsRecon={reportsRecon} />
+      <ReportsReconSectionView
+        reportsRecon={reportsRecon}
+        month={month}
+        year={year}
+      />
 
       <section className="space-y-3">
         <h2 className="text-lg font-medium text-zinc-900">Upload activity</h2>
@@ -318,9 +326,15 @@ function DirectionPanelView({
 
 function ReportsReconSectionView({
   reportsRecon,
+  month,
+  year,
 }: {
   reportsRecon: DashboardData["reportsRecon"];
+  month: number;
+  year: number;
 }) {
+  const reportsHref = reportsLink(month, year);
+
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between gap-4">
@@ -335,7 +349,7 @@ function ReportsReconSectionView({
         </div>
         <div className="text-right text-sm">
           <Link
-            href="/dizlee/reports"
+            href={reportsHref}
             className="text-zinc-600 hover:text-zinc-900"
           >
             View reports
@@ -351,12 +365,12 @@ function ReportsReconSectionView({
         <KpiCard
           label="OpCo reports missing"
           value={reportsRecon.opcoReportsMissing}
-          href="/dizlee/reports"
+          href={reportsHref}
         />
         <KpiCard
           label="Partner reports missing"
           value={reportsRecon.partnerReportsMissing}
-          href="/dizlee/reports"
+          href={reportsHref}
         />
       </div>
 
