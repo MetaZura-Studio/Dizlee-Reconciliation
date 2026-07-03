@@ -1,10 +1,21 @@
-import { PlaceholderPage } from "@/components/opco/PlaceholderPage";
+import { ReportUploadForm } from "@/components/opco/ReportUploadForm";
+import { requireOpcoSession } from "@/lib/opco/auth";
+import { getLinkedPartnersForOpco } from "@/lib/opco/queries/partners";
 
-export default function OpcoUploadPage() {
+export default async function OpcoUploadPage() {
+  const session = await requireOpcoSession();
+  const partners = await getLinkedPartnersForOpco(BigInt(session.opcoId));
+
   return (
-    <PlaceholderPage
-      title="Upload Report"
-      description="Upload monthly Excel reports for linked partners."
-    />
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold">Upload Report</h1>
+        <p className="mt-1 text-zinc-600">
+          Upload a monthly Excel report for a linked partner.
+        </p>
+      </div>
+
+      <ReportUploadForm partners={partners} />
+    </div>
   );
 }
