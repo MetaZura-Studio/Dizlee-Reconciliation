@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 type ReportsTabsProps = {
   active: "reports" | "reupload" | "monitoring";
 };
@@ -7,11 +9,16 @@ type ReportsTabsProps = {
 const TABS: Array<{
   id: ReportsTabsProps["active"];
   label: string;
+  href?: string;
   disabled?: boolean;
 }> = [
-  { id: "reports", label: "Reports" },
-  { id: "reupload", label: "Reupload requests", disabled: true },
-  { id: "monitoring", label: "Reports monitoring", disabled: true },
+  { id: "reports", label: "Reports", href: "/dizlee/reports" },
+  { id: "reupload", label: "Reupload requests", href: "/dizlee/reports/reupload" },
+  {
+    id: "monitoring",
+    label: "Reports monitoring",
+    disabled: true,
+  },
 ];
 
 export function ReportsTabs({ active }: ReportsTabsProps) {
@@ -21,20 +28,34 @@ export function ReportsTabs({ active }: ReportsTabsProps) {
         {TABS.map((tab) => {
           const isActive = tab.id === active;
 
+          if (tab.disabled || !tab.href) {
+            return (
+              <span
+                key={tab.id}
+                className={`border-b-2 px-1 pb-3 text-sm font-medium ${
+                  isActive
+                    ? "border-zinc-900 text-zinc-900"
+                    : "cursor-not-allowed border-transparent text-zinc-400"
+                }`}
+                title="Coming in a later feature"
+              >
+                {tab.label}
+              </span>
+            );
+          }
+
           return (
-            <span
+            <Link
               key={tab.id}
+              href={tab.href}
               className={`border-b-2 px-1 pb-3 text-sm font-medium ${
                 isActive
                   ? "border-zinc-900 text-zinc-900"
-                  : tab.disabled
-                    ? "cursor-not-allowed border-transparent text-zinc-400"
-                    : "border-transparent text-zinc-500"
+                  : "border-transparent text-zinc-500 hover:text-zinc-700"
               }`}
-              title={tab.disabled ? "Coming in a later feature" : undefined}
             >
               {tab.label}
-            </span>
+            </Link>
           );
         })}
       </nav>
