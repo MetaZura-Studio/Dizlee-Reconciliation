@@ -1,10 +1,16 @@
 import { IntimationsView } from "@/components/dizlee/intimations-view";
+import { PartnerNotificationsView } from "@/components/dizlee/partner-notifications-view";
 import { NotificationsTabs } from "@/components/dizlee/notifications-tabs";
 import {
   getIntimationFormOptions,
   listIntimations,
   parseIntimationListFilters,
 } from "@/lib/dizlee/notifications/intimations";
+import {
+  getPartnerNotificationFormOptions,
+  listPartnerNotifications,
+  parsePartnerNotificationListFilters,
+} from "@/lib/dizlee/notifications/partners";
 
 type DizleeNotificationsPageProps = {
   searchParams: Promise<{ tab?: string; page?: string }>;
@@ -13,10 +19,9 @@ type DizleeNotificationsPageProps = {
 function ComingSoonTab({
   tab,
 }: {
-  tab: "partners" | "reminders" | "history" | "inbox";
+  tab: "reminders" | "history" | "inbox";
 }) {
   const labels: Record<typeof tab, string> = {
-    partners: "Partners (UC-08)",
     reminders: "Reminders (UC-09)",
     history: "History (UC-9A)",
     inbox: "Inbox",
@@ -40,20 +45,32 @@ export default async function DizleeNotificationsPage({
 }: DizleeNotificationsPageProps) {
   const params = await searchParams;
 
-  if (
-    params.tab &&
-    params.tab !== "intimations" &&
-    (params.tab === "partners" ||
-      params.tab === "reminders" ||
-      params.tab === "history" ||
-      params.tab === "inbox")
-  ) {
-    return <ComingSoonTab tab={params.tab} />;
-  }
-
   const query = new URLSearchParams();
   if (params.page) {
     query.set("page", params.page);
+  }
+
+  if (params.tab === "partners") {
+    const filters = parsePartnerNotificationListFilters(query);
+    const [initialResult, initialFormOptions] = await Promise.all([
+      listPartnerNotifications(filters),
+      getPartnerNotificationFormOptions(),
+    ]);
+
+    return (
+      <PartnerNotificationsView
+        initialResult={initialResult}
+        initialFormOptions={initialFormOptions}
+      />
+    );
+  }
+
+  if (
+    params.tab === "reminders" ||
+    params.tab === "history" ||
+    params.tab === "inbox"
+  ) {
+    return <ComingSoonTab tab={params.tab} />;
   }
 
   const filters = parseIntimationListFilters(query);
