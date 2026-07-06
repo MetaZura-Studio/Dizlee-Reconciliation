@@ -1,10 +1,47 @@
-export default function DizleeInvoicesPage() {
+import { InvoicesListView } from "@/components/dizlee/invoices-list-view";
+import {
+  getInvoiceFilterOptions,
+  listInvoices,
+  parseInvoiceListFilters,
+} from "@/lib/dizlee/invoices";
+
+type DizleeInvoicesPageProps = {
+  searchParams: Promise<{
+    month?: string;
+    year?: string;
+    from?: string;
+    opcoId?: string;
+    partnerId?: string;
+    paymentStatus?: string;
+    sortBy?: string;
+    sortDir?: string;
+    page?: string;
+  }>;
+};
+
+export default async function DizleeInvoicesPage({
+  searchParams,
+}: DizleeInvoicesPageProps) {
+  const params = await searchParams;
+  const query = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(params)) {
+    if (value && key !== "from") {
+      query.set(key, value);
+    }
+  }
+
+  const filters = parseInvoiceListFilters(query);
+  const [initialResult, filterOptions] = await Promise.all([
+    listInvoices(filters),
+    getInvoiceFilterOptions(),
+  ]);
+
   return (
-    <div className="mx-auto max-w-4xl space-y-4">
-      <h1 className="text-2xl font-semibold text-zinc-900">Invoices</h1>
-      <p className="text-zinc-600">
-        Invoice list, lifecycle tracker, and monitoring — Features 7–10.
-      </p>
-    </div>
+    <InvoicesListView
+      initialResult={initialResult}
+      initialFilterOptions={filterOptions}
+      fromDashboard={params.from === "dashboard"}
+    />
   );
 }
