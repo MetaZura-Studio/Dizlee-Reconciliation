@@ -5,6 +5,7 @@ import { SignOutButton } from "@/components/auth/sign-out-button";
 import { DizleeSidebarNav } from "@/components/dizlee/sidebar-nav";
 import { NotificationsBell } from "@/components/dizlee/notifications-bell";
 import { requireDizleeSession } from "@/lib/dizlee/auth";
+import { getUnreadInboxCount } from "@/lib/dizlee/notifications/inbox";
 
 export default async function DizleeLayout({
   children,
@@ -15,6 +16,8 @@ export default async function DizleeLayout({
   if (!user) {
     redirect("/login?callbackUrl=/dizlee");
   }
+
+  const unreadCount = await getUnreadInboxCount(user.id);
 
   return (
     <div className="flex min-h-screen bg-white">
@@ -37,7 +40,7 @@ export default async function DizleeLayout({
           >
             Back to home
           </Link>
-          <NotificationsBell />
+          <NotificationsBell initialUnreadCount={unreadCount} />
         </header>
         <main className="flex-1 p-8">{children}</main>
       </div>
