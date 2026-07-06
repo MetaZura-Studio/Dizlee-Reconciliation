@@ -234,6 +234,7 @@ Reference SRS: `SRS_Reconciliation_Professional.docx`. Full ownership map: `docs
 - UC-5B: Confirm invoice payment status — Mark payment done
 - **Lifecycle tracker tab** — stepper + activity log per invoice
 - **Invoice monitoring tab** — missing invoice lanes per period
+- **E2E dependencies (other devs):** Partner **invoice upload** (`PARTNER_TO_CLIENT`) is not built yet — UC-04 list, UC-05 auto-ack, and invoice monitoring need Partner portal data or manual DB seed. Dizlee **create Client → OpCo invoice** is Haseeb (Feature 9+). OpCo auto-ack on Dizlee → OpCo invoices is **Shahrukh** (UC-08-OPCO). Dashboard billing USD totals need **admin FX rates** (Hussnain). See `docs/HANDOFF_HASEEB.md` → Cross-team dependencies.
 
 ### Phase 6 — Consolidation (full ownership — SRS actor is Dizlee)
 - UC-6B: Consolidation (OpCo monthly)

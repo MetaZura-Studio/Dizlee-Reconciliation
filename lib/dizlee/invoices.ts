@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 
 import { currentPeriod, type DashboardPeriod } from "@/lib/dizlee/dashboard";
+import { getLookupId } from "@/lib/dizlee/lookups";
 import { prisma } from "@/lib/prisma";
 
 export type InvoiceSortField = "uploaded" | "period";
@@ -58,6 +59,7 @@ export type InvoiceDetail = {
   invoiceStatus: string;
   paymentStatus: string;
   uploadedAt: string;
+  acknowledgedAt: string | null;
   totalAmount: number;
   currencyCode: string;
   filename: string | null;
@@ -65,6 +67,11 @@ export type InvoiceDetail = {
   previewUrl: string | null;
   isDigital: boolean;
   lineItems: InvoiceLineItemView[];
+};
+
+export type InvoiceDetailResult = {
+  detail: InvoiceDetail;
+  acknowledged: boolean;
 };
 
 export type InvoiceFilterOptions = {
@@ -256,6 +263,97 @@ export async function getInvoiceDetail(id: string): Promise<InvoiceDetail | null
     return null;
   }
 
+  return mapInvoiceDetail(invoice);
+}
+
+export async function getInvoiceDetailForViewer(
+  id: string,
+  viewerUserId: string,
+): Promise<InvoiceDetailResult | null> {
+  const acknowledged = await maybeAcknowledgePartnerInvoice(id, viewerUserId);
+  const detail = await getInvoiceDetail(id);
+  if (!detail) {
+    return null;
+  }
+  return { detail, acknowledged };
+}
+
+async function maybeAcknowledgePartnerInvoice(
+  invoiceId: string,
+  actorUserId: string,
+): Promise<boolean> {
+  const invoice = await prisma.invoice.findFirst({
+    where: { id: BigInt(invoiceId) },
+    include: {
+      invoiceType: { select: { code: true } },
+      invoiceStatus: { select: { code: true } },
+    },
+  });
+
+  if (!invoice) {
+    return false;
+  }
+  if (invoice.invoiceType.code !== "PARTNER_TO_CLIENT") {
+    return false;
+  }
+  if (invoice.invoiceStatus.code !== "SENT") {
+    return false;
+  }
+
+  const [acknowledgedStatusId, actionId] = await Promise.all([
+    getLookupId("INVOICE_STATUS", "ACKNOWLEDGED"),
+    getLookupId("AUDIT_ACTION", "INVOICE_STATUS_UPDATED"),
+  ]);
+
+  const now = new Date();
+  const actorId = BigInt(actorUserId);
+
+  await prisma.$transaction([
+    prisma.invoice.update({
+      where: { id: invoice.id },
+      data: {
+        invoiceStatusId: acknowledgedStatusId,
+        acknowledgedAt: now,
+        updatedByUserId: actorId,
+      },
+    }),
+    prisma.invoiceActivityLog.create({
+      data: {
+        invoiceId: invoice.id,
+        actorUserId: actorId,
+        actionId,
+        statusField: "invoice_status",
+        previousStatus: "SENT",
+        newStatus: "ACKNOWLEDGED",
+      },
+    }),
+  ]);
+
+  return true;
+}
+
+function mapInvoiceDetail(
+  invoice: Prisma.InvoiceGetPayload<{
+    include: {
+      opco: { select: { name: true } };
+      partner: { select: { name: true } };
+      invoiceType: { select: { code: true } };
+      invoiceStatus: { select: { code: true } };
+      paymentStatus: { select: { code: true } };
+      currency: { select: { isoCode: true } };
+      file: { select: { id: true; filename: true; sizeBytes: true } };
+      items: {
+        orderBy: { sortOrder: "asc" };
+        select: {
+          description: true;
+          quantity: true;
+          unitPrice: true;
+          lineTotal: true;
+        };
+      };
+    };
+  }>,
+): InvoiceDetail {
   const isDigital = invoice.invoiceType.code === "CLIENT_TO_OPCO";
   const hasFile = Boolean(invoice.file);
 
@@ -269,6 +367,7 @@ export async function getInvoiceDetail(id: string): Promise<InvoiceDetail | null
     invoiceStatus: invoice.invoiceStatus.code.replaceAll("_", " "),
     paymentStatus: invoice.paymentStatus?.code.replaceAll("_", " ") ?? "—",
     uploadedAt: invoice.createdAt.toISOString(),
+    acknowledgedAt: invoice.acknowledgedAt?.toISOString() ?? null,
     totalAmount: invoice.items.reduce((sum, item) => sum + toNumber(item.lineTotal), 0),
     currencyCode: invoice.currency.isoCode,
     filename: invoice.file?.filename ?? null,
