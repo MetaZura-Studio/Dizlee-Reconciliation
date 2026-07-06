@@ -80,6 +80,6 @@ Track these when testing Dizlee features, writing PR test plans, or handing off 
 | **UC-5B Mark payment** (planned) | Paid invoices in DB | Needs invoices with payment workflow data; often blocked until create-invoice + Partner upload exist. |
 | **Invoice monitoring tab** (planned) | Partner upload + Dizlee create invoice | Missing-lane counts need both invoice directions populated per period. |
 | **Dashboard billing KPIs** | Invoices + FX rates (admin) | Revenue USD totals need paid `CLIENT_TO_OPCO` invoices and `currency_monthly_rates` for the period (Hussnain admin). |
-| UC-6B Consolidation | OpCo reports with line items for all linked partners | Every linked partner must have an OpCo-side report for the period before generate. |
+| **UC-6B Consolidation** (`/dizlee/consolidation`) | **OpCo report upload** for every linked partner | Generate aggregates OpCo-uploaded `report_line_items` only. **Every linked partner** must have an OpCo-side report with line items for the period (`/opco/upload`, Shahrukh). Lanes without reports show as **missing** on the Generate tab readiness check until uploaded. |
 
 **Reporting / handoff:** When invoice or reconciliation features are demoed or signed off, call out explicitly what is still missing on other portals (Partner report upload, Partner invoice upload, OpCo ack, admin FX rates, etc.) — full end-to-end flows cannot be validated until those ship.
