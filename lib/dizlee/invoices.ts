@@ -1,6 +1,10 @@
 import type { Prisma } from "@prisma/client";
 
 import { currentPeriod, type DashboardPeriod } from "@/lib/dizlee/dashboard";
+import {
+  getInvoiceBankDetails,
+  type InvoiceBankDetails,
+} from "@/lib/dizlee/invoice-bank-details";
 import { getLookupId } from "@/lib/dizlee/lookups";
 import { prisma } from "@/lib/prisma";
 
@@ -56,18 +60,52 @@ export type InvoiceDetail = {
   opcoName: string;
   partnerName: string | null;
   direction: string;
+  invoiceTypeCode: string;
   invoiceStatus: string;
   paymentStatus: string;
   uploadedAt: string;
   acknowledgedAt: string | null;
+  paidAt: string | null;
   totalAmount: number;
   currencyCode: string;
   filename: string | null;
   fileSizeBytes: number | null;
   previewUrl: string | null;
   isDigital: boolean;
+  bankDetails: InvoiceBankDetails | null;
+  canMarkPayment: boolean;
   lineItems: InvoiceLineItemView[];
 };
+
+export type CreateOpcoInvoiceLineInput = {
+  description: string;
+  quantity: number;
+  unitPrice: number;
+};
+
+export type CreateOpcoInvoiceInput = {
+  month: number;
+  year: number;
+  opcoId: string;
+  currencyId?: string;
+  lineItems: CreateOpcoInvoiceLineInput[];
+};
+
+export type CreateOpcoInvoiceFormOptions = {
+  opcos: Array<{ id: string; name: string; defaultCurrencyId: string }>;
+  currencies: Array<{ id: string; isoCode: string; symbol: string | null }>;
+  bankDetails: InvoiceBankDetails | null;
+};
+
+export class InvoiceActionError extends Error {
+  status: number;
+
+  constructor(message: string, status = 400) {
+    super(message);
+    this.name = "InvoiceActionError";
+    this.status = status;
+  }
+}
 
 export type InvoiceDetailResult = {
   detail: InvoiceDetail;
@@ -169,6 +207,240 @@ export async function getInvoiceFilterOptions(): Promise<InvoiceFilterOptions> {
   };
 }
 
+export async function getCreateOpcoInvoiceFormOptions(): Promise<CreateOpcoInvoiceFormOptions> {
+  const [opcos, currencies, bankDetails] = await Promise.all([
+    prisma.opco.findMany({
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, defaultCurrencyId: true },
+    }),
+    prisma.currency.findMany({
+      orderBy: { isoCode: "asc" },
+      select: { id: true, isoCode: true, symbol: true },
+    }),
+    getInvoiceBankDetails(),
+  ]);
+
+  return {
+    opcos: opcos.map((row) => ({
+      id: row.id.toString(),
+      name: row.name,
+      defaultCurrencyId: row.defaultCurrencyId.toString(),
+    })),
+    currencies: currencies.map((row) => ({
+      id: row.id.toString(),
+      isoCode: row.isoCode,
+      symbol: row.symbol,
+    })),
+    bankDetails,
+  };
+}
+
+function roundMoney(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+function buildInvoiceNumber(
+  opcoId: bigint,
+  month: number,
+  year: number,
+): string {
+  return `INV-${year}${String(month).padStart(2, "0")}-${opcoId.toString()}-${Date.now()}`;
+}
+
+function validateCreateInput(input: CreateOpcoInvoiceInput): CreateOpcoInvoiceLineInput[] {
+  if (!Number.isInteger(input.month) || input.month < 1 || input.month > 12) {
+    throw new InvoiceActionError("Invalid invoice period month.");
+  }
+  if (!Number.isInteger(input.year) || input.year < 2000 || input.year > 2100) {
+    throw new InvoiceActionError("Invalid invoice period year.");
+  }
+  if (!input.opcoId) {
+    throw new InvoiceActionError("OpCo is required.");
+  }
+  if (!Array.isArray(input.lineItems) || input.lineItems.length === 0) {
+    throw new InvoiceActionError("At least one line item is required.");
+  }
+
+  return input.lineItems.map((item, index) => {
+    const description = item.description?.trim();
+    if (!description) {
+      throw new InvoiceActionError(`Line item ${index + 1} description is required.`);
+    }
+    if (!Number.isFinite(item.quantity) || item.quantity <= 0) {
+      throw new InvoiceActionError(`Line item ${index + 1} quantity must be greater than 0.`);
+    }
+    if (!Number.isFinite(item.unitPrice) || item.unitPrice < 0) {
+      throw new InvoiceActionError(`Line item ${index + 1} unit price must be 0 or greater.`);
+    }
+    return {
+      description,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+    };
+  });
+}
+
+export async function createOpcoInvoice(
+  input: CreateOpcoInvoiceInput,
+  actorUserId: string,
+): Promise<InvoiceDetail> {
+  const lineItems = validateCreateInput(input);
+  const actorId = BigInt(actorUserId);
+  const opcoId = BigInt(input.opcoId);
+
+  const opco = await prisma.opco.findFirst({
+    where: { id: opcoId },
+    select: { id: true, defaultCurrencyId: true },
+  });
+  if (!opco) {
+    throw new InvoiceActionError("OpCo not found.", 404);
+  }
+
+  const currencyId = input.currencyId
+    ? BigInt(input.currencyId)
+    : opco.defaultCurrencyId;
+
+  const currency = await prisma.currency.findFirst({
+    where: { id: currencyId },
+    select: { id: true },
+  });
+  if (!currency) {
+    throw new InvoiceActionError("Currency not found.", 404);
+  }
+
+  const [invoiceTypeId, sentStatusId, unpaidStatusId, actionId] = await Promise.all([
+    getLookupId("INVOICE_TYPE", "CLIENT_TO_OPCO"),
+    getLookupId("INVOICE_STATUS", "SENT"),
+    getLookupId("PAYMENT_STATUS", "UNPAID"),
+    getLookupId("AUDIT_ACTION", "INVOICE_STATUS_UPDATED"),
+  ]);
+
+  const duplicate = await prisma.invoice.findFirst({
+    where: {
+      opcoId,
+      partnerId: null,
+      month: input.month,
+      year: input.year,
+      invoiceTypeId,
+    },
+    select: { id: true },
+  });
+  if (duplicate) {
+    throw new InvoiceActionError(
+      "An invoice for this OpCo and period already exists.",
+      409,
+    );
+  }
+
+  const now = new Date();
+  const invoiceNumber = buildInvoiceNumber(opcoId, input.month, input.year);
+
+  const invoice = await prisma.invoice.create({
+    data: {
+      invoiceNumber,
+      month: input.month,
+      year: input.year,
+      opcoId,
+      partnerId: null,
+      invoiceTypeId,
+      currencyId,
+      invoiceStatusId: sentStatusId,
+      paymentStatusId: unpaidStatusId,
+      sentAt: now,
+      createdByUserId: actorId,
+      updatedByUserId: actorId,
+      items: {
+        create: lineItems.map((item, index) => ({
+          description: item.description,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          lineTotal: roundMoney(item.quantity * item.unitPrice),
+          sortOrder: index,
+          createdByUserId: actorId,
+          updatedByUserId: actorId,
+        })),
+      },
+    },
+    select: { id: true },
+  });
+
+  await prisma.invoiceActivityLog.create({
+    data: {
+      invoiceId: invoice.id,
+      actorUserId: actorId,
+      actionId,
+      statusField: "invoice_status",
+      previousStatus: "DRAFT",
+      newStatus: "SENT",
+    },
+  });
+
+  const detail = await getInvoiceDetail(invoice.id.toString());
+  if (!detail) {
+    throw new InvoiceActionError("Failed to load created invoice.", 500);
+  }
+  return detail;
+}
+
+export async function markInvoicePaymentDone(
+  invoiceId: string,
+  actorUserId: string,
+): Promise<InvoiceDetail> {
+  const invoice = await prisma.invoice.findFirst({
+    where: { id: BigInt(invoiceId) },
+    include: {
+      invoiceType: { select: { code: true } },
+      paymentStatus: { select: { code: true } },
+    },
+  });
+
+  if (!invoice) {
+    throw new InvoiceActionError("Invoice not found.", 404);
+  }
+  if (invoice.invoiceType.code !== "CLIENT_TO_OPCO") {
+    throw new InvoiceActionError("Only Dizlee → OpCo invoices can be marked paid.");
+  }
+  if (invoice.paymentStatus?.code === "PAID") {
+    throw new InvoiceActionError("Invoice is already marked as paid.");
+  }
+
+  const [paidStatusId, actionId] = await Promise.all([
+    getLookupId("PAYMENT_STATUS", "PAID"),
+    getLookupId("AUDIT_ACTION", "INVOICE_PAYMENT_RECORDED"),
+  ]);
+
+  const now = new Date();
+  const actorId = BigInt(actorUserId);
+  const previousStatus = invoice.paymentStatus?.code ?? "UNPAID";
+
+  await prisma.$transaction([
+    prisma.invoice.update({
+      where: { id: invoice.id },
+      data: {
+        paymentStatusId: paidStatusId,
+        paidAt: now,
+        updatedByUserId: actorId,
+      },
+    }),
+    prisma.invoiceActivityLog.create({
+      data: {
+        invoiceId: invoice.id,
+        actorUserId: actorId,
+        actionId,
+        statusField: "payment_status",
+        previousStatus,
+        newStatus: "PAID",
+      },
+    }),
+  ]);
+
+  const detail = await getInvoiceDetail(invoiceId);
+  if (!detail) {
+    throw new InvoiceActionError("Failed to load updated invoice.", 500);
+  }
+  return detail;
+}
+
 export async function listInvoices(
   filters: InvoiceListFilters,
 ): Promise<InvoiceListResult> {
@@ -263,7 +535,11 @@ export async function getInvoiceDetail(id: string): Promise<InvoiceDetail | null
     return null;
   }
 
-  return mapInvoiceDetail(invoice);
+  const bankDetails = invoice.invoiceType.code === "CLIENT_TO_OPCO"
+    ? await getInvoiceBankDetails()
+    : null;
+
+  return mapInvoiceDetail(invoice, bankDetails);
 }
 
 export async function getInvoiceDetailForViewer(
@@ -353,9 +629,11 @@ function mapInvoiceDetail(
       };
     };
   }>,
+  bankDetails: InvoiceBankDetails | null = null,
 ): InvoiceDetail {
   const isDigital = invoice.invoiceType.code === "CLIENT_TO_OPCO";
   const hasFile = Boolean(invoice.file);
+  const paymentCode = invoice.paymentStatus?.code ?? null;
 
   return {
     id: invoice.id.toString(),
@@ -364,10 +642,12 @@ function mapInvoiceDetail(
     opcoName: invoice.opco.name,
     partnerName: invoice.partner?.name ?? null,
     direction: directionLabel(invoice.invoiceType.code),
+    invoiceTypeCode: invoice.invoiceType.code,
     invoiceStatus: invoice.invoiceStatus.code.replaceAll("_", " "),
-    paymentStatus: invoice.paymentStatus?.code.replaceAll("_", " ") ?? "—",
+    paymentStatus: paymentCode?.replaceAll("_", " ") ?? "—",
     uploadedAt: invoice.createdAt.toISOString(),
     acknowledgedAt: invoice.acknowledgedAt?.toISOString() ?? null,
+    paidAt: invoice.paidAt?.toISOString() ?? null,
     totalAmount: invoice.items.reduce((sum, item) => sum + toNumber(item.lineTotal), 0),
     currencyCode: invoice.currency.isoCode,
     filename: invoice.file?.filename ?? null,
@@ -376,6 +656,9 @@ function mapInvoiceDetail(
       ? `/api/dizlee/invoices/${invoice.id.toString()}/preview`
       : null,
     isDigital,
+    bankDetails: isDigital ? bankDetails : null,
+    canMarkPayment:
+      invoice.invoiceType.code === "CLIENT_TO_OPCO" && paymentCode !== "PAID",
     lineItems: invoice.items.map((item) => ({
       description: item.description,
       quantity: toNumber(item.quantity),

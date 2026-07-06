@@ -1,0 +1,425 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+
+import { InvoicesTabs } from "@/components/dizlee/invoices-tabs";
+import type { InvoiceFilterOptions } from "@/lib/dizlee/invoices";
+import type {
+  InvoiceLifecycleDetail,
+  LifecycleListFilters,
+  LifecycleListItem,
+  LifecycleListResult,
+} from "@/lib/dizlee/invoice-lifecycle";
+
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+function formatDateTime(value: string | null): string {
+  if (!value) {
+    return "—";
+  }
+  return new Date(value).toLocaleString("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
+
+function buildListQuery(filters: LifecycleListFilters): string {
+  const params = new URLSearchParams({
+    month: String(filters.month),
+    year: String(filters.year),
+    page: String(filters.page),
+  });
+  if (filters.opcoId) {
+    params.set("opcoId", filters.opcoId);
+  }
+  if (filters.partnerId) {
+    params.set("partnerId", filters.partnerId);
+  }
+  return params.toString();
+}
+
+type InvoicesLifecycleViewProps = {
+  initialResult: LifecycleListResult;
+  initialFilterOptions: InvoiceFilterOptions;
+  initialDetail: InvoiceLifecycleDetail | null;
+};
+
+export function InvoicesLifecycleView({
+  initialResult,
+  initialFilterOptions,
+  initialDetail,
+}: InvoicesLifecycleViewProps) {
+  const [month, setMonth] = useState(initialResult.filters.month);
+  const [year, setYear] = useState(initialResult.filters.year);
+  const [opcoId, setOpcoId] = useState(initialResult.filters.opcoId ?? "");
+  const [partnerId, setPartnerId] = useState(initialResult.filters.partnerId ?? "");
+
+  const [result, setResult] = useState<LifecycleListResult>(initialResult);
+  const [filterOptions, setFilterOptions] =
+    useState<InvoiceFilterOptions>(initialFilterOptions);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const [selectedId, setSelectedId] = useState<string | null>(
+    initialResult.items[0]?.id ?? null,
+  );
+  const [detail, setDetail] = useState<InvoiceLifecycleDetail | null>(initialDetail);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const skipAutoReload = useRef(true);
+  const selectedIdRef = useRef<string | null>(initialResult.items[0]?.id ?? null);
+
+  const fetchDetail = useCallback(async (invoiceId: string) => {
+    setDetailLoading(true);
+    try {
+      const response = await fetch(
+        `/api/dizlee/invoices/lifecycle?invoiceId=${invoiceId}`,
+      );
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Failed to load lifecycle detail");
+      }
+      setDetail(payload.data as InvoiceLifecycleDetail);
+    } catch (detailError) {
+      setError(
+        detailError instanceof Error
+          ? detailError.message
+          : "Failed to load lifecycle detail",
+      );
+    } finally {
+      setDetailLoading(false);
+    }
+  }, []);
+
+  const handleSelect = (invoiceId: string) => {
+    selectedIdRef.current = invoiceId;
+    setSelectedId(invoiceId);
+    void fetchDetail(invoiceId);
+  };
+
+  const loadList = useCallback(
+    async (filters: LifecycleListFilters, preferredId?: string | null) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await fetch(
+          `/api/dizlee/invoices/lifecycle?${buildListQuery(filters)}`,
+        );
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.error ?? "Failed to load lifecycle invoices");
+        }
+        const nextResult = payload.data as LifecycleListResult;
+        setResult(nextResult);
+        setFilterOptions(payload.filterOptions as InvoiceFilterOptions);
+
+        const nextId = nextResult.items.some((item) => item.id === preferredId)
+          ? preferredId!
+          : (nextResult.items[0]?.id ?? null);
+        selectedIdRef.current = nextId;
+        setSelectedId(nextId);
+        if (nextId) {
+          await fetchDetail(nextId);
+        } else {
+          setDetail(null);
+        }
+      } catch (loadError) {
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : "Failed to load lifecycle invoices",
+        );
+      } finally {
+        setLoading(false);
+      }
+    },
+    [fetchDetail],
+  );
+
+  useEffect(() => {
+    if (skipAutoReload.current) {
+      skipAutoReload.current = false;
+      return;
+    }
+    void loadList(
+      {
+        month,
+        year,
+        opcoId: opcoId || undefined,
+        partnerId: partnerId || undefined,
+        page: 1,
+      },
+      selectedIdRef.current,
+    );
+  }, [month, year, opcoId, partnerId, loadList]);
+
+  const goToPage = (nextPage: number) => {
+    void loadList(
+      {
+        month,
+        year,
+        opcoId: opcoId || undefined,
+        partnerId: partnerId || undefined,
+        page: nextPage,
+      },
+      selectedId,
+    );
+  };
+
+  const yearOptions = [];
+  for (let value = year + 1; value >= year - 4; value -= 1) {
+    yearOptions.push(value);
+  }
+
+  return (
+    <div className="mx-auto max-w-6xl space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold text-zinc-900">Dizlee - Invoices</h1>
+        <p className="mt-1 text-sm text-zinc-600">
+          Invoice lifecycle stepper and activity log per invoice.
+        </p>
+      </div>
+
+      <InvoicesTabs active="lifecycle" />
+
+      <section className="rounded-lg border border-zinc-200 bg-zinc-50 p-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <label className="text-sm">
+            <span className="mb-1 block text-xs text-zinc-500">Period (month)</span>
+            <select
+              value={month}
+              onChange={(event) => setMonth(Number(event.target.value))}
+              className="w-full rounded-md border border-zinc-300 px-3 py-1.5 text-sm"
+            >
+              {MONTHS.map((name, index) => (
+                <option key={name} value={index + 1}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm">
+            <span className="mb-1 block text-xs text-zinc-500">Year</span>
+            <select
+              value={year}
+              onChange={(event) => setYear(Number(event.target.value))}
+              className="w-full rounded-md border border-zinc-300 px-3 py-1.5 text-sm"
+            >
+              {yearOptions.map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm">
+            <span className="mb-1 block text-xs text-zinc-500">OpCo</span>
+            <select
+              value={opcoId}
+              onChange={(event) => setOpcoId(event.target.value)}
+              className="w-full rounded-md border border-zinc-300 px-3 py-1.5 text-sm"
+            >
+              <option value="">All OpCos</option>
+              {filterOptions.opcos.map((opco) => (
+                <option key={opco.id} value={opco.id}>
+                  {opco.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm">
+            <span className="mb-1 block text-xs text-zinc-500">Partner</span>
+            <select
+              value={partnerId}
+              onChange={(event) => setPartnerId(event.target.value)}
+              className="w-full rounded-md border border-zinc-300 px-3 py-1.5 text-sm"
+            >
+              <option value="">All Partners</option>
+              {filterOptions.partners.map((partner) => (
+                <option key={partner.id} value={partner.id}>
+                  {partner.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      </section>
+
+      {loading ? <p className="text-sm text-zinc-500">Loading invoices…</p> : null}
+      {error ? (
+        <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          {error}
+        </div>
+      ) : null}
+
+      {!loading && !error ? (
+        result.items.length > 0 ? (
+          <div className="grid gap-6 lg:grid-cols-2">
+            <div className="space-y-3">
+              <div className="overflow-hidden rounded-lg border border-zinc-200">
+                <table className="min-w-full divide-y divide-zinc-200 text-sm">
+                  <thead className="bg-zinc-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left font-medium text-zinc-600">
+                        Invoice
+                      </th>
+                      <th className="px-4 py-3 text-left font-medium text-zinc-600">
+                        Status
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-200 bg-white">
+                    {result.items.map((row: LifecycleListItem) => (
+                      <tr
+                        key={row.id}
+                        className={
+                          row.id === selectedId ? "bg-zinc-50" : "cursor-pointer"
+                        }
+                        onClick={() => handleSelect(row.id)}
+                      >
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-zinc-900">
+                            {row.invoiceNumber ?? row.id}
+                          </p>
+                          <p className="text-xs text-zinc-500">
+                            {row.direction} · {row.opcoName}
+                            {row.partnerName ? ` / ${row.partnerName}` : ""}
+                          </p>
+                        </td>
+                        <td className="px-4 py-3 text-zinc-600">
+                          {row.invoiceStatus}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="flex items-center justify-between text-sm text-zinc-600">
+                <p>
+                  Page {result.page} / {result.totalPages}
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={result.page <= 1}
+                    onClick={() => goToPage(result.page - 1)}
+                    className="rounded-md border border-zinc-300 px-3 py-1 disabled:opacity-40"
+                  >
+                    Prev
+                  </button>
+                  <button
+                    type="button"
+                    disabled={result.page >= result.totalPages}
+                    onClick={() => goToPage(result.page + 1)}
+                    className="rounded-md border border-zinc-300 px-3 py-1 disabled:opacity-40"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-zinc-200 bg-white p-4">
+              {detailLoading ? (
+                <p className="text-sm text-zinc-500">Loading lifecycle…</p>
+              ) : detail ? (
+                <div className="space-y-6">
+                  <div>
+                    <h2 className="text-lg font-medium text-zinc-900">
+                      {detail.invoice.invoiceNumber ?? "Invoice"}
+                    </h2>
+                    <p className="text-sm text-zinc-600">
+                      {detail.invoice.direction} · {detail.invoice.period.label}
+                    </p>
+                  </div>
+
+                  <div>
+                    <h3 className="text-sm font-medium text-zinc-700">Lifecycle</h3>
+                    <ol className="mt-3 space-y-3">
+                      {detail.steps.map((step, index) => (
+                        <li key={step.code} className="flex gap-3">
+                          <div
+                            className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-medium ${
+                              step.completed
+                                ? "bg-emerald-600 text-white"
+                                : "bg-zinc-200 text-zinc-600"
+                            }`}
+                          >
+                            {index + 1}
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-zinc-900">
+                              {step.label}
+                            </p>
+                            <p className="text-xs text-zinc-500">
+                              {formatDateTime(step.completedAt)}
+                            </p>
+                          </div>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+
+                  <div>
+                    <h3 className="text-sm font-medium text-zinc-700">
+                      Activity log
+                    </h3>
+                    {detail.activities.length > 0 ? (
+                      <ul className="mt-3 space-y-3">
+                        {detail.activities.map((entry) => (
+                          <li
+                            key={entry.id}
+                            className="rounded-md border border-zinc-200 p-3 text-sm"
+                          >
+                            <p className="font-medium text-zinc-900">
+                              {entry.action}
+                            </p>
+                            <p className="text-zinc-600">
+                              {entry.actorName} · {formatDateTime(entry.createdAt)}
+                            </p>
+                            {entry.previousStatus || entry.newStatus ? (
+                              <p className="text-xs text-zinc-500">
+                                {entry.statusField ?? "status"}:{" "}
+                                {entry.previousStatus ?? "—"} →{" "}
+                                {entry.newStatus ?? "—"}
+                              </p>
+                            ) : null}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="mt-2 text-sm text-zinc-500">
+                        No activity recorded yet.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-zinc-500">Select an invoice.</p>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-lg border border-zinc-200 bg-white p-8 text-center">
+            <p className="font-medium text-zinc-900">No invoices</p>
+            <p className="mt-1 text-sm text-zinc-600">
+              Try adjusting filters or create an invoice for this period.
+            </p>
+          </div>
+        )
+      ) : null}
+    </div>
+  );
+}

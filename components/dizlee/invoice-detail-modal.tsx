@@ -1,6 +1,7 @@
 "use client";
 
 import type { InvoiceDetail } from "@/lib/dizlee/invoices";
+import type { InvoiceBankDetails } from "@/lib/dizlee/invoice-bank-details";
 
 function formatBytes(size: number | null): string {
   if (size === null) {
@@ -30,16 +31,65 @@ function formatMoney(amount: number, currencyCode: string): string {
   }).format(amount);
 }
 
+function BankDetailsBlock({ details }: { details: InvoiceBankDetails }) {
+  return (
+    <dl className="mt-2 grid gap-2 text-sm sm:grid-cols-2">
+      {details.bankName ? (
+        <div>
+          <dt className="text-zinc-500">Bank</dt>
+          <dd className="text-zinc-900">{details.bankName}</dd>
+        </div>
+      ) : null}
+      {details.accountName ? (
+        <div>
+          <dt className="text-zinc-500">Account name</dt>
+          <dd className="text-zinc-900">{details.accountName}</dd>
+        </div>
+      ) : null}
+      {details.accountNumber ? (
+        <div>
+          <dt className="text-zinc-500">Account number</dt>
+          <dd className="text-zinc-900">{details.accountNumber}</dd>
+        </div>
+      ) : null}
+      {details.iban ? (
+        <div>
+          <dt className="text-zinc-500">IBAN</dt>
+          <dd className="text-zinc-900">{details.iban}</dd>
+        </div>
+      ) : null}
+      {details.swift ? (
+        <div>
+          <dt className="text-zinc-500">SWIFT</dt>
+          <dd className="text-zinc-900">{details.swift}</dd>
+        </div>
+      ) : null}
+      {details.reference ? (
+        <div className="sm:col-span-2">
+          <dt className="text-zinc-500">Payment reference</dt>
+          <dd className="text-zinc-900">{details.reference}</dd>
+        </div>
+      ) : null}
+    </dl>
+  );
+}
+
 type InvoiceDetailModalProps = {
   detail: InvoiceDetail | null;
   loading: boolean;
+  actionLoading?: boolean;
+  actionError?: string | null;
   onClose: () => void;
+  onMarkPayment?: (invoiceId: string) => void;
 };
 
 export function InvoiceDetailModal({
   detail,
   loading,
+  actionLoading = false,
+  actionError = null,
   onClose,
+  onMarkPayment,
 }: InvoiceDetailModalProps) {
   if (!detail && !loading) {
     return null;
@@ -117,6 +167,14 @@ export function InvoiceDetailModal({
                   </dd>
                 </div>
               ) : null}
+              {detail.paidAt ? (
+                <div>
+                  <dt className="text-zinc-500">Paid</dt>
+                  <dd className="font-medium text-zinc-900">
+                    {formatDateTime(detail.paidAt)}
+                  </dd>
+                </div>
+              ) : null}
               <div className="sm:col-span-2">
                 <dt className="text-zinc-500">Total</dt>
                 <dd className="font-medium text-zinc-900">
@@ -143,10 +201,19 @@ export function InvoiceDetailModal({
                   </a>
                 </p>
               ) : detail.isDigital ? (
-                <p className="mt-2 text-sm text-zinc-500">
-                  Digital invoice preview will be available when Dizlee invoice
-                  creation is implemented.
-                </p>
+                detail.bankDetails ? (
+                  <div className="mt-2 rounded-md border border-zinc-200 bg-zinc-50 p-3">
+                    <p className="text-sm font-medium text-zinc-900">
+                      Digital invoice — payment details
+                    </p>
+                    <BankDetailsBlock details={detail.bankDetails} />
+                  </div>
+                ) : (
+                  <p className="mt-2 text-sm text-zinc-500">
+                    Digital invoice created. Bank details will appear when configured
+                    in admin settings.
+                  </p>
+                )
               ) : (
                 <p className="mt-2 text-sm text-zinc-500">No file attached.</p>
               )}
@@ -193,6 +260,30 @@ export function InvoiceDetailModal({
                     </tbody>
                   </table>
                 </div>
+              </div>
+            ) : null}
+
+            {detail.canMarkPayment && onMarkPayment ? (
+              <div className="border-t border-zinc-200 pt-4">
+                {actionError ? (
+                  <p className="mb-3 text-sm text-red-700">{actionError}</p>
+                ) : null}
+                <button
+                  type="button"
+                  disabled={actionLoading}
+                  onClick={() => {
+                    if (
+                      window.confirm(
+                        "Mark this invoice as paid? This records payment collection from the OpCo.",
+                      )
+                    ) {
+                      onMarkPayment(detail.id);
+                    }
+                  }}
+                  className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50"
+                >
+                  {actionLoading ? "Saving…" : "Mark payment done"}
+                </button>
               </div>
             ) : null}
           </div>
