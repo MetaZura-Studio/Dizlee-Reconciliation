@@ -62,6 +62,22 @@ function reportsMonitoringLink(
   return `/dizlee/reports/monitoring?${params.toString()}`;
 }
 
+function invoicesLink(
+  month: number,
+  year: number,
+  options?: { paymentStatus?: "paid" | "pending" },
+): string {
+  const params = new URLSearchParams({
+    month: String(month),
+    year: String(year),
+    from: "dashboard",
+  });
+  if (options?.paymentStatus) {
+    params.set("paymentStatus", options.paymentStatus);
+  }
+  return `/dizlee/invoices?${params.toString()}`;
+}
+
 type DashboardViewProps = {
   initialData: DashboardData;
 };
@@ -166,7 +182,7 @@ export function DashboardView({ initialData }: DashboardViewProps) {
         </div>
       ) : null}
 
-      <BillingSectionView billing={billing} kpis={kpis} />
+      <BillingSectionView billing={billing} kpis={kpis} month={month} year={year} />
 
       <ReportsReconSectionView
         reportsRecon={reportsRecon}
@@ -218,10 +234,20 @@ export function DashboardView({ initialData }: DashboardViewProps) {
 function BillingSectionView({
   billing,
   kpis,
+  month,
+  year,
 }: {
   billing: DashboardData["billing"];
   kpis: DashboardData["billing"]["kpis"];
+  month: number;
+  year: number;
 }) {
+  const allInvoicesHref = invoicesLink(month, year);
+  const paidInvoicesHref = invoicesLink(month, year, { paymentStatus: "paid" });
+  const pendingInvoicesHref = invoicesLink(month, year, {
+    paymentStatus: "pending",
+  });
+
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between gap-4">
@@ -233,7 +259,7 @@ function BillingSectionView({
           </p>
         </div>
         <Link
-          href="/dizlee/invoices"
+          href={allInvoicesHref}
           className="text-sm text-zinc-600 hover:text-zinc-900"
         >
           View invoices
@@ -241,7 +267,7 @@ function BillingSectionView({
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard label="Invoices" value={kpis.invoices} href="/dizlee/invoices" />
+        <KpiCard label="Invoices" value={kpis.invoices} href={allInvoicesHref} />
         <KpiCard
           label="Total revenue (paid OpCos)"
           value={usdFormatter.format(kpis.totalRevenuePaidUsd)}
@@ -249,12 +275,12 @@ function BillingSectionView({
         <KpiCard
           label="Invoices paid"
           value={kpis.invoicesPaid}
-          href="/dizlee/invoices"
+          href={paidInvoicesHref}
         />
         <KpiCard
           label="Pending collection"
           value={usdFormatter.format(kpis.pendingCollectionUsd)}
-          href="/dizlee/invoices"
+          href={pendingInvoicesHref}
         />
       </div>
 
@@ -285,13 +311,13 @@ function BillingSectionView({
           title="Sent to OpCos"
           panel={billing.sentToOpcos}
           missingLabel="OpCos without an invoice"
-          missingHref="/dizlee/invoices"
+          missingHref={allInvoicesHref}
         />
         <DirectionPanelView
           title="Received from partners"
           panel={billing.receivedFromPartners}
           missingLabel="Partners without an invoice"
-          missingHref="/dizlee/invoices"
+          missingHref={allInvoicesHref}
         />
       </div>
     </section>
