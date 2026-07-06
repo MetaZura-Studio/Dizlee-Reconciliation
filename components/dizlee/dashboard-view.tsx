@@ -78,6 +78,22 @@ function invoicesLink(
   return `/dizlee/invoices?${params.toString()}`;
 }
 
+function invoicesMonitoringLink(
+  month: number,
+  year: number,
+  missing?: "opco" | "partner",
+): string {
+  const params = new URLSearchParams({
+    month: String(month),
+    year: String(year),
+    from: "dashboard",
+  });
+  if (missing) {
+    params.set("missing", missing);
+  }
+  return `/dizlee/invoices/monitoring?${params.toString()}`;
+}
+
 type DashboardViewProps = {
   initialData: DashboardData;
 };
@@ -247,6 +263,8 @@ function BillingSectionView({
   const pendingInvoicesHref = invoicesLink(month, year, {
     paymentStatus: "pending",
   });
+  const opcoInvoiceMissingHref = invoicesMonitoringLink(month, year, "opco");
+  const partnerInvoiceMissingHref = invoicesMonitoringLink(month, year, "partner");
 
   return (
     <section className="space-y-4">
@@ -311,13 +329,13 @@ function BillingSectionView({
           title="Sent to OpCos"
           panel={billing.sentToOpcos}
           missingLabel="OpCos without an invoice"
-          missingHref={allInvoicesHref}
+          missingHref={opcoInvoiceMissingHref}
         />
         <DirectionPanelView
           title="Received from partners"
           panel={billing.receivedFromPartners}
           missingLabel="Partners without an invoice"
-          missingHref={allInvoicesHref}
+          missingHref={partnerInvoiceMissingHref}
         />
       </div>
     </section>

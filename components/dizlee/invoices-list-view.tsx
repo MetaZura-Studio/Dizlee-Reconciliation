@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { CreateOpcoInvoiceModal } from "@/components/dizlee/create-opco-invoice-modal";
 import { InvoiceDetailModal } from "@/components/dizlee/invoice-detail-modal";
 import { InvoicesTabs } from "@/components/dizlee/invoices-tabs";
 import type {
@@ -100,6 +101,9 @@ export function InvoicesListView({
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detail, setDetail] = useState<InvoiceDetail | null>(null);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const skipAutoReload = useRef(true);
 
@@ -171,6 +175,7 @@ export function InvoicesListView({
     setDetailOpen(true);
     setDetailLoading(true);
     setDetail(null);
+    setPaymentError(null);
     try {
       const response = await fetch(`/api/dizlee/invoices/${invoiceId}`);
       const payload = (await response.json()) as {
@@ -205,6 +210,43 @@ export function InvoicesListView({
     }
   };
 
+  const markPayment = async (invoiceId: string) => {
+    setPaymentLoading(true);
+    setPaymentError(null);
+    try {
+      const response = await fetch(
+        `/api/dizlee/invoices/${invoiceId}/mark-payment`,
+        { method: "POST" },
+      );
+      const payload = (await response.json()) as {
+        data?: InvoiceDetail;
+        error?: string;
+      };
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Failed to mark payment");
+      }
+      if (payload.data) {
+        setDetail(payload.data);
+        setResult((prev) => ({
+          ...prev,
+          items: prev.items.map((item) =>
+            item.id === invoiceId
+              ? { ...item, paymentStatus: "PAID" }
+              : item,
+          ),
+        }));
+      }
+    } catch (paymentErr) {
+      setPaymentError(
+        paymentErr instanceof Error
+          ? paymentErr.message
+          : "Failed to mark payment",
+      );
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
   const yearOptions = [];
   for (let value = year + 1; value >= year - 4; value -= 1) {
     yearOptions.push(value);
@@ -214,14 +256,23 @@ export function InvoicesListView({
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-zinc-900">Dizlee - Invoices</h1>
-        <p className="mt-1 text-sm text-zinc-600">
-          Partner → Dizlee and Dizlee → OpCo invoices for the selected period.
-        </p>
-        {fromDashboard ? (
-          <p className="mt-1 text-xs text-zinc-500">From dashboard</p>
-        ) : null}
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-zinc-900">Dizlee - Invoices</h1>
+          <p className="mt-1 text-sm text-zinc-600">
+            Partner → Dizlee and Dizlee → OpCo invoices for the selected period.
+          </p>
+          {fromDashboard ? (
+            <p className="mt-1 text-xs text-zinc-500">From dashboard</p>
+          ) : null}
+        </div>
+        <button
+          type="button"
+          onClick={() => setCreateOpen(true)}
+          className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+        >
+          Create invoice to OpCo
+        </button>
       </div>
 
       <InvoicesTabs active="all" />
@@ -460,12 +511,27 @@ export function InvoicesListView({
         <InvoiceDetailModal
           detail={detail}
           loading={detailLoading}
+          actionLoading={paymentLoading}
+          actionError={paymentError}
+          onMarkPayment={(invoiceId) => void markPayment(invoiceId)}
           onClose={() => {
             setDetailOpen(false);
             setDetail(null);
+            setPaymentError(null);
           }}
         />
       ) : null}
+
+      <CreateOpcoInvoiceModal
+        key={createOpen ? `create-${month}-${year}` : "closed"}
+        open={createOpen}
+        defaultMonth={month}
+        defaultYear={year}
+        onClose={() => setCreateOpen(false)}
+        onCreated={() => {
+          void loadInvoices({ ...currentFilters(), page: 1 });
+        }}
+      />
     </div>
   );
 }

@@ -9,12 +9,15 @@ type InvoicesTabsProps = {
 const TABS: Array<{
   id: InvoicesTabsProps["active"];
   label: string;
-  href?: string;
-  disabled?: boolean;
+  href: string;
 }> = [
   { id: "all", label: "All invoices", href: "/dizlee/invoices" },
-  { id: "lifecycle", label: "Lifecycle tracker", disabled: true },
-  { id: "monitoring", label: "Invoice monitoring", disabled: true },
+  { id: "lifecycle", label: "Lifecycle tracker", href: "/dizlee/invoices/lifecycle" },
+  {
+    id: "monitoring",
+    label: "Invoice monitoring",
+    href: "/dizlee/invoices/monitoring",
+  },
 ];
 
 export function InvoicesTabs({ active }: InvoicesTabsProps) {
@@ -23,22 +26,6 @@ export function InvoicesTabs({ active }: InvoicesTabsProps) {
       <nav className="-mb-px flex gap-6">
         {TABS.map((tab) => {
           const isActive = tab.id === active;
-
-          if (tab.disabled || !tab.href) {
-            return (
-              <span
-                key={tab.id}
-                className={`border-b-2 px-1 pb-3 text-sm font-medium ${
-                  isActive
-                    ? "border-zinc-900 text-zinc-900"
-                    : "cursor-not-allowed border-transparent text-zinc-400"
-                }`}
-                title="Coming in a later feature"
-              >
-                {tab.label}
-              </span>
-            );
-          }
 
           return (
             <Link
