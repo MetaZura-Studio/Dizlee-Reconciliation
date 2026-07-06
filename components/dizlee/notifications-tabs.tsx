@@ -35,7 +35,7 @@ const TABS: Array<{
     id: "reminders",
     label: "Reminders",
     href: "/dizlee/notifications?tab=reminders",
-    enabled: false,
+    enabled: true,
   },
   {
     id: "history",

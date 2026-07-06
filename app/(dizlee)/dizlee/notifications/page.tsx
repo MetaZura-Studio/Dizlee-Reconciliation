@@ -1,5 +1,6 @@
 import { IntimationsView } from "@/components/dizlee/intimations-view";
 import { PartnerNotificationsView } from "@/components/dizlee/partner-notifications-view";
+import { RemindersView } from "@/components/dizlee/reminders-view";
 import { NotificationsTabs } from "@/components/dizlee/notifications-tabs";
 import {
   getIntimationFormOptions,
@@ -11,18 +12,27 @@ import {
   listPartnerNotifications,
   parsePartnerNotificationListFilters,
 } from "@/lib/dizlee/notifications/partners";
+import {
+  getReminderSettings,
+  listReminderLanes,
+  parseReminderFilters,
+} from "@/lib/dizlee/notifications/reminders";
+import { getReportFilterOptions } from "@/lib/dizlee/reports-monitoring";
 
 type DizleeNotificationsPageProps = {
-  searchParams: Promise<{ tab?: string; page?: string }>;
+  searchParams: Promise<{
+    tab?: string;
+    page?: string;
+    month?: string;
+    year?: string;
+    opcoId?: string;
+    partnerId?: string;
+    missing?: string;
+  }>;
 };
 
-function ComingSoonTab({
-  tab,
-}: {
-  tab: "reminders" | "history" | "inbox";
-}) {
+function ComingSoonTab({ tab }: { tab: "history" | "inbox" }) {
   const labels: Record<typeof tab, string> = {
-    reminders: "Reminders (UC-09)",
     history: "History (UC-9A)",
     inbox: "Inbox",
   };
@@ -46,8 +56,10 @@ export default async function DizleeNotificationsPage({
   const params = await searchParams;
 
   const query = new URLSearchParams();
-  if (params.page) {
-    query.set("page", params.page);
+  for (const [key, value] of Object.entries(params)) {
+    if (value && key !== "tab") {
+      query.set(key, value);
+    }
   }
 
   if (params.tab === "partners") {
@@ -65,11 +77,29 @@ export default async function DizleeNotificationsPage({
     );
   }
 
-  if (
-    params.tab === "reminders" ||
-    params.tab === "history" ||
-    params.tab === "inbox"
-  ) {
+  if (params.tab === "reminders") {
+    if (!query.get("missing")) {
+      query.set("missing", "any");
+    }
+
+    const filters = parseReminderFilters(query);
+    const [initialResult, initialSettings, initialFilterOptions] =
+      await Promise.all([
+        listReminderLanes(filters),
+        getReminderSettings(),
+        getReportFilterOptions(),
+      ]);
+
+    return (
+      <RemindersView
+        initialResult={initialResult}
+        initialSettings={initialSettings}
+        initialFilterOptions={initialFilterOptions}
+      />
+    );
+  }
+
+  if (params.tab === "history" || params.tab === "inbox") {
     return <ComingSoonTab tab={params.tab} />;
   }
 
