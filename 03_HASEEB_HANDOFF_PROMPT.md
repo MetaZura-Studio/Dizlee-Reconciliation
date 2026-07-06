@@ -225,6 +225,7 @@ Reference SRS: `SRS_Reconciliation_Professional.docx`. Full ownership map: `docs
 
 ### Phase 4 — Reconciliation
 - UC-06: Perform Reconciliation of Reports — Compare Reports + History tabs; tolerance from `app_settings` (read-only)
+- **E2E dependency:** OpCo upload is available (`/opco/upload`). **Partner report upload UI is not built yet** — a full run needs both OpCo- and Partner-uploaded reports for the same lane; until Partner upload ships, lanes stay `NO PARTNER REPORT`. See `docs/HANDOFF_HASEEB.md` → Cross-team dependencies.
 
 ### Phase 5 — Invoicing
 - UC-04: View Invoices (Dizlee) — All invoices tab

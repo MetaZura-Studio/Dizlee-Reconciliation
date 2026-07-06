@@ -66,3 +66,15 @@ npm install && npx prisma migrate dev && npm run seed && npm run dev
 ```
 
 See [LOCAL_DATABASE_SETUP.md](./LOCAL_DATABASE_SETUP.md).
+
+### Cross-team dependencies & QA gaps
+
+Track these when testing Dizlee features, writing PR test plans, or handing off to QA/UAT.
+
+| Dizlee feature | Blocked / partial without | Notes |
+|----------------|---------------------------|--------|
+| **UC-06 Reconciliation** (`/dizlee/reconciliation`) | **Partner report upload UI** (Partner portal) | Run reconciliation requires **both** an OpCo-uploaded report **and** a Partner-uploaded report for the same lane (OpCo + Partner + period). OpCo upload exists (`/opco/upload`, Shahrukh). **Partner upload UI is not built yet** — lanes show `NO PARTNER REPORT` until the Partner portal ships upload. Compare/history/confirm UI can be tested with manual DB seed or once Partner upload lands. |
+| Reports monitoring, dashboard missing counts | OpCo and/or Partner uploads | Monitoring reflects lane submission by uploader role (`OPCO` vs `PARTNER` on `reports.uploaded_by_user_id`). |
+| UC-6B Consolidation | OpCo reports with line items for all linked partners | Every linked partner must have an OpCo-side report for the period before generate. |
+
+**Reporting / handoff:** When Feature 6 (or later reconciliation work) is demoed or signed off, call out explicitly if Partner upload is still missing — full end-to-end reconciliation cannot be validated until both sides can upload per lane.
