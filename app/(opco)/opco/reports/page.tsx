@@ -1,21 +1,53 @@
-import { ReportsList } from "@/components/opco/ReportsList";
+import { ReportsTable } from "@/components/opco/ReportsTable";
 import { requireOpcoSession } from "@/lib/opco/auth";
-import { listReportsForOpco } from "@/lib/opco/queries/reports";
+import {
+  getOpcoReportFilterOptions,
+  parseOpcoReportListFilters,
+  searchReportsForOpco,
+} from "@/lib/opco/queries/reports";
 
-export default async function OpcoReportsPage() {
+type OpcoReportsPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+function toSearchParams(
+  params: Record<string, string | string[] | undefined>,
+): URLSearchParams {
+  const searchParams = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(params)) {
+    if (typeof value === "string") {
+      searchParams.set(key, value);
+    } else if (Array.isArray(value) && value[0]) {
+      searchParams.set(key, value[0]);
+    }
+  }
+
+  return searchParams;
+}
+
+export default async function OpcoReportsPage({ searchParams }: OpcoReportsPageProps) {
   const session = await requireOpcoSession();
-  const reports = await listReportsForOpco(BigInt(session.opcoId));
+  const opcoId = BigInt(session.opcoId);
+  const filters = parseOpcoReportListFilters(
+    toSearchParams(await searchParams),
+  );
+
+  const [result, filterOptions] = await Promise.all([
+    searchReportsForOpco(opcoId, filters),
+    getOpcoReportFilterOptions(opcoId),
+  ]);
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">Reports history</h1>
         <p className="mt-1 text-zinc-600">
-          View submitted reports and request a reupload when corrections are needed.
+          Find and review submitted reports. Filter by period, partner, or status.
         </p>
       </div>
 
-      <ReportsList initialReports={reports} />
+      <ReportsTable initialResult={result} filterOptions={filterOptions} />
     </div>
   );
 }
