@@ -17,7 +17,7 @@ const TABS: Array<{
   {
     id: "monitoring",
     label: "Reports monitoring",
-    disabled: true,
+    href: "/dizlee/reports/monitoring",
   },
 ];
 

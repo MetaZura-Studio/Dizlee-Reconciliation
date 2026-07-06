@@ -46,6 +46,22 @@ function reportsLink(month: number, year: number): string {
   return `/dizlee/reports?month=${month}&year=${year}&from=dashboard`;
 }
 
+function reportsMonitoringLink(
+  month: number,
+  year: number,
+  missing?: "opco" | "partner",
+): string {
+  const params = new URLSearchParams({
+    month: String(month),
+    year: String(year),
+    from: "dashboard",
+  });
+  if (missing) {
+    params.set("missing", missing);
+  }
+  return `/dizlee/reports/monitoring?${params.toString()}`;
+}
+
 type DashboardViewProps = {
   initialData: DashboardData;
 };
@@ -334,6 +350,8 @@ function ReportsReconSectionView({
   year: number;
 }) {
   const reportsHref = reportsLink(month, year);
+  const opcoMissingHref = reportsMonitoringLink(month, year, "opco");
+  const partnerMissingHref = reportsMonitoringLink(month, year, "partner");
 
   return (
     <section className="space-y-4">
@@ -365,12 +383,12 @@ function ReportsReconSectionView({
         <KpiCard
           label="OpCo reports missing"
           value={reportsRecon.opcoReportsMissing}
-          href={reportsHref}
+          href={opcoMissingHref}
         />
         <KpiCard
           label="Partner reports missing"
           value={reportsRecon.partnerReportsMissing}
-          href={reportsHref}
+          href={partnerMissingHref}
         />
       </div>
 
