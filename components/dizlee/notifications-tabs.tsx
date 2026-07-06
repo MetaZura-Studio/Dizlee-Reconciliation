@@ -41,13 +41,13 @@ const TABS: Array<{
     id: "history",
     label: "History",
     href: "/dizlee/notifications?tab=history",
-    enabled: false,
+    enabled: true,
   },
   {
     id: "inbox",
     label: "Inbox",
     href: "/dizlee/notifications?tab=inbox",
-    enabled: false,
+    enabled: true,
   },
 ];
 
