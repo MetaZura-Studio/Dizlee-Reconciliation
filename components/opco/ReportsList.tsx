@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 
 import { RequestChangeDialog } from "@/components/opco/RequestChangeDialog";
 import { formatPeriodLabel } from "@/lib/opco/period";
@@ -15,58 +15,35 @@ function canRequestChange(report: OpcoReportListItem): boolean {
   );
 }
 
-export function ReportsList() {
-  const [reports, setReports] = useState<OpcoReportListItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+type ReportsListProps = {
+  initialReports: OpcoReportListItem[];
+};
+
+export function ReportsList({ initialReports }: ReportsListProps) {
+  const [reports, setReports] = useState(initialReports);
   const [selectedReport, setSelectedReport] = useState<OpcoReportListItem | null>(
     null,
   );
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const loadReports = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-
+  async function refreshReports() {
     try {
       const response = await fetch("/api/opco/reports");
       const payload = (await response.json()) as {
-        error?: string;
         reports?: OpcoReportListItem[];
       };
 
-      if (!response.ok) {
-        setError(payload.error ?? "Failed to load reports");
-        return;
+      if (response.ok) {
+        setReports(payload.reports ?? []);
       }
-
-      setReports(payload.reports ?? []);
     } catch {
-      setError("Failed to load reports");
-    } finally {
-      setIsLoading(false);
+      // Keep the current list if refresh fails.
     }
-  }, []);
-
-  useEffect(() => {
-    void loadReports();
-  }, [loadReports]);
+  }
 
   function handleRequestSuccess() {
     setSuccessMessage("Reupload request submitted. Dizlee has been notified.");
-    void loadReports();
-  }
-
-  if (isLoading) {
-    return <p className="text-sm text-zinc-600">Loading reports...</p>;
-  }
-
-  if (error) {
-    return (
-      <p className="rounded border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
-        {error}
-      </p>
-    );
+    void refreshReports();
   }
 
   if (reports.length === 0) {

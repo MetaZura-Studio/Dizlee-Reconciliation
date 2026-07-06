@@ -1,8 +1,10 @@
 import { ReportsList } from "@/components/opco/ReportsList";
 import { requireOpcoSession } from "@/lib/opco/auth";
+import { listReportsForOpco } from "@/lib/opco/queries/reports";
 
 export default async function OpcoReportsPage() {
-  await requireOpcoSession();
+  const session = await requireOpcoSession();
+  const reports = await listReportsForOpco(BigInt(session.opcoId));
 
   return (
     <div className="space-y-6">
@@ -13,7 +15,7 @@ export default async function OpcoReportsPage() {
         </p>
       </div>
 
-      <ReportsList />
+      <ReportsList initialReports={reports} />
     </div>
   );
 }
