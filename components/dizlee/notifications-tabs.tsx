@@ -29,7 +29,7 @@ const TABS: Array<{
     id: "partners",
     label: "Partners",
     href: "/dizlee/notifications?tab=partners",
-    enabled: false,
+    enabled: true,
   },
   {
     id: "reminders",
