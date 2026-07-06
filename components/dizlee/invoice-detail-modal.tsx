@@ -109,6 +109,14 @@ export function InvoiceDetailModal({
                 <dt className="text-zinc-500">Payment status</dt>
                 <dd className="font-medium text-zinc-900">{detail.paymentStatus}</dd>
               </div>
+              {detail.acknowledgedAt ? (
+                <div>
+                  <dt className="text-zinc-500">Acknowledged</dt>
+                  <dd className="font-medium text-zinc-900">
+                    {formatDateTime(detail.acknowledgedAt)}
+                  </dd>
+                </div>
+              ) : null}
               <div className="sm:col-span-2">
                 <dt className="text-zinc-500">Total</dt>
                 <dd className="font-medium text-zinc-900">

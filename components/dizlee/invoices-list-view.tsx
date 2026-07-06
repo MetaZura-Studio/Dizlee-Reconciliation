@@ -173,11 +173,26 @@ export function InvoicesListView({
     setDetail(null);
     try {
       const response = await fetch(`/api/dizlee/invoices/${invoiceId}`);
-      const payload = await response.json();
+      const payload = (await response.json()) as {
+        data: InvoiceDetail;
+        acknowledged?: boolean;
+      };
       if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to load invoice");
+        throw new Error(
+          (payload as { error?: string }).error ?? "Failed to load invoice",
+        );
       }
-      setDetail(payload.data as InvoiceDetail);
+      setDetail(payload.data);
+      if (payload.acknowledged) {
+        setResult((prev) => ({
+          ...prev,
+          items: prev.items.map((item) =>
+            item.id === invoiceId
+              ? { ...item, invoiceStatus: "ACKNOWLEDGED" }
+              : item,
+          ),
+        }));
+      }
     } catch (detailError) {
       setError(
         detailError instanceof Error
