@@ -22,7 +22,7 @@ All three developers start from `develop` on day one. No one waits for another p
 
 ---
 
-## Hussnain — Auth, Admin, Partner
+## Hussnain — Auth + Admin
 
 | UC ID | Name | Portal |
 |-------|------|--------|
@@ -42,21 +42,12 @@ All three developers start from `develop` on day one. No one waits for another p
 | UC-11 | Currencies + monthly USD rates | `(admin)` |
 | UC-12 | Email templates | `(admin)` |
 | UC-13 | Invoice bank details | `(admin)` |
-| UC-01-PARTNER | Partner side navigation | `(partner)` |
-| UC-02-PARTNER | Partner Dashboard | `(partner)` |
-| UC-03-PARTNER | Upload Report (Partner) | `(partner)` |
-| UC-04-PARTNER | View Reports (Partner) | `(partner)` |
-| UC-05-PARTNER | Request Report Upload (Partner) | `(partner)` |
-| UC-06-PARTNER | Upload Invoice (Partner) | `(partner)` |
-| UC-07-PARTNER | View Invoices (Partner) | `(partner)` |
-| — | Partner Notifications **inbox** (read/dismiss) | `(partner)` |
-| — | Partner **Replace upload** after Dizlee approval | `(partner)` |
 
 **Prisma block:** Hussnain (`users`, `lookups`, `notifications`, `opco_partner_links`, `app_settings`, etc.)
 
 ---
 
-## Shahrukh — OpCo Portal
+## Shahrukh — OpCo + Partner portals
 
 | UC ID | Name | Portal |
 |-------|------|--------|
@@ -70,6 +61,17 @@ All three developers start from `develop` on day one. No one waits for another p
 | UC-08-OPCO | View/respond to invoices (ack only) | `(opco)` |
 | — | OpCo Notifications **inbox** (read/dismiss) | `(opco)` |
 | — | OpCo **Replace upload** after Dizlee approval | `(opco)` |
+| UC-01-PARTNER | Partner side navigation | `(partner)` |
+| UC-02-PARTNER | Partner Dashboard | `(partner)` |
+| UC-03-PARTNER | Upload Report (Partner) | `(partner)` |
+| UC-04-PARTNER | View Reports (Partner) | `(partner)` |
+| UC-05-PARTNER | Request Report Upload (Partner) | `(partner)` |
+| UC-06-PARTNER | Upload Invoice (Partner) | `(partner)` |
+| UC-07-PARTNER | View Invoices (Partner) | `(partner)` |
+| — | Partner Notifications **inbox** (read/dismiss) | `(partner)` |
+| — | Partner **Replace upload** after Dizlee approval | `(partner)` |
+
+**Partner handoff (transferred from Hussnain):** [`docs/HANDOFF_SHAHRUKH_PARTNER.md`](./HANDOFF_SHAHRUKH_PARTNER.md)
 
 **Not Shahrukh's scope:** UC-6B Consolidation — SRS actor is **Dizlee** (Haseeb).
 
@@ -114,8 +116,8 @@ All three developers start from `develop` on day one. No one waits for another p
 |----------|--------------|----------------------|
 | `users`, `lookups`, `app_settings` | Hussnain | Hussnain (Admin) |
 | `notifications` + related | Hussnain | Hussnain (infra), Haseeb (compose/send), all portals (read/mark read) |
-| `reports`, `report_line_items` | Shahrukh | Shahrukh (OpCo), Hussnain (Partner) |
-| `report_change_requests` | Shahrukh | Shahrukh/Hussnain (create request), Haseeb (approve/reject), Shahrukh/Hussnain (complete replace) |
+| `reports`, `report_line_items` | Shahrukh | Shahrukh (OpCo + Partner upload) |
+| `report_change_requests` | Shahrukh | Shahrukh (OpCo + Partner create request), Haseeb (approve/reject), Shahrukh (complete replace) |
 | `consolidations`, `consolidation_items` | Shahrukh (FK) | **Haseeb** (UC-6B) |
 | `reconciliations`, `invoices` | Haseeb | Haseeb |
 
@@ -126,7 +128,7 @@ All three developers start from `develop` on day one. No one waits for another p
 | Developer | Full Cursor prompt |
 |-----------|-------------------|
 | Hussnain | `05_HUSSNAIN_PHASE2_PROMPT.md` |
-| Shahrukh | `02_SHAHRUKH_HANDOFF_PROMPT.md` |
+| Shahrukh | `02_SHAHRUKH_HANDOFF_PROMPT.md` (OpCo), `docs/HANDOFF_SHAHRUKH_PARTNER.md` (Partner) |
 | Haseeb | `03_HASEEB_HANDOFF_PROMPT.md` |
 
 Quick references: `docs/HANDOFF_HUSSNAIN.md`, `docs/HANDOFF_SHAHRUKH.md`, `docs/HANDOFF_HASEEB.md`

@@ -1,104 +1,28 @@
 import { PrismaClient } from "@prisma/client";
 
 import { hashPassword } from "../lib/auth/password";
+import { APP_SETTINGS_SEED } from "./seed-data/app-settings";
+import { CURRENCY_RATE_SEEDS } from "./seed-data/currency-rates";
+import { CURRENCY_SEEDS } from "./seed-data/currencies";
+import {
+  assertUniqueSlugs,
+  portalEmail,
+  validateSeedLinks,
+} from "./seed-data/helpers";
+import { LOOKUP_SEEDS } from "./seed-data/lookups";
+import { NOTIFICATION_TEMPLATE_SEEDS } from "./seed-data/notification-templates";
+import { OPCO_PARTNER_LINK_SEEDS } from "./seed-data/opco-partner-links";
+import { OPCO_SEEDS } from "./seed-data/opcos";
+import { PARTNER_SEEDS } from "./seed-data/partners";
 
 const prisma = new PrismaClient();
 
-/** Shared local dev password for all seed users — see docs/AUTH_SESSION.md */
+/** Shared local dev password for all seed users — see docs/SEED_DATA.md */
 const SEED_PASSWORD = "Password123!";
 
-const LOOKUP_SEEDS: Record<string, string[]> = {
-  USER_ROLE: ["ADMIN", "CLIENT", "OPCO", "PARTNER"],
-  USER_STATUS: ["ACTIVE", "INACTIVE", "SUSPENDED"],
-  REPORT_STATUS: [
-    "PENDING",
-    "SUBMITTED",
-    "CHANGE_REQUESTED",
-    "RESUBMITTED",
-    "APPROVED",
-  ],
-  RECONCILIATION_STATUS: ["PENDING", "IN_PROGRESS", "COMPLETED", "FAILED"],
-  MATCH_STATUS: [
-    "MATCHED",
-    "MISMATCHED",
-    "MISSING_IN_PARTNER",
-    "MISSING_IN_OPCO",
-  ],
-  INVOICE_STATUS: ["DRAFT", "SENT", "ACKNOWLEDGED", "SETTLED"],
-  PAYMENT_STATUS: ["UNPAID", "PAID", "OVERDUE"],
-  INVOICE_TYPE: ["CLIENT_TO_OPCO", "PARTNER_TO_CLIENT"],
-  CONSOLIDATION_STATUS: ["PENDING", "COMPLETED"],
-  NOTIFICATION_STATUS: ["DRAFT", "SENT", "SCHEDULED"],
-  RECIPIENT_TYPE: ["OPCO", "PARTNER", "USER"],
-  AUDIT_ACTION: [
-    "USER_CREATED",
-    "USER_UPDATED",
-    "USER_DELETED",
-    "REPORT_UPLOADED",
-    "REPORT_CHANGE_REQUESTED",
-    "INVOICE_STATUS_UPDATED",
-    "INVOICE_PAYMENT_RECORDED",
-    "RECONCILIATION_RUN",
-    "CONSOLIDATION_GENERATED",
-    "SETTINGS_EMAIL_UPDATED",
-    "SETTINGS_REMINDERS_UPDATED",
-    "SETTINGS_TOLERANCE_UPDATED",
-    "SETTINGS_BANK_DETAILS_UPDATED",
-    "SETTINGS_OPCO_PARTNER_LINK_UPDATED",
-    "EMAIL_TEST_SENT",
-    "EMAIL_TEMPLATE_UPDATED",
-  ],
-  AUDIT_ENTITY_TYPE: [
-    "USER",
-    "REPORT",
-    "INVOICE",
-    "RECONCILIATION",
-    "CONSOLIDATION",
-    "SETTINGS",
-    "NOTIFICATION",
-  ],
-};
+const RETIRED_USER_EMAILS = ["opco@dizlee.com", "partner@dizlee.com"] as const;
 
-const TEMPLATE_SEEDS = [
-  {
-    code: "PASSWORD_RESET",
-    name: "Password Reset",
-    subject: "Reset your password",
-    body: "Use the link to reset your password.",
-  },
-  {
-    code: "TEST_EMAIL",
-    name: "Test Email",
-    subject: "Test email from Dizlee",
-    body: "This is a test email.",
-  },
-  {
-    code: "NOTIFICATION_EMAIL",
-    name: "Notification Email",
-    subject: "Notification",
-    body: "You have a new notification.",
-  },
-  {
-    code: "INVOICE_SENT",
-    name: "Invoice Sent",
-    subject: "Invoice sent",
-    body: "An invoice has been sent.",
-  },
-  {
-    code: "REPORT_REMINDER",
-    name: "Report Reminder",
-    subject: "Report submission reminder",
-    body: "Please submit your report.",
-  },
-  {
-    code: "INVOICE_REMINDER",
-    name: "Invoice Reminder",
-    subject: "Invoice submission reminder",
-    body: "Please submit your invoice.",
-  },
-];
-
-async function main() {
+async function seedLookups() {
   for (const [typeCode, codes] of Object.entries(LOOKUP_SEEDS)) {
     const lookupType = await prisma.lookupType.upsert({
       where: { code: typeCode },
@@ -127,38 +51,311 @@ async function main() {
       });
     }
   }
+}
 
-  await prisma.appSettings.upsert({
-    where: { id: 1 },
-    update: {},
-    create: { id: 1 },
-  });
+async function seedCurrencies() {
+  const currencyIds = new Map<string, bigint>();
 
-  const activeStatus = await prisma.lookup.findFirst({
-    where: {
-      code: "ACTIVE",
-      lookupType: { code: "USER_STATUS" },
-    },
-  });
-
-  if (!activeStatus) {
-    throw new Error("ACTIVE lookup not found after seeding");
+  for (const currency of CURRENCY_SEEDS) {
+    const record = await prisma.currency.upsert({
+      where: { isoCode: currency.isoCode },
+      update: {
+        symbol: currency.symbol,
+        decimalPrecision: currency.decimalPrecision,
+        isDeleted: false,
+      },
+      create: {
+        isoCode: currency.isoCode,
+        symbol: currency.symbol,
+        decimalPrecision: currency.decimalPrecision,
+      },
+    });
+    currencyIds.set(currency.isoCode, record.id);
   }
 
-  for (const template of TEMPLATE_SEEDS) {
-    await prisma.notificationTemplate.upsert({
+  for (const [isoCode, rates] of Object.entries(CURRENCY_RATE_SEEDS)) {
+    const currencyId = currencyIds.get(isoCode);
+    if (!currencyId) {
+      throw new Error(`Missing currency for rate seed: ${isoCode}`);
+    }
+
+    for (const rate of rates) {
+      await prisma.currencyMonthlyRate.upsert({
+        where: {
+          currencyId_year_month: {
+            currencyId,
+            year: rate.year,
+            month: rate.month,
+          },
+        },
+        update: {
+          rateToUsd: rate.rateToUsd,
+          isDeleted: false,
+        },
+        create: {
+          currencyId,
+          month: rate.month,
+          year: rate.year,
+          rateToUsd: rate.rateToUsd,
+        },
+      });
+    }
+  }
+
+  return currencyIds;
+}
+
+async function seedAppSettings() {
+  await prisma.appSettings.upsert({
+    where: { id: 1 },
+    update: APP_SETTINGS_SEED,
+    create: { id: 1, ...APP_SETTINGS_SEED },
+  });
+}
+
+async function seedNotificationTemplates(activeStatusId: number) {
+  for (const template of NOTIFICATION_TEMPLATE_SEEDS) {
+    const record = await prisma.notificationTemplate.upsert({
       where: { code: template.code },
-      update: {},
+      update: {
+        name: template.name,
+        subject: template.subject,
+        body: template.body,
+        statusId: activeStatusId,
+        isDeleted: false,
+      },
       create: {
         code: template.code,
         name: template.name,
         subject: template.subject,
         body: template.body,
-        statusId: activeStatus.id,
+        statusId: activeStatusId,
+      },
+    });
+
+    for (const version of template.versions) {
+      await prisma.emailTemplateVersion.upsert({
+        where: {
+          notificationTemplateId_version: {
+            notificationTemplateId: record.id,
+            version: version.version,
+          },
+        },
+        update: {
+          subject: version.subject,
+          body: version.body,
+          changeNote: version.changeNote ?? null,
+          isEnabled: true,
+        },
+        create: {
+          notificationTemplateId: record.id,
+          version: version.version,
+          subject: version.subject,
+          body: version.body,
+          changeNote: version.changeNote ?? null,
+        },
+      });
+    }
+  }
+}
+
+async function seedOpcosAndPartners(
+  activeStatusId: number,
+  currencyIds: Map<string, bigint>,
+) {
+  const opcoIds = new Map<string, bigint>();
+  const partnerIds = new Map<string, bigint>();
+
+  for (const opco of OPCO_SEEDS) {
+    const defaultCurrencyId = currencyIds.get(opco.defaultCurrencyIso);
+    if (!defaultCurrencyId) {
+      throw new Error(`Missing currency for OpCo ${opco.slug}: ${opco.defaultCurrencyIso}`);
+    }
+
+    const record = await prisma.opco.upsert({
+      where: { id: BigInt(opco.id) },
+      update: {
+        name: opco.name,
+        defaultCurrencyId,
+        statusId: activeStatusId,
+        isDeleted: false,
+      },
+      create: {
+        id: BigInt(opco.id),
+        name: opco.name,
+        defaultCurrencyId,
+        statusId: activeStatusId,
+      },
+    });
+    opcoIds.set(opco.slug, record.id);
+  }
+
+  for (const partner of PARTNER_SEEDS) {
+    const record = await prisma.partner.upsert({
+      where: { id: BigInt(partner.id) },
+      update: {
+        name: partner.name,
+        statusId: activeStatusId,
+        isDeleted: false,
+      },
+      create: {
+        id: BigInt(partner.id),
+        name: partner.name,
+        statusId: activeStatusId,
+      },
+    });
+    partnerIds.set(partner.slug, record.id);
+  }
+
+  for (const link of OPCO_PARTNER_LINK_SEEDS) {
+    const opcoId = opcoIds.get(link.opcoSlug);
+    const partnerId = partnerIds.get(link.partnerSlug);
+    if (!opcoId || !partnerId) {
+      throw new Error(`Invalid link: ${link.opcoSlug} -> ${link.partnerSlug}`);
+    }
+
+    await prisma.opcoPartnerLink.upsert({
+      where: {
+        opcoId_partnerId: { opcoId, partnerId },
+      },
+      update: { isDeleted: false },
+      create: { opcoId, partnerId },
+    });
+  }
+
+  return { opcoIds, partnerIds };
+}
+
+async function seedUsers(
+  activeStatusId: number,
+  roleIds: {
+    admin: number;
+    client: number;
+    opco: number;
+    partner: number;
+  },
+  opcoIds: Map<string, bigint>,
+  partnerIds: Map<string, bigint>,
+) {
+  const passwordHash = await hashPassword(SEED_PASSWORD);
+
+  const platformUsers = [
+    {
+      email: "admin@dizlee.com",
+      name: "Admin User",
+      roleId: roleIds.admin,
+      opcoId: null,
+      partnerId: null,
+    },
+    {
+      email: "client@dizlee.com",
+      name: "Dizlee User",
+      roleId: roleIds.client,
+      opcoId: null,
+      partnerId: null,
+    },
+  ] as const;
+
+  for (const seedUser of platformUsers) {
+    await prisma.user.upsert({
+      where: { email: seedUser.email },
+      update: {
+        name: seedUser.name,
+        roleId: seedUser.roleId,
+        statusId: activeStatusId,
+        passwordHash,
+        opcoId: seedUser.opcoId,
+        partnerId: seedUser.partnerId,
+        isDeleted: false,
+      },
+      create: {
+        email: seedUser.email,
+        name: seedUser.name,
+        roleId: seedUser.roleId,
+        statusId: activeStatusId,
+        passwordHash,
+        opcoId: seedUser.opcoId,
+        partnerId: seedUser.partnerId,
       },
     });
   }
 
+  for (const opco of OPCO_SEEDS) {
+    const opcoId = opcoIds.get(opco.slug);
+    if (!opcoId) {
+      throw new Error(`Missing OpCo id for user seed: ${opco.slug}`);
+    }
+
+    const email = portalEmail(opco.slug);
+    await prisma.user.upsert({
+      where: { email },
+      update: {
+        name: opco.name,
+        roleId: roleIds.opco,
+        statusId: activeStatusId,
+        passwordHash,
+        opcoId,
+        partnerId: null,
+        isDeleted: false,
+      },
+      create: {
+        email,
+        name: opco.name,
+        roleId: roleIds.opco,
+        statusId: activeStatusId,
+        passwordHash,
+        opcoId,
+      },
+    });
+  }
+
+  for (const partner of PARTNER_SEEDS) {
+    const partnerId = partnerIds.get(partner.slug);
+    if (!partnerId) {
+      throw new Error(`Missing Partner id for user seed: ${partner.slug}`);
+    }
+
+    const email = portalEmail(partner.slug);
+    await prisma.user.upsert({
+      where: { email },
+      update: {
+        name: partner.name,
+        roleId: roleIds.partner,
+        statusId: activeStatusId,
+        passwordHash,
+        opcoId: null,
+        partnerId,
+        isDeleted: false,
+      },
+      create: {
+        email,
+        name: partner.name,
+        roleId: roleIds.partner,
+        statusId: activeStatusId,
+        passwordHash,
+        partnerId,
+      },
+    });
+  }
+
+  for (const email of RETIRED_USER_EMAILS) {
+    await prisma.user.updateMany({
+      where: { email },
+      data: { isDeleted: true },
+    });
+  }
+}
+
+async function main() {
+  assertUniqueSlugs("OpCo", OPCO_SEEDS);
+  assertUniqueSlugs("Partner", PARTNER_SEEDS);
+  validateSeedLinks(OPCO_SEEDS, PARTNER_SEEDS, OPCO_PARTNER_LINK_SEEDS);
+
+  await seedLookups();
+
+  const activeStatus = await prisma.lookup.findFirst({
+    where: { code: "ACTIVE", lookupType: { code: "USER_STATUS" } },
+  });
   const adminRole = await prisma.lookup.findFirst({
     where: { code: "ADMIN", lookupType: { code: "USER_ROLE" } },
   });
@@ -172,111 +369,44 @@ async function main() {
     where: { code: "PARTNER", lookupType: { code: "USER_ROLE" } },
   });
 
-  if (!adminRole || !clientRole || !opcoRole || !partnerRole) {
-    throw new Error("USER_ROLE lookups not found after seeding");
+  if (!activeStatus || !adminRole || !clientRole || !opcoRole || !partnerRole) {
+    throw new Error("Required lookups not found after seeding");
   }
 
-  const currency = await prisma.currency.upsert({
-    where: { isoCode: "USD" },
-    update: {},
-    create: {
-      isoCode: "USD",
-      symbol: "$",
-      decimalPrecision: 2,
-    },
-  });
+  const currencyIds = await seedCurrencies();
+  await seedAppSettings();
+  await seedNotificationTemplates(activeStatus.id);
 
-  const opco = await prisma.opco.upsert({
-    where: { id: BigInt(1) },
-    update: {},
-    create: {
-      id: BigInt(1),
-      name: "Zain Demo OpCo",
-      defaultCurrencyId: currency.id,
-      statusId: activeStatus.id,
-    },
-  });
+  const { opcoIds, partnerIds } = await seedOpcosAndPartners(
+    activeStatus.id,
+    currencyIds,
+  );
 
-  const partner = await prisma.partner.upsert({
-    where: { id: BigInt(1) },
-    update: {},
-    create: {
-      id: BigInt(1),
-      name: "Demo Partner",
-      statusId: activeStatus.id,
-    },
-  });
-
-  await prisma.opcoPartnerLink.upsert({
-    where: {
-      opcoId_partnerId: {
-        opcoId: opco.id,
-        partnerId: partner.id,
-      },
-    },
-    update: {},
-    create: {
-      opcoId: opco.id,
-      partnerId: partner.id,
-    },
-  });
-
-  const passwordHash = await hashPassword(SEED_PASSWORD);
-
-  const seedUsers = [
+  await seedUsers(
+    activeStatus.id,
     {
-      email: "admin@dizlee.com",
-      name: "Admin User",
-      roleId: adminRole.id,
-      opcoId: null,
-      partnerId: null,
+      admin: adminRole.id,
+      client: clientRole.id,
+      opco: opcoRole.id,
+      partner: partnerRole.id,
     },
-    {
-      email: "client@dizlee.com",
-      name: "Dizlee User",
-      roleId: clientRole.id,
-      opcoId: null,
-      partnerId: null,
-    },
-    {
-      email: "opco@dizlee.com",
-      name: "OpCo User",
-      roleId: opcoRole.id,
-      opcoId: opco.id,
-      partnerId: null,
-    },
-    {
-      email: "partner@dizlee.com",
-      name: "Partner User",
-      roleId: partnerRole.id,
-      opcoId: null,
-      partnerId: partner.id,
-    },
-  ] as const;
+    opcoIds,
+    partnerIds,
+  );
 
-  for (const seedUser of seedUsers) {
-    await prisma.user.upsert({
-      where: { email: seedUser.email },
-      update: {
-        name: seedUser.name,
-        roleId: seedUser.roleId,
-        statusId: activeStatus.id,
-        passwordHash,
-        opcoId: seedUser.opcoId,
-        partnerId: seedUser.partnerId,
-        isDeleted: false,
-      },
-      create: {
-        email: seedUser.email,
-        name: seedUser.name,
-        roleId: seedUser.roleId,
-        statusId: activeStatus.id,
-        passwordHash,
-        opcoId: seedUser.opcoId,
-        partnerId: seedUser.partnerId,
-      },
-    });
-  }
+  const [opcoCount, partnerCount, linkCount, userCount] = await Promise.all([
+    prisma.opco.count({ where: { isDeleted: false } }),
+    prisma.partner.count({ where: { isDeleted: false } }),
+    prisma.opcoPartnerLink.count({ where: { isDeleted: false } }),
+    prisma.user.count({ where: { isDeleted: false } }),
+  ]);
+
+  console.log("Seed complete:");
+  console.log(`  OpCos: ${opcoCount}`);
+  console.log(`  Partners: ${partnerCount}`);
+  console.log(`  OpCo–Partner links: ${linkCount}`);
+  console.log(`  Users: ${userCount}`);
+  console.log(`  Password for all users: ${SEED_PASSWORD}`);
 }
 
 main()

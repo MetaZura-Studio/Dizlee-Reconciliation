@@ -1,6 +1,8 @@
-# Cursor prompt — Shahrukh (OpCo Portal)
+# Cursor prompt — Shahrukh (OpCo + Partner portals)
 
 **Repo:** https://github.com/MetaZura-Studio/Dizlee-Reconciliation
+
+**Partner portal:** transferred from Hussnain to Shahrukh. For Partner-specific Cursor instructions, also read **`docs/HANDOFF_SHAHRUKH_PARTNER.md`** (paste that doc’s section below `---` when starting Partner work).
 
 ---
 
@@ -32,7 +34,7 @@ Confirm the app runs at `http://localhost:3000/opco` before continuing.
 
 ---
 
-I am Shahrukh, one of three developers on the **Dizlee Reconciliation Platform**. The repo has been bootstrapped by Hussnain with Next.js, Prisma, Tailwind, CI/CD, the full database schema, and placeholder portals. I am building **the OpCo Portal** only. I do not touch code outside my own folders.
+I am Shahrukh, one of three developers on the **Dizlee Reconciliation Platform**. The repo has been bootstrapped by Hussnain with Next.js, Prisma, Tailwind, CI/CD, the full database schema, and placeholder portals. I am building **the OpCo Portal** and **the Partner Portal**. I do not touch code outside my own folders.
 
 ## Database / ERD rules (CRITICAL — read before writing any code)
 
