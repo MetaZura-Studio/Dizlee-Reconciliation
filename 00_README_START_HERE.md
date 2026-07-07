@@ -3,8 +3,9 @@
 | File | Who uses it | When |
 |---|---|---|
 | `01_HUSSNAIN_BOOTSTRAP_PROMPT.md` | Hussnain | **Done** — Phase 1 scaffold (historical reference) |
-| `05_HUSSNAIN_PHASE2_PROMPT.md` | Hussnain | **Now** — Auth, Admin, Partner development |
-| `02_SHAHRUKH_HANDOFF_PROMPT.md` | Shahrukh | After pulling `develop` — OpCo portal |
+| `05_HUSSNAIN_PHASE2_PROMPT.md` | Hussnain | **Now** — Auth + Admin development |
+| `02_SHAHRUKH_HANDOFF_PROMPT.md` | Shahrukh | OpCo portal |
+| `docs/HANDOFF_SHAHRUKH_PARTNER.md` | Shahrukh | **Partner portal** (transferred from Hussnain) |
 | `03_HASEEB_HANDOFF_PROMPT.md` | Haseeb | After pulling `develop` — Dizlee portal |
 | `04_DATABASE_SCHEMA_FOR_CURSOR.md` | Everyone | **ERD — do not change without Hussnain approval** |
 | `docs/USE_CASE_OWNERSHIP.md` | Everyone | SRS use case → developer mapping |
@@ -43,6 +44,8 @@ Each developer runs their **own** local MySQL (see `docs/LOCAL_DATABASE_SETUP.md
 
 ## Sending handoffs to the team
 
-Send Shahrukh the full `02_SHAHRUKH_HANDOFF_PROMPT.md`.  
+Send Shahrukh:
+- `02_SHAHRUKH_HANDOFF_PROMPT.md` (OpCo)
+- `docs/HANDOFF_SHAHRUKH_PARTNER.md` (Partner — ownership transfer from Hussnain)
 Send Haseeb the full `03_HASEEB_HANDOFF_PROMPT.md`.  
 Repo URL: https://github.com/MetaZura-Studio/Dizlee-Reconciliation

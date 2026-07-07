@@ -1,6 +1,6 @@
 /**
  * Partner-scoped auth helpers.
- * Hussnain owns this module — do not import from other developers' lib/ folders.
+ * Shahrukh owns this module — reads shared JWT via lib/auth/options only.
  */
 
 export type PartnerSession = {

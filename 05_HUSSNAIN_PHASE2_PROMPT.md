@@ -1,8 +1,10 @@
-# Cursor prompt — Hussnain (Phase 2: Auth + Admin + Partner portals)
+# Cursor prompt — Hussnain (Phase 2: Auth + Admin portals)
 
 **Repo:** https://github.com/MetaZura-Studio/Dizlee-Reconciliation
 
-Phase 1 (bootstrap, ERD, CI) is complete. This prompt is for **ongoing development** of Auth, Admin, and Partner portals.
+Phase 1 (bootstrap, ERD, CI) is complete. This prompt is for **ongoing development** of Auth and Admin portals only.
+
+**Partner portal** was transferred to **Shahrukh** — see `docs/HANDOFF_SHAHRUKH_PARTNER.md`.
 
 ---
 
@@ -19,7 +21,7 @@ npm run seed
 npm run dev
 ```
 
-Confirm `/admin`, `/partner`, and `/login` routes work.
+Confirm `/admin` and `/login` routes work.
 
 ---
 
@@ -27,7 +29,9 @@ Confirm `/admin`, `/partner`, and `/login` routes work.
 
 ---
 
-I am Hussnain, lead developer on the **Dizlee Reconciliation Platform**. Phase 1 scaffold, full ERD (27 tables), CI, and placeholder portals are done. I am building **Auth (shared)**, **Admin portal**, and **Partner portal** only. I do not touch Shahrukh's or Haseeb's folders.
+I am Hussnain, lead developer on the **Dizlee Reconciliation Platform**. Phase 1 scaffold, full ERD (27 tables), CI, and placeholder portals are done. I am building **Auth (shared)** and **Admin portal** only. I do not touch Shahrukh's or Haseeb's folders.
+
+**Partner portal is owned by Shahrukh** (see `docs/HANDOFF_SHAHRUKH_PARTNER.md`).
 
 ## Database / ERD rules (CRITICAL)
 
@@ -55,9 +59,9 @@ All 27 tables are migrated. Prisma models exist in `prisma/schema.prisma`.
 
 | Principle | What it means for me |
 |-----------|----------------------|
-| **No blocking** | Admin, Auth, and Partner portals do not depend on OpCo/Dizlee UIs being finished |
-| **Seed data** | `prisma/seed.ts` provides users, lookups, settings, links — extend seed as needed for my tests |
-| **Scoped auth** | Each developer has their own `lib/<portal>/auth.ts` — I build `lib/admin/auth.ts` and `lib/partner/auth.ts`, not a shared middleware others import |
+| **No blocking** | Admin and Auth do not depend on OpCo/Dizlee/Partner UIs being finished |
+| **Seed data** | `prisma/seed.ts` provides users, lookups, settings, links — extend seed as needed for Admin tests |
+| **Scoped auth** | Each developer has their own `lib/<portal>/auth.ts` — I build `lib/admin/auth.ts` only |
 
 Full SRS → developer mapping: `docs/USE_CASE_OWNERSHIP.md`
 
@@ -69,12 +73,10 @@ Full SRS → developer mapping: `docs/USE_CASE_OWNERSHIP.md`
 |---------------|-----------|
 | `app/(auth)/` | Yes — login, forgot/change password |
 | `app/(admin)/`, `app/api/admin/` | Yes |
-| `app/(partner)/`, `app/api/partner/` | Yes |
-| `lib/admin/`, `lib/partner/` | Yes |
-| `components/admin/`, `components/partner/` | Yes |
+| `lib/admin/`, `components/admin/` | Yes |
 | `prisma/schema.prisma` — Hussnain block | Yes |
 | `prisma/seed.ts` | Yes (coordinate with team — seed is shared) |
-| `app/(opco)/`, `app/(dizlee)/` | **No** |
+| `app/(opco)/`, `app/(dizlee)/`, `app/(partner)/` | **No** — Partner is Shahrukh |
 | Shahrukh's or Haseeb's Prisma blocks | **No** (review only) |
 
 ---
@@ -116,20 +118,15 @@ Reference SRS: `SRS_Reconciliation_Professional.docx`.
 ### Phase 4 — Admin audit
 - UC-08: View and export audit logs (CSV, filters)
 
-### Phase 5 — Partner portal
-- UC-01-PARTNER: Access Side Navigation Bar
-- UC-02-PARTNER: View Dashboard (Partner)
-- UC-03-PARTNER: Upload Report (Partner)
-- UC-04-PARTNER: View Reports (Partner)
-- UC-05-PARTNER: Request Report Upload (Partner) — `report_change_requests` (Shahrukh's table; I write from Partner API)
-- UC-06-PARTNER: Upload Invoice (Partner)
-- UC-07-PARTNER: View Invoices (Partner) — lifecycle tracker tab
-- **Replace upload (follow-on):** After Dizlee approves reupload, **Reupload corrected file** on report row
-- **Partner Notifications inbox** — list/read/dismiss notifications received by Partner users
-
-### Phase 6 — Self-QA
+### Phase 5 — Self-QA
 - Unit tests for auth flows, user CRUD, settings validation
-- Integration tests per Admin/Partner API route
+- Integration tests per Admin API route
+
+---
+
+## Partner portal — NOT Hussnain (transferred to Shahrukh)
+
+All Partner use cases (UC-01-PARTNER through UC-07-PARTNER, notifications inbox, replace upload) are built by **Shahrukh**. Handoff: `docs/HANDOFF_SHAHRUKH_PARTNER.md`.
 
 ---
 

@@ -68,12 +68,18 @@ export async function requireOpcoSession() {
 npm run seed
 ```
 
-| Email | Password | Role | Sign in at |
-|-------|----------|------|------------|
-| `admin@dizlee.com` | `Password123!` | Admin | `/admin/login` |
-| `client@dizlee.com` | `Password123!` | Dizlee | `/login` |
-| `opco@dizlee.com` | `Password123!` | OpCo | `/login` |
-| `partner@dizlee.com` | `Password123!` | Partner | `/login` |
+**Password for all seed users:** `Password123!`
+
+| Email | Role | Sign in at |
+|-------|------|------------|
+| `admin@dizlee.com` | Admin | `/admin/login` |
+| `client@dizlee.com` | Dizlee | `/login` |
+| `{opco-slug}@dizlee.com` | OpCo | `/login` |
+| `{partner-slug}@dizlee.com` | Partner | `/login` |
+
+Examples: `zain-jordan@dizlee.com`, `spotify@dizlee.com`
+
+Full list (7 OpCos, 35 Partners, 44 users): **`docs/SEED_DATA.md`**
 
 ---
 
