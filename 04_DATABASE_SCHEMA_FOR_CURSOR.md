@@ -332,7 +332,7 @@ INSERT INTO app_settings (id) VALUES (1);
 
 > `smtp_host`, `smtp_port`, `sender_address` are stored here for the admin settings UI. Actual SMTP credentials (username, password) are NEVER stored in the database — they live in server-side environment variables only (per SRS UC-05 BR-1).
 >
-> `reminder_unit` is explicitly TBD in the SRS — store whatever string value the admin sets. Do NOT hardcode 'days' in any business logic.
+> `reminder_unit` allowed values: `days`, `weeks`. Countdown for automatic reminders (UC-07) starts from the 1st day of the reporting period.
 
 ---
 
