@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 
-import { PASSWORD_MIN_LENGTH, validatePasswordMatch } from "@/lib/auth/password-policy";
 import type {
   AdminUserRole,
   AdminUserStatus,
@@ -75,8 +74,6 @@ function UserFormModalContent({
   const [values, setValues] = useState<UserFormValues>(() =>
     getInitialValues(mode, user),
   );
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
 
   useEffect(() => {
     void fetch("/api/admin/users?form=options")
@@ -123,34 +120,14 @@ function UserFormModalContent({
     setSubmitting(true);
     setError(null);
 
-    if (mode === "create") {
-      const mismatch = validatePasswordMatch(password, confirmPassword);
-      if (mismatch) {
-        setError(mismatch);
-        setSubmitting(false);
-        return;
-      }
-    }
-
-    const payload =
-      mode === "create"
-        ? {
-            name: values.name,
-            email: values.email,
-            role: values.role,
-            status: values.status,
-            opcoId: values.role === "opco" ? values.opcoId : null,
-            partnerId: values.role === "partner" ? values.partnerId : null,
-            password,
-          }
-        : {
-            name: values.name,
-            email: values.email,
-            role: values.role,
-            status: values.status,
-            opcoId: values.role === "opco" ? values.opcoId : null,
-            partnerId: values.role === "partner" ? values.partnerId : null,
-          };
+    const payload = {
+      name: values.name,
+      email: values.email,
+      role: values.role,
+      status: values.status,
+      opcoId: values.role === "opco" ? values.opcoId : null,
+      partnerId: values.role === "partner" ? values.partnerId : null,
+    };
 
     try {
       const response = await fetch(
@@ -169,7 +146,22 @@ function UserFormModalContent({
         throw new Error(body.error ?? "Failed to save user");
       }
 
-      onSaved(mode === "create" ? "User created." : "User updated.");
+      if (mode === "create") {
+        const inviteEmail = body.data?.inviteEmail as
+          | { sent?: boolean; devPreviewUrl?: string }
+          | undefined;
+        if (inviteEmail?.sent) {
+          onSaved("User created. Set-password email sent.");
+        } else if (inviteEmail?.devPreviewUrl) {
+          onSaved(
+            `User created. Dev set-password link: ${inviteEmail.devPreviewUrl}`,
+          );
+        } else {
+          onSaved("User created. Configure SMTP to email the set-password link.");
+        }
+      } else {
+        onSaved("User updated.");
+      }
       onClose();
     } catch (submitError) {
       setError(
@@ -196,8 +188,8 @@ function UserFormModalContent({
           </h2>
           <p className="mt-1 text-sm text-zinc-500">
             {mode === "create"
-              ? "Set the initial password. The user can change it later from their profile."
-              : "Profile and access only. Password changes are done by the user (change password)."}
+              ? "A set-password link is emailed to the user (expires in 1 hour). They can change it later from their profile."
+              : "Profile and access only. Password changes are done by the user."}
             {" "}Admin accounts are managed separately.
           </p>
         </div>
@@ -282,40 +274,6 @@ function UserFormModalContent({
                 ))}
               </select>
             </label>
-          ) : null}
-
-          {mode === "create" ? (
-            <>
-              <label className="block text-sm">
-                <span className="mb-1 block font-medium text-zinc-700">
-                  Initial password
-                </span>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
-                  autoComplete="new-password"
-                />
-                <span className="mt-1 block text-xs text-zinc-500">
-                  At least {PASSWORD_MIN_LENGTH} characters with uppercase, lowercase,
-                  and a number.
-                </span>
-              </label>
-
-              <label className="block text-sm">
-                <span className="mb-1 block font-medium text-zinc-700">
-                  Confirm password
-                </span>
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(event) => setConfirmPassword(event.target.value)}
-                  className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
-                  autoComplete="new-password"
-                />
-              </label>
-            </>
           ) : null}
 
           <label className="block text-sm">

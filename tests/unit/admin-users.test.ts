@@ -7,28 +7,15 @@ import {
 import { parseUserListFilters } from "@/lib/admin/users.shared";
 
 describe("admin user validation", () => {
-  it("accepts a valid Dizlee user with initial password", () => {
+  it("accepts a valid Dizlee user without admin password", () => {
     const result = createUserSchema.safeParse({
       name: "Jane Doe",
       email: "jane@dizlee.com",
       role: "client",
       status: "ACTIVE",
-      password: "Password123!",
     });
 
     expect(result.success).toBe(true);
-  });
-
-  it("requires a valid initial password on create", () => {
-    const result = createUserSchema.safeParse({
-      name: "Jane Doe",
-      email: "jane@dizlee.com",
-      role: "client",
-      status: "ACTIVE",
-      password: "short",
-    });
-
-    expect(result.success).toBe(false);
   });
 
   it("requires OpCo when role is opco", () => {
@@ -63,7 +50,6 @@ describe("admin user validation", () => {
       status: "ACTIVE",
       opcoId: "4",
       partnerId: null,
-      password: "Password123!",
     });
 
     expect(result.success).toBe(true);

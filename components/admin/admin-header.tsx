@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { SignOutButton } from "@/components/auth/sign-out-button";
@@ -68,15 +69,14 @@ export function AdminHeader({ user }: AdminHeaderProps) {
                 <p className="truncate text-sm font-medium">{displayName}</p>
                 <p className="truncate text-xs text-zinc-500">{user.email}</p>
               </div>
-              <button
-                type="button"
+              <Link
+                href="/change-password"
                 role="menuitem"
-                disabled
-                title="Change password coming soon"
-                className="block w-full px-4 py-2 text-left text-sm text-zinc-400"
+                className="block px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50"
+                onClick={() => setMenuOpen(false)}
               >
                 Change password
-              </button>
+              </Link>
               <div className="px-4 py-2">
                 <SignOutButton
                   callbackUrl="/admin/login"
