@@ -1,13 +1,26 @@
-import { PlaceholderPage } from "@/components/partner/PlaceholderPage";
+import { DashboardSummary } from "@/components/partner/DashboardSummary";
 import { requirePartnerSession } from "@/lib/partner/auth";
+import { parseDashboardPeriod } from "@/lib/partner/period";
+import { getPartnerDashboard } from "@/lib/partner/queries/dashboard";
 
-export default async function PartnerPage() {
-  await requirePartnerSession();
+type PartnerDashboardPageProps = {
+  searchParams: Promise<{
+    year?: string;
+    month?: string;
+  }>;
+};
 
-  return (
-    <PlaceholderPage
-      title="Dashboard"
-      description="View reconciliation status across your linked OpCos."
-    />
+export default async function PartnerDashboardPage({
+  searchParams,
+}: PartnerDashboardPageProps) {
+  const session = await requirePartnerSession();
+  const params = await searchParams;
+  const { year, month } = parseDashboardPeriod(params.year, params.month);
+  const data = await getPartnerDashboard(
+    BigInt(session.partnerId),
+    year,
+    month,
   );
+
+  return <DashboardSummary data={data} />;
 }
