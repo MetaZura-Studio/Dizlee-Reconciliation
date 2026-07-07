@@ -93,9 +93,10 @@ Full list (7 OpCos, 35 Partners, 44 users): **`docs/SEED_DATA.md`**
 
 - Admin **create user** does not set a password — an invite email is sent.
 - Tokens are single-use, stored hashed in `users.password_reset_token`.
-- **Dev without SMTP:** invite link is logged to the server console and returned in the create-user API response as `devPreviewUrl`.
+- Outbound mail respects `app_settings.email_enabled` and DB SMTP host/port/sender; credentials stay in env vars.
+- **Dev without SMTP / email disabled:** invite link is logged to the server console and returned in the create-user API response as `devPreviewUrl`.
 
-Configure SMTP in `.env` (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`).
+Configure SMTP credentials in `.env` (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`). Host/port/sender can also be managed in Admin → Email Settings.
 
 ---
 
@@ -105,11 +106,3 @@ Configure SMTP in `.env` (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`
 NEXTAUTH_SECRET="generate-with-openssl-rand-base64-32"
 NEXTAUTH_URL="http://localhost:3000"
 ```
-
----
-
-## Not in this release
-
-- UC-02-COMMON Change Password UI
-- UC-03-COMMON Forgot Password flow
-- Outbound SMTP email

@@ -2,6 +2,7 @@ import nodemailer from "nodemailer";
 
 import { buildPasswordEmailContent } from "@/lib/auth/password-email-content";
 import type { PasswordResetPurpose } from "@/lib/auth/password-reset";
+import { resolveSmtpConfig } from "@/lib/auth/smtp-config";
 
 export type SendPasswordEmailInput = {
   to: string;
@@ -10,34 +11,18 @@ export type SendPasswordEmailInput = {
   purpose: PasswordResetPurpose;
 };
 
-export type SendPasswordEmailResult = {
+export type SendMailResult = {
   sent: boolean;
   devPreviewUrl?: string;
-  reason?: string;
+  reason?: "email_disabled" | "smtp_not_configured";
 };
 
-function getSmtpConfig() {
-  const host = process.env.SMTP_HOST?.trim();
-  const port = Number(process.env.SMTP_PORT ?? "587");
-  const user = process.env.SMTP_USER?.trim();
-  const pass = process.env.SMTP_PASSWORD;
-  const from =
-    process.env.SMTP_FROM?.trim() ??
-    process.env.SENDER_ADDRESS?.trim() ??
-    "noreply@dizlee.com";
-
-  if (!host) {
-    return null;
-  }
-
-  return {
-    host,
-    port,
-    secure: port === 465,
-    auth: user && pass ? { user, pass } : undefined,
-    from,
-  };
-}
+export type SendPlatformEmailInput = {
+  to: string;
+  subject: string;
+  text: string;
+  html: string;
+};
 
 export function applyEmailRedirect(input: {
   to: string;
@@ -61,28 +46,74 @@ export function applyEmailRedirect(input: {
   };
 }
 
+export async function sendPlatformEmail(
+  input: SendPlatformEmailInput,
+): Promise<SendMailResult> {
+  const smtpResult = await resolveSmtpConfig();
+
+  if (!smtpResult.ok) {
+    if (
+      smtpResult.reason === "smtp_not_configured" &&
+      process.env.NODE_ENV === "development"
+    ) {
+      console.info(`[dev] Email to ${input.to}: ${input.subject}`);
+      return { sent: false, reason: smtpResult.reason };
+    }
+
+    return { sent: false, reason: smtpResult.reason };
+  }
+
+  const transporter = nodemailer.createTransport({
+    host: smtpResult.config.host,
+    port: smtpResult.config.port,
+    secure: smtpResult.config.secure,
+    auth: smtpResult.config.auth,
+  });
+
+  const routed = applyEmailRedirect({
+    to: input.to,
+    subject: input.subject,
+    text: input.text,
+    html: input.html,
+  });
+
+  await transporter.sendMail({
+    from: smtpResult.config.from,
+    to: routed.to,
+    subject: routed.subject,
+    text: routed.text,
+    html: routed.html,
+  });
+
+  return { sent: true };
+}
+
 export async function sendPasswordEmail(
   input: SendPasswordEmailInput,
-): Promise<SendPasswordEmailResult> {
+): Promise<SendMailResult> {
   const content = buildPasswordEmailContent(input);
-  const smtp = getSmtpConfig();
+  const smtpResult = await resolveSmtpConfig();
 
-  if (!smtp) {
+  if (!smtpResult.ok) {
     if (process.env.NODE_ENV === "development") {
       console.info(
         `[dev] Password email for ${input.to} (${input.purpose}): ${content.link}`,
       );
-      return { sent: false, devPreviewUrl: content.link, reason: "smtp_not_configured" };
+      return {
+        sent: false,
+        devPreviewUrl: content.link,
+        reason: smtpResult.reason,
+      };
     }
 
-    return { sent: false, reason: "smtp_not_configured" };
+    return { sent: false, reason: smtpResult.reason };
   }
 
   const transporter = nodemailer.createTransport({
-    host: smtp.host,
-    port: smtp.port,
-    secure: smtp.secure,
-    auth: smtp.auth,
+    host: smtpResult.config.host,
+    port: smtpResult.config.port,
+    secure: smtpResult.config.secure,
+    auth: smtpResult.config.auth,
   });
 
   const routed = applyEmailRedirect({
@@ -93,7 +124,7 @@ export async function sendPasswordEmail(
   });
 
   await transporter.sendMail({
-    from: smtp.from,
+    from: smtpResult.config.from,
     to: routed.to,
     subject: routed.subject,
     text: routed.text,
