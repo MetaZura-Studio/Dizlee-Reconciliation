@@ -3,16 +3,10 @@
 import { useState } from "react";
 
 import { formatPeriodLabel } from "@/lib/partner/period";
-
-export type PartnerReportChangeTarget = {
-  id: string;
-  opcoName: string;
-  year: number;
-  month: number;
-};
+import type { PartnerReportListItem } from "@/lib/partner/queries/reports";
 
 type RequestChangeDialogProps = {
-  report: PartnerReportChangeTarget;
+  report: PartnerReportListItem;
   onClose: () => void;
   onSuccess: () => void;
 };
