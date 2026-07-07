@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 
 import { formatPeriodLabel } from "@/lib/opco/period";
 import { getLinkedPartnersForOpco } from "@/lib/opco/queries/partners";
+import { mapReuploadEligibility } from "@/lib/opco/reupload/eligibility";
 import prisma from "@/lib/prisma";
 
 export type OpcoReportSortField = "uploaded" | "period" | "partner";
@@ -29,6 +30,7 @@ export type OpcoReportListItem = {
   lineItemCount: number;
   uploadedAt: string;
   hasPendingChangeRequest: boolean;
+  canReupload: boolean;
 };
 
 export type OpcoReportListResult = {
@@ -65,6 +67,7 @@ export type OpcoReportDetail = {
   lineItemCount: number;
   lineItems: OpcoReportLineItem[];
   hasPendingChangeRequest: boolean;
+  canReupload: boolean;
 };
 
 export type OpcoReportFilterOptions = {
@@ -219,9 +222,12 @@ export async function searchReportsForOpco(
         status: { select: { code: true, label: true } },
         file: { select: { filename: true } },
         changeRequests: {
-          where: { decidedAt: null },
-          select: { id: true },
-          take: 1,
+          select: {
+            id: true,
+            decidedAt: true,
+            completedAt: true,
+            status: { select: { code: true } },
+          },
         },
         _count: { select: { lineItems: true } },
       },
@@ -242,7 +248,10 @@ export async function searchReportsForOpco(
       filename: report.file?.filename ?? null,
       lineItemCount: report._count.lineItems,
       uploadedAt: report.createdAt.toISOString(),
-      hasPendingChangeRequest: report.changeRequests.length > 0,
+      hasPendingChangeRequest: report.changeRequests.some(
+        (request) => request.decidedAt === null,
+      ),
+      canReupload: mapReuploadEligibility(report.status.code, report.changeRequests),
     })),
     page: filters.page,
     pageSize: OPCO_REPORTS_PAGE_SIZE,
@@ -269,9 +278,12 @@ export async function getReportDetailForOpco(
         orderBy: { lineNumber: "asc" },
       },
       changeRequests: {
-        where: { decidedAt: null },
-        select: { id: true },
-        take: 1,
+        select: {
+          id: true,
+          decidedAt: true,
+          completedAt: true,
+          status: { select: { code: true } },
+        },
       },
     },
   });
@@ -293,6 +305,9 @@ export async function getReportDetailForOpco(
     uploadedAt: report.createdAt.toISOString(),
     lineItemCount: report.lineItems.length,
     lineItems: report.lineItems.map(mapLineItem),
-    hasPendingChangeRequest: report.changeRequests.length > 0,
+    hasPendingChangeRequest: report.changeRequests.some(
+      (request) => request.decidedAt === null,
+    ),
+    canReupload: mapReuploadEligibility(report.status.code, report.changeRequests),
   };
 }

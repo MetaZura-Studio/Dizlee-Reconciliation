@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import { ReportDetailModal } from "@/components/opco/ReportDetailModal";
+import { ReportReuploadDialog } from "@/components/opco/ReportReuploadDialog";
 import { RequestChangeDialog } from "@/components/opco/RequestChangeDialog";
 import { formatPeriodLabel } from "@/lib/opco/period";
 import type {
@@ -87,6 +88,9 @@ export function ReportsTable({ initialResult, filterOptions }: ReportsTableProps
 
   const [changeRequestReport, setChangeRequestReport] =
     useState<OpcoReportListItem | null>(null);
+  const [reuploadReport, setReuploadReport] = useState<OpcoReportListItem | null>(
+    null,
+  );
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const [detailOpen, setDetailOpen] = useState(false);
@@ -151,6 +155,11 @@ export function ReportsTable({ initialResult, filterOptions }: ReportsTableProps
     router.refresh();
   }
 
+  function handleReuploadSuccess() {
+    setSuccessMessage("Corrected report uploaded successfully.");
+    router.refresh();
+  }
+
   const columnHelper = createColumnHelper<OpcoReportListItem>();
 
   const columns = useMemo(
@@ -211,6 +220,15 @@ export function ReportsTable({ initialResult, filterOptions }: ReportsTableProps
                 className="rounded border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-800 hover:bg-zinc-50"
               >
                 Request reupload
+              </button>
+            ) : null}
+            {row.original.canReupload ? (
+              <button
+                type="button"
+                onClick={() => setReuploadReport(row.original)}
+                className="rounded border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-900 hover:bg-emerald-100"
+              >
+                Reupload corrected file
               </button>
             ) : null}
           </div>
@@ -452,6 +470,14 @@ export function ReportsTable({ initialResult, filterOptions }: ReportsTableProps
           report={changeRequestReport}
           onClose={() => setChangeRequestReport(null)}
           onSuccess={handleRequestSuccess}
+        />
+      ) : null}
+
+      {reuploadReport ? (
+        <ReportReuploadDialog
+          report={reuploadReport}
+          onClose={() => setReuploadReport(null)}
+          onSuccess={handleReuploadSuccess}
         />
       ) : null}
 
