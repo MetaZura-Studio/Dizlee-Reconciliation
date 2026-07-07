@@ -82,66 +82,64 @@ export async function reuploadCorrectedReport(
 
   const completedAt = new Date();
 
-  await prisma.$transaction(async (tx) => {
-    const completed = await tx.reportChangeRequest.updateMany({
-      where: {
-        id: approvedRequest.id,
-        completedAt: null,
-      },
-      data: { completedAt },
-    });
+  const completed = await prisma.reportChangeRequest.updateMany({
+    where: {
+      id: approvedRequest.id,
+      completedAt: null,
+    },
+    data: { completedAt },
+  });
 
-    if (completed.count === 0) {
-      throw new ReportReuploadError("Reupload request is no longer available", 409);
-    }
+  if (completed.count === 0) {
+    throw new ReportReuploadError("Reupload request is no longer available", 409);
+  }
 
-    const file = await tx.file.create({
-      data: {
-        filename: input.filename,
-        storageKey: savedFile.storageKey,
-        mimeType: input.mimeType,
-        sizeBytes: savedFile.sizeBytes,
-        checksum: savedFile.checksum,
-        uploadedByUserId: input.userId,
-      },
-    });
+  const file = await prisma.file.create({
+    data: {
+      filename: input.filename,
+      storageKey: savedFile.storageKey,
+      mimeType: input.mimeType,
+      sizeBytes: savedFile.sizeBytes,
+      checksum: savedFile.checksum,
+      uploadedByUserId: input.userId,
+    },
+  });
 
-    await tx.reportLineItem.updateMany({
-      where: {
-        reportId: input.reportId,
-        isDeleted: false,
-      },
-      data: {
-        isDeleted: true,
-        deletedAt: completedAt,
-        deletedByUserId: input.userId,
-      },
-    });
+  await prisma.reportLineItem.updateMany({
+    where: {
+      reportId: input.reportId,
+      isDeleted: false,
+    },
+    data: {
+      isDeleted: true,
+      deletedAt: completedAt,
+      deletedByUserId: input.userId,
+    },
+  });
 
-    await tx.reportLineItem.createMany({
-      data: input.lineItems.map((item) => ({
-        reportId: input.reportId,
-        lineNumber: item.lineNumber,
-        description: item.description,
-        usageAmount: item.usageAmount,
-        usageUsd: item.usageUsd,
-        amount: item.amount,
-        exchangeRate: item.exchangeRate,
-        usageUnit: item.usageUnit,
-        reconciliationBasis: item.reconciliationBasis,
-        sourceColumns: item.sourceColumns as Prisma.InputJsonValue,
-      })),
-    });
+  await prisma.reportLineItem.createMany({
+    data: input.lineItems.map((item) => ({
+      reportId: input.reportId,
+      lineNumber: item.lineNumber,
+      description: item.description,
+      usageAmount: item.usageAmount,
+      usageUsd: item.usageUsd,
+      amount: item.amount,
+      exchangeRate: item.exchangeRate,
+      usageUnit: item.usageUnit,
+      reconciliationBasis: item.reconciliationBasis,
+      sourceColumns: item.sourceColumns as Prisma.InputJsonValue,
+    })),
+  });
 
-    await tx.report.update({
-      where: { id: input.reportId },
-      data: {
-        fileId: file.id,
-        statusId: resubmittedStatusId,
-        uploadedByUserId: input.userId,
-        updatedByUserId: input.userId,
-      },
-    });
+  await prisma.report.update({
+    where: { id: input.reportId },
+    data: {
+      fileId: file.id,
+      statusId: resubmittedStatusId,
+      uploadedByUserId: input.userId,
+      updatedByUserId: input.userId,
+    },
   });
 
   return {
