@@ -1,10 +1,42 @@
-export default function DizleeReportingPage() {
+import { ReportingView } from "@/components/dizlee/reporting-view";
+import {
+  getReportingOverview,
+  getReportFilterOptions,
+  parseReportingFilters,
+} from "@/lib/dizlee/reporting";
+
+type DizleeReportingPageProps = {
+  searchParams: Promise<{
+    month?: string;
+    year?: string;
+    opcoId?: string;
+    partnerId?: string;
+  }>;
+};
+
+export default async function DizleeReportingPage({
+  searchParams,
+}: DizleeReportingPageProps) {
+  const params = await searchParams;
+  const query = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(params)) {
+    if (value) {
+      query.set(key, value);
+    }
+  }
+
+  const filters = parseReportingFilters(query);
+
+  const [initialOverview, initialFilterOptions] = await Promise.all([
+    getReportingOverview(filters),
+    getReportFilterOptions(),
+  ]);
+
   return (
-    <div className="mx-auto max-w-4xl space-y-4">
-      <h1 className="text-2xl font-semibold text-zinc-900">Reporting</h1>
-      <p className="text-zinc-600">
-        Period-based invoice and report overview — Feature 14.
-      </p>
-    </div>
+    <ReportingView
+      initialOverview={initialOverview}
+      initialFilterOptions={initialFilterOptions}
+    />
   );
 }
