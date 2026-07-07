@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import type { OpcoInvoiceDetail } from "@/lib/opco/queries/invoices";
 
 function formatCurrency(amount: number, currencyCode: string): string {
@@ -139,6 +141,19 @@ export function InvoiceDetailModal({
             </div>
           ) : null}
         </div>
+
+        {detail ? (
+          <div className="border-t border-zinc-200 px-6 py-4 print:hidden">
+            <Link
+              href={`/opco/invoices/${detail.id}/print`}
+              target="_blank"
+              rel="noreferrer"
+              className="text-sm font-medium text-zinc-900 underline hover:text-zinc-700"
+            >
+              Open print view
+            </Link>
+          </div>
+        ) : null}
       </div>
     </div>
   );

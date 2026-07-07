@@ -55,6 +55,7 @@ export type OpcoInvoiceLineItem = {
 export type OpcoInvoiceDetail = {
   id: string;
   invoiceNumber: string | null;
+  opcoName: string;
   partnerName: string | null;
   year: number;
   month: number;
@@ -134,6 +135,7 @@ function buildWhere(
 function mapInvoiceDetail(
   invoice: Prisma.InvoiceGetPayload<{
     include: {
+      opco: { select: { name: true } };
       partner: { select: { name: true } };
       invoiceStatus: { select: { code: true; label: true } };
       paymentStatus: { select: { code: true; label: true } };
@@ -153,6 +155,7 @@ function mapInvoiceDetail(
   return {
     id: invoice.id.toString(),
     invoiceNumber: invoice.invoiceNumber,
+    opcoName: invoice.opco.name,
     partnerName: invoice.partner?.name ?? null,
     year: invoice.year,
     month: invoice.month,
@@ -340,6 +343,43 @@ async function maybeAcknowledgeOpcoInvoice(
   return true;
 }
 
+const invoiceDetailInclude = {
+  opco: { select: { name: true } },
+  partner: { select: { name: true } },
+  invoiceStatus: { select: { code: true, label: true } },
+  paymentStatus: { select: { code: true, label: true } },
+  currency: { select: { isoCode: true } },
+  items: {
+    orderBy: { sortOrder: "asc" as const },
+    select: {
+      description: true,
+      quantity: true,
+      unitPrice: true,
+      lineTotal: true,
+    },
+  },
+} satisfies Prisma.InvoiceInclude;
+
+export async function getOpcoInvoiceDetailForOpco(
+  opcoId: bigint,
+  invoiceId: bigint,
+): Promise<OpcoInvoiceDetail | null> {
+  const invoice = await prisma.invoice.findFirst({
+    where: {
+      id: invoiceId,
+      opcoId,
+      invoiceType: { code: "CLIENT_TO_OPCO" },
+    },
+    include: invoiceDetailInclude,
+  });
+
+  if (!invoice) {
+    return null;
+  }
+
+  return mapInvoiceDetail(invoice);
+}
+
 export async function getOpcoInvoiceDetailForViewer(
   opcoId: bigint,
   invoiceId: bigint,
@@ -357,21 +397,7 @@ export async function getOpcoInvoiceDetailForViewer(
       opcoId,
       invoiceType: { code: "CLIENT_TO_OPCO" },
     },
-    include: {
-      partner: { select: { name: true } },
-      invoiceStatus: { select: { code: true, label: true } },
-      paymentStatus: { select: { code: true, label: true } },
-      currency: { select: { isoCode: true } },
-      items: {
-        orderBy: { sortOrder: "asc" },
-        select: {
-          description: true,
-          quantity: true,
-          unitPrice: true,
-          lineTotal: true,
-        },
-      },
-    },
+    include: invoiceDetailInclude,
   });
 
   if (!invoice) {
