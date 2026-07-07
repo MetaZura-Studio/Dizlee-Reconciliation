@@ -6,6 +6,7 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 
@@ -200,13 +201,23 @@ export function InvoicesTable({ initialResult, filterOptions }: InvoicesTablePro
         id: "actions",
         header: "Actions",
         cell: ({ row }) => (
-          <button
-            type="button"
-            onClick={() => void openDetail(row.original.id)}
-            className="rounded border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-800 hover:bg-zinc-50"
-          >
-            View
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => void openDetail(row.original.id)}
+              className="rounded border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-800 hover:bg-zinc-50"
+            >
+              View
+            </button>
+            <Link
+              href={`/opco/invoices/${row.original.id}/print`}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-800 hover:bg-zinc-50"
+            >
+              Print
+            </Link>
+          </div>
         ),
       }),
     ],
