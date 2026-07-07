@@ -1,13 +1,13 @@
 import { PlaceholderPage } from "@/components/partner/PlaceholderPage";
 import { requirePartnerSession } from "@/lib/partner/auth";
 
-export default async function PartnerPage() {
+export default async function PartnerInvoicesPage() {
   await requirePartnerSession();
 
   return (
     <PlaceholderPage
-      title="Dashboard"
-      description="View reconciliation status across your linked OpCos."
+      title="Invoices"
+      description="Upload and track partner-to-client invoices."
     />
   );
 }
