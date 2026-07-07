@@ -1,10 +1,45 @@
-import { AdminPlaceholderPage } from "@/components/admin/placeholder-page";
+import { ReminderSettingsForm } from "@/components/admin/reminder-settings-form";
+import {
+  getReminderSettings,
+  ReminderSettingsError,
+  type ReminderSettingsView,
+} from "@/lib/admin/reminder-settings";
 
-export default function AdminReminderSettingsPage() {
+export default async function AdminReminderSettingsPage() {
+  let settings: ReminderSettingsView | null = null;
+  let errorMessage: string | null = null;
+
+  try {
+    settings = await getReminderSettings();
+  } catch (error) {
+    errorMessage =
+      error instanceof ReminderSettingsError
+        ? error.message
+        : "Application settings could not be loaded.";
+  }
+
+  if (errorMessage) {
+    return (
+      <div className="mx-auto max-w-3xl space-y-3">
+        <h1 className="text-2xl font-semibold tracking-tight">Reminder Settings</h1>
+        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {errorMessage}
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <AdminPlaceholderPage
-      title="Reminder Settings"
-      description="Configure automatic submission reminder schedules."
-    />
+    <div className="mx-auto max-w-3xl space-y-6">
+      <div className="space-y-1">
+        <h1 className="text-2xl font-semibold tracking-tight">Reminder Settings</h1>
+        <p className="text-sm text-zinc-600">
+          Admin-only system setting. Controls how long after the start of a
+          reporting period automatic reminders wait before sending.
+        </p>
+      </div>
+
+      <ReminderSettingsForm initialSettings={settings!} />
+    </div>
   );
 }

@@ -5,7 +5,10 @@ import { prisma } from "@/lib/prisma";
 
 type UserAuditAction = "USER_CREATED" | "USER_UPDATED" | "USER_DELETED";
 
-type SettingsAuditAction = "SETTINGS_EMAIL_UPDATED" | "EMAIL_TEST_SENT";
+type SettingsAuditAction =
+  | "SETTINGS_EMAIL_UPDATED"
+  | "EMAIL_TEST_SENT"
+  | "SETTINGS_REMINDERS_UPDATED";
 
 export async function writeUserAuditLog(params: {
   actorUserId: bigint;
