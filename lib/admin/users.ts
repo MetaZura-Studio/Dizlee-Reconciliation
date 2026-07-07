@@ -1,6 +1,6 @@
 import type { Prisma } from "@prisma/client";
 
-import { hashPassword } from "@/lib/auth/password";
+import { issuePasswordResetForUser } from "@/lib/auth/password-flow";
 import { writeUserAuditLog } from "@/lib/admin/audit";
 import { getLookupId } from "@/lib/admin/lookups";
 import type {
@@ -248,10 +248,17 @@ async function assertEntityLinks(input: {
   return { opcoId, partnerId };
 }
 
+export type CreateUserResult = UserListItem & {
+  inviteEmail: {
+    sent: boolean;
+    devPreviewUrl?: string;
+  };
+};
+
 export async function createUser(
   rawInput: CreateUserInput,
   actorUserId: string,
-): Promise<UserListItem> {
+): Promise<CreateUserResult> {
   const parsed = createUserSchema.safeParse(rawInput);
   if (!parsed.success) {
     throw new UserActionError(parsed.error.issues[0]?.message ?? "Invalid input");
@@ -266,7 +273,6 @@ export async function createUser(
     status: input.status,
   });
   const { opcoId, partnerId } = await assertEntityLinks(input);
-  const passwordHash = await hashPassword(input.password);
 
   const user = await prisma.user.create({
     data: {
@@ -276,7 +282,7 @@ export async function createUser(
       statusId,
       opcoId,
       partnerId,
-      passwordHash,
+      passwordHash: null,
       createdByUserId: BigInt(actorUserId),
       updatedByUserId: BigInt(actorUserId),
     },
@@ -287,6 +293,8 @@ export async function createUser(
       partner: { select: { name: true } },
     },
   });
+
+  const { emailResult } = await issuePasswordResetForUser(user.id, "invite");
 
   await writeUserAuditLog({
     actorUserId: BigInt(actorUserId),
@@ -303,7 +311,13 @@ export async function createUser(
     },
   });
 
-  return mapUserRow(user);
+  return {
+    ...mapUserRow(user),
+    inviteEmail: {
+      sent: emailResult.sent,
+      devPreviewUrl: emailResult.devPreviewUrl,
+    },
+  };
 }
 
 async function getEditableUser(userId: string) {

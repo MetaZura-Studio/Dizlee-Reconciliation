@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
@@ -24,6 +25,7 @@ export function LoginForm() {
 
   const queryError = searchParams.get("error");
   const callbackUrl = searchParams.get("callbackUrl");
+  const queryMessage = searchParams.get("message");
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -72,8 +74,20 @@ export function LoginForm() {
     error ??
     (queryError ? (ERROR_MESSAGES[queryError] ?? "Sign in failed.") : null);
 
+  const displaySuccess =
+    queryMessage === "PasswordSet"
+      ? "Password set. You can sign in with your new password."
+      : queryMessage === "PasswordReset"
+        ? "Password reset. You can sign in with your new password."
+        : null;
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {displaySuccess ? (
+        <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+          {displaySuccess}
+        </p>
+      ) : null}
       {displayError ? (
         <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
           {displayError}
@@ -119,6 +133,12 @@ export function LoginForm() {
       >
         {isSubmitting ? "Signing in..." : "Sign in"}
       </button>
+
+      <p className="text-center text-sm">
+        <Link href="/forgot-password" className="text-zinc-700 underline hover:text-zinc-900">
+          Forgot password?
+        </Link>
+      </p>
     </form>
   );
 }

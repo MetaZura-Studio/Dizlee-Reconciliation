@@ -1,7 +1,5 @@
 import { z } from "zod";
 
-import { passwordSchema } from "@/lib/auth/password-policy";
-
 export const ADMIN_ASSIGNABLE_ROLES = ["client", "opco", "partner"] as const;
 export const ADMIN_USER_STATUSES = ["ACTIVE", "INACTIVE", "SUSPENDED"] as const;
 
@@ -62,11 +60,9 @@ const userProfileFieldsSchema = z.object({
   partnerId: z.string().optional().nullable(),
 });
 
-export const createUserSchema = userProfileFieldsSchema
-  .extend({
-    password: passwordSchema,
-  })
-  .superRefine(userAssignmentRefinement);
+export const createUserSchema = userProfileFieldsSchema.superRefine(
+  userAssignmentRefinement,
+);
 
 export const updateUserSchema = userProfileFieldsSchema.superRefine(
   userAssignmentRefinement,

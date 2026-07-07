@@ -83,6 +83,22 @@ Full list (7 OpCos, 35 Partners, 44 users): **`docs/SEED_DATA.md`**
 
 ---
 
+## Password flows
+
+| Flow | URL | Expiry |
+|------|-----|--------|
+| Admin creates user → set-password email | `/set-password?token=…` | **1 hour** |
+| Forgot password (login pages) | `/reset-password?token=…` | **24 hours** |
+| Logged-in change password | `/change-password` | — |
+
+- Admin **create user** does not set a password — an invite email is sent.
+- Tokens are single-use, stored hashed in `users.password_reset_token`.
+- **Dev without SMTP:** invite link is logged to the server console and returned in the create-user API response as `devPreviewUrl`.
+
+Configure SMTP in `.env` (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`).
+
+---
+
 ## Environment variables
 
 ```env
