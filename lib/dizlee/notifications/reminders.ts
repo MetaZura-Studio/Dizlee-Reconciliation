@@ -7,6 +7,7 @@ import {
   type ReportMonitoringLane,
   type ReportMonitoringResult,
 } from "@/lib/dizlee/reports-monitoring";
+import { getActiveEmailTemplate } from "@/lib/platform/email-templates";
 import { prisma } from "@/lib/prisma";
 
 export type ReminderSettingsView = {
@@ -74,10 +75,7 @@ export async function getReminderSettings(): Promise<ReminderSettingsView> {
         reminderUnit: true,
       },
     }),
-    prisma.notificationTemplate.findFirst({
-      where: { code: "REPORT_REMINDER", isDeleted: false },
-      select: { subject: true, body: true },
-    }),
+    getActiveEmailTemplate("REPORT_REMINDER"),
   ]);
 
   return {

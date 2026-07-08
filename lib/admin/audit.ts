@@ -18,6 +18,8 @@ type CurrencyAuditAction =
   | "CURRENCY_DELETED"
   | "CURRENCY_RATE_UPDATED";
 
+type NotificationAuditAction = "EMAIL_TEMPLATE_UPDATED";
+
 export async function writeUserAuditLog(params: {
   actorUserId: bigint;
   action: UserAuditAction;
@@ -83,6 +85,30 @@ export async function writeCurrencyAuditLog(params: {
       actionId,
       entityTypeId,
       entityId: params.currencyId,
+      message: params.message,
+      metadata: params.metadata ?? undefined,
+    },
+  });
+}
+
+export async function writeNotificationAuditLog(params: {
+  actorUserId: bigint;
+  action: NotificationAuditAction;
+  notificationTemplateId: bigint;
+  message: string;
+  metadata?: Prisma.InputJsonValue;
+}): Promise<void> {
+  const [actionId, entityTypeId] = await Promise.all([
+    getLookupId("AUDIT_ACTION", params.action),
+    getLookupId("AUDIT_ENTITY_TYPE", "NOTIFICATION"),
+  ]);
+
+  await prisma.auditLog.create({
+    data: {
+      actorUserId: params.actorUserId,
+      actionId,
+      entityTypeId,
+      entityId: params.notificationTemplateId,
       message: params.message,
       metadata: params.metadata ?? undefined,
     },
