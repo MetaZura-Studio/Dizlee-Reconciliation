@@ -1,3 +1,4 @@
+import { ACTIVE_OPCO_PARTNER_LINK_FILTER } from "@/lib/platform/opco-partner-links";
 import prisma from "@/lib/prisma";
 
 export type OpcoSubmissionStatus =
@@ -88,7 +89,7 @@ export async function getPartnerDashboard(
         select: { name: true },
       }),
       prisma.opcoPartnerLink.findMany({
-        where: { partnerId },
+        where: { partnerId, ...ACTIVE_OPCO_PARTNER_LINK_FILTER },
         include: {
           opco: {
             select: { id: true, name: true },

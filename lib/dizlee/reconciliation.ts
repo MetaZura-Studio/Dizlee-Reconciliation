@@ -4,6 +4,7 @@ import {
   compareReportLines,
   type CompareLineInput,
 } from "@/lib/dizlee/reconciliation/compare";
+import { ACTIVE_OPCO_PARTNER_LINK_FILTER } from "@/lib/platform/opco-partner-links";
 import { prisma } from "@/lib/prisma";
 
 export type ReconciliationSearchBy = "opco" | "partner";
@@ -230,7 +231,7 @@ export async function listCompareLanes(
 
   const [links, reports, reconciliations] = await Promise.all([
     prisma.opcoPartnerLink.findMany({
-      where: linkWhere,
+      where: { ...linkWhere, ...ACTIVE_OPCO_PARTNER_LINK_FILTER },
       orderBy: [{ opco: { name: "asc" } }, { partner: { name: "asc" } }],
       include: {
         opco: { select: { id: true, name: true } },

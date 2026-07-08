@@ -1,3 +1,4 @@
+import { ACTIVE_OPCO_PARTNER_LINK_FILTER } from "@/lib/platform/opco-partner-links";
 import { prisma } from "@/lib/prisma";
 
 export type DashboardPeriod = {
@@ -142,6 +143,7 @@ export async function getDashboardData(
         select: { currencyId: true, rateToUsd: true },
       }),
       prisma.opcoPartnerLink.findMany({
+        where: ACTIVE_OPCO_PARTNER_LINK_FILTER,
         include: {
           opco: { select: { id: true, name: true } },
           partner: { select: { id: true, name: true } },

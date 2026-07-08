@@ -4,6 +4,7 @@ import {
   type ConsolidationLineInput,
 } from "@/lib/dizlee/consolidation/aggregate";
 import { getLookupId } from "@/lib/dizlee/lookups";
+import { ACTIVE_OPCO_PARTNER_LINK_FILTER } from "@/lib/platform/opco-partner-links";
 import { prisma } from "@/lib/prisma";
 
 export type ConsolidationReadinessPartner = {
@@ -203,7 +204,10 @@ export async function getConsolidationReadiness(params: {
 
   const [links, reports, existing] = await Promise.all([
     prisma.opcoPartnerLink.findMany({
-      where: { opcoId: BigInt(params.opcoId) },
+      where: {
+        opcoId: BigInt(params.opcoId),
+        ...ACTIVE_OPCO_PARTNER_LINK_FILTER,
+      },
       orderBy: { partner: { name: "asc" } },
       include: { partner: { select: { id: true, name: true } } },
     }),

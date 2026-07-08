@@ -3,6 +3,7 @@ import {
   getReportFilterOptions,
   type ReportFilterOptions,
 } from "@/lib/dizlee/reports";
+import { ACTIVE_OPCO_PARTNER_LINK_FILTER } from "@/lib/platform/opco-partner-links";
 import { prisma } from "@/lib/prisma";
 
 export type MissingSideFilter = "opco" | "partner" | "any";
@@ -122,7 +123,7 @@ export async function listReportMonitoringLanes(
 
   const [links, reports] = await Promise.all([
     prisma.opcoPartnerLink.findMany({
-      where: linkWhere,
+      where: { ...linkWhere, ...ACTIVE_OPCO_PARTNER_LINK_FILTER },
       orderBy: [{ opco: { name: "asc" } }, { partner: { name: "asc" } }],
       include: {
         opco: { select: { id: true, name: true } },
