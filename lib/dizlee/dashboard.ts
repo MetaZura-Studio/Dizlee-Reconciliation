@@ -1,4 +1,5 @@
 import { ACTIVE_OPCO_PARTNER_LINK_FILTER } from "@/lib/platform/opco-partner-links";
+import { getMonthlyRatesForPeriod } from "@/lib/platform/currency-rates";
 import { prisma } from "@/lib/prisma";
 
 export type DashboardPeriod = {
@@ -138,10 +139,7 @@ export async function getDashboardData(
           paymentStatus: { select: { code: true } },
         },
       }),
-      prisma.currencyMonthlyRate.findMany({
-        where: { month, year },
-        select: { currencyId: true, rateToUsd: true },
-      }),
+      getMonthlyRatesForPeriod(month, year),
       prisma.opcoPartnerLink.findMany({
         where: ACTIVE_OPCO_PARTNER_LINK_FILTER,
         include: {
@@ -171,7 +169,7 @@ export async function getDashboardData(
 
   const fxByCurrency = new Map<string, number>();
   for (const rate of fxRates) {
-    fxByCurrency.set(rate.currencyId.toString(), toNumber(rate.rateToUsd));
+    fxByCurrency.set(rate.currencyId, rate.rateToUsd);
   }
 
   const invoiceAmount = (items: { lineTotal: unknown }[]): number =>

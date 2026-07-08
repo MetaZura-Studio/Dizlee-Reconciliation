@@ -36,6 +36,10 @@ export const LOOKUP_SEEDS: Record<string, string[]> = {
     "SETTINGS_TOLERANCE_UPDATED",
     "SETTINGS_BANK_DETAILS_UPDATED",
     "SETTINGS_OPCO_PARTNER_LINK_UPDATED",
+    "CURRENCY_CREATED",
+    "CURRENCY_UPDATED",
+    "CURRENCY_DELETED",
+    "CURRENCY_RATE_UPDATED",
     "EMAIL_TEST_SENT",
     "EMAIL_TEMPLATE_UPDATED",
   ],
@@ -47,5 +51,6 @@ export const LOOKUP_SEEDS: Record<string, string[]> = {
     "CONSOLIDATION",
     "SETTINGS",
     "NOTIFICATION",
+    "CURRENCY",
   ],
 };
