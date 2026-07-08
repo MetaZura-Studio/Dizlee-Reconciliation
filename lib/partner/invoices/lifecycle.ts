@@ -1,0 +1,149 @@
+import { formatPeriodLabel } from "@/lib/partner/period";
+import prisma from "@/lib/prisma";
+
+export type LifecycleStep = {
+  code: string;
+  label: string;
+  completed: boolean;
+  completedAt: string | null;
+};
+
+export type LifecycleActivityEntry = {
+  id: string;
+  actorName: string;
+  action: string;
+  statusField: string | null;
+  previousStatus: string | null;
+  newStatus: string | null;
+  createdAt: string;
+};
+
+export type PartnerInvoiceLifecycleDetail = {
+  invoiceId: string;
+  invoiceNumber: string | null;
+  opcoName: string;
+  periodLabel: string;
+  statusLabel: string;
+  paymentStatusLabel: string;
+  steps: LifecycleStep[];
+  activities: LifecycleActivityEntry[];
+};
+
+const LIFECYCLE_STEPS = [
+  { code: "DRAFT", label: "Draft" },
+  { code: "SENT", label: "Sent" },
+  { code: "ACKNOWLEDGED", label: "Acknowledged" },
+  { code: "SETTLED", label: "Settled" },
+] as const;
+
+function statusRank(code: string): number {
+  switch (code) {
+    case "DRAFT":
+      return 0;
+    case "SENT":
+      return 1;
+    case "ACKNOWLEDGED":
+      return 2;
+    case "SETTLED":
+      return 3;
+    default:
+      return -1;
+  }
+}
+
+function buildSteps(params: {
+  statusCode: string;
+  sentAt: Date | null;
+  acknowledgedAt: Date | null;
+  settledAt: Date | null;
+  createdAt: Date;
+}): LifecycleStep[] {
+  const currentRank = statusRank(params.statusCode);
+
+  return LIFECYCLE_STEPS.map((step) => {
+    const stepRank = statusRank(step.code);
+    const completed = currentRank >= stepRank && stepRank >= 0;
+
+    let completedAt: string | null = null;
+    if (completed) {
+      switch (step.code) {
+        case "DRAFT":
+          completedAt = params.createdAt.toISOString();
+          break;
+        case "SENT":
+          completedAt = params.sentAt?.toISOString() ?? null;
+          break;
+        case "ACKNOWLEDGED":
+          completedAt = params.acknowledgedAt?.toISOString() ?? null;
+          break;
+        case "SETTLED":
+          completedAt = params.settledAt?.toISOString() ?? null;
+          break;
+        default:
+          break;
+      }
+    }
+
+    return {
+      code: step.code,
+      label: step.label,
+      completed,
+      completedAt,
+    };
+  });
+}
+
+export async function getPartnerInvoiceLifecycle(
+  partnerId: bigint,
+  invoiceId: bigint,
+): Promise<PartnerInvoiceLifecycleDetail | null> {
+  const invoice = await prisma.invoice.findFirst({
+    where: {
+      id: invoiceId,
+      partnerId,
+      invoiceType: { code: "PARTNER_TO_CLIENT" },
+      isDeleted: false,
+    },
+    include: {
+      opco: { select: { name: true } },
+      invoiceStatus: { select: { code: true, label: true } },
+      paymentStatus: { select: { code: true, label: true } },
+      activityLogs: {
+        orderBy: { createdAt: "desc" },
+        include: {
+          actor: { select: { name: true, email: true } },
+          action: { select: { code: true } },
+        },
+      },
+    },
+  });
+
+  if (!invoice) {
+    return null;
+  }
+
+  return {
+    invoiceId: invoice.id.toString(),
+    invoiceNumber: invoice.invoiceNumber,
+    opcoName: invoice.opco.name,
+    periodLabel: formatPeriodLabel(invoice.month, invoice.year),
+    statusLabel: invoice.invoiceStatus.label,
+    paymentStatusLabel: invoice.paymentStatus?.label ?? "—",
+    steps: buildSteps({
+      statusCode: invoice.invoiceStatus.code,
+      sentAt: invoice.sentAt,
+      acknowledgedAt: invoice.acknowledgedAt,
+      settledAt: invoice.settledAt,
+      createdAt: invoice.createdAt,
+    }),
+    activities: invoice.activityLogs.map((entry) => ({
+      id: entry.id.toString(),
+      actorName: entry.actor.name ?? entry.actor.email,
+      action: entry.action.code.replaceAll("_", " "),
+      statusField: entry.statusField,
+      previousStatus: entry.previousStatus,
+      newStatus: entry.newStatus,
+      createdAt: entry.createdAt.toISOString(),
+    })),
+  };
+}

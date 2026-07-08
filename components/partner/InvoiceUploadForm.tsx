@@ -288,6 +288,10 @@ export function InvoiceUploadForm({ opcos }: InvoiceUploadFormProps) {
         <div className="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
           <p>Invoice uploaded successfully.</p>
           <p className="mt-1">
+            <Link href="/partner/invoices/upload" className="underline">
+              Upload another invoice
+            </Link>
+            {" · "}
             <Link href="/partner/invoices" className="underline">
               View invoices
             </Link>
