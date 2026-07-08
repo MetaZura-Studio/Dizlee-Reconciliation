@@ -5,6 +5,7 @@ import {
   type CompareLineInput,
 } from "@/lib/dizlee/reconciliation/compare";
 import { ACTIVE_OPCO_PARTNER_LINK_FILTER } from "@/lib/platform/opco-partner-links";
+import { getReconciliationTolerancePercent } from "@/lib/platform/reconciliation-tolerance";
 import { prisma } from "@/lib/prisma";
 
 export type ReconciliationSearchBy = "opco" | "partner";
@@ -155,12 +156,7 @@ export function parseHistoryFilters(searchParams: URLSearchParams): {
 }
 
 async function getTolerancePercent(): Promise<number> {
-  const settings = await prisma.appSettings.findFirst({
-    where: { id: 1 },
-    select: { reconciliationNegligiblePercent: true },
-  });
-
-  return toNumber(settings?.reconciliationNegligiblePercent) ?? 0;
+  return getReconciliationTolerancePercent();
 }
 
 async function writeAuditLog(params: {
