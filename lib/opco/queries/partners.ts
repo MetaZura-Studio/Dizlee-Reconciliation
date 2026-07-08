@@ -1,3 +1,4 @@
+import { ACTIVE_OPCO_PARTNER_LINK_FILTER } from "@/lib/platform/opco-partner-links";
 import prisma from "@/lib/prisma";
 
 export type LinkedPartner = {
@@ -24,7 +25,7 @@ export async function getLinkedPartnersForOpco(
   opcoId: bigint,
 ): Promise<LinkedPartner[]> {
   const links = await prisma.opcoPartnerLink.findMany({
-    where: { opcoId },
+    where: { opcoId, ...ACTIVE_OPCO_PARTNER_LINK_FILTER },
     include: {
       partner: {
         select: {
@@ -51,6 +52,7 @@ export async function isPartnerLinkedToOpco(
     where: {
       opcoId,
       partnerId,
+      ...ACTIVE_OPCO_PARTNER_LINK_FILTER,
     },
     select: {
       opcoId: true,
