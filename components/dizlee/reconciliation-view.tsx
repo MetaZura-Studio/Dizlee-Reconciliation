@@ -55,15 +55,15 @@ function formatUsd(value: number | null): string {
 function stateClass(state: CompareLaneRow["state"]): string {
   switch (state) {
     case "READY":
-      return "text-emerald-700";
+      return "text-success";
     case "RECONCILED":
-      return "text-blue-700";
+      return "text-accent";
     case "NO_OPCO_REPORT":
     case "NO_PARTNER_REPORT":
     case "MISSING":
-      return "text-amber-700";
+      return "text-warning";
     default:
-      return "text-zinc-700";
+      return "text-foreground-muted";
   }
 }
 
@@ -285,13 +285,13 @@ export function ReconciliationView({
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-zinc-900">Reconciliation</h1>
-        <p className="mt-1 text-sm text-zinc-500">
+        <h1 className="text-2xl font-semibold text-foreground">Reconciliation</h1>
+        <p className="mt-1 text-sm text-foreground-subtle">
           Compare OpCo and Partner reports per lane. Tolerance: {tolerancePercent}%
         </p>
       </div>
 
-      <div className="border-b border-zinc-200">
+      <div className="border-b border-border">
         <nav className="-mb-px flex gap-6">
           {[
             { id: "compare" as const, label: "Compare Reports" },
@@ -308,8 +308,8 @@ export function ReconciliationView({
               }}
               className={`border-b-2 px-1 pb-3 text-sm font-medium ${
                 activeTab === tab.id
-                  ? "border-zinc-900 text-zinc-900"
-                  : "border-transparent text-zinc-500 hover:text-zinc-700"
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-foreground-subtle hover:text-foreground-muted"
               }`}
             >
               {tab.label}
@@ -319,26 +319,26 @@ export function ReconciliationView({
       </div>
 
       {message ? (
-        <div className="rounded-md border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+        <div className="rounded-md border border-success-border bg-success-muted p-4 text-sm text-success">
           {message}
         </div>
       ) : null}
       {error ? (
-        <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <div className="rounded-md border border-danger-border bg-danger-muted p-4 text-sm text-danger">
           {error}
         </div>
       ) : null}
 
       {activeTab === "compare" ? (
         <>
-          <section className="rounded-lg border border-zinc-200 bg-zinc-50 p-4">
+          <section className="rounded-lg border border-border bg-surface-muted p-4">
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <label className="text-sm">
-                <span className="mb-1 block text-xs text-zinc-500">Period (month)</span>
+                <span className="mb-1 block text-xs text-foreground-subtle">Period (month)</span>
                 <select
                   value={month}
                   onChange={(event) => setMonth(Number(event.target.value))}
-                  className="w-full rounded-md border border-zinc-300 px-3 py-1.5 text-sm"
+                  className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
                 >
                   {MONTHS.map((name, index) => (
                     <option key={name} value={index + 1}>
@@ -348,11 +348,11 @@ export function ReconciliationView({
                 </select>
               </label>
               <label className="text-sm">
-                <span className="mb-1 block text-xs text-zinc-500">Year</span>
+                <span className="mb-1 block text-xs text-foreground-subtle">Year</span>
                 <select
                   value={year}
                   onChange={(event) => setYear(Number(event.target.value))}
-                  className="w-full rounded-md border border-zinc-300 px-3 py-1.5 text-sm"
+                  className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
                 >
                   {yearOptions.map((value) => (
                     <option key={value} value={value}>
@@ -362,27 +362,27 @@ export function ReconciliationView({
                 </select>
               </label>
               <label className="text-sm">
-                <span className="mb-1 block text-xs text-zinc-500">Search by</span>
+                <span className="mb-1 block text-xs text-foreground-subtle">Search by</span>
                 <select
                   value={searchBy}
                   onChange={(event) => {
                     setSearchBy(event.target.value as ReconciliationSearchBy);
                     setEntityId("");
                   }}
-                  className="w-full rounded-md border border-zinc-300 px-3 py-1.5 text-sm"
+                  className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
                 >
                   <option value="opco">OpCo reports</option>
                   <option value="partner">Partner reports</option>
                 </select>
               </label>
               <label className="text-sm">
-                <span className="mb-1 block text-xs text-zinc-500">
+                <span className="mb-1 block text-xs text-foreground-subtle">
                   {searchBy === "opco" ? "OpCo" : "Partner"}
                 </span>
                 <select
                   value={entityId}
                   onChange={(event) => setEntityId(event.target.value)}
-                  className="w-full rounded-md border border-zinc-300 px-3 py-1.5 text-sm"
+                  className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
                 >
                   <option value="">All</option>
                   {entityOptions.map((option) => (
@@ -397,70 +397,70 @@ export function ReconciliationView({
               <button
                 type="button"
                 onClick={applyCompareFilters}
-                className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
               >
                 Apply
               </button>
             </div>
           </section>
 
-          {loading ? <p className="text-sm text-zinc-500">Loading lanes…</p> : null}
+          {loading ? <p className="text-sm text-foreground-subtle">Loading lanes…</p> : null}
 
           {!loading ? (
             lanes.length > 0 ? (
-              <div className="overflow-hidden rounded-lg border border-zinc-200">
-                <table className="min-w-full divide-y divide-zinc-200 text-sm">
-                  <thead className="bg-zinc-50">
+              <div className="overflow-hidden rounded-lg border border-border">
+                <table className="min-w-full divide-y divide-border text-sm">
+                  <thead className="bg-surface-muted">
                     <tr>
-                      <th className="px-4 py-3 text-left font-medium text-zinc-600">
+                      <th className="px-4 py-3 text-left font-medium text-foreground-muted">
                         Period
                       </th>
-                      <th className="px-4 py-3 text-left font-medium text-zinc-600">
+                      <th className="px-4 py-3 text-left font-medium text-foreground-muted">
                         OpCo
                       </th>
-                      <th className="px-4 py-3 text-left font-medium text-zinc-600">
+                      <th className="px-4 py-3 text-left font-medium text-foreground-muted">
                         Partner
                       </th>
-                      <th className="px-4 py-3 text-left font-medium text-zinc-600">
+                      <th className="px-4 py-3 text-left font-medium text-foreground-muted">
                         OpCo report
                       </th>
-                      <th className="px-4 py-3 text-left font-medium text-zinc-600">
+                      <th className="px-4 py-3 text-left font-medium text-foreground-muted">
                         Partner report
                       </th>
-                      <th className="px-4 py-3 text-left font-medium text-zinc-600">
+                      <th className="px-4 py-3 text-left font-medium text-foreground-muted">
                         State
                       </th>
-                      <th className="px-4 py-3 text-left font-medium text-zinc-600">
+                      <th className="px-4 py-3 text-left font-medium text-foreground-muted">
                         Outcome
                       </th>
-                      <th className="px-4 py-3 text-left font-medium text-zinc-600">
+                      <th className="px-4 py-3 text-left font-medium text-foreground-muted">
                         Actions
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-zinc-200 bg-white">
+                  <tbody className="divide-y divide-border bg-surface">
                     {lanes.map((lane) => {
                       const key = `${lane.opcoId}-${lane.partnerId}`;
                       const busy = actionId === key;
                       return (
                         <tr key={key}>
-                          <td className="px-4 py-3 text-zinc-600">
+                          <td className="px-4 py-3 text-foreground-muted">
                             {formatPeriod(lane.period.month, lane.period.year)}
                           </td>
-                          <td className="px-4 py-3 text-zinc-900">{lane.opcoName}</td>
-                          <td className="px-4 py-3 text-zinc-900">
+                          <td className="px-4 py-3 text-foreground">{lane.opcoName}</td>
+                          <td className="px-4 py-3 text-foreground">
                             {lane.partnerName}
                           </td>
-                          <td className="px-4 py-3 text-zinc-600">
+                          <td className="px-4 py-3 text-foreground-muted">
                             {lane.opcoReportFilename ?? "—"}
                           </td>
-                          <td className="px-4 py-3 text-zinc-600">
+                          <td className="px-4 py-3 text-foreground-muted">
                             {lane.partnerReportFilename ?? "—"}
                           </td>
                           <td className={`px-4 py-3 ${stateClass(lane.state)}`}>
                             {lane.state.replaceAll("_", " ")}
                           </td>
-                          <td className="px-4 py-3 text-zinc-600">
+                          <td className="px-4 py-3 text-foreground-muted">
                             {lane.outcome ?? "—"}
                           </td>
                           <td className="px-4 py-3">
@@ -470,7 +470,7 @@ export function ReconciliationView({
                                   type="button"
                                   disabled={busy}
                                   onClick={() => void runReconciliation(lane)}
-                                  className="rounded-md bg-zinc-900 px-3 py-1 text-xs font-medium text-white hover:bg-zinc-800 disabled:opacity-40"
+                                  className="rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-40"
                                 >
                                   Run reconciliation
                                 </button>
@@ -481,7 +481,7 @@ export function ReconciliationView({
                                   onClick={() =>
                                     void loadDetail(Number(lane.reconciliationId))
                                   }
-                                  className="rounded-md border border-zinc-300 px-3 py-1 text-xs text-zinc-700 hover:bg-zinc-100"
+                                  className="rounded-md border border-border-strong px-3 py-1 text-xs text-foreground-muted hover:bg-surface-muted"
                                 >
                                   View
                                 </button>
@@ -495,9 +495,9 @@ export function ReconciliationView({
                 </table>
               </div>
             ) : (
-              <div className="rounded-lg border border-zinc-200 bg-white p-8 text-center">
-                <p className="font-medium text-zinc-900">No lanes found</p>
-                <p className="mt-1 text-sm text-zinc-600">
+              <div className="rounded-lg border border-border bg-surface p-8 text-center">
+                <p className="font-medium text-foreground">No lanes found</p>
+                <p className="mt-1 text-sm text-foreground-muted">
                   Adjust period or search filters to see linked OpCo–Partner lanes.
                 </p>
               </div>
@@ -506,58 +506,58 @@ export function ReconciliationView({
         </>
       ) : (
         <>
-          {loading ? <p className="text-sm text-zinc-500">Loading history…</p> : null}
+          {loading ? <p className="text-sm text-foreground-subtle">Loading history…</p> : null}
           {!loading && history.items.length > 0 ? (
             <>
-              <div className="overflow-hidden rounded-lg border border-zinc-200">
-                <table className="min-w-full divide-y divide-zinc-200 text-sm">
-                  <thead className="bg-zinc-50">
+              <div className="overflow-hidden rounded-lg border border-border">
+                <table className="min-w-full divide-y divide-border text-sm">
+                  <thead className="bg-surface-muted">
                     <tr>
-                      <th className="px-4 py-3 text-left font-medium text-zinc-600">
+                      <th className="px-4 py-3 text-left font-medium text-foreground-muted">
                         Period
                       </th>
-                      <th className="px-4 py-3 text-left font-medium text-zinc-600">
+                      <th className="px-4 py-3 text-left font-medium text-foreground-muted">
                         Lane
                       </th>
-                      <th className="px-4 py-3 text-left font-medium text-zinc-600">
+                      <th className="px-4 py-3 text-left font-medium text-foreground-muted">
                         Status
                       </th>
-                      <th className="px-4 py-3 text-left font-medium text-zinc-600">
+                      <th className="px-4 py-3 text-left font-medium text-foreground-muted">
                         Matched
                       </th>
-                      <th className="px-4 py-3 text-left font-medium text-zinc-600">
+                      <th className="px-4 py-3 text-left font-medium text-foreground-muted">
                         Unmatched
                       </th>
-                      <th className="px-4 py-3 text-left font-medium text-zinc-600">
+                      <th className="px-4 py-3 text-left font-medium text-foreground-muted">
                         Run at
                       </th>
-                      <th className="px-4 py-3 text-left font-medium text-zinc-600">
+                      <th className="px-4 py-3 text-left font-medium text-foreground-muted">
                         Action
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-zinc-200 bg-white">
+                  <tbody className="divide-y divide-border bg-surface">
                     {history.items.map((row) => (
                       <tr key={row.id}>
-                        <td className="px-4 py-3 text-zinc-600">
+                        <td className="px-4 py-3 text-foreground-muted">
                           {formatPeriod(row.period.month, row.period.year)}
                         </td>
-                        <td className="px-4 py-3 text-zinc-900">{row.lane}</td>
-                        <td className="px-4 py-3 text-zinc-600">{row.status}</td>
-                        <td className="px-4 py-3 text-zinc-600">
+                        <td className="px-4 py-3 text-foreground">{row.lane}</td>
+                        <td className="px-4 py-3 text-foreground-muted">{row.status}</td>
+                        <td className="px-4 py-3 text-foreground-muted">
                           {row.matchedCount}
                         </td>
-                        <td className="px-4 py-3 text-zinc-600">
+                        <td className="px-4 py-3 text-foreground-muted">
                           {row.unmatchedCount}
                         </td>
-                        <td className="px-4 py-3 text-zinc-600">
+                        <td className="px-4 py-3 text-foreground-muted">
                           {formatDateTime(row.runAt)}
                         </td>
                         <td className="px-4 py-3">
                           <button
                             type="button"
                             onClick={() => void loadDetail(row.id)}
-                            className="text-sm text-zinc-700 underline hover:text-zinc-900"
+                            className="text-sm text-foreground-muted underline hover:text-foreground"
                           >
                             View
                           </button>
@@ -567,7 +567,7 @@ export function ReconciliationView({
                   </tbody>
                 </table>
               </div>
-              <div className="flex items-center justify-between text-sm text-zinc-600">
+              <div className="flex items-center justify-between text-sm text-foreground-muted">
                 <p>
                   Page {history.page} / {history.totalPages} · Total{" "}
                   {history.totalCount} records
@@ -577,7 +577,7 @@ export function ReconciliationView({
                     type="button"
                     disabled={history.page <= 1}
                     onClick={() => void loadHistory(history.page - 1)}
-                    className="rounded-md border border-zinc-300 px-3 py-1 disabled:opacity-40"
+                    className="rounded-md border border-border-strong px-3 py-1 disabled:opacity-40"
                   >
                     Prev
                   </button>
@@ -585,7 +585,7 @@ export function ReconciliationView({
                     type="button"
                     disabled={history.page >= history.totalPages}
                     onClick={() => void loadHistory(history.page + 1)}
-                    className="rounded-md border border-zinc-300 px-3 py-1 disabled:opacity-40"
+                    className="rounded-md border border-border-strong px-3 py-1 disabled:opacity-40"
                   >
                     Next
                   </button>
@@ -593,9 +593,9 @@ export function ReconciliationView({
               </div>
             </>
           ) : !loading ? (
-            <div className="rounded-lg border border-zinc-200 bg-white p-8 text-center">
-              <p className="font-medium text-zinc-900">No reconciliation history</p>
-              <p className="mt-1 text-sm text-zinc-600">
+            <div className="rounded-lg border border-border bg-surface p-8 text-center">
+              <p className="font-medium text-foreground">No reconciliation history</p>
+              <p className="mt-1 text-sm text-foreground-muted">
                 Run reconciliation on a ready lane to see results here.
               </p>
             </div>
@@ -604,17 +604,17 @@ export function ReconciliationView({
       )}
 
       {detail ? (
-        <section className="space-y-4 rounded-lg border border-zinc-200 bg-white p-6">
+        <section className="space-y-4 rounded-lg border border-border bg-surface p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-lg font-medium text-zinc-900">
+              <h2 className="text-lg font-medium text-foreground">
                 {detail.opcoName} / {detail.partnerName}
               </h2>
-              <p className="text-sm text-zinc-500">
+              <p className="text-sm text-foreground-subtle">
                 {formatPeriod(detail.period.month, detail.period.year)} ·{" "}
                 {detail.status}
               </p>
-              <p className="mt-1 text-xs text-zinc-500">
+              <p className="mt-1 text-xs text-foreground-subtle">
                 OpCo file: {detail.opcoReportFilename ?? "—"} · Partner file:{" "}
                 {detail.partnerReportFilename ?? "—"}
               </p>
@@ -622,30 +622,30 @@ export function ReconciliationView({
             <button
               type="button"
               onClick={() => setDetail(null)}
-              className="text-sm text-zinc-500 hover:text-zinc-900"
+              className="text-sm text-foreground-subtle hover:text-foreground"
             >
               Close
             </button>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-4">
-            <div className="rounded-md border border-zinc-200 p-3 text-sm">
-              <p className="text-xs text-zinc-500">Matched</p>
-              <p className="font-medium text-zinc-900">{detail.matchedCount}</p>
+            <div className="rounded-md border border-border p-3 text-sm">
+              <p className="text-xs text-foreground-subtle">Matched</p>
+              <p className="font-medium text-foreground">{detail.matchedCount}</p>
             </div>
-            <div className="rounded-md border border-zinc-200 p-3 text-sm">
-              <p className="text-xs text-zinc-500">Unmatched</p>
-              <p className="font-medium text-zinc-900">{detail.unmatchedCount}</p>
+            <div className="rounded-md border border-border p-3 text-sm">
+              <p className="text-xs text-foreground-subtle">Unmatched</p>
+              <p className="font-medium text-foreground">{detail.unmatchedCount}</p>
             </div>
-            <div className="rounded-md border border-zinc-200 p-3 text-sm">
-              <p className="text-xs text-zinc-500">Total variance</p>
-              <p className="font-medium text-zinc-900">
+            <div className="rounded-md border border-border p-3 text-sm">
+              <p className="text-xs text-foreground-subtle">Total variance</p>
+              <p className="font-medium text-foreground">
                 {formatUsd(detail.totalVariance)}
               </p>
             </div>
-            <div className="rounded-md border border-zinc-200 p-3 text-sm">
-              <p className="text-xs text-zinc-500">Tolerance</p>
-              <p className="font-medium text-zinc-900">{detail.tolerancePercent}%</p>
+            <div className="rounded-md border border-border p-3 text-sm">
+              <p className="text-xs text-foreground-subtle">Tolerance</p>
+              <p className="font-medium text-foreground">{detail.tolerancePercent}%</p>
             </div>
           </div>
 
@@ -654,62 +654,62 @@ export function ReconciliationView({
               type="button"
               disabled={actionId === String(detail.id)}
               onClick={() => void confirmReconciliation()}
-              className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-40"
+              className="rounded-md bg-success px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-success/90 disabled:opacity-40"
             >
               Confirm reconciliation
             </button>
           ) : null}
 
-          <div className="overflow-hidden rounded-lg border border-zinc-200">
-            <table className="min-w-full divide-y divide-zinc-200 text-sm">
-              <thead className="bg-zinc-50">
+          <div className="overflow-hidden rounded-lg border border-border">
+            <table className="min-w-full divide-y divide-border text-sm">
+              <thead className="bg-surface-muted">
                 <tr>
-                  <th className="px-4 py-3 text-left font-medium text-zinc-600">
+                  <th className="px-4 py-3 text-left font-medium text-foreground-muted">
                     Service
                   </th>
-                  <th className="px-4 py-3 text-left font-medium text-zinc-600">
+                  <th className="px-4 py-3 text-left font-medium text-foreground-muted">
                     OpCo (USD)
                   </th>
-                  <th className="px-4 py-3 text-left font-medium text-zinc-600">
+                  <th className="px-4 py-3 text-left font-medium text-foreground-muted">
                     Partner (USD)
                   </th>
-                  <th className="px-4 py-3 text-left font-medium text-zinc-600">
+                  <th className="px-4 py-3 text-left font-medium text-foreground-muted">
                     Variance
                   </th>
-                  <th className="px-4 py-3 text-left font-medium text-zinc-600">
+                  <th className="px-4 py-3 text-left font-medium text-foreground-muted">
                     Confirmed
                   </th>
-                  <th className="px-4 py-3 text-left font-medium text-zinc-600">
+                  <th className="px-4 py-3 text-left font-medium text-foreground-muted">
                     Status
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-200 bg-white">
+              <tbody className="divide-y divide-border bg-surface">
                 {detail.items.map((item) => (
                   <tr key={item.serviceCode}>
-                    <td className="px-4 py-3 text-zinc-900">
+                    <td className="px-4 py-3 text-foreground">
                       {item.description ?? item.serviceCode}
                     </td>
-                    <td className="px-4 py-3 text-zinc-600">
+                    <td className="px-4 py-3 text-foreground-muted">
                       {formatUsd(item.opcoAmount)}
                     </td>
-                    <td className="px-4 py-3 text-zinc-600">
+                    <td className="px-4 py-3 text-foreground-muted">
                       {formatUsd(item.partnerAmount)}
                     </td>
-                    <td className="px-4 py-3 text-zinc-600">
+                    <td className="px-4 py-3 text-foreground-muted">
                       {formatUsd(item.varianceAmount)}
                     </td>
-                    <td className="px-4 py-3 text-zinc-600">
+                    <td className="px-4 py-3 text-foreground-muted">
                       {formatUsd(item.confirmedValue)}
                     </td>
-                    <td className="px-4 py-3 text-zinc-600">{item.matchStatus}</td>
+                    <td className="px-4 py-3 text-foreground-muted">{item.matchStatus}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
 
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-foreground-subtle">
             Run at {formatDateTime(detail.runAt)} ·{" "}
             <Link
               href={`/dizlee/reconciliation?id=${detail.id}`}

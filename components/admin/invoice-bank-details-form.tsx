@@ -121,12 +121,12 @@ export function InvoiceBankDetailsForm({
   return (
     <div className="space-y-6">
       {error ? (
-        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="rounded-md border border-danger-border bg-danger-muted px-3 py-2 text-sm text-danger">
           {error}
         </p>
       ) : null}
       {success ? (
-        <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+        <p className="rounded-md border border-success-border bg-success-muted px-3 py-2 text-sm text-success">
           {success}
         </p>
       ) : null}
@@ -137,7 +137,7 @@ export function InvoiceBankDetailsForm({
             <div key={field.key} className="space-y-1">
               <label
                 htmlFor={field.key}
-                className="text-sm font-medium text-zinc-700"
+                className="text-sm font-medium text-foreground-muted"
               >
                 {field.label}
               </label>
@@ -151,13 +151,13 @@ export function InvoiceBankDetailsForm({
                     [field.key]: event.target.value,
                   }))
                 }
-                className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+                className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
               />
             </div>
           ))}
         </div>
 
-        <p className="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-600">
+        <p className="rounded-md border border-border bg-surface-muted px-3 py-2 text-sm text-foreground-muted">
           These details appear on new Dizlee → OpCo digital invoices. Existing
           invoices are not changed when you update this form.
         </p>
@@ -166,7 +166,7 @@ export function InvoiceBankDetailsForm({
           <button
             type="submit"
             disabled={saving || reloading}
-            className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
           >
             {saving ? "Saving…" : "Save"}
           </button>
@@ -174,7 +174,7 @@ export function InvoiceBankDetailsForm({
             type="button"
             onClick={() => void reloadSettings()}
             disabled={saving || reloading}
-            className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-60"
+            className="rounded-md border border-border-strong px-4 py-2 text-sm font-medium text-foreground-muted hover:bg-surface-muted disabled:opacity-60"
           >
             {reloading ? "Reloading…" : "Reload"}
           </button>
@@ -182,14 +182,14 @@ export function InvoiceBankDetailsForm({
             type="button"
             onClick={handleClearAll}
             disabled={saving || reloading}
-            className="rounded-md border border-red-200 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
+            className="rounded-md border border-danger-border px-4 py-2 text-sm font-medium text-danger hover:bg-danger-muted disabled:opacity-60"
           >
             Clear all
           </button>
         </div>
       </form>
 
-      <p className="text-xs text-zinc-500">
+      <p className="text-xs text-foreground-subtle">
         Last saved bank name: {savedSettings.bankName ?? "Not set"}
       </p>
     </div>

@@ -68,15 +68,15 @@ export function AuditLogsView({
   return (
     <div className="space-y-6">
       {error ? (
-        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="rounded-md border border-danger-border bg-danger-muted px-3 py-2 text-sm text-danger">
           {error}
         </p>
       ) : null}
 
-      <div className="rounded-lg border border-zinc-200 bg-white p-4">
+      <div className="rounded-lg border border-border bg-surface p-4">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           <div className="space-y-1">
-            <label htmlFor="audit-search" className="text-sm font-medium text-zinc-700">
+            <label htmlFor="audit-search" className="text-sm font-medium text-foreground-muted">
               Search message
             </label>
             <input
@@ -86,12 +86,12 @@ export function AuditLogsView({
               onChange={(event) =>
                 setFilters((current) => ({ ...current, search: event.target.value }))
               }
-              className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+              className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
             />
           </div>
 
           <div className="space-y-1">
-            <label htmlFor="audit-entity-type" className="text-sm font-medium text-zinc-700">
+            <label htmlFor="audit-entity-type" className="text-sm font-medium text-foreground-muted">
               Category (entity type)
             </label>
             <select
@@ -103,7 +103,7 @@ export function AuditLogsView({
                   entityType: event.target.value,
                 }))
               }
-              className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+              className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
             >
               <option value="all">All categories</option>
               {filterOptions.entityTypes.map((item) => (
@@ -115,7 +115,7 @@ export function AuditLogsView({
           </div>
 
           <div className="space-y-1">
-            <label htmlFor="audit-actor-role" className="text-sm font-medium text-zinc-700">
+            <label htmlFor="audit-actor-role" className="text-sm font-medium text-foreground-muted">
               Actor role
             </label>
             <select
@@ -127,7 +127,7 @@ export function AuditLogsView({
                   actorRole: event.target.value as AuditLogListFilters["actorRole"],
                 }))
               }
-              className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+              className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
             >
               <option value="all">All roles</option>
               {filterOptions.actorRoles.map((item) => (
@@ -139,7 +139,7 @@ export function AuditLogsView({
           </div>
 
           <div className="space-y-1">
-            <label htmlFor="audit-action" className="text-sm font-medium text-zinc-700">
+            <label htmlFor="audit-action" className="text-sm font-medium text-foreground-muted">
               Action
             </label>
             <select
@@ -148,7 +148,7 @@ export function AuditLogsView({
               onChange={(event) =>
                 setFilters((current) => ({ ...current, action: event.target.value }))
               }
-              className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+              className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
             >
               <option value="all">All actions</option>
               {filterOptions.actions.map((item) => (
@@ -160,7 +160,7 @@ export function AuditLogsView({
           </div>
 
           <div className="space-y-1">
-            <label htmlFor="audit-entity-id" className="text-sm font-medium text-zinc-700">
+            <label htmlFor="audit-entity-id" className="text-sm font-medium text-foreground-muted">
               Entity ID
             </label>
             <input
@@ -170,12 +170,12 @@ export function AuditLogsView({
               onChange={(event) =>
                 setFilters((current) => ({ ...current, entityId: event.target.value }))
               }
-              className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+              className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
             />
           </div>
 
           <div className="space-y-1">
-            <label htmlFor="audit-date-from" className="text-sm font-medium text-zinc-700">
+            <label htmlFor="audit-date-from" className="text-sm font-medium text-foreground-muted">
               Date from
             </label>
             <input
@@ -185,12 +185,12 @@ export function AuditLogsView({
               onChange={(event) =>
                 setFilters((current) => ({ ...current, dateFrom: event.target.value }))
               }
-              className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+              className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
             />
           </div>
 
           <div className="space-y-1">
-            <label htmlFor="audit-date-to" className="text-sm font-medium text-zinc-700">
+            <label htmlFor="audit-date-to" className="text-sm font-medium text-foreground-muted">
               Date to
             </label>
             <input
@@ -200,7 +200,7 @@ export function AuditLogsView({
               onChange={(event) =>
                 setFilters((current) => ({ ...current, dateTo: event.target.value }))
               }
-              className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+              className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
             />
           </div>
         </div>
@@ -210,7 +210,7 @@ export function AuditLogsView({
             type="button"
             onClick={() => applyFilters({})}
             disabled={loading}
-            className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
           >
             {loading ? "Loading…" : "Apply filters"}
           </button>
@@ -218,54 +218,54 @@ export function AuditLogsView({
             type="button"
             onClick={exportCsv}
             disabled={loading}
-            className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-60"
+            className="rounded-md border border-border-strong px-4 py-2 text-sm font-medium text-foreground-muted hover:bg-surface-muted disabled:opacity-60"
           >
             Export CSV
           </button>
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white">
+      <div className="overflow-hidden rounded-lg border border-border bg-surface">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-zinc-200 text-sm">
-            <thead className="bg-zinc-50">
+          <table className="min-w-full divide-y divide-border text-sm">
+            <thead className="bg-surface-muted">
               <tr>
-                <th className="px-4 py-3 text-left font-medium text-zinc-600">When</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-600">Actor</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-600">Role</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-600">Action</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-600">Entity</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-600">Message</th>
+                <th className="px-4 py-3 text-left font-medium text-foreground-muted">When</th>
+                <th className="px-4 py-3 text-left font-medium text-foreground-muted">Actor</th>
+                <th className="px-4 py-3 text-left font-medium text-foreground-muted">Role</th>
+                <th className="px-4 py-3 text-left font-medium text-foreground-muted">Action</th>
+                <th className="px-4 py-3 text-left font-medium text-foreground-muted">Entity</th>
+                <th className="px-4 py-3 text-left font-medium text-foreground-muted">Message</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-100">
+            <tbody className="divide-y divide-border">
               {result.items.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-zinc-500">
+                  <td colSpan={6} className="px-4 py-8 text-center text-foreground-subtle">
                     No audit log entries match the current filters.
                   </td>
                 </tr>
               ) : (
                 result.items.map((item: AuditLogListItem) => (
                   <tr key={item.id} className="align-top">
-                    <td className="px-4 py-3 whitespace-nowrap text-zinc-700">
+                    <td className="px-4 py-3 whitespace-nowrap text-foreground-muted">
                       {formatDateTime(item.createdAt)}
                     </td>
-                    <td className="px-4 py-3 text-zinc-700">
+                    <td className="px-4 py-3 text-foreground-muted">
                       <div className="font-medium">{item.actorName}</div>
-                      <div className="text-xs text-zinc-500">{item.actorEmail}</div>
+                      <div className="text-xs text-foreground-subtle">{item.actorEmail}</div>
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-zinc-700">
+                    <td className="px-4 py-3 whitespace-nowrap text-foreground-muted">
                       {item.actorRole}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-zinc-700">
+                    <td className="px-4 py-3 whitespace-nowrap text-foreground-muted">
                       {item.actionLabel}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-zinc-700">
+                    <td className="px-4 py-3 whitespace-nowrap text-foreground-muted">
                       <div>{item.entityTypeLabel}</div>
-                      <div className="text-xs text-zinc-500">#{item.entityId}</div>
+                      <div className="text-xs text-foreground-subtle">#{item.entityId}</div>
                     </td>
-                    <td className="px-4 py-3 text-zinc-700">
+                    <td className="px-4 py-3 text-foreground-muted">
                       {item.message ?? "—"}
                     </td>
                   </tr>
@@ -276,7 +276,7 @@ export function AuditLogsView({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-zinc-600">
+      <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-foreground-muted">
         <p>
           Showing {result.items.length} of {result.total} entries
         </p>
@@ -285,7 +285,7 @@ export function AuditLogsView({
             type="button"
             disabled={loading || result.page <= 1}
             onClick={() => applyFilters({ page: result.page - 1 })}
-            className="rounded-md border border-zinc-300 px-3 py-1.5 hover:bg-zinc-50 disabled:opacity-50"
+            className="rounded-md border border-border-strong px-3 py-1.5 hover:bg-surface-muted disabled:opacity-50"
           >
             Previous
           </button>
@@ -296,7 +296,7 @@ export function AuditLogsView({
             type="button"
             disabled={loading || result.page >= result.totalPages}
             onClick={() => applyFilters({ page: result.page + 1 })}
-            className="rounded-md border border-zinc-300 px-3 py-1.5 hover:bg-zinc-50 disabled:opacity-50"
+            className="rounded-md border border-border-strong px-3 py-1.5 hover:bg-surface-muted disabled:opacity-50"
           >
             Next
           </button>

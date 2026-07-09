@@ -10,8 +10,8 @@ export function AdminPlaceholderPage({
   return (
     <div className="mx-auto max-w-3xl space-y-3">
       <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-      <p className="text-zinc-600">{description}</p>
-      <p className="text-sm text-zinc-500">Module coming soon.</p>
+      <p className="text-foreground-muted">{description}</p>
+      <p className="text-sm text-foreground-subtle">Module coming soon.</p>
     </div>
   );
 }

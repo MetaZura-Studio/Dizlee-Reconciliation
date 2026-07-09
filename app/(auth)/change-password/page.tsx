@@ -17,11 +17,11 @@ export default async function ChangePasswordPage() {
   const backPath = getPortalHomePath(session.user.role);
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
-      <div className="w-full max-w-md space-y-6 rounded-lg border border-zinc-200 p-8">
+    <div className="flex min-h-screen items-center bg-canvas justify-center px-4">
+      <div className="w-full max-w-md space-y-6 rounded-lg border border-border bg-surface p-8 shadow-sm">
         <div className="space-y-1">
           <h1 className="text-xl font-semibold">Change password</h1>
-          <p className="text-sm text-zinc-600">
+          <p className="text-sm text-foreground-muted">
             Update your password. You will stay signed in after saving.
           </p>
         </div>
@@ -29,7 +29,7 @@ export default async function ChangePasswordPage() {
         <ChangePasswordForm />
 
         <p className="text-sm">
-          <Link href={backPath} className="text-zinc-700 underline hover:text-zinc-900">
+          <Link href={backPath} className="text-foreground-muted underline hover:text-foreground">
             Back to portal
           </Link>
         </p>

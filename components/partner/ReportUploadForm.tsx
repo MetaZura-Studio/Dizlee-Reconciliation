@@ -76,7 +76,7 @@ export function ReportUploadForm({ opcos }: ReportUploadFormProps) {
 
   if (opcos.length === 0) {
     return (
-      <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+      <div className="rounded-lg border border-warning-border bg-warning-muted p-4 text-sm text-warning">
         No OpCos are linked to your partner account yet. Ask an admin to
         configure OpCo–Partner links before uploading reports.
       </div>
@@ -87,7 +87,7 @@ export function ReportUploadForm({ opcos }: ReportUploadFormProps) {
     <form onSubmit={handleSubmit} className="max-w-2xl space-y-6">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2">
-          <label htmlFor="opcoId" className="text-sm font-medium text-zinc-700">
+          <label htmlFor="opcoId" className="text-sm font-medium text-foreground-muted">
             OpCo
           </label>
           <select
@@ -95,7 +95,7 @@ export function ReportUploadForm({ opcos }: ReportUploadFormProps) {
             name="opcoId"
             value={opcoId}
             onChange={(event) => setOpcoId(event.target.value)}
-            className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2 text-sm"
+            className="mt-1 block w-full rounded border border-border-strong px-3 py-2 text-sm"
             required
           >
             {opcos.map((opco) => (
@@ -107,7 +107,7 @@ export function ReportUploadForm({ opcos }: ReportUploadFormProps) {
         </div>
 
         <div>
-          <label htmlFor="year" className="text-sm font-medium text-zinc-700">
+          <label htmlFor="year" className="text-sm font-medium text-foreground-muted">
             Year
           </label>
           <input
@@ -118,13 +118,13 @@ export function ReportUploadForm({ opcos }: ReportUploadFormProps) {
             max={2100}
             value={year}
             onChange={(event) => setYear(Number(event.target.value))}
-            className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2 text-sm"
+            className="mt-1 block w-full rounded border border-border-strong px-3 py-2 text-sm"
             required
           />
         </div>
 
         <div>
-          <label htmlFor="month" className="text-sm font-medium text-zinc-700">
+          <label htmlFor="month" className="text-sm font-medium text-foreground-muted">
             Month
           </label>
           <input
@@ -135,13 +135,13 @@ export function ReportUploadForm({ opcos }: ReportUploadFormProps) {
             max={12}
             value={month}
             onChange={(event) => setMonth(Number(event.target.value))}
-            className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2 text-sm"
+            className="mt-1 block w-full rounded border border-border-strong px-3 py-2 text-sm"
             required
           />
         </div>
 
         <div className="sm:col-span-2">
-          <label htmlFor="file" className="text-sm font-medium text-zinc-700">
+          <label htmlFor="file" className="text-sm font-medium text-foreground-muted">
             Excel report (.xlsx)
           </label>
           <input
@@ -150,10 +150,10 @@ export function ReportUploadForm({ opcos }: ReportUploadFormProps) {
             type="file"
             accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-            className="mt-1 block w-full text-sm text-zinc-700"
+            className="mt-1 block w-full text-sm text-foreground-muted"
             required
           />
-          <p className="mt-2 text-xs text-zinc-500">
+          <p className="mt-2 text-xs text-foreground-subtle">
             Expected columns include description, usage_amount, usage_usd,
             amount, exchange_rate, usage_unit, and reconciliation_basis.
           </p>
@@ -167,7 +167,7 @@ export function ReportUploadForm({ opcos }: ReportUploadFormProps) {
       ) : null}
 
       {success ? (
-        <div className="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+        <div className="rounded border border-success-border bg-success-muted px-3 py-2 text-sm text-success">
           <p>
             Report uploaded successfully with {success.lineItemCount} line items.
           </p>
@@ -182,7 +182,7 @@ export function ReportUploadForm({ opcos }: ReportUploadFormProps) {
       <button
         type="submit"
         disabled={isSubmitting}
-        className="rounded bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
+        className="rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
       >
         {isSubmitting ? "Uploading..." : "Upload report"}
       </button>

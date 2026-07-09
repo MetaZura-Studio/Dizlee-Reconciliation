@@ -138,19 +138,19 @@ export function EmailSettingsForm({ initialSettings }: EmailSettingsFormProps) {
   return (
     <div className="space-y-8">
       {error ? (
-        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="rounded-md border border-danger-border bg-danger-muted px-3 py-2 text-sm text-danger">
           {error}
         </p>
       ) : null}
       {success ? (
-        <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+        <p className="rounded-md border border-success-border bg-success-muted px-3 py-2 text-sm text-success">
           {success}
         </p>
       ) : null}
 
       <form onSubmit={(event) => void saveSettings(event)} className="space-y-6">
         <div className="space-y-1">
-          <label htmlFor="emailEnabled" className="text-sm font-medium text-zinc-700">
+          <label htmlFor="emailEnabled" className="text-sm font-medium text-foreground-muted">
             Enabled
           </label>
           <select
@@ -162,7 +162,7 @@ export function EmailSettingsForm({ initialSettings }: EmailSettingsFormProps) {
                 emailEnabled: event.target.value === "enabled",
               }))
             }
-            className="w-full max-w-xs rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+            className="w-full max-w-xs rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
           >
             <option value="disabled">Disabled</option>
             <option value="enabled">Enabled</option>
@@ -170,7 +170,7 @@ export function EmailSettingsForm({ initialSettings }: EmailSettingsFormProps) {
         </div>
 
         <div className="space-y-1">
-          <label htmlFor="senderAddress" className="text-sm font-medium text-zinc-700">
+          <label htmlFor="senderAddress" className="text-sm font-medium text-foreground-muted">
             Sender address
           </label>
           <input
@@ -184,12 +184,12 @@ export function EmailSettingsForm({ initialSettings }: EmailSettingsFormProps) {
               }))
             }
             placeholder="dizlee@metazura.com"
-            className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+            className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
           />
         </div>
 
         <div className="space-y-1">
-          <label htmlFor="smtpHost" className="text-sm font-medium text-zinc-700">
+          <label htmlFor="smtpHost" className="text-sm font-medium text-foreground-muted">
             SMTP host
           </label>
           <input
@@ -200,12 +200,12 @@ export function EmailSettingsForm({ initialSettings }: EmailSettingsFormProps) {
               setForm((current) => ({ ...current, smtpHost: event.target.value }))
             }
             placeholder="smtp.titan.email"
-            className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+            className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
           />
         </div>
 
         <div className="space-y-1">
-          <label htmlFor="smtpPort" className="text-sm font-medium text-zinc-700">
+          <label htmlFor="smtpPort" className="text-sm font-medium text-foreground-muted">
             SMTP port
           </label>
           <input
@@ -217,11 +217,11 @@ export function EmailSettingsForm({ initialSettings }: EmailSettingsFormProps) {
               setForm((current) => ({ ...current, smtpPort: event.target.value }))
             }
             placeholder="587"
-            className="w-full max-w-xs rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+            className="w-full max-w-xs rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
           />
         </div>
 
-        <p className="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-600">
+        <p className="rounded-md border border-border bg-surface-muted px-3 py-2 text-sm text-foreground-muted">
           Outbound mail is sent as Dizlee. SMTP username and password are set in
           server environment variables, not stored in the database.
         </p>
@@ -230,7 +230,7 @@ export function EmailSettingsForm({ initialSettings }: EmailSettingsFormProps) {
           <button
             type="submit"
             disabled={saving || reloading}
-            className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
           >
             {saving ? "Saving…" : "Save"}
           </button>
@@ -238,24 +238,24 @@ export function EmailSettingsForm({ initialSettings }: EmailSettingsFormProps) {
             type="button"
             onClick={() => void reloadSettings()}
             disabled={saving || reloading}
-            className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-60"
+            className="rounded-md border border-border-strong px-4 py-2 text-sm font-medium text-foreground-muted hover:bg-surface-muted disabled:opacity-60"
           >
             {reloading ? "Reloading…" : "Reload"}
           </button>
         </div>
       </form>
 
-      <section className="space-y-4 border-t border-zinc-200 pt-6">
+      <section className="space-y-4 border-t border-border pt-6">
         <div className="space-y-1">
-          <h2 className="text-lg font-medium text-zinc-900">Send test email</h2>
-          <p className="text-sm text-zinc-600">
+          <h2 className="text-lg font-medium text-foreground">Send test email</h2>
+          <p className="text-sm text-foreground-muted">
             Save settings with email enabled, then send a test message to verify
             delivery.
           </p>
         </div>
 
         <div className="space-y-1">
-          <label htmlFor="testRecipient" className="text-sm font-medium text-zinc-700">
+          <label htmlFor="testRecipient" className="text-sm font-medium text-foreground-muted">
             Send test email to
           </label>
           <input
@@ -264,7 +264,7 @@ export function EmailSettingsForm({ initialSettings }: EmailSettingsFormProps) {
             value={testRecipient}
             onChange={(event) => setTestRecipient(event.target.value)}
             placeholder="you@example.com"
-            className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+            className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
           />
         </div>
 
@@ -272,13 +272,13 @@ export function EmailSettingsForm({ initialSettings }: EmailSettingsFormProps) {
           type="button"
           onClick={() => void sendTest()}
           disabled={testDisabled}
-          className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
         >
           {sendingTest ? "Sending…" : "Send test email"}
         </button>
       </section>
 
-      <p className="text-xs text-zinc-500">
+      <p className="text-xs text-foreground-subtle">
         Last saved: {savedSettings.emailEnabled ? "Enabled" : "Disabled"}
         {savedSettings.smtpHost ? ` · ${savedSettings.smtpHost}` : ""}
         {savedSettings.smtpPort ? `:${savedSettings.smtpPort}` : ""}

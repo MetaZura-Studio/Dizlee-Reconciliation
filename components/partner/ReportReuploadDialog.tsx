@@ -58,24 +58,24 @@ export function ReportReuploadDialog({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div
-        className="w-full max-w-lg rounded-lg border border-zinc-200 bg-white p-6 shadow-lg"
+        className="w-full max-w-lg rounded-lg border border-border bg-surface p-6 shadow-lg"
         role="dialog"
         aria-labelledby="report-reupload-title"
       >
-        <h2 id="report-reupload-title" className="text-lg font-semibold text-zinc-900">
+        <h2 id="report-reupload-title" className="text-lg font-semibold text-foreground">
           Reupload corrected file
         </h2>
-        <p className="mt-1 text-sm text-zinc-600">
+        <p className="mt-1 text-sm text-foreground-muted">
           {report.opcoName} — {formatPeriodLabel(report.year, report.month)}
         </p>
-        <p className="mt-2 text-sm text-zinc-500">
+        <p className="mt-2 text-sm text-foreground-subtle">
           Dizlee approved your reupload request. Upload a corrected `.xlsx` file to
           replace the existing report.
         </p>
 
         <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
           <div>
-            <label htmlFor="reupload-file" className="block text-sm font-medium text-zinc-700">
+            <label htmlFor="reupload-file" className="block text-sm font-medium text-foreground-muted">
               Corrected Excel file
             </label>
             <input
@@ -99,14 +99,14 @@ export function ReportReuploadDialog({
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="rounded border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+              className="rounded border border-border-strong px-4 py-2 text-sm font-medium text-foreground-muted hover:bg-surface-muted"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="rounded bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
+              className="rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
             >
               {isSubmitting ? "Uploading..." : "Upload corrected file"}
             </button>

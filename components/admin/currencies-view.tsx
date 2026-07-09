@@ -92,18 +92,18 @@ export function CurrenciesView({
   };
 
   return (
-    <section className="space-y-4 rounded-lg border border-zinc-200 bg-white p-5">
+    <section className="space-y-4 rounded-lg border border-border bg-surface p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-zinc-900">Currencies</h2>
-          <p className="text-sm text-zinc-600">
+          <h2 className="text-lg font-semibold text-foreground">Currencies</h2>
+          <p className="text-sm text-foreground-muted">
             Master list used by OpCos, reports, and invoices.
           </p>
         </div>
         <button
           type="button"
           onClick={openCreate}
-          className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
         >
           Add currency
         </button>
@@ -111,7 +111,7 @@ export function CurrenciesView({
 
       <div className="overflow-x-auto">
         <table className="min-w-full text-left text-sm">
-          <thead className="border-b border-zinc-200 text-zinc-500">
+          <thead className="border-b border-border text-foreground-subtle">
             <tr>
               <th className="px-3 py-2 font-medium">ISO</th>
               <th className="px-3 py-2 font-medium">Symbol</th>
@@ -121,25 +121,25 @@ export function CurrenciesView({
           </thead>
           <tbody>
             {currencies.map((currency) => (
-              <tr key={currency.id} className="border-b border-zinc-100">
-                <td className="px-3 py-2 font-medium text-zinc-900">
+              <tr key={currency.id} className="border-b border-border">
+                <td className="px-3 py-2 font-medium text-foreground">
                   {currency.isoCode}
                 </td>
-                <td className="px-3 py-2 text-zinc-700">{currency.symbol ?? "—"}</td>
-                <td className="px-3 py-2 text-zinc-700">{currency.decimalPrecision}</td>
+                <td className="px-3 py-2 text-foreground-muted">{currency.symbol ?? "—"}</td>
+                <td className="px-3 py-2 text-foreground-muted">{currency.decimalPrecision}</td>
                 <td className="px-3 py-2">
                   <div className="flex gap-2">
                     <button
                       type="button"
                       onClick={() => openEdit(currency)}
-                      className="text-sm font-medium text-zinc-700 hover:text-zinc-900"
+                      className="text-sm font-medium text-foreground-muted hover:text-foreground"
                     >
                       Edit
                     </button>
                     <button
                       type="button"
                       onClick={() => openDelete(currency)}
-                      className="text-sm font-medium text-red-600 hover:text-red-700"
+                      className="text-sm font-medium text-red-600 hover:text-danger"
                     >
                       Delete
                     </button>

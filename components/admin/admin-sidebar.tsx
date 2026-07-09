@@ -29,8 +29,8 @@ function NavLink({
 }) {
   const baseClass = `flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${
     active
-      ? "bg-zinc-900 font-medium text-white"
-      : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
+      ? "bg-primary-muted font-medium text-primary"
+      : "text-foreground-muted hover:bg-surface-muted hover:text-foreground"
   }`;
 
   const content = (
@@ -72,19 +72,19 @@ export function AdminSidebar({
 
   return (
     <aside
-      className={`hidden shrink-0 flex-col border-r border-zinc-200 bg-zinc-50 lg:flex ${
+      className={`hidden shrink-0 flex-col border-r border-border bg-surface-muted lg:flex ${
         collapsed ? "w-[4.5rem]" : "w-64"
       }`}
     >
-      <div className={`border-b border-zinc-200 p-4 ${collapsed ? "px-3" : ""}`}>
+      <div className={`border-b border-border p-4 ${collapsed ? "px-3" : ""}`}>
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-zinc-900 text-sm font-semibold text-white">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary text-sm font-semibold text-primary-foreground">
             D
           </div>
           {!collapsed ? (
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold">Reconcile</p>
-              <p className="truncate text-xs text-zinc-500">Admin workspace</p>
+              <p className="truncate text-xs text-foreground-subtle">Admin workspace</p>
             </div>
           ) : null}
         </div>
@@ -92,7 +92,7 @@ export function AdminSidebar({
 
       <div className="flex flex-1 flex-col p-3">
         {!collapsed ? (
-          <p className="px-3 pb-2 text-[11px] font-semibold tracking-wider text-zinc-400 uppercase">
+          <p className="px-3 pb-2 text-[11px] font-semibold tracking-wider text-foreground-subtle uppercase">
             Navigation
           </p>
         ) : null}
@@ -108,7 +108,7 @@ export function AdminSidebar({
           ))}
         </nav>
 
-        <div className="mt-auto space-y-1 border-t border-zinc-200 pt-4">
+        <div className="mt-auto space-y-1 border-t border-border pt-4">
           {ADMIN_FOOTER_NAV_ITEMS.map((item) => (
             <NavLink
               key={item.label}
@@ -120,11 +120,11 @@ export function AdminSidebar({
         </div>
       </div>
 
-      <div className="border-t border-zinc-200 p-3">
+      <div className="border-t border-border p-3">
         <button
           type="button"
           onClick={onToggleCollapsed}
-          className="flex w-full items-center justify-center rounded-md px-3 py-2 text-xs font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
+          className="flex w-full items-center justify-center rounded-md px-3 py-2 text-xs font-medium text-foreground-muted hover:bg-surface-muted hover:text-foreground"
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {collapsed ? "Expand" : "Collapse"}

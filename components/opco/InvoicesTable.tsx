@@ -175,7 +175,7 @@ export function InvoicesTable({ initialResult, filterOptions }: InvoicesTablePro
       columnHelper.accessor("statusLabel", {
         header: "Status",
         cell: (info) => (
-          <span className="rounded-full bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-700">
+          <span className="rounded-full bg-surface-muted px-2 py-1 text-xs font-medium text-foreground-muted">
             {info.getValue()}
           </span>
         ),
@@ -205,7 +205,7 @@ export function InvoicesTable({ initialResult, filterOptions }: InvoicesTablePro
             <button
               type="button"
               onClick={() => void openDetail(row.original.id)}
-              className="rounded border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-800 hover:bg-zinc-50"
+              className="rounded border border-border-strong px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface-muted"
             >
               View
             </button>
@@ -213,7 +213,7 @@ export function InvoicesTable({ initialResult, filterOptions }: InvoicesTablePro
               href={`/opco/invoices/${row.original.id}/print`}
               target="_blank"
               rel="noreferrer"
-              className="rounded border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-800 hover:bg-zinc-50"
+              className="rounded border border-border-strong px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface-muted"
             >
               Print
             </Link>
@@ -244,14 +244,14 @@ export function InvoicesTable({ initialResult, filterOptions }: InvoicesTablePro
   return (
     <div className="space-y-4">
       <form
-        className="grid gap-4 rounded-lg border border-zinc-200 bg-white p-4 md:grid-cols-2 xl:grid-cols-4"
+        className="grid gap-4 rounded-lg border border-border bg-surface p-4 md:grid-cols-2 xl:grid-cols-4"
         onSubmit={(event) => {
           event.preventDefault();
           applyFilters();
         }}
       >
         <div>
-          <label htmlFor="invoices-year" className="text-sm font-medium text-zinc-700">
+          <label htmlFor="invoices-year" className="text-sm font-medium text-foreground-muted">
             Year
           </label>
           <input
@@ -262,18 +262,18 @@ export function InvoicesTable({ initialResult, filterOptions }: InvoicesTablePro
             value={year}
             onChange={(event) => setYear(event.target.value)}
             placeholder="All years"
-            className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2 text-sm"
+            className="mt-1 block w-full rounded border border-border-strong px-3 py-2 text-sm"
           />
         </div>
         <div>
-          <label htmlFor="invoices-month" className="text-sm font-medium text-zinc-700">
+          <label htmlFor="invoices-month" className="text-sm font-medium text-foreground-muted">
             Month
           </label>
           <select
             id="invoices-month"
             value={month}
             onChange={(event) => setMonth(event.target.value)}
-            className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2 text-sm"
+            className="mt-1 block w-full rounded border border-border-strong px-3 py-2 text-sm"
           >
             <option value="">All months</option>
             {MONTHS.map((item) => (
@@ -284,14 +284,14 @@ export function InvoicesTable({ initialResult, filterOptions }: InvoicesTablePro
           </select>
         </div>
         <div>
-          <label htmlFor="invoices-partner" className="text-sm font-medium text-zinc-700">
+          <label htmlFor="invoices-partner" className="text-sm font-medium text-foreground-muted">
             Partner
           </label>
           <select
             id="invoices-partner"
             value={partnerId}
             onChange={(event) => setPartnerId(event.target.value)}
-            className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2 text-sm"
+            className="mt-1 block w-full rounded border border-border-strong px-3 py-2 text-sm"
           >
             <option value="">All partners</option>
             {filterOptions.partners.map((partner) => (
@@ -302,14 +302,14 @@ export function InvoicesTable({ initialResult, filterOptions }: InvoicesTablePro
           </select>
         </div>
         <div>
-          <label htmlFor="invoices-status" className="text-sm font-medium text-zinc-700">
+          <label htmlFor="invoices-status" className="text-sm font-medium text-foreground-muted">
             Status
           </label>
           <select
             id="invoices-status"
             value={statusCode}
             onChange={(event) => setStatusCode(event.target.value)}
-            className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2 text-sm"
+            className="mt-1 block w-full rounded border border-border-strong px-3 py-2 text-sm"
           >
             <option value="">All statuses</option>
             {filterOptions.statuses.map((status) => (
@@ -320,7 +320,7 @@ export function InvoicesTable({ initialResult, filterOptions }: InvoicesTablePro
           </select>
         </div>
         <div>
-          <label htmlFor="invoices-payment" className="text-sm font-medium text-zinc-700">
+          <label htmlFor="invoices-payment" className="text-sm font-medium text-foreground-muted">
             Payment
           </label>
           <select
@@ -329,7 +329,7 @@ export function InvoicesTable({ initialResult, filterOptions }: InvoicesTablePro
             onChange={(event) =>
               setPaymentStatus(event.target.value as OpcoInvoicePaymentFilter)
             }
-            className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2 text-sm"
+            className="mt-1 block w-full rounded border border-border-strong px-3 py-2 text-sm"
           >
             <option value="all">All</option>
             <option value="pending">Pending</option>
@@ -337,28 +337,28 @@ export function InvoicesTable({ initialResult, filterOptions }: InvoicesTablePro
           </select>
         </div>
         <div>
-          <label htmlFor="invoices-sort-by" className="text-sm font-medium text-zinc-700">
+          <label htmlFor="invoices-sort-by" className="text-sm font-medium text-foreground-muted">
             Sort by
           </label>
           <select
             id="invoices-sort-by"
             value={sortBy}
             onChange={(event) => setSortBy(event.target.value as OpcoInvoiceSortField)}
-            className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2 text-sm"
+            className="mt-1 block w-full rounded border border-border-strong px-3 py-2 text-sm"
           >
             <option value="uploaded">Issue date</option>
             <option value="period">Period</option>
           </select>
         </div>
         <div>
-          <label htmlFor="invoices-sort-dir" className="text-sm font-medium text-zinc-700">
+          <label htmlFor="invoices-sort-dir" className="text-sm font-medium text-foreground-muted">
             Order
           </label>
           <select
             id="invoices-sort-dir"
             value={sortDir}
             onChange={(event) => setSortDir(event.target.value as OpcoSortDirection)}
-            className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2 text-sm"
+            className="mt-1 block w-full rounded border border-border-strong px-3 py-2 text-sm"
           >
             <option value="desc">Newest first</option>
             <option value="asc">Oldest first</option>
@@ -367,14 +367,14 @@ export function InvoicesTable({ initialResult, filterOptions }: InvoicesTablePro
         <div className="flex items-end gap-2 md:col-span-2 xl:col-span-2">
           <button
             type="submit"
-            className="rounded bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+            className="rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
           >
             Apply filters
           </button>
           <button
             type="button"
             onClick={clearFilters}
-            className="rounded border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+            className="rounded border border-border-strong px-4 py-2 text-sm font-medium text-foreground-muted hover:bg-surface-muted"
           >
             Clear
           </button>
@@ -382,14 +382,14 @@ export function InvoicesTable({ initialResult, filterOptions }: InvoicesTablePro
       </form>
 
       {initialResult.totalCount === 0 ? (
-        <div className="rounded-lg border border-zinc-200 bg-white p-6 text-sm text-zinc-600">
+        <div className="rounded-lg border border-border bg-surface p-6 text-sm text-foreground-muted">
           <p>No Dizlee → OpCo invoices match your filters.</p>
         </div>
       ) : (
         <>
-          <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white">
-            <table className="min-w-full divide-y divide-zinc-200 text-sm">
-              <thead className="bg-zinc-50 text-left text-zinc-600">
+          <div className="overflow-hidden rounded-lg border border-border bg-surface">
+            <table className="min-w-full divide-y divide-border text-sm">
+              <thead className="bg-surface-muted text-left text-foreground-muted">
                 {table.getHeaderGroups().map((headerGroup) => (
                   <tr key={headerGroup.id}>
                     {headerGroup.headers.map((header) => (
@@ -405,11 +405,11 @@ export function InvoicesTable({ initialResult, filterOptions }: InvoicesTablePro
                   </tr>
                 ))}
               </thead>
-              <tbody className="divide-y divide-zinc-100">
+              <tbody className="divide-y divide-border">
                 {table.getRowModel().rows.map((row) => (
                   <tr key={row.id}>
                     {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="px-4 py-3 align-top text-zinc-800">
+                      <td key={cell.id} className="px-4 py-3 align-top text-foreground">
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </td>
                     ))}
@@ -419,7 +419,7 @@ export function InvoicesTable({ initialResult, filterOptions }: InvoicesTablePro
             </table>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-zinc-600">
+          <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-foreground-muted">
             <p>
               Showing {showingFrom}–{showingTo} of {initialResult.totalCount}
             </p>
@@ -433,7 +433,7 @@ export function InvoicesTable({ initialResult, filterOptions }: InvoicesTablePro
                     page: initialResult.page - 1,
                   })
                 }
-                className="rounded border border-zinc-300 px-3 py-1.5 disabled:opacity-40"
+                className="rounded border border-border-strong px-3 py-1.5 disabled:opacity-40"
               >
                 Previous
               </button>
@@ -449,7 +449,7 @@ export function InvoicesTable({ initialResult, filterOptions }: InvoicesTablePro
                     page: initialResult.page + 1,
                   })
                 }
-                className="rounded border border-zinc-300 px-3 py-1.5 disabled:opacity-40"
+                className="rounded border border-border-strong px-3 py-1.5 disabled:opacity-40"
               >
                 Next
               </button>

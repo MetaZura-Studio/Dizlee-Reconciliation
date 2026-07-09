@@ -53,7 +53,7 @@ const TABS: Array<{
 
 export function NotificationsTabs({ active }: NotificationsTabsProps) {
   return (
-    <div className="border-b border-zinc-200">
+    <div className="border-b border-border">
       <nav className="-mb-px flex flex-wrap gap-x-6 gap-y-2">
         {TABS.map((tab) => {
           const isActive = tab.id === active;
@@ -62,7 +62,7 @@ export function NotificationsTabs({ active }: NotificationsTabsProps) {
             return (
               <span
                 key={tab.id}
-                className="cursor-not-allowed border-b-2 border-transparent px-1 pb-3 text-sm font-medium text-zinc-300"
+                className="cursor-not-allowed border-b-2 border-transparent px-1 pb-3 text-sm font-medium text-foreground-subtle"
                 title="Coming in a later feature"
               >
                 {tab.label}
@@ -76,8 +76,8 @@ export function NotificationsTabs({ active }: NotificationsTabsProps) {
               href={tab.href}
               className={`border-b-2 px-1 pb-3 text-sm font-medium ${
                 isActive
-                  ? "border-zinc-900 text-zinc-900"
-                  : "border-transparent text-zinc-500 hover:text-zinc-700"
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-foreground-subtle hover:text-foreground-muted"
               }`}
             >
               {tab.label}

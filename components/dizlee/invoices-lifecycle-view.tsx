@@ -186,22 +186,22 @@ export function InvoicesLifecycleView({
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-zinc-900">Dizlee - Invoices</h1>
-        <p className="mt-1 text-sm text-zinc-600">
+        <h1 className="text-2xl font-semibold text-foreground">Dizlee - Invoices</h1>
+        <p className="mt-1 text-sm text-foreground-muted">
           Invoice lifecycle stepper and activity log per invoice.
         </p>
       </div>
 
       <InvoicesTabs active="lifecycle" />
 
-      <section className="rounded-lg border border-zinc-200 bg-zinc-50 p-4">
+      <section className="rounded-lg border border-border bg-surface-muted p-4">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <label className="text-sm">
-            <span className="mb-1 block text-xs text-zinc-500">Period (month)</span>
+            <span className="mb-1 block text-xs text-foreground-subtle">Period (month)</span>
             <select
               value={month}
               onChange={(event) => setMonth(Number(event.target.value))}
-              className="w-full rounded-md border border-zinc-300 px-3 py-1.5 text-sm"
+              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
             >
               {MONTHS.map((name, index) => (
                 <option key={name} value={index + 1}>
@@ -211,11 +211,11 @@ export function InvoicesLifecycleView({
             </select>
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-xs text-zinc-500">Year</span>
+            <span className="mb-1 block text-xs text-foreground-subtle">Year</span>
             <select
               value={year}
               onChange={(event) => setYear(Number(event.target.value))}
-              className="w-full rounded-md border border-zinc-300 px-3 py-1.5 text-sm"
+              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
             >
               {yearOptions.map((value) => (
                 <option key={value} value={value}>
@@ -225,11 +225,11 @@ export function InvoicesLifecycleView({
             </select>
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-xs text-zinc-500">OpCo</span>
+            <span className="mb-1 block text-xs text-foreground-subtle">OpCo</span>
             <select
               value={opcoId}
               onChange={(event) => setOpcoId(event.target.value)}
-              className="w-full rounded-md border border-zinc-300 px-3 py-1.5 text-sm"
+              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
             >
               <option value="">All OpCos</option>
               {filterOptions.opcos.map((opco) => (
@@ -240,11 +240,11 @@ export function InvoicesLifecycleView({
             </select>
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-xs text-zinc-500">Partner</span>
+            <span className="mb-1 block text-xs text-foreground-subtle">Partner</span>
             <select
               value={partnerId}
               onChange={(event) => setPartnerId(event.target.value)}
-              className="w-full rounded-md border border-zinc-300 px-3 py-1.5 text-sm"
+              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
             >
               <option value="">All Partners</option>
               {filterOptions.partners.map((partner) => (
@@ -257,9 +257,9 @@ export function InvoicesLifecycleView({
         </div>
       </section>
 
-      {loading ? <p className="text-sm text-zinc-500">Loading invoices…</p> : null}
+      {loading ? <p className="text-sm text-foreground-subtle">Loading invoices…</p> : null}
       {error ? (
-        <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <div className="rounded-md border border-danger-border bg-danger-muted p-4 text-sm text-danger">
           {error}
         </div>
       ) : null}
@@ -268,37 +268,37 @@ export function InvoicesLifecycleView({
         result.items.length > 0 ? (
           <div className="grid gap-6 lg:grid-cols-2">
             <div className="space-y-3">
-              <div className="overflow-hidden rounded-lg border border-zinc-200">
-                <table className="min-w-full divide-y divide-zinc-200 text-sm">
-                  <thead className="bg-zinc-50">
+              <div className="overflow-hidden rounded-lg border border-border">
+                <table className="min-w-full divide-y divide-border text-sm">
+                  <thead className="bg-surface-muted">
                     <tr>
-                      <th className="px-4 py-3 text-left font-medium text-zinc-600">
+                      <th className="px-4 py-3 text-left font-medium text-foreground-muted">
                         Invoice
                       </th>
-                      <th className="px-4 py-3 text-left font-medium text-zinc-600">
+                      <th className="px-4 py-3 text-left font-medium text-foreground-muted">
                         Status
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-zinc-200 bg-white">
+                  <tbody className="divide-y divide-border bg-surface">
                     {result.items.map((row: LifecycleListItem) => (
                       <tr
                         key={row.id}
                         className={
-                          row.id === selectedId ? "bg-zinc-50" : "cursor-pointer"
+                          row.id === selectedId ? "bg-surface-muted" : "cursor-pointer"
                         }
                         onClick={() => handleSelect(row.id)}
                       >
                         <td className="px-4 py-3">
-                          <p className="font-medium text-zinc-900">
+                          <p className="font-medium text-foreground">
                             {row.invoiceNumber ?? row.id}
                           </p>
-                          <p className="text-xs text-zinc-500">
+                          <p className="text-xs text-foreground-subtle">
                             {row.direction} · {row.opcoName}
                             {row.partnerName ? ` / ${row.partnerName}` : ""}
                           </p>
                         </td>
-                        <td className="px-4 py-3 text-zinc-600">
+                        <td className="px-4 py-3 text-foreground-muted">
                           {row.invoiceStatus}
                         </td>
                       </tr>
@@ -306,7 +306,7 @@ export function InvoicesLifecycleView({
                   </tbody>
                 </table>
               </div>
-              <div className="flex items-center justify-between text-sm text-zinc-600">
+              <div className="flex items-center justify-between text-sm text-foreground-muted">
                 <p>
                   Page {result.page} / {result.totalPages}
                 </p>
@@ -315,7 +315,7 @@ export function InvoicesLifecycleView({
                     type="button"
                     disabled={result.page <= 1}
                     onClick={() => goToPage(result.page - 1)}
-                    className="rounded-md border border-zinc-300 px-3 py-1 disabled:opacity-40"
+                    className="rounded-md border border-border-strong px-3 py-1 disabled:opacity-40"
                   >
                     Prev
                   </button>
@@ -323,7 +323,7 @@ export function InvoicesLifecycleView({
                     type="button"
                     disabled={result.page >= result.totalPages}
                     onClick={() => goToPage(result.page + 1)}
-                    className="rounded-md border border-zinc-300 px-3 py-1 disabled:opacity-40"
+                    className="rounded-md border border-border-strong px-3 py-1 disabled:opacity-40"
                   >
                     Next
                   </button>
@@ -331,39 +331,39 @@ export function InvoicesLifecycleView({
               </div>
             </div>
 
-            <div className="rounded-lg border border-zinc-200 bg-white p-4">
+            <div className="rounded-lg border border-border bg-surface p-4">
               {detailLoading ? (
-                <p className="text-sm text-zinc-500">Loading lifecycle…</p>
+                <p className="text-sm text-foreground-subtle">Loading lifecycle…</p>
               ) : detail ? (
                 <div className="space-y-6">
                   <div>
-                    <h2 className="text-lg font-medium text-zinc-900">
+                    <h2 className="text-lg font-medium text-foreground">
                       {detail.invoice.invoiceNumber ?? "Invoice"}
                     </h2>
-                    <p className="text-sm text-zinc-600">
+                    <p className="text-sm text-foreground-muted">
                       {detail.invoice.direction} · {detail.invoice.period.label}
                     </p>
                   </div>
 
                   <div>
-                    <h3 className="text-sm font-medium text-zinc-700">Lifecycle</h3>
+                    <h3 className="text-sm font-medium text-foreground-muted">Lifecycle</h3>
                     <ol className="mt-3 space-y-3">
                       {detail.steps.map((step, index) => (
                         <li key={step.code} className="flex gap-3">
                           <div
                             className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-medium ${
                               step.completed
-                                ? "bg-emerald-600 text-white"
-                                : "bg-zinc-200 text-zinc-600"
+                                ? "bg-success text-primary-foreground"
+                                : "bg-primary-muted text-foreground-muted"
                             }`}
                           >
                             {index + 1}
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-zinc-900">
+                            <p className="text-sm font-medium text-foreground">
                               {step.label}
                             </p>
-                            <p className="text-xs text-zinc-500">
+                            <p className="text-xs text-foreground-subtle">
                               {formatDateTime(step.completedAt)}
                             </p>
                           </div>
@@ -373,7 +373,7 @@ export function InvoicesLifecycleView({
                   </div>
 
                   <div>
-                    <h3 className="text-sm font-medium text-zinc-700">
+                    <h3 className="text-sm font-medium text-foreground-muted">
                       Activity log
                     </h3>
                     {detail.activities.length > 0 ? (
@@ -381,16 +381,16 @@ export function InvoicesLifecycleView({
                         {detail.activities.map((entry) => (
                           <li
                             key={entry.id}
-                            className="rounded-md border border-zinc-200 p-3 text-sm"
+                            className="rounded-md border border-border p-3 text-sm"
                           >
-                            <p className="font-medium text-zinc-900">
+                            <p className="font-medium text-foreground">
                               {entry.action}
                             </p>
-                            <p className="text-zinc-600">
+                            <p className="text-foreground-muted">
                               {entry.actorName} · {formatDateTime(entry.createdAt)}
                             </p>
                             {entry.previousStatus || entry.newStatus ? (
-                              <p className="text-xs text-zinc-500">
+                              <p className="text-xs text-foreground-subtle">
                                 {entry.statusField ?? "status"}:{" "}
                                 {entry.previousStatus ?? "—"} →{" "}
                                 {entry.newStatus ?? "—"}
@@ -400,21 +400,21 @@ export function InvoicesLifecycleView({
                         ))}
                       </ul>
                     ) : (
-                      <p className="mt-2 text-sm text-zinc-500">
+                      <p className="mt-2 text-sm text-foreground-subtle">
                         No activity recorded yet.
                       </p>
                     )}
                   </div>
                 </div>
               ) : (
-                <p className="text-sm text-zinc-500">Select an invoice.</p>
+                <p className="text-sm text-foreground-subtle">Select an invoice.</p>
               )}
             </div>
           </div>
         ) : (
-          <div className="rounded-lg border border-zinc-200 bg-white p-8 text-center">
-            <p className="font-medium text-zinc-900">No invoices</p>
-            <p className="mt-1 text-sm text-zinc-600">
+          <div className="rounded-lg border border-border bg-surface p-8 text-center">
+            <p className="font-medium text-foreground">No invoices</p>
+            <p className="mt-1 text-sm text-foreground-muted">
               Try adjusting filters or create an invoice for this period.
             </p>
           </div>

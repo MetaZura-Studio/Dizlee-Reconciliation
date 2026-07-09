@@ -119,10 +119,10 @@ export function NotificationsInbox({ initialResult }: NotificationsInboxProps) {
       ) : null}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-zinc-600">
+        <p className="text-sm text-foreground-muted">
           {result.unreadCount} unread · {result.totalCount} total
         </p>
-        <label className="flex items-center gap-2 text-sm text-zinc-700">
+        <label className="flex items-center gap-2 text-sm text-foreground-muted">
           <input
             type="checkbox"
             checked={unreadOnly}
@@ -132,21 +132,21 @@ export function NotificationsInbox({ initialResult }: NotificationsInboxProps) {
                 unreadOnly: event.target.checked,
               });
             }}
-            className="rounded border-zinc-300"
+            className="rounded border-border-strong"
           />
           Unread only
         </label>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white">
-          <div className="border-b border-zinc-200 px-4 py-3">
-            <h2 className="font-medium text-zinc-900">Inbox</h2>
+        <div className="overflow-hidden rounded-lg border border-border bg-surface">
+          <div className="border-b border-border px-4 py-3">
+            <h2 className="font-medium text-foreground">Inbox</h2>
           </div>
 
-          <div className="divide-y divide-zinc-100">
+          <div className="divide-y divide-border">
             {result.items.length === 0 ? (
-              <p className="px-4 py-8 text-center text-sm text-zinc-500">
+              <p className="px-4 py-8 text-center text-sm text-foreground-subtle">
                 {unreadOnly ? "No unread notifications." : "Your inbox is empty."}
               </p>
             ) : (
@@ -155,27 +155,27 @@ export function NotificationsInbox({ initialResult }: NotificationsInboxProps) {
                   key={item.id}
                   type="button"
                   onClick={() => void loadDetail(item.id)}
-                  className={`w-full px-4 py-3 text-left transition-colors hover:bg-zinc-50 ${
-                    selectedId === item.id ? "bg-zinc-50" : ""
-                  } ${item.isRead ? "" : "bg-blue-50/40"}`}
+                  className={`w-full px-4 py-3 text-left transition-colors hover:bg-surface-muted ${
+                    selectedId === item.id ? "bg-surface-muted" : ""
+                  } ${item.isRead ? "" : "bg-accent-muted/60"}`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <p
                       className={`font-medium ${
-                        item.isRead ? "text-zinc-900" : "text-zinc-950"
+                        item.isRead ? "text-foreground" : "text-foreground"
                       }`}
                     >
                       {!item.isRead ? "• " : ""}
                       {item.subject}
                     </p>
                     {item.priority ? (
-                      <span className="shrink-0 rounded-full bg-zinc-200 px-2 py-0.5 text-xs text-zinc-700">
+                      <span className="shrink-0 rounded-full bg-primary-muted px-2 py-0.5 text-xs text-foreground-muted">
                         {item.priority}
                       </span>
                     ) : null}
                   </div>
-                  <p className="mt-1 text-sm text-zinc-600">{item.bodyPreview}</p>
-                  <p className="mt-2 text-xs text-zinc-500">
+                  <p className="mt-1 text-sm text-foreground-muted">{item.bodyPreview}</p>
+                  <p className="mt-2 text-xs text-foreground-subtle">
                     From {item.fromName} · {formatDateTime(item.receivedAt)}
                   </p>
                 </button>
@@ -184,7 +184,7 @@ export function NotificationsInbox({ initialResult }: NotificationsInboxProps) {
           </div>
 
           {result.totalPages > 1 ? (
-            <div className="flex items-center justify-between border-t border-zinc-200 px-4 py-3 text-sm text-zinc-600">
+            <div className="flex items-center justify-between border-t border-border px-4 py-3 text-sm text-foreground-muted">
               <span>
                 Page {result.page} of {result.totalPages}
               </span>
@@ -198,7 +198,7 @@ export function NotificationsInbox({ initialResult }: NotificationsInboxProps) {
                       page: result.page - 1,
                     })
                   }
-                  className="rounded border border-zinc-300 px-3 py-1 disabled:opacity-40"
+                  className="rounded border border-border-strong px-3 py-1 disabled:opacity-40"
                 >
                   Previous
                 </button>
@@ -211,7 +211,7 @@ export function NotificationsInbox({ initialResult }: NotificationsInboxProps) {
                       page: result.page + 1,
                     })
                   }
-                  className="rounded border border-zinc-300 px-3 py-1 disabled:opacity-40"
+                  className="rounded border border-border-strong px-3 py-1 disabled:opacity-40"
                 >
                   Next
                 </button>
@@ -220,15 +220,15 @@ export function NotificationsInbox({ initialResult }: NotificationsInboxProps) {
           ) : null}
         </div>
 
-        <div className="rounded-lg border border-zinc-200 bg-white p-4">
+        <div className="rounded-lg border border-border bg-surface p-4">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="font-medium text-zinc-900">Message</h2>
+            <h2 className="font-medium text-foreground">Message</h2>
             {selectedId ? (
               <button
                 type="button"
                 onClick={() => void dismissSelected()}
                 disabled={dismissing}
-                className="text-sm text-zinc-600 underline hover:text-zinc-900 disabled:opacity-50"
+                className="text-sm text-foreground-muted underline hover:text-foreground disabled:opacity-50"
               >
                 {dismissing ? "Dismissing..." : "Dismiss"}
               </button>
@@ -236,25 +236,25 @@ export function NotificationsInbox({ initialResult }: NotificationsInboxProps) {
           </div>
 
           {detailLoading ? (
-            <p className="mt-4 text-sm text-zinc-500">Loading…</p>
+            <p className="mt-4 text-sm text-foreground-subtle">Loading…</p>
           ) : detail ? (
             <div className="mt-4 space-y-4">
               <div>
-                <h3 className="text-lg font-medium text-zinc-900">{detail.subject}</h3>
-                <p className="mt-1 text-sm text-zinc-500">
+                <h3 className="text-lg font-medium text-foreground">{detail.subject}</h3>
+                <p className="mt-1 text-sm text-foreground-subtle">
                   From {detail.fromName} · {formatDateTime(detail.receivedAt)}
                 </p>
                 {detail.readAt ? (
-                  <p className="text-xs text-zinc-500">
+                  <p className="text-xs text-foreground-subtle">
                     Read {formatDateTime(detail.readAt)}
                   </p>
                 ) : null}
               </div>
-              <p className="whitespace-pre-wrap text-sm text-zinc-700">{detail.body}</p>
+              <p className="whitespace-pre-wrap text-sm text-foreground-muted">{detail.body}</p>
               {detail.attachments.length > 0 ? (
                 <div>
-                  <h4 className="text-sm font-medium text-zinc-900">Attachments</h4>
-                  <ul className="mt-2 space-y-1 text-sm text-zinc-700">
+                  <h4 className="text-sm font-medium text-foreground">Attachments</h4>
+                  <ul className="mt-2 space-y-1 text-sm text-foreground-muted">
                     {detail.attachments.map((attachment) => (
                       <li key={attachment.id}>{attachment.filename}</li>
                     ))}
@@ -263,16 +263,16 @@ export function NotificationsInbox({ initialResult }: NotificationsInboxProps) {
               ) : null}
             </div>
           ) : (
-            <p className="mt-4 text-sm text-zinc-500">
+            <p className="mt-4 text-sm text-foreground-subtle">
               Select a message to read. Opening marks it as read.
             </p>
           )}
         </div>
       </div>
 
-      <p className="text-sm text-zinc-500">
+      <p className="text-sm text-foreground-subtle">
         Account settings:{" "}
-        <Link href="/change-password" className="text-zinc-900 underline">
+        <Link href="/change-password" className="text-foreground underline">
           Change password
         </Link>
       </p>

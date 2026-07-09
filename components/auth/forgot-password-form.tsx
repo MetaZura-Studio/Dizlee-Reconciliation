@@ -48,22 +48,22 @@ export function ForgotPasswordForm() {
   if (submitted && message) {
     return (
       <div className="space-y-4">
-        <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-4">
-          <p className="text-sm font-medium text-emerald-900">Check your email</p>
-          <p className="mt-2 text-sm text-emerald-800">{message}</p>
-          <p className="mt-3 text-sm text-emerald-800">
+        <div className="rounded-md border border-success-border bg-success-muted px-4 py-4">
+          <p className="text-sm font-medium text-success">Check your email</p>
+          <p className="mt-2 text-sm text-success">{message}</p>
+          <p className="mt-3 text-sm text-success">
             We sent a reset link to{" "}
             <span className="font-medium">{email}</span>. The link expires in 24
             hours and can only be used once.
           </p>
         </div>
 
-        <p className="text-center text-sm text-zinc-600">
+        <p className="text-center text-sm text-foreground-muted">
           Didn&apos;t receive it?{" "}
           <button
             type="button"
             onClick={resetForm}
-            className="font-medium text-zinc-900 underline hover:text-zinc-700"
+            className="font-medium text-foreground underline hover:text-foreground-muted"
           >
             Try again
           </button>
@@ -75,13 +75,13 @@ export function ForgotPasswordForm() {
   return (
     <form onSubmit={(event) => void submit(event)} className="space-y-4">
       {error ? (
-        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="rounded-md border border-danger-border bg-danger-muted px-3 py-2 text-sm text-danger">
           {error}
         </p>
       ) : null}
 
       <div className="space-y-1">
-        <label htmlFor="email" className="text-sm font-medium text-zinc-700">
+        <label htmlFor="email" className="text-sm font-medium text-foreground-muted">
           Email address
         </label>
         <input
@@ -93,20 +93,20 @@ export function ForgotPasswordForm() {
           autoComplete="email"
           required
           placeholder="you@company.com"
-          className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+          className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
         />
       </div>
 
       <button
         type="submit"
         disabled={submitting}
-        className="w-full rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
+        className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
       >
         {submitting ? "Sending reset link…" : "Send reset link"}
       </button>
 
       <p className="text-center text-sm">
-        <Link href="/login" className="text-zinc-700 underline hover:text-zinc-900">
+        <Link href="/login" className="text-foreground-muted underline hover:text-foreground">
           Back to sign in
         </Link>
       </p>

@@ -34,7 +34,7 @@ export default async function AdminCurrenciesPage() {
         <h1 className="text-2xl font-semibold tracking-tight">
           Currencies &amp; USD rates
         </h1>
-        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="rounded-md border border-danger-border bg-danger-muted px-3 py-2 text-sm text-danger">
           {errorMessage}
         </p>
       </div>
@@ -47,13 +47,13 @@ export default async function AdminCurrenciesPage() {
         <h1 className="text-2xl font-semibold tracking-tight">
           Currencies &amp; USD rates
         </h1>
-        <p className="text-sm text-zinc-600">
+        <p className="text-sm text-foreground-muted">
           Manage the currency master list and monthly USD exchange rates used for
           billing and dashboard KPIs.
         </p>
       </div>
 
-      <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+      <p className="rounded-md border border-warning-border bg-warning-muted px-3 py-2 text-sm text-warning">
         Monthly rates are stored per reporting period. Select a past month to
         browse historical rates or correct earlier values.
       </p>

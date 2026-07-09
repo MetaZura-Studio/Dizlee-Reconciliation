@@ -81,18 +81,18 @@ export function AdminLoginForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {displaySuccess ? (
-        <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+        <p className="rounded-md border border-success-border bg-success-muted px-3 py-2 text-sm text-success">
           {displaySuccess}
         </p>
       ) : null}
       {displayError ? (
-        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="rounded-md border border-danger-border bg-danger-muted px-3 py-2 text-sm text-danger">
           {displayError}
         </p>
       ) : null}
 
       <div className="space-y-1">
-        <label htmlFor="email" className="text-sm font-medium text-zinc-700">
+        <label htmlFor="email" className="text-sm font-medium text-foreground-muted">
           Email
         </label>
         <input
@@ -103,12 +103,12 @@ export function AdminLoginForm() {
           required
           value={email}
           onChange={(event) => setEmail(event.target.value)}
-          className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+          className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
         />
       </div>
 
       <div className="space-y-1">
-        <label htmlFor="password" className="text-sm font-medium text-zinc-700">
+        <label htmlFor="password" className="text-sm font-medium text-foreground-muted">
           Password
         </label>
         <input
@@ -119,14 +119,14 @@ export function AdminLoginForm() {
           required
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+          className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
         />
       </div>
 
       <button
         type="submit"
         disabled={isSubmitting}
-        className="w-full rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
+        className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
       >
         {isSubmitting ? "Signing in..." : "Sign in to Admin"}
       </button>
@@ -134,7 +134,7 @@ export function AdminLoginForm() {
       <p className="text-center text-sm">
         <Link
           href="/forgot-password"
-          className="text-zinc-700 underline hover:text-zinc-900"
+          className="text-foreground-muted underline hover:text-foreground"
         >
           Forgot password?
         </Link>

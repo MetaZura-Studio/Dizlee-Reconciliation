@@ -177,11 +177,11 @@ export function ReportsTable({ initialResult, filterOptions }: ReportsTableProps
         header: "Status",
         cell: ({ row }) => (
           <div>
-            <span className="rounded-full bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-700">
+            <span className="rounded-full bg-surface-muted px-2 py-1 text-xs font-medium text-foreground-muted">
               {row.original.statusLabel}
             </span>
             {row.original.hasPendingChangeRequest ? (
-              <p className="mt-1 text-xs text-amber-700">Reupload pending review</p>
+              <p className="mt-1 text-xs text-warning">Reupload pending review</p>
             ) : null}
           </div>
         ),
@@ -209,7 +209,7 @@ export function ReportsTable({ initialResult, filterOptions }: ReportsTableProps
             <button
               type="button"
               onClick={() => void openDetail(row.original.id)}
-              className="rounded border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-800 hover:bg-zinc-50"
+              className="rounded border border-border-strong px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface-muted"
             >
               View
             </button>
@@ -217,7 +217,7 @@ export function ReportsTable({ initialResult, filterOptions }: ReportsTableProps
               <button
                 type="button"
                 onClick={() => setChangeRequestReport(row.original)}
-                className="rounded border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-800 hover:bg-zinc-50"
+                className="rounded border border-border-strong px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface-muted"
               >
                 Request reupload
               </button>
@@ -226,7 +226,7 @@ export function ReportsTable({ initialResult, filterOptions }: ReportsTableProps
               <button
                 type="button"
                 onClick={() => setReuploadReport(row.original)}
-                className="rounded border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-900 hover:bg-emerald-100"
+                className="rounded border border-success-border bg-success-muted px-3 py-1.5 text-xs font-medium text-success hover:bg-success-muted"
               >
                 Reupload corrected file
               </button>
@@ -258,14 +258,14 @@ export function ReportsTable({ initialResult, filterOptions }: ReportsTableProps
   return (
     <div className="space-y-4">
       <form
-        className="grid gap-4 rounded-lg border border-zinc-200 bg-white p-4 md:grid-cols-2 xl:grid-cols-4"
+        className="grid gap-4 rounded-lg border border-border bg-surface p-4 md:grid-cols-2 xl:grid-cols-4"
         onSubmit={(event) => {
           event.preventDefault();
           applyFilters();
         }}
       >
         <div>
-          <label htmlFor="reports-year" className="text-sm font-medium text-zinc-700">
+          <label htmlFor="reports-year" className="text-sm font-medium text-foreground-muted">
             Year
           </label>
           <input
@@ -276,18 +276,18 @@ export function ReportsTable({ initialResult, filterOptions }: ReportsTableProps
             value={year}
             onChange={(event) => setYear(event.target.value)}
             placeholder="All years"
-            className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2 text-sm"
+            className="mt-1 block w-full rounded border border-border-strong px-3 py-2 text-sm"
           />
         </div>
         <div>
-          <label htmlFor="reports-month" className="text-sm font-medium text-zinc-700">
+          <label htmlFor="reports-month" className="text-sm font-medium text-foreground-muted">
             Month
           </label>
           <select
             id="reports-month"
             value={month}
             onChange={(event) => setMonth(event.target.value)}
-            className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2 text-sm"
+            className="mt-1 block w-full rounded border border-border-strong px-3 py-2 text-sm"
           >
             <option value="">All months</option>
             {MONTHS.map((item) => (
@@ -298,14 +298,14 @@ export function ReportsTable({ initialResult, filterOptions }: ReportsTableProps
           </select>
         </div>
         <div>
-          <label htmlFor="reports-partner" className="text-sm font-medium text-zinc-700">
+          <label htmlFor="reports-partner" className="text-sm font-medium text-foreground-muted">
             Partner
           </label>
           <select
             id="reports-partner"
             value={partnerId}
             onChange={(event) => setPartnerId(event.target.value)}
-            className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2 text-sm"
+            className="mt-1 block w-full rounded border border-border-strong px-3 py-2 text-sm"
           >
             <option value="">All partners</option>
             {filterOptions.partners.map((partner) => (
@@ -316,14 +316,14 @@ export function ReportsTable({ initialResult, filterOptions }: ReportsTableProps
           </select>
         </div>
         <div>
-          <label htmlFor="reports-status" className="text-sm font-medium text-zinc-700">
+          <label htmlFor="reports-status" className="text-sm font-medium text-foreground-muted">
             Status
           </label>
           <select
             id="reports-status"
             value={statusCode}
             onChange={(event) => setStatusCode(event.target.value)}
-            className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2 text-sm"
+            className="mt-1 block w-full rounded border border-border-strong px-3 py-2 text-sm"
           >
             <option value="">All statuses</option>
             {filterOptions.statuses.map((status) => (
@@ -334,14 +334,14 @@ export function ReportsTable({ initialResult, filterOptions }: ReportsTableProps
           </select>
         </div>
         <div>
-          <label htmlFor="reports-sort-by" className="text-sm font-medium text-zinc-700">
+          <label htmlFor="reports-sort-by" className="text-sm font-medium text-foreground-muted">
             Sort by
           </label>
           <select
             id="reports-sort-by"
             value={sortBy}
             onChange={(event) => setSortBy(event.target.value as OpcoReportSortField)}
-            className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2 text-sm"
+            className="mt-1 block w-full rounded border border-border-strong px-3 py-2 text-sm"
           >
             <option value="uploaded">Upload date</option>
             <option value="period">Period</option>
@@ -349,14 +349,14 @@ export function ReportsTable({ initialResult, filterOptions }: ReportsTableProps
           </select>
         </div>
         <div>
-          <label htmlFor="reports-sort-dir" className="text-sm font-medium text-zinc-700">
+          <label htmlFor="reports-sort-dir" className="text-sm font-medium text-foreground-muted">
             Order
           </label>
           <select
             id="reports-sort-dir"
             value={sortDir}
             onChange={(event) => setSortDir(event.target.value as OpcoSortDirection)}
-            className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2 text-sm"
+            className="mt-1 block w-full rounded border border-border-strong px-3 py-2 text-sm"
           >
             <option value="desc">Newest first</option>
             <option value="asc">Oldest first</option>
@@ -365,14 +365,14 @@ export function ReportsTable({ initialResult, filterOptions }: ReportsTableProps
         <div className="flex items-end gap-2 md:col-span-2 xl:col-span-2">
           <button
             type="submit"
-            className="rounded bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+            className="rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
           >
             Apply filters
           </button>
           <button
             type="button"
             onClick={clearFilters}
-            className="rounded border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+            className="rounded border border-border-strong px-4 py-2 text-sm font-medium text-foreground-muted hover:bg-surface-muted"
           >
             Clear
           </button>
@@ -380,23 +380,23 @@ export function ReportsTable({ initialResult, filterOptions }: ReportsTableProps
       </form>
 
       {successMessage ? (
-        <p className="rounded border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+        <p className="rounded border border-success-border bg-success-muted px-4 py-3 text-sm text-success">
           {successMessage}
         </p>
       ) : null}
 
       {initialResult.totalCount === 0 ? (
-        <div className="rounded-lg border border-zinc-200 bg-white p-6 text-sm text-zinc-600">
+        <div className="rounded-lg border border-border bg-surface p-6 text-sm text-foreground-muted">
           <p>No reports match your filters.</p>
-          <Link href="/opco/upload" className="mt-2 inline-block text-zinc-900 underline">
+          <Link href="/opco/upload" className="mt-2 inline-block text-foreground underline">
             Upload a report
           </Link>
         </div>
       ) : (
         <>
-          <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white">
-            <table className="min-w-full divide-y divide-zinc-200 text-sm">
-              <thead className="bg-zinc-50 text-left text-zinc-600">
+          <div className="overflow-hidden rounded-lg border border-border bg-surface">
+            <table className="min-w-full divide-y divide-border text-sm">
+              <thead className="bg-surface-muted text-left text-foreground-muted">
                 {table.getHeaderGroups().map((headerGroup) => (
                   <tr key={headerGroup.id}>
                     {headerGroup.headers.map((header) => (
@@ -412,11 +412,11 @@ export function ReportsTable({ initialResult, filterOptions }: ReportsTableProps
                   </tr>
                 ))}
               </thead>
-              <tbody className="divide-y divide-zinc-100">
+              <tbody className="divide-y divide-border">
                 {table.getRowModel().rows.map((row) => (
                   <tr key={row.id}>
                     {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="px-4 py-3 align-top text-zinc-800">
+                      <td key={cell.id} className="px-4 py-3 align-top text-foreground">
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </td>
                     ))}
@@ -426,7 +426,7 @@ export function ReportsTable({ initialResult, filterOptions }: ReportsTableProps
             </table>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-zinc-600">
+          <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-foreground-muted">
             <p>
               Showing {showingFrom}–{showingTo} of {initialResult.totalCount}
             </p>
@@ -440,7 +440,7 @@ export function ReportsTable({ initialResult, filterOptions }: ReportsTableProps
                     page: initialResult.page - 1,
                   })
                 }
-                className="rounded border border-zinc-300 px-3 py-1.5 disabled:opacity-40"
+                className="rounded border border-border-strong px-3 py-1.5 disabled:opacity-40"
               >
                 Previous
               </button>
@@ -456,7 +456,7 @@ export function ReportsTable({ initialResult, filterOptions }: ReportsTableProps
                     page: initialResult.page + 1,
                   })
                 }
-                className="rounded border border-zinc-300 px-3 py-1.5 disabled:opacity-40"
+                className="rounded border border-border-strong px-3 py-1.5 disabled:opacity-40"
               >
                 Next
               </button>

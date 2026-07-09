@@ -41,7 +41,7 @@ export default async function PartnerNotificationsPage({
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">Notifications</h1>
-        <p className="mt-1 text-zinc-600">
+        <p className="mt-1 text-foreground-muted">
           Your partner inbox — messages from Dizlee and the reconciliation system.
         </p>
       </div>

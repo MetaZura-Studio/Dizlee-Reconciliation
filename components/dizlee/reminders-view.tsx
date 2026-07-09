@@ -195,8 +195,8 @@ export function RemindersView({
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-zinc-900">Notifications</h1>
-        <p className="mt-1 text-sm text-zinc-500">
+        <h1 className="text-2xl font-semibold text-foreground">Notifications</h1>
+        <p className="mt-1 text-sm text-foreground-subtle">
           Send report submission reminders for missing uploads (UC-09).
         </p>
       </div>
@@ -204,24 +204,24 @@ export function RemindersView({
       <NotificationsTabs active="reminders" />
 
       {error ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-lg border border-danger-border bg-danger-muted px-4 py-3 text-sm text-danger">
           {error}
         </div>
       ) : null}
 
       {message ? (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+        <div className="rounded-lg border border-success-border bg-success-muted px-4 py-3 text-sm text-success">
           {message}
         </div>
       ) : null}
 
-      <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-700">
+      <div className="rounded-xl border border-border bg-surface-muted p-4 text-sm text-foreground-muted">
         <p>
           <span className="font-medium">Automatic reminders (admin):</span>{" "}
           {settings.remindersEnabled ? "Enabled" : "Disabled"}
           {settings.remindersEnabled ? ` · Schedule: ${scheduleLabel}` : ""}
         </p>
-        <p className="mt-1 text-zinc-500">
+        <p className="mt-1 text-foreground-subtle">
           Manual sends below use the REPORT_REMINDER template. Placeholders:{" "}
           <code className="text-xs">{"{{period}}"}</code>,{" "}
           <code className="text-xs">{"{{opco_name}}"}</code>,{" "}
@@ -230,14 +230,14 @@ export function RemindersView({
         </p>
       </div>
 
-      <div className="rounded-xl border border-zinc-200 bg-white p-4">
+      <div className="rounded-xl border border-border bg-surface p-4">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <label className="block text-sm">
-            <span className="text-zinc-600">Month</span>
+            <span className="text-foreground-muted">Month</span>
             <select
               value={month}
               onChange={(event) => setMonth(Number(event.target.value))}
-              className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2"
+              className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
             >
               {MONTHS.map((label, index) => (
                 <option key={label} value={index + 1}>
@@ -248,11 +248,11 @@ export function RemindersView({
           </label>
 
           <label className="block text-sm">
-            <span className="text-zinc-600">Year</span>
+            <span className="text-foreground-muted">Year</span>
             <select
               value={year}
               onChange={(event) => setYear(Number(event.target.value))}
-              className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2"
+              className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
             >
               {yearOptions.map((value) => (
                 <option key={value} value={value}>
@@ -263,11 +263,11 @@ export function RemindersView({
           </label>
 
           <label className="block text-sm">
-            <span className="text-zinc-600">OpCo</span>
+            <span className="text-foreground-muted">OpCo</span>
             <select
               value={opcoId}
               onChange={(event) => setOpcoId(event.target.value)}
-              className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2"
+              className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
             >
               <option value="">All</option>
               {filterOptions.opcos.map((opco) => (
@@ -279,11 +279,11 @@ export function RemindersView({
           </label>
 
           <label className="block text-sm">
-            <span className="text-zinc-600">Partner</span>
+            <span className="text-foreground-muted">Partner</span>
             <select
               value={partnerId}
               onChange={(event) => setPartnerId(event.target.value)}
-              className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2"
+              className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
             >
               <option value="">All</option>
               {filterOptions.partners.map((partner) => (
@@ -295,13 +295,13 @@ export function RemindersView({
           </label>
 
           <label className="block text-sm">
-            <span className="text-zinc-600">Missing</span>
+            <span className="text-foreground-muted">Missing</span>
             <select
               value={missing}
               onChange={(event) =>
                 setMissing(event.target.value as MissingSideFilter | "")
               }
-              className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2"
+              className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
             >
               <option value="any">Any side</option>
               <option value="opco">OpCo report</option>
@@ -314,37 +314,37 @@ export function RemindersView({
           type="button"
           onClick={() => void loadData(1)}
           disabled={loading}
-          className="mt-4 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+          className="mt-4 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
         >
           Apply filters
         </button>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-4">
-        <div className="rounded-xl border border-zinc-200 bg-white p-4">
-          <p className="text-xs text-zinc-500">Linked lanes</p>
-          <p className="mt-1 text-2xl font-semibold text-zinc-900">
+        <div className="rounded-xl border border-border bg-surface p-4">
+          <p className="text-xs text-foreground-subtle">Linked lanes</p>
+          <p className="mt-1 text-2xl font-semibold text-foreground">
             {result.summary.linkedLanes}
           </p>
         </div>
-        <div className="rounded-xl border border-zinc-200 bg-white p-4">
-          <p className="text-xs text-zinc-500">OpCo missing</p>
-          <p className="mt-1 text-2xl font-semibold text-amber-700">
+        <div className="rounded-xl border border-border bg-surface p-4">
+          <p className="text-xs text-foreground-subtle">OpCo missing</p>
+          <p className="mt-1 text-2xl font-semibold text-warning">
             {result.summary.opcoMissing}
           </p>
         </div>
-        <div className="rounded-xl border border-zinc-200 bg-white p-4">
-          <p className="text-xs text-zinc-500">Partner missing</p>
-          <p className="mt-1 text-2xl font-semibold text-amber-700">
+        <div className="rounded-xl border border-border bg-surface p-4">
+          <p className="text-xs text-foreground-subtle">Partner missing</p>
+          <p className="mt-1 text-2xl font-semibold text-warning">
             {result.summary.partnerMissing}
           </p>
         </div>
-        <div className="rounded-xl border border-zinc-200 bg-white p-4">
-          <p className="text-xs text-zinc-500">Selected lanes</p>
-          <p className="mt-1 text-2xl font-semibold text-zinc-900">
+        <div className="rounded-xl border border-border bg-surface p-4">
+          <p className="text-xs text-foreground-subtle">Selected lanes</p>
+          <p className="mt-1 text-2xl font-semibold text-foreground">
             {selectedLaneKeys.length || "All"}
           </p>
-          <p className="mt-1 text-xs text-zinc-500">
+          <p className="mt-1 text-xs text-foreground-subtle">
             {selectedLaneKeys.length === 0
               ? "Empty selection sends to all missing lanes"
               : "Only selected lanes"}
@@ -353,13 +353,13 @@ export function RemindersView({
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="rounded-xl border border-zinc-200 bg-white p-4 lg:col-span-2">
+        <div className="rounded-xl border border-border bg-surface p-4 lg:col-span-2">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-medium text-zinc-900">Report lanes</h2>
+            <h2 className="text-lg font-medium text-foreground">Report lanes</h2>
             <button
               type="button"
               onClick={selectMissingOnPage}
-              className="text-sm font-medium text-zinc-700 underline"
+              className="text-sm font-medium text-foreground-muted underline"
             >
               Select missing on page
             </button>
@@ -367,7 +367,7 @@ export function RemindersView({
 
           <div className="mt-4 overflow-x-auto">
             <table className="min-w-full text-left text-sm">
-              <thead className="border-b border-zinc-200 text-zinc-500">
+              <thead className="border-b border-border text-foreground-subtle">
                 <tr>
                   <th className="px-3 py-2 font-medium" />
                   <th className="px-3 py-2 font-medium">Lane</th>
@@ -378,36 +378,36 @@ export function RemindersView({
               <tbody>
                 {result.items.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-3 py-8 text-center text-zinc-500">
+                    <td colSpan={4} className="px-3 py-8 text-center text-foreground-subtle">
                       No lanes match the selected filters.
                     </td>
                   </tr>
                 ) : (
                   result.items.map((lane) => (
-                    <tr key={lane.laneKey} className="border-b border-zinc-100">
+                    <tr key={lane.laneKey} className="border-b border-border">
                       <td className="px-3 py-2">
                         <input
                           type="checkbox"
                           checked={selectedLaneKeys.includes(lane.laneKey)}
                           onChange={() => toggleLane(lane.laneKey)}
-                          className="rounded border-zinc-300"
+                          className="rounded border-border-strong"
                         />
                       </td>
-                      <td className="px-3 py-2 text-zinc-900">
+                      <td className="px-3 py-2 text-foreground">
                         {lane.opcoName} / {lane.partnerName}
                       </td>
                       <td className="px-3 py-2">
                         <span
                           className={
                             lane.opcoReport.status === "Missing"
-                              ? "text-amber-700"
-                              : "text-emerald-700"
+                              ? "text-warning"
+                              : "text-success"
                           }
                         >
                           {lane.opcoReport.status}
                         </span>
                         {lane.opcoReport.uploadedAt ? (
-                          <div className="text-xs text-zinc-500">
+                          <div className="text-xs text-foreground-subtle">
                             {formatDateTime(lane.opcoReport.uploadedAt)}
                           </div>
                         ) : null}
@@ -416,14 +416,14 @@ export function RemindersView({
                         <span
                           className={
                             lane.partnerReport.status === "Missing"
-                              ? "text-amber-700"
-                              : "text-emerald-700"
+                              ? "text-warning"
+                              : "text-success"
                           }
                         >
                           {lane.partnerReport.status}
                         </span>
                         {lane.partnerReport.uploadedAt ? (
-                          <div className="text-xs text-zinc-500">
+                          <div className="text-xs text-foreground-subtle">
                             {formatDateTime(lane.partnerReport.uploadedAt)}
                           </div>
                         ) : null}
@@ -436,7 +436,7 @@ export function RemindersView({
           </div>
 
           {result.totalPages > 1 ? (
-            <div className="mt-4 flex items-center justify-between text-sm text-zinc-600">
+            <div className="mt-4 flex items-center justify-between text-sm text-foreground-muted">
               <span>
                 Page {result.page} of {result.totalPages}
               </span>
@@ -445,7 +445,7 @@ export function RemindersView({
                   type="button"
                   disabled={result.page <= 1 || loading}
                   onClick={() => void loadData(result.page - 1)}
-                  className="rounded-lg border border-zinc-300 px-3 py-1 disabled:opacity-50"
+                  className="rounded-lg border border-border-strong px-3 py-1 disabled:opacity-50"
                 >
                   Previous
                 </button>
@@ -453,7 +453,7 @@ export function RemindersView({
                   type="button"
                   disabled={result.page >= result.totalPages || loading}
                   onClick={() => void loadData(result.page + 1)}
-                  className="rounded-lg border border-zinc-300 px-3 py-1 disabled:opacity-50"
+                  className="rounded-lg border border-border-strong px-3 py-1 disabled:opacity-50"
                 >
                   Next
                 </button>
@@ -462,31 +462,31 @@ export function RemindersView({
           ) : null}
         </div>
 
-        <div className="rounded-xl border border-zinc-200 bg-white p-4">
-          <h2 className="text-lg font-medium text-zinc-900">Reminder message</h2>
-          <p className="mt-1 text-sm text-zinc-500">
+        <div className="rounded-xl border border-border bg-surface p-4">
+          <h2 className="text-lg font-medium text-foreground">Reminder message</h2>
+          <p className="mt-1 text-sm text-foreground-subtle">
             Edit before sending. Defaults from REPORT_REMINDER template.
           </p>
 
           <div className="mt-4 space-y-4">
             <label className="block text-sm">
-              <span className="text-zinc-600">Subject</span>
+              <span className="text-foreground-muted">Subject</span>
               <input
                 type="text"
                 value={subject}
                 onChange={(event) => setSubject(event.target.value)}
                 maxLength={255}
-                className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2"
+                className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
               />
             </label>
 
             <label className="block text-sm">
-              <span className="text-zinc-600">Body</span>
+              <span className="text-foreground-muted">Body</span>
               <textarea
                 value={body}
                 onChange={(event) => setBody(event.target.value)}
                 rows={8}
-                className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2"
+                className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
               />
             </label>
 
@@ -495,7 +495,7 @@ export function RemindersView({
                 type="button"
                 onClick={() => void sendReminders("opco")}
                 disabled={sending}
-                className="w-full rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-900 disabled:opacity-50"
+                className="w-full rounded-lg border border-border-strong px-4 py-2 text-sm font-medium text-foreground disabled:opacity-50"
               >
                 {sending ? "Sending…" : "Send OpCo reminders"}
               </button>
@@ -503,7 +503,7 @@ export function RemindersView({
                 type="button"
                 onClick={() => void sendReminders("partner")}
                 disabled={sending}
-                className="w-full rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-900 disabled:opacity-50"
+                className="w-full rounded-lg border border-border-strong px-4 py-2 text-sm font-medium text-foreground disabled:opacity-50"
               >
                 {sending ? "Sending…" : "Send Partner reminders"}
               </button>
@@ -511,7 +511,7 @@ export function RemindersView({
                 type="button"
                 onClick={() => void sendReminders("both")}
                 disabled={sending}
-                className="w-full rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+                className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
               >
                 {sending ? "Sending…" : "Send both"}
               </button>

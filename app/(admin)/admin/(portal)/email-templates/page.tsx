@@ -22,7 +22,7 @@ export default async function AdminEmailTemplatesPage() {
     return (
       <div className="mx-auto max-w-6xl space-y-3">
         <h1 className="text-2xl font-semibold tracking-tight">Email templates</h1>
-        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="rounded-md border border-danger-border bg-danger-muted px-3 py-2 text-sm text-danger">
           {errorMessage}
         </p>
       </div>
@@ -33,7 +33,7 @@ export default async function AdminEmailTemplatesPage() {
     <div className="mx-auto max-w-6xl space-y-6">
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">Email templates</h1>
-        <p className="text-sm text-zinc-600">
+        <p className="text-sm text-foreground-muted">
           Edit subject and body for system emails. Each save creates a new
           version; revert copies an older version forward without changing
           history rows.

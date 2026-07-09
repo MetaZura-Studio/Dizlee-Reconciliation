@@ -22,12 +22,12 @@ export function CurrenciesPageClient({ initialData }: CurrenciesPageClientProps)
   return (
     <div className="space-y-6">
       {noticeError ? (
-        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="rounded-md border border-danger-border bg-danger-muted px-3 py-2 text-sm text-danger">
           {noticeError}
         </p>
       ) : null}
       {notice ? (
-        <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+        <p className="rounded-md border border-success-border bg-success-muted px-3 py-2 text-sm text-success">
           {notice}
         </p>
       ) : null}

@@ -40,18 +40,18 @@ export function ReportDetailModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div
-        className="flex max-h-[90vh] w-full max-w-4xl flex-col rounded-lg bg-white shadow-xl"
+        className="flex max-h-[90vh] w-full max-w-4xl flex-col rounded-lg bg-surface shadow-xl"
         role="dialog"
         aria-modal="true"
         aria-labelledby="report-detail-title"
       >
-        <div className="flex items-start justify-between gap-4 border-b border-zinc-200 px-6 py-4">
+        <div className="flex items-start justify-between gap-4 border-b border-border px-6 py-4">
           <div>
-            <h2 id="report-detail-title" className="text-lg font-semibold text-zinc-900">
+            <h2 id="report-detail-title" className="text-lg font-semibold text-foreground">
               Report details
             </h2>
             {detail ? (
-              <p className="mt-1 text-sm text-zinc-600">
+              <p className="mt-1 text-sm text-foreground-muted">
                 {detail.opcoName} — {detail.periodLabel}
               </p>
             ) : null}
@@ -59,7 +59,7 @@ export function ReportDetailModal({
           <button
             type="button"
             onClick={onClose}
-            className="text-sm text-zinc-500 hover:text-zinc-900"
+            className="text-sm text-foreground-subtle hover:text-foreground"
           >
             Close
           </button>
@@ -67,41 +67,41 @@ export function ReportDetailModal({
 
         <div className="overflow-y-auto px-6 py-4">
           {loading ? (
-            <p className="text-sm text-zinc-500">Loading report details…</p>
+            <p className="text-sm text-foreground-subtle">Loading report details…</p>
           ) : detail ? (
             <div className="space-y-6">
               <dl className="grid gap-4 text-sm sm:grid-cols-2">
                 <div>
-                  <dt className="text-zinc-500">Status</dt>
-                  <dd className="font-medium text-zinc-900">{detail.statusLabel}</dd>
+                  <dt className="text-foreground-subtle">Status</dt>
+                  <dd className="font-medium text-foreground">{detail.statusLabel}</dd>
                 </div>
                 <div>
-                  <dt className="text-zinc-500">Uploaded</dt>
-                  <dd className="font-medium text-zinc-900">
+                  <dt className="text-foreground-subtle">Uploaded</dt>
+                  <dd className="font-medium text-foreground">
                     {formatDateTime(detail.uploadedAt)}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-zinc-500">File</dt>
-                  <dd className="font-medium text-zinc-900">{detail.filename ?? "—"}</dd>
+                  <dt className="text-foreground-subtle">File</dt>
+                  <dd className="font-medium text-foreground">{detail.filename ?? "—"}</dd>
                 </div>
                 <div>
-                  <dt className="text-zinc-500">File size</dt>
-                  <dd className="font-medium text-zinc-900">
+                  <dt className="text-foreground-subtle">File size</dt>
+                  <dd className="font-medium text-foreground">
                     {formatBytes(detail.fileSizeBytes)}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-zinc-500">Line items</dt>
-                  <dd className="font-medium text-zinc-900">{detail.lineItemCount}</dd>
+                  <dt className="text-foreground-subtle">Line items</dt>
+                  <dd className="font-medium text-foreground">{detail.lineItemCount}</dd>
                 </div>
               </dl>
 
               <div>
-                <h3 className="text-sm font-semibold text-zinc-900">Line items</h3>
-                <div className="mt-3 overflow-x-auto rounded-lg border border-zinc-200">
-                  <table className="min-w-full divide-y divide-zinc-200 text-sm">
-                    <thead className="bg-zinc-50 text-left text-zinc-600">
+                <h3 className="text-sm font-semibold text-foreground">Line items</h3>
+                <div className="mt-3 overflow-x-auto rounded-lg border border-border">
+                  <table className="min-w-full divide-y divide-border text-sm">
+                    <thead className="bg-surface-muted text-left text-foreground-muted">
                       <tr>
                         <th className="px-3 py-2 font-medium">#</th>
                         <th className="px-3 py-2 font-medium">Description</th>
@@ -113,23 +113,23 @@ export function ReportDetailModal({
                         <th className="px-3 py-2 font-medium">Basis</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-zinc-100">
+                    <tbody className="divide-y divide-border">
                       {detail.lineItems.map((item) => (
                         <tr key={item.lineNumber}>
-                          <td className="px-3 py-2 text-zinc-500">{item.lineNumber}</td>
-                          <td className="px-3 py-2 text-zinc-900">
+                          <td className="px-3 py-2 text-foreground-subtle">{item.lineNumber}</td>
+                          <td className="px-3 py-2 text-foreground">
                             {item.description ?? "—"}
                           </td>
-                          <td className="px-3 py-2 text-zinc-700">
+                          <td className="px-3 py-2 text-foreground-muted">
                             {item.usageAmount ?? "—"}
                           </td>
-                          <td className="px-3 py-2 text-zinc-700">{item.usageUsd ?? "—"}</td>
-                          <td className="px-3 py-2 text-zinc-700">{item.amount ?? "—"}</td>
-                          <td className="px-3 py-2 text-zinc-700">
+                          <td className="px-3 py-2 text-foreground-muted">{item.usageUsd ?? "—"}</td>
+                          <td className="px-3 py-2 text-foreground-muted">{item.amount ?? "—"}</td>
+                          <td className="px-3 py-2 text-foreground-muted">
                             {item.exchangeRate ?? "—"}
                           </td>
-                          <td className="px-3 py-2 text-zinc-700">{item.usageUnit ?? "—"}</td>
-                          <td className="px-3 py-2 text-zinc-700">
+                          <td className="px-3 py-2 text-foreground-muted">{item.usageUnit ?? "—"}</td>
+                          <td className="px-3 py-2 text-foreground-muted">
                             {item.reconciliationBasis ?? "—"}
                           </td>
                         </tr>

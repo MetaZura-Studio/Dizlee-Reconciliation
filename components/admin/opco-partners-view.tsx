@@ -133,7 +133,7 @@ export function OpcoPartnersView({ initialData }: OpcoPartnersViewProps) {
 
   if (opcos.length === 0) {
     return (
-      <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+      <p className="rounded-md border border-warning-border bg-warning-muted px-3 py-2 text-sm text-warning">
         No OpCos are available. Add OpCo master data before configuring partner
         links.
       </p>
@@ -146,17 +146,17 @@ export function OpcoPartnersView({ initialData }: OpcoPartnersViewProps) {
   return (
     <div className="space-y-6">
       {error ? (
-        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="rounded-md border border-danger-border bg-danger-muted px-3 py-2 text-sm text-danger">
           {error}
         </p>
       ) : null}
       {success ? (
-        <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+        <p className="rounded-md border border-success-border bg-success-muted px-3 py-2 text-sm text-success">
           {success}
         </p>
       ) : null}
 
-      <p className="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-600">
+      <p className="rounded-md border border-border bg-surface-muted px-3 py-2 text-sm text-foreground-muted">
         Linked partners control upload dropdowns, monitoring lanes, consolidation
         readiness, and report validation. Unlinked OpCo–Partner uploads are
         rejected.
@@ -164,7 +164,7 @@ export function OpcoPartnersView({ initialData }: OpcoPartnersViewProps) {
 
       <form onSubmit={(event) => void save(event)} className="space-y-6">
         <div className="space-y-1">
-          <label htmlFor="opcoId" className="text-sm font-medium text-zinc-700">
+          <label htmlFor="opcoId" className="text-sm font-medium text-foreground-muted">
             OpCo
           </label>
           <select
@@ -172,7 +172,7 @@ export function OpcoPartnersView({ initialData }: OpcoPartnersViewProps) {
             value={selectedOpcoId}
             onChange={(event) => handleOpcoChange(event.target.value)}
             disabled={loading || saving}
-            className="w-full max-w-md rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500 disabled:opacity-60"
+            className="w-full max-w-md rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary disabled:opacity-60"
           >
             {opcos.map((opco: OpcoListItem) => (
               <option key={opco.id} value={opco.id}>
@@ -184,28 +184,28 @@ export function OpcoPartnersView({ initialData }: OpcoPartnersViewProps) {
 
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-4">
-            <h2 className="text-sm font-medium text-zinc-900">Partners</h2>
-            <p className="text-sm text-zinc-500">
+            <h2 className="text-sm font-medium text-foreground">Partners</h2>
+            <p className="text-sm text-foreground-subtle">
               {loading
                 ? "Loading…"
                 : `${linkedCount} of ${totalPartners} partners linked`}
             </p>
           </div>
 
-          <div className="max-h-96 space-y-2 overflow-y-auto rounded-md border border-zinc-200 p-3">
+          <div className="max-h-96 space-y-2 overflow-y-auto rounded-md border border-border p-3">
             {(linksView?.partners ?? []).map((partner) => (
               <label
                 key={partner.id}
-                className="flex cursor-pointer items-center gap-3 rounded-md px-2 py-1.5 hover:bg-zinc-50"
+                className="flex cursor-pointer items-center gap-3 rounded-md px-2 py-1.5 hover:bg-surface-muted"
               >
                 <input
                   type="checkbox"
                   checked={selectedPartnerIds.has(partner.id)}
                   onChange={() => togglePartner(partner.id)}
                   disabled={loading || saving}
-                  className="h-4 w-4 rounded border-zinc-300"
+                  className="h-4 w-4 rounded border-border-strong"
                 />
-                <span className="text-sm text-zinc-800">{partner.name}</span>
+                <span className="text-sm text-foreground">{partner.name}</span>
               </label>
             ))}
           </div>
@@ -215,7 +215,7 @@ export function OpcoPartnersView({ initialData }: OpcoPartnersViewProps) {
           <button
             type="submit"
             disabled={loading || saving || !selectedOpcoId}
-            className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
           >
             {saving ? "Saving…" : "Save"}
           </button>
@@ -223,7 +223,7 @@ export function OpcoPartnersView({ initialData }: OpcoPartnersViewProps) {
             type="button"
             onClick={() => void reload()}
             disabled={loading || saving || !selectedOpcoId}
-            className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-60"
+            className="rounded-md border border-border-strong px-4 py-2 text-sm font-medium text-foreground-muted hover:bg-surface-muted disabled:opacity-60"
           >
             {loading ? "Reloading…" : "Reload"}
           </button>

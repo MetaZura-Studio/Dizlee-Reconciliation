@@ -10,9 +10,9 @@ type KpiCardProps = {
 export function KpiCard({ label, value, hint, href }: KpiCardProps) {
   const content = (
     <>
-      <p className="text-sm font-medium text-zinc-500">{label}</p>
-      <p className="mt-2 text-2xl font-semibold text-zinc-900">{value}</p>
-      {hint ? <p className="mt-1 text-xs text-zinc-500">{hint}</p> : null}
+      <p className="text-sm font-medium text-foreground-subtle">{label}</p>
+      <p className="mt-2 text-2xl font-semibold text-foreground">{value}</p>
+      {hint ? <p className="mt-1 text-xs text-foreground-subtle">{hint}</p> : null}
     </>
   );
 
@@ -20,7 +20,7 @@ export function KpiCard({ label, value, hint, href }: KpiCardProps) {
     return (
       <Link
         href={href}
-        className="block rounded-lg border border-zinc-200 bg-white p-4 shadow-sm transition-colors hover:border-zinc-300 hover:bg-zinc-50"
+        className="block rounded-lg border border-border bg-surface p-4 shadow-sm transition-colors hover:border-border-strong hover:bg-surface-muted"
       >
         {content}
       </Link>
@@ -28,7 +28,7 @@ export function KpiCard({ label, value, hint, href }: KpiCardProps) {
   }
 
   return (
-    <div className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
+    <div className="rounded-lg border border-border bg-surface p-4 shadow-sm">
       {content}
     </div>
   );

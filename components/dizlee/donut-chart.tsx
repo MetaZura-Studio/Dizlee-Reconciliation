@@ -22,10 +22,10 @@ export function DonutChart({ title, segments, formatValue }: DonutChartProps) {
   const format = formatValue ?? ((value: number) => value.toLocaleString());
 
   return (
-    <div className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
-      <p className="text-sm font-medium text-zinc-700">{title}</p>
+    <div className="rounded-lg border border-border bg-surface p-4 shadow-sm">
+      <p className="text-sm font-medium text-foreground-muted">{title}</p>
       {total <= 0 ? (
-        <p className="mt-6 text-sm text-zinc-500">No data yet.</p>
+        <p className="mt-6 text-sm text-foreground-subtle">No data yet.</p>
       ) : (
         <div className="mt-4 flex items-center gap-6">
           <svg
@@ -67,9 +67,9 @@ export function DonutChart({ title, segments, formatValue }: DonutChartProps) {
                     className="h-2.5 w-2.5 shrink-0 rounded-full"
                     style={{ backgroundColor: PALETTE[index % PALETTE.length] }}
                   />
-                  <span className="truncate text-zinc-600">{segment.label}</span>
+                  <span className="truncate text-foreground-muted">{segment.label}</span>
                 </span>
-                <span className="shrink-0 font-medium text-zinc-900">
+                <span className="shrink-0 font-medium text-foreground">
                   {format(segment.value)}
                 </span>
               </li>

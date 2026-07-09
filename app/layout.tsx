@@ -1,7 +1,13 @@
 import type { Metadata } from "next";
+import { Source_Sans_3 } from "next/font/google";
 
 import { AuthProvider } from "./providers";
 import "./globals.css";
+
+const appSans = Source_Sans_3({
+  subsets: ["latin"],
+  variable: "--font-app-sans",
+});
 
 export const metadata: Metadata = {
   title: "Dizlee Reconciliation Platform",
@@ -15,7 +21,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="min-h-screen bg-white text-zinc-900 antialiased">
+      <body
+        className={`${appSans.variable} min-h-screen bg-canvas font-sans text-foreground antialiased`}
+      >
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>

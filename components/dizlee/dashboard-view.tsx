@@ -150,20 +150,20 @@ export function DashboardView({ initialData }: DashboardViewProps) {
     <div className="mx-auto max-w-6xl space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-zinc-900">
+          <h1 className="text-2xl font-semibold text-foreground">
             Dizlee Dashboard
           </h1>
-          <p className="mt-1 text-sm text-zinc-600">
+          <p className="mt-1 text-sm text-foreground-muted">
             Role-specific dashboard with summary cards/widgets.
           </p>
         </div>
         <div className="flex items-end gap-3">
           <label className="text-sm">
-            <span className="mb-1 block text-xs text-zinc-500">Month</span>
+            <span className="mb-1 block text-xs text-foreground-subtle">Month</span>
             <select
               value={month}
               onChange={(event) => handleMonthChange(Number(event.target.value))}
-              className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm"
+              className="rounded-md border border-border-strong px-3 py-1.5 text-sm"
             >
               {MONTHS.map((name, index) => (
                 <option key={name} value={index + 1}>
@@ -173,11 +173,11 @@ export function DashboardView({ initialData }: DashboardViewProps) {
             </select>
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-xs text-zinc-500">Year</span>
+            <span className="mb-1 block text-xs text-foreground-subtle">Year</span>
             <select
               value={year}
               onChange={(event) => handleYearChange(Number(event.target.value))}
-              className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm"
+              className="rounded-md border border-border-strong px-3 py-1.5 text-sm"
             >
               {yearOptions.map((value) => (
                 <option key={value} value={value}>
@@ -190,10 +190,10 @@ export function DashboardView({ initialData }: DashboardViewProps) {
       </div>
 
       {loading ? (
-        <p className="text-sm text-zinc-500">Updating dashboard…</p>
+        <p className="text-sm text-foreground-subtle">Updating dashboard…</p>
       ) : null}
       {error ? (
-        <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <div className="rounded-md border border-danger-border bg-danger-muted p-4 text-sm text-danger">
           {error}
         </div>
       ) : null}
@@ -207,31 +207,31 @@ export function DashboardView({ initialData }: DashboardViewProps) {
       />
 
       <section className="space-y-3">
-        <h2 className="text-lg font-medium text-zinc-900">Upload activity</h2>
+        <h2 className="text-lg font-medium text-foreground">Upload activity</h2>
         {recentUploads.length > 0 ? (
-          <div className="overflow-hidden rounded-lg border border-zinc-200">
-            <table className="min-w-full divide-y divide-zinc-200 text-sm">
-              <thead className="bg-zinc-50">
+          <div className="overflow-hidden rounded-lg border border-border">
+            <table className="min-w-full divide-y divide-border text-sm">
+              <thead className="bg-surface-muted">
                 <tr>
-                  <th className="px-4 py-3 text-left font-medium text-zinc-600">
+                  <th className="px-4 py-3 text-left font-medium text-foreground-muted">
                     Actor
                   </th>
-                  <th className="px-4 py-3 text-left font-medium text-zinc-600">
+                  <th className="px-4 py-3 text-left font-medium text-foreground-muted">
                     Lane
                   </th>
-                  <th className="px-4 py-3 text-left font-medium text-zinc-600">
+                  <th className="px-4 py-3 text-left font-medium text-foreground-muted">
                     Uploaded
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-200 bg-white">
+              <tbody className="divide-y divide-border bg-surface">
                 {recentUploads.map((upload) => (
                   <tr key={upload.id}>
-                    <td className="px-4 py-3 text-zinc-900">
+                    <td className="px-4 py-3 text-foreground">
                       {upload.actorRole}
                     </td>
-                    <td className="px-4 py-3 text-zinc-600">{upload.lane}</td>
-                    <td className="px-4 py-3 text-zinc-600">
+                    <td className="px-4 py-3 text-foreground-muted">{upload.lane}</td>
+                    <td className="px-4 py-3 text-foreground-muted">
                       {formatDateTime(upload.uploadedAt)}
                     </td>
                   </tr>
@@ -240,7 +240,7 @@ export function DashboardView({ initialData }: DashboardViewProps) {
             </table>
           </div>
         ) : (
-          <p className="text-sm text-zinc-500">No uploads yet.</p>
+          <p className="text-sm text-foreground-subtle">No uploads yet.</p>
         )}
       </section>
     </div>
@@ -270,15 +270,15 @@ function BillingSectionView({
     <section className="space-y-4">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h2 className="text-lg font-medium text-zinc-900">Billing & revenue</h2>
-          <p className="text-sm text-zinc-500">
+          <h2 className="text-lg font-medium text-foreground">Billing & revenue</h2>
+          <p className="text-sm text-foreground-subtle">
             Paid OpCo collections on platform; revenue in USD using admin
             exchange rates.
           </p>
         </div>
         <Link
           href={allInvoicesHref}
-          className="text-sm text-zinc-600 hover:text-zinc-900"
+          className="text-sm text-foreground-muted hover:text-foreground"
         >
           View invoices
         </Link>
@@ -303,7 +303,7 @@ function BillingSectionView({
       </div>
 
       {kpis.missingFxCount > 0 ? (
-        <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
+        <div className="rounded-md border border-warning-border bg-warning-muted p-3 text-sm text-warning">
           {kpis.missingFxCount} paid invoice(s) lack an FX rate for this period
           and are excluded from the USD total.
         </div>
@@ -354,31 +354,31 @@ function DirectionPanelView({
   missingHref: string;
 }) {
   return (
-    <div className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
-      <p className="text-sm font-medium text-zinc-700">{title}</p>
+    <div className="rounded-lg border border-border bg-surface p-4 shadow-sm">
+      <p className="text-sm font-medium text-foreground-muted">{title}</p>
       <div className="mt-3 flex gap-6 text-sm">
         <div>
-          <p className="text-xs text-zinc-500">Invoiced</p>
-          <p className="text-lg font-semibold text-zinc-900">
+          <p className="text-xs text-foreground-subtle">Invoiced</p>
+          <p className="text-lg font-semibold text-foreground">
             {panel.invoiced} / {panel.linked}
           </p>
         </div>
         <div>
-          <p className="text-xs text-zinc-500">Paid</p>
-          <p className="text-lg font-semibold text-zinc-900">{panel.paid}</p>
+          <p className="text-xs text-foreground-subtle">Paid</p>
+          <p className="text-lg font-semibold text-foreground">{panel.paid}</p>
         </div>
       </div>
       {panel.missingNames.length > 0 ? (
         <div className="mt-3 text-sm">
-          <Link href={missingHref} className="text-zinc-600 hover:text-zinc-900">
+          <Link href={missingHref} className="text-foreground-muted hover:text-foreground">
             {missingLabel} ({panel.missingNames.length})
           </Link>
-          <p className="mt-1 truncate text-xs text-zinc-500">
+          <p className="mt-1 truncate text-xs text-foreground-subtle">
             {panel.missingNames.join(", ")}
           </p>
         </div>
       ) : (
-        <p className="mt-3 text-xs text-zinc-500">All lanes invoiced.</p>
+        <p className="mt-3 text-xs text-foreground-subtle">All lanes invoiced.</p>
       )}
     </div>
   );
@@ -401,10 +401,10 @@ function ReportsReconSectionView({
     <section className="space-y-4">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h2 className="text-lg font-medium text-zinc-900">
+          <h2 className="text-lg font-medium text-foreground">
             Reports & reconciliation
           </h2>
-          <p className="text-sm text-zinc-500">
+          <p className="text-sm text-foreground-subtle">
             OpCo and partner report uploads, reconciliation status, and recent
             activity.
           </p>
@@ -412,11 +412,11 @@ function ReportsReconSectionView({
         <div className="text-right text-sm">
           <Link
             href={reportsHref}
-            className="text-zinc-600 hover:text-zinc-900"
+            className="text-foreground-muted hover:text-foreground"
           >
             View reports
           </Link>
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-foreground-subtle">
             Latest upload: {formatDateTime(reportsRecon.latestUpload)}
           </p>
         </div>
@@ -449,12 +449,12 @@ function ReportsReconSectionView({
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-medium text-zinc-700">
+          <h3 className="text-sm font-medium text-foreground-muted">
             Reconciliation Overview
           </h3>
           <Link
             href="/dizlee/reconciliation"
-            className="text-sm text-zinc-600 hover:text-zinc-900"
+            className="text-sm text-foreground-muted hover:text-foreground"
           >
             View All
           </Link>
@@ -466,7 +466,7 @@ function ReportsReconSectionView({
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-zinc-500">No reconciliation activity yet.</p>
+          <p className="text-sm text-foreground-subtle">No reconciliation activity yet.</p>
         )}
       </div>
     </section>
@@ -478,22 +478,22 @@ function ReconciliationLaneView({ lane }: { lane: ReconciliationLane }) {
     <li>
       <Link
         href={`/dizlee/reconciliation?id=${lane.id}`}
-        className="block rounded-lg border border-zinc-200 bg-white p-3 shadow-sm transition-colors hover:bg-zinc-50"
+        className="block rounded-lg border border-border bg-surface p-3 shadow-sm transition-colors hover:bg-surface-muted"
       >
         <div className="flex items-center justify-between gap-4">
-          <span className="truncate text-sm font-medium text-zinc-900">
+          <span className="truncate text-sm font-medium text-foreground">
             {lane.lane}
           </span>
-          <span className="shrink-0 text-xs text-zinc-500">{lane.status}</span>
+          <span className="shrink-0 text-xs text-foreground-subtle">{lane.status}</span>
         </div>
         <div className="mt-2 flex items-center gap-3">
-          <div className="h-2 flex-1 overflow-hidden rounded-full bg-zinc-100">
+          <div className="h-2 flex-1 overflow-hidden rounded-full bg-surface-muted">
             <div
-              className="h-full rounded-full bg-emerald-500"
+              className="h-full rounded-full bg-success-muted0"
               style={{ width: `${lane.matchRate}%` }}
             />
           </div>
-          <span className="shrink-0 text-xs text-zinc-600">
+          <span className="shrink-0 text-xs text-foreground-muted">
             {lane.matchRate}%
           </span>
         </div>

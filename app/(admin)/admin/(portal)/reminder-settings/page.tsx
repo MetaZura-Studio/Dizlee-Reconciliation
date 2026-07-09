@@ -22,7 +22,7 @@ export default async function AdminReminderSettingsPage() {
     return (
       <div className="mx-auto max-w-3xl space-y-3">
         <h1 className="text-2xl font-semibold tracking-tight">Reminder Settings</h1>
-        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="rounded-md border border-danger-border bg-danger-muted px-3 py-2 text-sm text-danger">
           {errorMessage}
         </p>
       </div>
@@ -33,7 +33,7 @@ export default async function AdminReminderSettingsPage() {
     <div className="mx-auto max-w-3xl space-y-6">
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">Reminder Settings</h1>
-        <p className="text-sm text-zinc-600">
+        <p className="text-sm text-foreground-muted">
           Admin-only system setting. Controls how long after the start of a
           reporting period automatic reminders wait before sending.
         </p>

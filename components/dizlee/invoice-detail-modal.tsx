@@ -36,38 +36,38 @@ function BankDetailsBlock({ details }: { details: InvoiceBankDetails }) {
     <dl className="mt-2 grid gap-2 text-sm sm:grid-cols-2">
       {details.bankName ? (
         <div>
-          <dt className="text-zinc-500">Bank</dt>
-          <dd className="text-zinc-900">{details.bankName}</dd>
+          <dt className="text-foreground-subtle">Bank</dt>
+          <dd className="text-foreground">{details.bankName}</dd>
         </div>
       ) : null}
       {details.accountName ? (
         <div>
-          <dt className="text-zinc-500">Account name</dt>
-          <dd className="text-zinc-900">{details.accountName}</dd>
+          <dt className="text-foreground-subtle">Account name</dt>
+          <dd className="text-foreground">{details.accountName}</dd>
         </div>
       ) : null}
       {details.accountNumber ? (
         <div>
-          <dt className="text-zinc-500">Account number</dt>
-          <dd className="text-zinc-900">{details.accountNumber}</dd>
+          <dt className="text-foreground-subtle">Account number</dt>
+          <dd className="text-foreground">{details.accountNumber}</dd>
         </div>
       ) : null}
       {details.iban ? (
         <div>
-          <dt className="text-zinc-500">IBAN</dt>
-          <dd className="text-zinc-900">{details.iban}</dd>
+          <dt className="text-foreground-subtle">IBAN</dt>
+          <dd className="text-foreground">{details.iban}</dd>
         </div>
       ) : null}
       {details.swift ? (
         <div>
-          <dt className="text-zinc-500">SWIFT</dt>
-          <dd className="text-zinc-900">{details.swift}</dd>
+          <dt className="text-foreground-subtle">SWIFT</dt>
+          <dd className="text-foreground">{details.swift}</dd>
         </div>
       ) : null}
       {details.reference ? (
         <div className="sm:col-span-2">
-          <dt className="text-zinc-500">Payment reference</dt>
-          <dd className="text-zinc-900">{details.reference}</dd>
+          <dt className="text-foreground-subtle">Payment reference</dt>
+          <dd className="text-foreground">{details.reference}</dd>
         </div>
       ) : null}
     </dl>
@@ -98,161 +98,161 @@ export function InvoiceDetailModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div
-        className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-6 shadow-xl"
+        className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-surface p-6 shadow-xl"
         role="dialog"
         aria-modal="true"
         aria-labelledby="invoice-detail-title"
       >
         <div className="flex items-start justify-between gap-4">
-          <h2 id="invoice-detail-title" className="text-lg font-semibold text-zinc-900">
+          <h2 id="invoice-detail-title" className="text-lg font-semibold text-foreground">
             Invoice details
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="text-sm text-zinc-500 hover:text-zinc-900"
+            className="text-sm text-foreground-subtle hover:text-foreground"
           >
             Close
           </button>
         </div>
 
         {loading ? (
-          <p className="mt-4 text-sm text-zinc-500">Loading invoice details…</p>
+          <p className="mt-4 text-sm text-foreground-subtle">Loading invoice details…</p>
         ) : detail ? (
           <div className="mt-4 space-y-6">
             <dl className="grid gap-3 text-sm sm:grid-cols-2">
               <div>
-                <dt className="text-zinc-500">Invoice number</dt>
-                <dd className="font-medium text-zinc-900">
+                <dt className="text-foreground-subtle">Invoice number</dt>
+                <dd className="font-medium text-foreground">
                   {detail.invoiceNumber ?? "—"}
                 </dd>
               </div>
               <div>
-                <dt className="text-zinc-500">Period</dt>
-                <dd className="font-medium text-zinc-900">{detail.period.label}</dd>
+                <dt className="text-foreground-subtle">Period</dt>
+                <dd className="font-medium text-foreground">{detail.period.label}</dd>
               </div>
               <div>
-                <dt className="text-zinc-500">Direction</dt>
-                <dd className="font-medium text-zinc-900">{detail.direction}</dd>
+                <dt className="text-foreground-subtle">Direction</dt>
+                <dd className="font-medium text-foreground">{detail.direction}</dd>
               </div>
               <div>
-                <dt className="text-zinc-500">OpCo</dt>
-                <dd className="font-medium text-zinc-900">{detail.opcoName}</dd>
+                <dt className="text-foreground-subtle">OpCo</dt>
+                <dd className="font-medium text-foreground">{detail.opcoName}</dd>
               </div>
               <div>
-                <dt className="text-zinc-500">Partner</dt>
-                <dd className="font-medium text-zinc-900">
+                <dt className="text-foreground-subtle">Partner</dt>
+                <dd className="font-medium text-foreground">
                   {detail.partnerName ?? "—"}
                 </dd>
               </div>
               <div>
-                <dt className="text-zinc-500">Uploaded</dt>
-                <dd className="font-medium text-zinc-900">
+                <dt className="text-foreground-subtle">Uploaded</dt>
+                <dd className="font-medium text-foreground">
                   {formatDateTime(detail.uploadedAt)}
                 </dd>
               </div>
               <div>
-                <dt className="text-zinc-500">Invoice status</dt>
-                <dd className="font-medium text-zinc-900">{detail.invoiceStatus}</dd>
+                <dt className="text-foreground-subtle">Invoice status</dt>
+                <dd className="font-medium text-foreground">{detail.invoiceStatus}</dd>
               </div>
               <div>
-                <dt className="text-zinc-500">Payment status</dt>
-                <dd className="font-medium text-zinc-900">{detail.paymentStatus}</dd>
+                <dt className="text-foreground-subtle">Payment status</dt>
+                <dd className="font-medium text-foreground">{detail.paymentStatus}</dd>
               </div>
               {detail.acknowledgedAt ? (
                 <div>
-                  <dt className="text-zinc-500">Acknowledged</dt>
-                  <dd className="font-medium text-zinc-900">
+                  <dt className="text-foreground-subtle">Acknowledged</dt>
+                  <dd className="font-medium text-foreground">
                     {formatDateTime(detail.acknowledgedAt)}
                   </dd>
                 </div>
               ) : null}
               {detail.paidAt ? (
                 <div>
-                  <dt className="text-zinc-500">Paid</dt>
-                  <dd className="font-medium text-zinc-900">
+                  <dt className="text-foreground-subtle">Paid</dt>
+                  <dd className="font-medium text-foreground">
                     {formatDateTime(detail.paidAt)}
                   </dd>
                 </div>
               ) : null}
               <div className="sm:col-span-2">
-                <dt className="text-zinc-500">Total</dt>
-                <dd className="font-medium text-zinc-900">
+                <dt className="text-foreground-subtle">Total</dt>
+                <dd className="font-medium text-foreground">
                   {formatMoney(detail.totalAmount, detail.currencyCode)}
                 </dd>
               </div>
             </dl>
 
             <div>
-              <h3 className="text-sm font-medium text-zinc-700">Preview</h3>
+              <h3 className="text-sm font-medium text-foreground-muted">Preview</h3>
               {detail.previewUrl ? (
-                <p className="mt-2 text-sm text-zinc-600">
+                <p className="mt-2 text-sm text-foreground-muted">
                   {detail.filename ?? "Uploaded file"}{" "}
-                  <span className="text-zinc-400">
+                  <span className="text-foreground-subtle">
                     ({formatBytes(detail.fileSizeBytes)})
                   </span>{" "}
                   <a
                     href={detail.previewUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-zinc-700 underline hover:text-zinc-900"
+                    className="text-foreground-muted underline hover:text-foreground"
                   >
                     Open file
                   </a>
                 </p>
               ) : detail.isDigital ? (
                 detail.bankDetails ? (
-                  <div className="mt-2 rounded-md border border-zinc-200 bg-zinc-50 p-3">
-                    <p className="text-sm font-medium text-zinc-900">
+                  <div className="mt-2 rounded-md border border-border bg-surface-muted p-3">
+                    <p className="text-sm font-medium text-foreground">
                       Digital invoice — payment details
                     </p>
                     <BankDetailsBlock details={detail.bankDetails} />
                   </div>
                 ) : (
-                  <p className="mt-2 text-sm text-zinc-500">
+                  <p className="mt-2 text-sm text-foreground-subtle">
                     Digital invoice created. Bank details will appear when configured
                     in admin settings.
                   </p>
                 )
               ) : (
-                <p className="mt-2 text-sm text-zinc-500">No file attached.</p>
+                <p className="mt-2 text-sm text-foreground-subtle">No file attached.</p>
               )}
             </div>
 
             {detail.lineItems.length > 0 ? (
               <div>
-                <h3 className="text-sm font-medium text-zinc-700">Line items</h3>
-                <div className="mt-2 overflow-hidden rounded-lg border border-zinc-200">
-                  <table className="min-w-full divide-y divide-zinc-200 text-sm">
-                    <thead className="bg-zinc-50">
+                <h3 className="text-sm font-medium text-foreground-muted">Line items</h3>
+                <div className="mt-2 overflow-hidden rounded-lg border border-border">
+                  <table className="min-w-full divide-y divide-border text-sm">
+                    <thead className="bg-surface-muted">
                       <tr>
-                        <th className="px-3 py-2 text-left font-medium text-zinc-600">
+                        <th className="px-3 py-2 text-left font-medium text-foreground-muted">
                           Description
                         </th>
-                        <th className="px-3 py-2 text-right font-medium text-zinc-600">
+                        <th className="px-3 py-2 text-right font-medium text-foreground-muted">
                           Qty
                         </th>
-                        <th className="px-3 py-2 text-right font-medium text-zinc-600">
+                        <th className="px-3 py-2 text-right font-medium text-foreground-muted">
                           Unit price
                         </th>
-                        <th className="px-3 py-2 text-right font-medium text-zinc-600">
+                        <th className="px-3 py-2 text-right font-medium text-foreground-muted">
                           Total
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-zinc-200 bg-white">
+                    <tbody className="divide-y divide-border bg-surface">
                       {detail.lineItems.map((item) => (
                         <tr key={`${item.description}-${item.lineTotal}`}>
-                          <td className="px-3 py-2 text-zinc-900">
+                          <td className="px-3 py-2 text-foreground">
                             {item.description}
                           </td>
-                          <td className="px-3 py-2 text-right text-zinc-600">
+                          <td className="px-3 py-2 text-right text-foreground-muted">
                             {item.quantity}
                           </td>
-                          <td className="px-3 py-2 text-right text-zinc-600">
+                          <td className="px-3 py-2 text-right text-foreground-muted">
                             {formatMoney(item.unitPrice, detail.currencyCode)}
                           </td>
-                          <td className="px-3 py-2 text-right text-zinc-600">
+                          <td className="px-3 py-2 text-right text-foreground-muted">
                             {formatMoney(item.lineTotal, detail.currencyCode)}
                           </td>
                         </tr>
@@ -264,9 +264,9 @@ export function InvoiceDetailModal({
             ) : null}
 
             {detail.canMarkPayment && onMarkPayment ? (
-              <div className="border-t border-zinc-200 pt-4">
+              <div className="border-t border-border pt-4">
                 {actionError ? (
-                  <p className="mb-3 text-sm text-red-700">{actionError}</p>
+                  <p className="mb-3 text-sm text-danger">{actionError}</p>
                 ) : null}
                 <button
                   type="button"
@@ -280,7 +280,7 @@ export function InvoiceDetailModal({
                       onMarkPayment(detail.id);
                     }
                   }}
-                  className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50"
+                  className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
                 >
                   {actionLoading ? "Saving…" : "Mark payment done"}
                 </button>

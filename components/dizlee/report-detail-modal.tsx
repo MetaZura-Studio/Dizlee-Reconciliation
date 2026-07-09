@@ -40,49 +40,49 @@ export function ReportDetailModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div
-        className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl"
+        className="w-full max-w-lg rounded-lg bg-surface p-6 shadow-xl"
         role="dialog"
         aria-modal="true"
         aria-labelledby="report-detail-title"
       >
         <div className="flex items-start justify-between gap-4">
-          <h2 id="report-detail-title" className="text-lg font-semibold text-zinc-900">
+          <h2 id="report-detail-title" className="text-lg font-semibold text-foreground">
             Report details
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="text-sm text-zinc-500 hover:text-zinc-900"
+            className="text-sm text-foreground-subtle hover:text-foreground"
           >
             Close
           </button>
         </div>
 
         {loading ? (
-          <p className="mt-4 text-sm text-zinc-500">Loading report details…</p>
+          <p className="mt-4 text-sm text-foreground-subtle">Loading report details…</p>
         ) : detail ? (
           <dl className="mt-4 space-y-3 text-sm">
             <div>
-              <dt className="text-zinc-500">Period</dt>
-              <dd className="font-medium text-zinc-900">{detail.period.label}</dd>
+              <dt className="text-foreground-subtle">Period</dt>
+              <dd className="font-medium text-foreground">{detail.period.label}</dd>
             </div>
             <div>
-              <dt className="text-zinc-500">OpCo / Partner lane</dt>
-              <dd className="font-medium text-zinc-900">{detail.lane}</dd>
+              <dt className="text-foreground-subtle">OpCo / Partner lane</dt>
+              <dd className="font-medium text-foreground">{detail.lane}</dd>
             </div>
             <div>
-              <dt className="text-zinc-500">Uploaded by</dt>
-              <dd className="font-medium text-zinc-900">{detail.uploadedBy}</dd>
+              <dt className="text-foreground-subtle">Uploaded by</dt>
+              <dd className="font-medium text-foreground">{detail.uploadedBy}</dd>
             </div>
             <div>
-              <dt className="text-zinc-500">Upload timestamp</dt>
-              <dd className="font-medium text-zinc-900">
+              <dt className="text-foreground-subtle">Upload timestamp</dt>
+              <dd className="font-medium text-foreground">
                 {formatDateTime(detail.uploadedAt)}
               </dd>
             </div>
             <div>
-              <dt className="text-zinc-500">File</dt>
-              <dd className="font-medium text-zinc-900">
+              <dt className="text-foreground-subtle">File</dt>
+              <dd className="font-medium text-foreground">
                 {detail.filename ?? "—"}
                 {detail.previewUrl ? (
                   <>
@@ -91,7 +91,7 @@ export function ReportDetailModal({
                       href={detail.previewUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-zinc-600 underline hover:text-zinc-900"
+                      className="text-foreground-muted underline hover:text-foreground"
                     >
                       Preview
                     </a>
@@ -100,8 +100,8 @@ export function ReportDetailModal({
               </dd>
             </div>
             <div>
-              <dt className="text-zinc-500">File size</dt>
-              <dd className="font-medium text-zinc-900">
+              <dt className="text-foreground-subtle">File size</dt>
+              <dd className="font-medium text-foreground">
                 {formatBytes(detail.fileSizeBytes)}
               </dd>
             </div>

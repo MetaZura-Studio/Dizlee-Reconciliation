@@ -19,10 +19,10 @@ const STATUS_LABELS: Record<OpcoSubmissionStatus, string> = {
 };
 
 const STATUS_CLASSES: Record<OpcoSubmissionStatus, string> = {
-  submitted: "bg-emerald-50 text-emerald-700",
+  submitted: "bg-success-muted text-success",
   missing: "bg-rose-50 text-rose-700",
-  change_requested: "bg-amber-50 text-amber-700",
-  pending: "bg-zinc-100 text-zinc-700",
+  change_requested: "bg-warning-muted text-warning",
+  pending: "bg-surface-muted text-foreground-muted",
 };
 
 function SummaryCard({
@@ -35,10 +35,10 @@ function SummaryCard({
   hint?: string;
 }) {
   return (
-    <div className="rounded-lg border border-zinc-200 bg-white p-4">
-      <p className="text-sm text-zinc-500">{label}</p>
-      <p className="mt-2 text-3xl font-semibold text-zinc-900">{value}</p>
-      {hint ? <p className="mt-1 text-xs text-zinc-500">{hint}</p> : null}
+    <div className="rounded-lg border border-border bg-surface p-4">
+      <p className="text-sm text-foreground-subtle">{label}</p>
+      <p className="mt-2 text-3xl font-semibold text-foreground">{value}</p>
+      {hint ? <p className="mt-1 text-xs text-foreground-subtle">{hint}</p> : null}
     </div>
   );
 }
@@ -49,7 +49,7 @@ export function DashboardSummary({ data }: DashboardSummaryProps) {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Dashboard</h1>
-          <p className="mt-1 text-zinc-600">
+          <p className="mt-1 text-foreground-muted">
             {data.partnerName} — OpCo submission summary for{" "}
             {formatPeriodLabel(data.year, data.month)}
           </p>
@@ -57,13 +57,13 @@ export function DashboardSummary({ data }: DashboardSummaryProps) {
         <div className="flex gap-2">
           <Link
             href="/partner/upload"
-            className="rounded bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+            className="rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
           >
             Upload Report
           </Link>
           <Link
             href="/partner/reports"
-            className="rounded border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+            className="rounded border border-border-strong px-4 py-2 text-sm font-medium text-foreground-muted hover:bg-surface-muted"
           >
             Reports
           </Link>
@@ -86,20 +86,20 @@ export function DashboardSummary({ data }: DashboardSummaryProps) {
         />
       </div>
 
-      <section className="rounded-lg border border-zinc-200 bg-white">
-        <div className="border-b border-zinc-200 px-4 py-3">
-          <h2 className="text-sm font-semibold text-zinc-900">
+      <section className="rounded-lg border border-border bg-surface">
+        <div className="border-b border-border px-4 py-3">
+          <h2 className="text-sm font-semibold text-foreground">
             OpCo submissions
           </h2>
         </div>
         {data.opcoSummaries.length === 0 ? (
-          <p className="px-4 py-6 text-sm text-zinc-500">
+          <p className="px-4 py-6 text-sm text-foreground-subtle">
             No OpCos are linked to this partner yet.
           </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
-              <thead className="bg-zinc-50 text-left text-zinc-500">
+              <thead className="bg-surface-muted text-left text-foreground-subtle">
                 <tr>
                   <th className="px-4 py-3 font-medium">OpCo</th>
                   <th className="px-4 py-3 font-medium">Status</th>
@@ -109,8 +109,8 @@ export function DashboardSummary({ data }: DashboardSummaryProps) {
               </thead>
               <tbody>
                 {data.opcoSummaries.map((opco) => (
-                  <tr key={opco.opcoId} className="border-t border-zinc-100">
-                    <td className="px-4 py-3 font-medium text-zinc-900">
+                  <tr key={opco.opcoId} className="border-t border-border">
+                    <td className="px-4 py-3 font-medium text-foreground">
                       {opco.opcoName}
                     </td>
                     <td className="px-4 py-3">
@@ -120,10 +120,10 @@ export function DashboardSummary({ data }: DashboardSummaryProps) {
                         {STATUS_LABELS[opco.status]}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-zinc-600">
+                    <td className="px-4 py-3 text-foreground-muted">
                       {opco.statusLabel ?? "—"}
                     </td>
-                    <td className="px-4 py-3 text-zinc-600">
+                    <td className="px-4 py-3 text-foreground-muted">
                       {opco.uploadedAt
                         ? new Date(opco.uploadedAt).toLocaleString()
                         : "—"}
@@ -136,30 +136,30 @@ export function DashboardSummary({ data }: DashboardSummaryProps) {
         )}
       </section>
 
-      <section className="rounded-lg border border-zinc-200 bg-white">
-        <div className="border-b border-zinc-200 px-4 py-3">
-          <h2 className="text-sm font-semibold text-zinc-900">Recent uploads</h2>
+      <section className="rounded-lg border border-border bg-surface">
+        <div className="border-b border-border px-4 py-3">
+          <h2 className="text-sm font-semibold text-foreground">Recent uploads</h2>
         </div>
         {data.recentUploads.length === 0 ? (
-          <p className="px-4 py-6 text-sm text-zinc-500">
+          <p className="px-4 py-6 text-sm text-foreground-subtle">
             No reports uploaded yet for this partner.
           </p>
         ) : (
-          <ul className="divide-y divide-zinc-100">
+          <ul className="divide-y divide-border">
             {data.recentUploads.map((upload) => (
               <li
                 key={upload.reportId}
                 className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm"
               >
                 <div>
-                  <p className="font-medium text-zinc-900">{upload.opcoName}</p>
-                  <p className="text-zinc-500">
+                  <p className="font-medium text-foreground">{upload.opcoName}</p>
+                  <p className="text-foreground-subtle">
                     {formatPeriodLabel(upload.year, upload.month)}
                   </p>
                 </div>
-                <div className="text-right text-zinc-600">
+                <div className="text-right text-foreground-muted">
                   <p>{upload.statusLabel}</p>
-                  <p className="text-xs text-zinc-500">
+                  <p className="text-xs text-foreground-subtle">
                     {new Date(upload.uploadedAt).toLocaleString()}
                   </p>
                 </div>
