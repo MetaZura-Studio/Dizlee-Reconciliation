@@ -44,13 +44,13 @@ function formatDateTime(value: string | null): string {
 function statusClass(status: ReportingLaneStatus): string {
   switch (status) {
     case "Complete":
-      return "text-emerald-700";
+      return "text-success";
     case "Partial":
-      return "text-amber-700";
+      return "text-warning";
     case "Missing":
-      return "text-red-700";
+      return "text-danger";
     default:
-      return "text-zinc-700";
+      return "text-foreground-muted";
   }
 }
 
@@ -59,7 +59,7 @@ function boolLabel(value: boolean): string {
 }
 
 function boolClass(value: boolean): string {
-  return value ? "text-emerald-700" : "text-amber-700";
+  return value ? "text-success" : "text-warning";
 }
 
 function buildQuery(month: number, year: number, opcoId: string, partnerId: string) {
@@ -129,26 +129,26 @@ export function ReportingView({
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-zinc-900">Reporting</h1>
-        <p className="mt-1 text-sm text-zinc-500">
+        <h1 className="text-2xl font-semibold text-foreground">Reporting</h1>
+        <p className="mt-1 text-sm text-foreground-subtle">
           Period overview for reports, invoices, reconciliation, and consolidation.
         </p>
       </div>
 
       {error ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-lg border border-danger-border bg-danger-muted px-4 py-3 text-sm text-danger">
           {error}
         </div>
       ) : null}
 
-      <div className="rounded-xl border border-zinc-200 bg-white p-4">
+      <div className="rounded-xl border border-border bg-surface p-4">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <label className="block text-sm">
-            <span className="text-zinc-600">Month</span>
+            <span className="text-foreground-muted">Month</span>
             <select
               value={month}
               onChange={(event) => setMonth(Number(event.target.value))}
-              className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2"
+              className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
             >
               {MONTHS.map((label, index) => (
                 <option key={label} value={index + 1}>
@@ -159,11 +159,11 @@ export function ReportingView({
           </label>
 
           <label className="block text-sm">
-            <span className="text-zinc-600">Year</span>
+            <span className="text-foreground-muted">Year</span>
             <select
               value={year}
               onChange={(event) => setYear(Number(event.target.value))}
-              className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2"
+              className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
             >
               {yearOptions.map((value) => (
                 <option key={value} value={value}>
@@ -174,11 +174,11 @@ export function ReportingView({
           </label>
 
           <label className="block text-sm">
-            <span className="text-zinc-600">OpCo</span>
+            <span className="text-foreground-muted">OpCo</span>
             <select
               value={opcoId}
               onChange={(event) => setOpcoId(event.target.value)}
-              className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2"
+              className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
             >
               <option value="">All</option>
               {filterOptions.opcos.map((opco) => (
@@ -190,11 +190,11 @@ export function ReportingView({
           </label>
 
           <label className="block text-sm">
-            <span className="text-zinc-600">Partner</span>
+            <span className="text-foreground-muted">Partner</span>
             <select
               value={partnerId}
               onChange={(event) => setPartnerId(event.target.value)}
-              className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2"
+              className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
             >
               <option value="">All</option>
               {filterOptions.partners.map((partner) => (
@@ -210,13 +210,13 @@ export function ReportingView({
           type="button"
           onClick={() => void loadOverview()}
           disabled={loading}
-          className="mt-4 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+          className="mt-4 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
         >
           Apply filters
         </button>
       </div>
 
-      <p className="text-sm text-zinc-600">
+      <p className="text-sm text-foreground-muted">
         Showing <span className="font-medium">{overview.period.label}</span>
       </p>
 
@@ -249,37 +249,37 @@ export function ReportingView({
       <div className="flex flex-wrap gap-3 text-sm">
         <Link
           href={`/dizlee/reports?month=${month}&year=${year}`}
-          className="font-medium text-zinc-700 underline"
+          className="font-medium text-foreground-muted underline"
         >
           Reports
         </Link>
         <Link
           href={`/dizlee/invoices?month=${month}&year=${year}`}
-          className="font-medium text-zinc-700 underline"
+          className="font-medium text-foreground-muted underline"
         >
           Invoices
         </Link>
         <Link
           href={`/dizlee/reconciliation?month=${month}&year=${year}`}
-          className="font-medium text-zinc-700 underline"
+          className="font-medium text-foreground-muted underline"
         >
           Reconciliation
         </Link>
         <Link
           href={`/dizlee/consolidation?month=${month}&year=${year}`}
-          className="font-medium text-zinc-700 underline"
+          className="font-medium text-foreground-muted underline"
         >
           Consolidation
         </Link>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
-        <div className="border-b border-zinc-200 px-4 py-3">
-          <h2 className="font-medium text-zinc-900">Lane overview</h2>
+      <div className="overflow-hidden rounded-xl border border-border bg-surface">
+        <div className="border-b border-border px-4 py-3">
+          <h2 className="font-medium text-foreground">Lane overview</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-left text-sm">
-            <thead className="border-b border-zinc-200 bg-zinc-50 text-zinc-500">
+            <thead className="border-b border-border bg-surface-muted text-foreground-subtle">
               <tr>
                 <th className="px-4 py-3 font-medium">Lane</th>
                 <th className="px-4 py-3 font-medium">OpCo report</th>
@@ -293,14 +293,14 @@ export function ReportingView({
             <tbody>
               {overview.lanes.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-zinc-500">
+                  <td colSpan={7} className="px-4 py-8 text-center text-foreground-subtle">
                     No lanes match the selected filters.
                   </td>
                 </tr>
               ) : (
                 overview.lanes.map((lane) => (
-                  <tr key={lane.laneKey} className="border-b border-zinc-100">
-                    <td className="px-4 py-3 text-zinc-900">
+                  <tr key={lane.laneKey} className="border-b border-border">
+                    <td className="px-4 py-3 text-foreground">
                       {lane.opcoName} / {lane.partnerName}
                     </td>
                     <td className={`px-4 py-3 ${boolClass(lane.opcoReport)}`}>
@@ -315,7 +315,7 @@ export function ReportingView({
                     <td className={`px-4 py-3 ${boolClass(lane.partnerInvoice)}`}>
                       {boolLabel(lane.partnerInvoice)}
                     </td>
-                    <td className="px-4 py-3 text-zinc-700">
+                    <td className="px-4 py-3 text-foreground-muted">
                       {lane.reconciliationStatus ?? "—"}
                     </td>
                     <td className={`px-4 py-3 font-medium ${statusClass(lane.overallStatus)}`}>
@@ -329,13 +329,13 @@ export function ReportingView({
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
-        <div className="border-b border-zinc-200 px-4 py-3">
-          <h2 className="font-medium text-zinc-900">Consolidation by OpCo</h2>
+      <div className="overflow-hidden rounded-xl border border-border bg-surface">
+        <div className="border-b border-border px-4 py-3">
+          <h2 className="font-medium text-foreground">Consolidation by OpCo</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-left text-sm">
-            <thead className="border-b border-zinc-200 bg-zinc-50 text-zinc-500">
+            <thead className="border-b border-border bg-surface-muted text-foreground-subtle">
               <tr>
                 <th className="px-4 py-3 font-medium">OpCo</th>
                 <th className="px-4 py-3 font-medium">Generated</th>
@@ -346,23 +346,23 @@ export function ReportingView({
             <tbody>
               {overview.consolidations.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-zinc-500">
+                  <td colSpan={4} className="px-4 py-8 text-center text-foreground-subtle">
                     No OpCos in scope for this period.
                   </td>
                 </tr>
               ) : (
                 overview.consolidations.map((row) => (
-                  <tr key={row.opcoId} className="border-b border-zinc-100">
-                    <td className="px-4 py-3 text-zinc-900">{row.opcoName}</td>
+                  <tr key={row.opcoId} className="border-b border-border">
+                    <td className="px-4 py-3 text-foreground">{row.opcoName}</td>
                     <td
-                      className={`px-4 py-3 ${row.generated ? "text-emerald-700" : "text-amber-700"}`}
+                      className={`px-4 py-3 ${row.generated ? "text-success" : "text-warning"}`}
                     >
                       {row.generated ? "Yes" : "No"}
                     </td>
-                    <td className="px-4 py-3 text-zinc-700">
+                    <td className="px-4 py-3 text-foreground-muted">
                       {formatDateTime(row.generatedAt)}
                     </td>
-                    <td className="px-4 py-3 text-right text-zinc-700">
+                    <td className="px-4 py-3 text-right text-foreground-muted">
                       {row.totalAmountUsd !== null
                         ? usdFormatter.format(row.totalAmountUsd)
                         : "—"}

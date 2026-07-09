@@ -40,12 +40,12 @@ export function NotificationsBell({ initialUnreadCount }: NotificationsBellProps
   return (
     <Link
       href="/partner/notifications"
-      className="relative inline-flex items-center rounded border border-zinc-300 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50"
+      className="relative inline-flex items-center rounded border border-border-strong px-3 py-1.5 text-sm text-foreground-muted hover:bg-surface-muted"
       aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ""}`}
     >
       Notifications
       {unreadCount > 0 ? (
-        <span className="ml-2 rounded-full bg-zinc-900 px-2 py-0.5 text-xs font-medium text-white">
+        <span className="ml-2 rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground">
           {unreadCount}
         </span>
       ) : null}

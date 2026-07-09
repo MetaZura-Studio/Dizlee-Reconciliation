@@ -71,19 +71,19 @@ export function InvoiceDetailModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div
-        className="flex max-h-[90vh] w-full max-w-3xl flex-col rounded-lg bg-white shadow-xl"
+        className="flex max-h-[90vh] w-full max-w-3xl flex-col rounded-lg bg-surface shadow-xl"
         role="dialog"
         aria-modal="true"
         aria-labelledby="invoice-detail-title"
       >
-        <div className="border-b border-zinc-200 px-6 py-4">
+        <div className="border-b border-border px-6 py-4">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 id="invoice-detail-title" className="text-lg font-semibold text-zinc-900">
+              <h2 id="invoice-detail-title" className="text-lg font-semibold text-foreground">
                 Invoice
               </h2>
               {detail ? (
-                <p className="mt-1 text-sm text-zinc-600">
+                <p className="mt-1 text-sm text-foreground-muted">
                   {detail.invoiceNumber ?? `Invoice #${detail.id}`} — {detail.periodLabel}
                 </p>
               ) : null}
@@ -91,7 +91,7 @@ export function InvoiceDetailModal({
             <button
               type="button"
               onClick={onClose}
-              className="text-sm text-zinc-500 hover:text-zinc-900"
+              className="text-sm text-foreground-subtle hover:text-foreground"
             >
               Close
             </button>
@@ -103,8 +103,8 @@ export function InvoiceDetailModal({
               onClick={() => setActiveTab("details")}
               className={`rounded px-3 py-1.5 text-sm font-medium ${
                 activeTab === "details"
-                  ? "bg-zinc-900 text-white"
-                  : "text-zinc-600 hover:bg-zinc-100"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-foreground-muted hover:bg-surface-muted"
               }`}
             >
               Details
@@ -114,8 +114,8 @@ export function InvoiceDetailModal({
               onClick={() => void openLifecycleTab()}
               className={`rounded px-3 py-1.5 text-sm font-medium ${
                 activeTab === "lifecycle"
-                  ? "bg-zinc-900 text-white"
-                  : "text-zinc-600 hover:bg-zinc-100"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-foreground-muted hover:bg-surface-muted"
               }`}
             >
               Lifecycle
@@ -125,37 +125,37 @@ export function InvoiceDetailModal({
 
         <div className="overflow-y-auto px-6 py-4">
           {loading ? (
-            <p className="text-sm text-zinc-500">Loading invoice…</p>
+            <p className="text-sm text-foreground-subtle">Loading invoice…</p>
           ) : activeTab === "details" && detail ? (
             <div className="space-y-6">
               <dl className="grid gap-4 text-sm sm:grid-cols-2">
                 <div>
-                  <dt className="text-zinc-500">OpCo</dt>
-                  <dd className="font-medium text-zinc-900">{detail.opcoName}</dd>
+                  <dt className="text-foreground-subtle">OpCo</dt>
+                  <dd className="font-medium text-foreground">{detail.opcoName}</dd>
                 </div>
                 <div>
-                  <dt className="text-zinc-500">Status</dt>
-                  <dd className="font-medium text-zinc-900">{detail.statusLabel}</dd>
+                  <dt className="text-foreground-subtle">Status</dt>
+                  <dd className="font-medium text-foreground">{detail.statusLabel}</dd>
                 </div>
                 <div>
-                  <dt className="text-zinc-500">Payment</dt>
-                  <dd className="font-medium text-zinc-900">{detail.paymentStatusLabel}</dd>
+                  <dt className="text-foreground-subtle">Payment</dt>
+                  <dd className="font-medium text-foreground">{detail.paymentStatusLabel}</dd>
                 </div>
                 <div>
-                  <dt className="text-zinc-500">Uploaded</dt>
-                  <dd className="font-medium text-zinc-900">
+                  <dt className="text-foreground-subtle">Uploaded</dt>
+                  <dd className="font-medium text-foreground">
                     {formatDateTime(detail.uploadedAt)}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-zinc-500">Acknowledged by Dizlee</dt>
-                  <dd className="font-medium text-zinc-900">
+                  <dt className="text-foreground-subtle">Acknowledged by Dizlee</dt>
+                  <dd className="font-medium text-foreground">
                     {formatDateTime(detail.acknowledgedAt)}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-zinc-500">Total</dt>
-                  <dd className="font-medium text-zinc-900">
+                  <dt className="text-foreground-subtle">Total</dt>
+                  <dd className="font-medium text-foreground">
                     {formatCurrency(detail.totalAmount, detail.currencyCode)}
                   </dd>
                 </div>
@@ -163,12 +163,12 @@ export function InvoiceDetailModal({
 
               {detail.previewUrl ? (
                 <div>
-                  <h3 className="text-sm font-semibold text-zinc-900">Invoice PDF</h3>
+                  <h3 className="text-sm font-semibold text-foreground">Invoice PDF</h3>
                   <a
                     href={detail.previewUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="mt-2 inline-block text-sm font-medium text-zinc-900 underline"
+                    className="mt-2 inline-block text-sm font-medium text-foreground underline"
                   >
                     {detail.filename ?? "View PDF"}
                   </a>
@@ -176,10 +176,10 @@ export function InvoiceDetailModal({
               ) : null}
 
               <div>
-                <h3 className="text-sm font-semibold text-zinc-900">Line items</h3>
-                <div className="mt-3 overflow-x-auto rounded-lg border border-zinc-200">
-                  <table className="min-w-full divide-y divide-zinc-200 text-sm">
-                    <thead className="bg-zinc-50 text-left text-zinc-600">
+                <h3 className="text-sm font-semibold text-foreground">Line items</h3>
+                <div className="mt-3 overflow-x-auto rounded-lg border border-border">
+                  <table className="min-w-full divide-y divide-border text-sm">
+                    <thead className="bg-surface-muted text-left text-foreground-muted">
                       <tr>
                         <th className="px-3 py-2 font-medium">Description</th>
                         <th className="px-3 py-2 font-medium">Qty</th>
@@ -187,15 +187,15 @@ export function InvoiceDetailModal({
                         <th className="px-3 py-2 font-medium">Line total</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-zinc-100">
+                    <tbody className="divide-y divide-border">
                       {detail.lineItems.map((item, index) => (
                         <tr key={`${item.description}-${index}`}>
-                          <td className="px-3 py-2 text-zinc-900">{item.description}</td>
-                          <td className="px-3 py-2 text-zinc-700">{item.quantity}</td>
-                          <td className="px-3 py-2 text-zinc-700">
+                          <td className="px-3 py-2 text-foreground">{item.description}</td>
+                          <td className="px-3 py-2 text-foreground-muted">{item.quantity}</td>
+                          <td className="px-3 py-2 text-foreground-muted">
                             {formatCurrency(item.unitPrice, detail.currencyCode)}
                           </td>
-                          <td className="px-3 py-2 text-zinc-700">
+                          <td className="px-3 py-2 text-foreground-muted">
                             {formatCurrency(item.lineTotal, detail.currencyCode)}
                           </td>
                         </tr>
@@ -207,7 +207,7 @@ export function InvoiceDetailModal({
             </div>
           ) : activeTab === "lifecycle" ? (
             lifecycleLoading ? (
-              <p className="text-sm text-zinc-500">Loading lifecycle…</p>
+              <p className="text-sm text-foreground-subtle">Loading lifecycle…</p>
             ) : lifecycle ? (
               <div className="space-y-6">
                 <ol className="space-y-3">
@@ -216,35 +216,35 @@ export function InvoiceDetailModal({
                       key={step.code}
                       className={`flex items-start justify-between rounded-lg border px-4 py-3 text-sm ${
                         step.completed
-                          ? "border-emerald-200 bg-emerald-50"
-                          : "border-zinc-200 bg-zinc-50"
+                          ? "border-success-border bg-success-muted"
+                          : "border-border bg-surface-muted"
                       }`}
                     >
                       <div>
-                        <p className="font-medium text-zinc-900">{step.label}</p>
-                        <p className="text-xs text-zinc-500">{step.code}</p>
+                        <p className="font-medium text-foreground">{step.label}</p>
+                        <p className="text-xs text-foreground-subtle">{step.code}</p>
                       </div>
-                      <p className="text-zinc-600">{formatDateTime(step.completedAt)}</p>
+                      <p className="text-foreground-muted">{formatDateTime(step.completedAt)}</p>
                     </li>
                   ))}
                 </ol>
 
                 <div>
-                  <h3 className="text-sm font-semibold text-zinc-900">Activity log</h3>
+                  <h3 className="text-sm font-semibold text-foreground">Activity log</h3>
                   {lifecycle.activities.length === 0 ? (
-                    <p className="mt-2 text-sm text-zinc-500">No activity recorded yet.</p>
+                    <p className="mt-2 text-sm text-foreground-subtle">No activity recorded yet.</p>
                   ) : (
-                    <ul className="mt-3 divide-y divide-zinc-100 rounded-lg border border-zinc-200">
+                    <ul className="mt-3 divide-y divide-border rounded-lg border border-border">
                       {lifecycle.activities.map((entry) => (
                         <li key={entry.id} className="px-4 py-3 text-sm">
-                          <p className="font-medium text-zinc-900">{entry.action}</p>
-                          <p className="text-zinc-600">
+                          <p className="font-medium text-foreground">{entry.action}</p>
+                          <p className="text-foreground-muted">
                             {entry.actorName}
                             {entry.previousStatus && entry.newStatus
                               ? ` — ${entry.previousStatus} → ${entry.newStatus}`
                               : null}
                           </p>
-                          <p className="text-xs text-zinc-500">
+                          <p className="text-xs text-foreground-subtle">
                             {formatDateTime(entry.createdAt)}
                           </p>
                         </li>
@@ -254,7 +254,7 @@ export function InvoiceDetailModal({
                 </div>
               </div>
             ) : (
-              <p className="text-sm text-zinc-500">Lifecycle data is unavailable.</p>
+              <p className="text-sm text-foreground-subtle">Lifecycle data is unavailable.</p>
             )
           ) : null}
         </div>

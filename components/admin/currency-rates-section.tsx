@@ -170,35 +170,35 @@ export function CurrencyRatesSection({
   const yearOptions = buildYearOptions(year);
 
   return (
-    <section className="space-y-4 rounded-lg border border-zinc-200 bg-white p-5">
+    <section className="space-y-4 rounded-lg border border-border bg-surface p-5">
       <div className="space-y-1">
-        <h2 className="text-lg font-semibold text-zinc-900">Monthly USD rates</h2>
-        <p className="text-sm text-zinc-600">
+        <h2 className="text-lg font-semibold text-foreground">Monthly USD rates</h2>
+        <p className="text-sm text-foreground-muted">
           Select a past month to view or correct historical rates.
         </p>
       </div>
 
       {error ? (
-        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="rounded-md border border-danger-border bg-danger-muted px-3 py-2 text-sm text-danger">
           {error}
         </p>
       ) : null}
       {success ? (
-        <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+        <p className="rounded-md border border-success-border bg-success-muted px-3 py-2 text-sm text-success">
           {success}
         </p>
       ) : null}
 
       <div className="flex flex-wrap items-end gap-3">
         <div className="space-y-1">
-          <label htmlFor="rateMonth" className="text-sm font-medium text-zinc-700">
+          <label htmlFor="rateMonth" className="text-sm font-medium text-foreground-muted">
             Month
           </label>
           <select
             id="rateMonth"
             value={month}
             onChange={(event) => setMonth(Number(event.target.value))}
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+            className="rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
           >
             {MONTH_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -209,14 +209,14 @@ export function CurrencyRatesSection({
         </div>
 
         <div className="space-y-1">
-          <label htmlFor="rateYear" className="text-sm font-medium text-zinc-700">
+          <label htmlFor="rateYear" className="text-sm font-medium text-foreground-muted">
             Year
           </label>
           <select
             id="rateYear"
             value={year}
             onChange={(event) => setYear(Number(event.target.value))}
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+            className="rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
           >
             {yearOptions.map((optionYear) => (
               <option key={optionYear} value={optionYear}>
@@ -230,13 +230,13 @@ export function CurrencyRatesSection({
           type="button"
           onClick={() => void loadPeriod(month, year)}
           disabled={loading || saving || reloading}
-          className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-60"
+          className="rounded-md border border-border-strong px-4 py-2 text-sm font-medium text-foreground-muted hover:bg-surface-muted disabled:opacity-60"
         >
           {loading ? "Loading…" : "Load"}
         </button>
       </div>
 
-      <p className="text-sm text-zinc-600">
+      <p className="text-sm text-foreground-muted">
         {periodView.setCount} of {periodView.totalCurrencies} currencies have rates
         for {periodView.periodLabel}.
       </p>
@@ -244,7 +244,7 @@ export function CurrencyRatesSection({
       <form onSubmit={(event) => void saveRates(event)} className="space-y-4">
         <div className="overflow-x-auto">
           <table className="min-w-full text-left text-sm">
-            <thead className="border-b border-zinc-200 text-zinc-500">
+            <thead className="border-b border-border text-foreground-subtle">
               <tr>
                 <th className="px-3 py-2 font-medium">Currency</th>
                 <th className="px-3 py-2 font-medium">Rate to USD</th>
@@ -252,16 +252,16 @@ export function CurrencyRatesSection({
             </thead>
             <tbody>
               {rows.map((row) => (
-                <tr key={row.currencyId} className="border-b border-zinc-100">
-                  <td className="px-3 py-2 text-zinc-900">
+                <tr key={row.currencyId} className="border-b border-border">
+                  <td className="px-3 py-2 text-foreground">
                     <span className="font-medium">{row.isoCode}</span>
                     {row.symbol ? (
-                      <span className="ml-2 text-zinc-500">{row.symbol}</span>
+                      <span className="ml-2 text-foreground-subtle">{row.symbol}</span>
                     ) : null}
                   </td>
                   <td className="px-3 py-2">
                     {row.isUsd ? (
-                      <span className="text-zinc-700">1.00000000 (locked)</span>
+                      <span className="text-foreground-muted">1.00000000 (locked)</span>
                     ) : (
                       <input
                         type="number"
@@ -278,7 +278,7 @@ export function CurrencyRatesSection({
                           )
                         }
                         placeholder="Not set"
-                        className="w-full max-w-xs rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+                        className="w-full max-w-xs rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
                       />
                     )}
                   </td>
@@ -292,7 +292,7 @@ export function CurrencyRatesSection({
           <button
             type="submit"
             disabled={saving || loading || reloading}
-            className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
           >
             {saving ? "Saving…" : "Save rates"}
           </button>
@@ -300,7 +300,7 @@ export function CurrencyRatesSection({
             type="button"
             onClick={() => void reloadRates()}
             disabled={saving || loading || reloading}
-            className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-60"
+            className="rounded-md border border-border-strong px-4 py-2 text-sm font-medium text-foreground-muted hover:bg-surface-muted disabled:opacity-60"
           >
             {reloading ? "Reloading…" : "Reload"}
           </button>

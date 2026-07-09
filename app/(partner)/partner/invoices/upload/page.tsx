@@ -11,11 +11,11 @@ export default async function PartnerInvoiceUploadPage() {
   return (
     <div className="space-y-6">
       <div>
-        <Link href="/partner/invoices" className="text-sm text-zinc-600 underline">
+        <Link href="/partner/invoices" className="text-sm text-foreground-muted underline">
           ← Back to invoices
         </Link>
         <h1 className="mt-3 text-2xl font-semibold">Upload Invoice</h1>
-        <p className="mt-1 text-zinc-600">
+        <p className="mt-1 text-foreground-muted">
           Upload a partner-to-client invoice PDF for a linked OpCo and period.
         </p>
       </div>

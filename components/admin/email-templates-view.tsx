@@ -186,7 +186,7 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
 
   if (!detail) {
     return (
-      <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+      <p className="rounded-md border border-warning-border bg-warning-muted px-3 py-2 text-sm text-warning">
         No email templates are available.
       </p>
     );
@@ -195,19 +195,19 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
   return (
     <div className="space-y-6">
       {error ? (
-        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="rounded-md border border-danger-border bg-danger-muted px-3 py-2 text-sm text-danger">
           {error}
         </p>
       ) : null}
       {success ? (
-        <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+        <p className="rounded-md border border-success-border bg-success-muted px-3 py-2 text-sm text-success">
           {success}
         </p>
       ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
-        <section className="rounded-lg border border-zinc-200 bg-white p-4">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
+        <section className="rounded-lg border border-border bg-surface p-4">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-foreground-subtle">
             Templates
           </h2>
           <ul className="mt-3 space-y-1">
@@ -221,13 +221,13 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
                     disabled={loading || saving || revertingVersion !== null}
                     className={`w-full rounded-md px-3 py-2 text-left text-sm transition ${
                       isActive
-                        ? "bg-zinc-900 text-white"
-                        : "text-zinc-700 hover:bg-zinc-100"
+                        ? "bg-primary text-primary-foreground"
+                        : "text-foreground-muted hover:bg-surface-muted"
                     }`}
                   >
                     <span className="block font-medium">{template.name}</span>
                     <span
-                      className={`block text-xs ${isActive ? "text-zinc-300" : "text-zinc-500"}`}
+                      className={`block text-xs ${isActive ? "text-foreground-subtle" : "text-foreground-subtle"}`}
                     >
                       v{template.currentVersion}
                     </span>
@@ -239,24 +239,24 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
         </section>
 
         <section className="space-y-6">
-          <div className="rounded-lg border border-zinc-200 bg-white p-5">
+          <div className="rounded-lg border border-border bg-surface p-5">
             <div className="space-y-1">
-              <h2 className="text-lg font-semibold text-zinc-900">
+              <h2 className="text-lg font-semibold text-foreground">
                 {detail.name}
               </h2>
-              <p className="text-sm text-zinc-600">
+              <p className="text-sm text-foreground-muted">
                 Code: <span className="font-mono">{detail.code}</span> · Current
                 version v{detail.currentVersion}
               </p>
             </div>
 
-            <p className="mt-4 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-600">
+            <p className="mt-4 rounded-md border border-border bg-surface-muted px-3 py-2 text-sm text-foreground-muted">
               Placeholders: {formatPlaceholderTokens(detail.placeholders)}
             </p>
 
             <form onSubmit={(event) => void saveTemplate(event)} className="mt-4 space-y-4">
               <div className="space-y-1">
-                <label htmlFor="templateSubject" className="text-sm font-medium text-zinc-700">
+                <label htmlFor="templateSubject" className="text-sm font-medium text-foreground-muted">
                   Subject
                 </label>
                 <input
@@ -265,12 +265,12 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
                   onChange={(event) =>
                     setForm((current) => ({ ...current, subject: event.target.value }))
                   }
-                  className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+                  className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
                 />
               </div>
 
               <div className="space-y-1">
-                <label htmlFor="templateBody" className="text-sm font-medium text-zinc-700">
+                <label htmlFor="templateBody" className="text-sm font-medium text-foreground-muted">
                   Body
                 </label>
                 <textarea
@@ -280,12 +280,12 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
                   onChange={(event) =>
                     setForm((current) => ({ ...current, body: event.target.value }))
                   }
-                  className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+                  className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
                 />
               </div>
 
               <div className="space-y-1">
-                <label htmlFor="changeNote" className="text-sm font-medium text-zinc-700">
+                <label htmlFor="changeNote" className="text-sm font-medium text-foreground-muted">
                   Change note
                 </label>
                 <input
@@ -295,7 +295,7 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
                     setForm((current) => ({ ...current, changeNote: event.target.value }))
                   }
                   placeholder="Optional note for this version"
-                  className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+                  className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
                 />
               </div>
 
@@ -303,7 +303,7 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
                 <button
                   type="submit"
                   disabled={saving || loading || revertingVersion !== null}
-                  className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
+                  className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
                 >
                   {saving ? "Saving…" : "Save"}
                 </button>
@@ -311,7 +311,7 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
                   type="button"
                   onClick={() => void reloadTemplate()}
                   disabled={saving || loading || revertingVersion !== null}
-                  className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-60"
+                  className="rounded-md border border-border-strong px-4 py-2 text-sm font-medium text-foreground-muted hover:bg-surface-muted disabled:opacity-60"
                 >
                   {loading ? "Reloading…" : "Reload"}
                 </button>
@@ -319,11 +319,11 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
             </form>
           </div>
 
-          <div className="rounded-lg border border-zinc-200 bg-white p-5">
-            <h3 className="text-lg font-semibold text-zinc-900">Version history</h3>
+          <div className="rounded-lg border border-border bg-surface p-5">
+            <h3 className="text-lg font-semibold text-foreground">Version history</h3>
             <div className="mt-4 overflow-x-auto">
               <table className="min-w-full text-left text-sm">
-                <thead className="border-b border-zinc-200 text-zinc-500">
+                <thead className="border-b border-border text-foreground-subtle">
                   <tr>
                     <th className="px-3 py-2 font-medium">Version</th>
                     <th className="px-3 py-2 font-medium">Subject</th>
@@ -334,15 +334,15 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
                 </thead>
                 <tbody>
                   {detail.versions.map((version) => (
-                    <tr key={version.version} className="border-b border-zinc-100">
-                      <td className="px-3 py-2 font-medium text-zinc-900">
+                    <tr key={version.version} className="border-b border-border">
+                      <td className="px-3 py-2 font-medium text-foreground">
                         v{version.version}
                       </td>
-                      <td className="px-3 py-2 text-zinc-700">{version.subject}</td>
-                      <td className="px-3 py-2 text-zinc-700">
+                      <td className="px-3 py-2 text-foreground-muted">{version.subject}</td>
+                      <td className="px-3 py-2 text-foreground-muted">
                         {formatDateTime(version.createdAt)}
                       </td>
-                      <td className="px-3 py-2 text-zinc-600">
+                      <td className="px-3 py-2 text-foreground-muted">
                         {version.changeNote ?? "—"}
                       </td>
                       <td className="px-3 py-2">
@@ -354,7 +354,7 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
                             loading ||
                             revertingVersion === version.version
                           }
-                          className="text-sm font-medium text-zinc-700 hover:text-zinc-900 disabled:opacity-60"
+                          className="text-sm font-medium text-foreground-muted hover:text-foreground disabled:opacity-60"
                         >
                           {revertingVersion === version.version
                             ? "Reverting…"

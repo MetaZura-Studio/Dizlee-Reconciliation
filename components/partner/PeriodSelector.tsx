@@ -29,7 +29,7 @@ export function PeriodSelector({ year, month }: PeriodSelectorProps) {
 
   return (
     <form
-      className="flex flex-wrap items-end gap-3 rounded-lg border border-zinc-200 bg-white p-4"
+      className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-surface p-4"
       onSubmit={(event) => {
         event.preventDefault();
         const formData = new FormData(event.currentTarget);
@@ -39,7 +39,7 @@ export function PeriodSelector({ year, month }: PeriodSelectorProps) {
       }}
     >
       <div>
-        <label htmlFor="dashboard-year" className="text-sm font-medium text-zinc-700">
+        <label htmlFor="dashboard-year" className="text-sm font-medium text-foreground-muted">
           Year
         </label>
         <input
@@ -49,18 +49,18 @@ export function PeriodSelector({ year, month }: PeriodSelectorProps) {
           min={2000}
           max={2100}
           defaultValue={year}
-          className="mt-1 block w-28 rounded border border-zinc-300 px-3 py-2 text-sm"
+          className="mt-1 block w-28 rounded border border-border-strong px-3 py-2 text-sm"
         />
       </div>
       <div>
-        <label htmlFor="dashboard-month" className="text-sm font-medium text-zinc-700">
+        <label htmlFor="dashboard-month" className="text-sm font-medium text-foreground-muted">
           Month
         </label>
         <select
           id="dashboard-month"
           name="month"
           defaultValue={month}
-          className="mt-1 block w-40 rounded border border-zinc-300 px-3 py-2 text-sm"
+          className="mt-1 block w-40 rounded border border-border-strong px-3 py-2 text-sm"
         >
           {MONTHS.map((item) => (
             <option key={item.value} value={item.value}>
@@ -71,11 +71,11 @@ export function PeriodSelector({ year, month }: PeriodSelectorProps) {
       </div>
       <button
         type="submit"
-        className="rounded bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+        className="rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
       >
         Apply
       </button>
-      <p className="text-sm text-zinc-500">
+      <p className="text-sm text-foreground-subtle">
         Viewing {formatPeriodLabel(year, month)}
       </p>
     </form>

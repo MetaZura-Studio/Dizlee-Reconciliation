@@ -46,8 +46,8 @@ function formatPeriod(month: number, year: number): string {
 
 function statusClass(status: "Submitted" | "Missing"): string {
   return status === "Submitted"
-    ? "text-emerald-700"
-    : "text-amber-700";
+    ? "text-success"
+    : "text-warning";
 }
 
 function buildQuery(filters: ReportMonitoringFilters): string {
@@ -157,12 +157,12 @@ export function ReportsMonitoringView({
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-zinc-900">Dizlee - Reports</h1>
-        <p className="mt-1 text-sm text-zinc-500">
+        <h1 className="text-2xl font-semibold text-foreground">Dizlee - Reports</h1>
+        <p className="mt-1 text-sm text-foreground-subtle">
           Linked OpCo and Partner report lanes for the selected period.
         </p>
         {fromDashboard ? (
-          <p className="mt-1 text-xs text-zinc-500">From dashboard</p>
+          <p className="mt-1 text-xs text-foreground-subtle">From dashboard</p>
         ) : null}
       </div>
 
@@ -175,14 +175,14 @@ export function ReportsMonitoringView({
         <KpiCard label="Reports submitted" value={summary.reportsSubmitted} />
       </div>
 
-      <section className="rounded-lg border border-zinc-200 bg-zinc-50 p-4">
+      <section className="rounded-lg border border-border bg-surface-muted p-4">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <label className="text-sm">
-            <span className="mb-1 block text-xs text-zinc-500">Period (month)</span>
+            <span className="mb-1 block text-xs text-foreground-subtle">Period (month)</span>
             <select
               value={month}
               onChange={(event) => setMonth(Number(event.target.value))}
-              className="w-full rounded-md border border-zinc-300 px-3 py-1.5 text-sm"
+              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
             >
               {MONTHS.map((name, index) => (
                 <option key={name} value={index + 1}>
@@ -192,11 +192,11 @@ export function ReportsMonitoringView({
             </select>
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-xs text-zinc-500">Year</span>
+            <span className="mb-1 block text-xs text-foreground-subtle">Year</span>
             <select
               value={year}
               onChange={(event) => setYear(Number(event.target.value))}
-              className="w-full rounded-md border border-zinc-300 px-3 py-1.5 text-sm"
+              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
             >
               {yearOptions.map((value) => (
                 <option key={value} value={value}>
@@ -206,11 +206,11 @@ export function ReportsMonitoringView({
             </select>
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-xs text-zinc-500">OpCo</span>
+            <span className="mb-1 block text-xs text-foreground-subtle">OpCo</span>
             <select
               value={opcoId}
               onChange={(event) => setOpcoId(event.target.value)}
-              className="w-full rounded-md border border-zinc-300 px-3 py-1.5 text-sm"
+              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
             >
               <option value="">All OpCos</option>
               {filterOptions.opcos.map((opco) => (
@@ -221,11 +221,11 @@ export function ReportsMonitoringView({
             </select>
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-xs text-zinc-500">Partner</span>
+            <span className="mb-1 block text-xs text-foreground-subtle">Partner</span>
             <select
               value={partnerId}
               onChange={(event) => setPartnerId(event.target.value)}
-              className="w-full rounded-md border border-zinc-300 px-3 py-1.5 text-sm"
+              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
             >
               <option value="">All Partners</option>
               {filterOptions.partners.map((partner) => (
@@ -236,13 +236,13 @@ export function ReportsMonitoringView({
             </select>
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-xs text-zinc-500">Show</span>
+            <span className="mb-1 block text-xs text-foreground-subtle">Show</span>
             <select
               value={missing}
               onChange={(event) =>
                 setMissing(event.target.value as MissingSideFilter | "")
               }
-              className="w-full rounded-md border border-zinc-300 px-3 py-1.5 text-sm"
+              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
             >
               <option value="">All lanes</option>
               <option value="opco">Missing OpCo reports</option>
@@ -255,14 +255,14 @@ export function ReportsMonitoringView({
           <button
             type="button"
             onClick={applyFilters}
-            className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
           >
             Apply
           </button>
           <button
             type="button"
             onClick={refresh}
-            className="rounded-md border border-zinc-300 px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100"
+            className="rounded-md border border-border-strong px-4 py-2 text-sm text-foreground-muted hover:bg-surface-muted"
           >
             Refresh
           </button>
@@ -270,10 +270,10 @@ export function ReportsMonitoringView({
       </section>
 
       {loading ? (
-        <p className="text-sm text-zinc-500">Loading reports monitoring…</p>
+        <p className="text-sm text-foreground-subtle">Loading reports monitoring…</p>
       ) : null}
       {error ? (
-        <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <div className="rounded-md border border-danger-border bg-danger-muted p-4 text-sm text-danger">
           {error}
         </div>
       ) : null}
@@ -281,48 +281,48 @@ export function ReportsMonitoringView({
       {!loading && !error ? (
         items.length > 0 ? (
           <>
-            <div className="overflow-hidden rounded-lg border border-zinc-200">
-              <table className="min-w-full divide-y divide-zinc-200 text-sm">
-                <thead className="bg-zinc-50">
+            <div className="overflow-hidden rounded-lg border border-border">
+              <table className="min-w-full divide-y divide-border text-sm">
+                <thead className="bg-surface-muted">
                   <tr>
-                    <th className="px-4 py-3 text-left font-medium text-zinc-600">
+                    <th className="px-4 py-3 text-left font-medium text-foreground-muted">
                       Period
                     </th>
-                    <th className="px-4 py-3 text-left font-medium text-zinc-600">
+                    <th className="px-4 py-3 text-left font-medium text-foreground-muted">
                       OpCo
                     </th>
-                    <th className="px-4 py-3 text-left font-medium text-zinc-600">
+                    <th className="px-4 py-3 text-left font-medium text-foreground-muted">
                       Partner
                     </th>
-                    <th className="px-4 py-3 text-left font-medium text-zinc-600">
+                    <th className="px-4 py-3 text-left font-medium text-foreground-muted">
                       OpCo report
                     </th>
-                    <th className="px-4 py-3 text-left font-medium text-zinc-600">
+                    <th className="px-4 py-3 text-left font-medium text-foreground-muted">
                       Partner report
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-200 bg-white">
+                <tbody className="divide-y divide-border bg-surface">
                   {items.map((row) => (
                     <tr key={row.laneKey}>
-                      <td className="px-4 py-3 text-zinc-600">
+                      <td className="px-4 py-3 text-foreground-muted">
                         {formatPeriod(row.period.month, row.period.year)}
                       </td>
-                      <td className="px-4 py-3 text-zinc-900">{row.opcoName}</td>
-                      <td className="px-4 py-3 text-zinc-900">
+                      <td className="px-4 py-3 text-foreground">{row.opcoName}</td>
+                      <td className="px-4 py-3 text-foreground">
                         {row.partnerName}
                       </td>
                       <td className="px-4 py-3">
                         <p className={statusClass(row.opcoReport.status)}>
                           {row.opcoReport.status}
                         </p>
-                        <p className="text-xs text-zinc-500">
+                        <p className="text-xs text-foreground-subtle">
                           {formatDateTime(row.opcoReport.uploadedAt)}
                         </p>
                         {row.opcoReport.reportId ? (
                           <Link
                             href={`/dizlee/reports?month=${row.period.month}&year=${row.period.year}&opcoId=${row.opcoId}&partnerId=${row.partnerId}`}
-                            className="text-xs text-zinc-600 underline hover:text-zinc-900"
+                            className="text-xs text-foreground-muted underline hover:text-foreground"
                           >
                             View report
                           </Link>
@@ -332,13 +332,13 @@ export function ReportsMonitoringView({
                         <p className={statusClass(row.partnerReport.status)}>
                           {row.partnerReport.status}
                         </p>
-                        <p className="text-xs text-zinc-500">
+                        <p className="text-xs text-foreground-subtle">
                           {formatDateTime(row.partnerReport.uploadedAt)}
                         </p>
                         {row.partnerReport.reportId ? (
                           <Link
                             href={`/dizlee/reports?month=${row.period.month}&year=${row.period.year}&opcoId=${row.opcoId}&partnerId=${row.partnerId}`}
-                            className="text-xs text-zinc-600 underline hover:text-zinc-900"
+                            className="text-xs text-foreground-muted underline hover:text-foreground"
                           >
                             View report
                           </Link>
@@ -350,7 +350,7 @@ export function ReportsMonitoringView({
               </table>
             </div>
 
-            <div className="flex items-center justify-between text-sm text-zinc-600">
+            <div className="flex items-center justify-between text-sm text-foreground-muted">
               <p>
                 Page {result.page} / {result.totalPages} · Total{" "}
                 {result.totalCount} records
@@ -360,7 +360,7 @@ export function ReportsMonitoringView({
                   type="button"
                   disabled={result.page <= 1}
                   onClick={() => goToPage(result.page - 1)}
-                  className="rounded-md border border-zinc-300 px-3 py-1 disabled:opacity-40"
+                  className="rounded-md border border-border-strong px-3 py-1 disabled:opacity-40"
                 >
                   Prev
                 </button>
@@ -368,7 +368,7 @@ export function ReportsMonitoringView({
                   type="button"
                   disabled={result.page >= result.totalPages}
                   onClick={() => goToPage(result.page + 1)}
-                  className="rounded-md border border-zinc-300 px-3 py-1 disabled:opacity-40"
+                  className="rounded-md border border-border-strong px-3 py-1 disabled:opacity-40"
                 >
                   Next
                 </button>
@@ -376,9 +376,9 @@ export function ReportsMonitoringView({
             </div>
           </>
         ) : (
-          <div className="rounded-lg border border-zinc-200 bg-white p-8 text-center">
-            <p className="font-medium text-zinc-900">No lanes match filters</p>
-            <p className="mt-1 text-sm text-zinc-600">
+          <div className="rounded-lg border border-border bg-surface p-8 text-center">
+            <p className="font-medium text-foreground">No lanes match filters</p>
+            <p className="mt-1 text-sm text-foreground-muted">
               {summary.linkedLanes === 0
                 ? "No OpCo–Partner links are configured for this scope."
                 : "Try adjusting filters or select a different period."}

@@ -51,11 +51,11 @@ function buildQuery(filters: UserListResult["filters"]): string {
 function statusBadgeClass(status: AdminUserStatus): string {
   switch (status) {
     case "ACTIVE":
-      return "bg-emerald-50 text-emerald-700 ring-emerald-600/20";
+      return "bg-success-muted text-success ring-success/20";
     case "INACTIVE":
-      return "bg-zinc-100 text-zinc-600 ring-zinc-500/20";
+      return "bg-surface-muted text-foreground-muted ring-border-strong/20";
     case "SUSPENDED":
-      return "bg-amber-50 text-amber-700 ring-amber-600/20";
+      return "bg-warning-muted text-warning ring-warning/20";
   }
 }
 
@@ -200,8 +200,8 @@ export function UsersView({ initialResult }: UsersViewProps) {
     <div className="mx-auto max-w-6xl space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-zinc-900">Users</h1>
-          <p className="mt-1 text-sm text-zinc-600">
+          <h1 className="text-2xl font-semibold text-foreground">Users</h1>
+          <p className="mt-1 text-sm text-foreground-muted">
             Create, edit, and manage portal user accounts. Admin accounts are not
             listed here.
           </p>
@@ -209,44 +209,44 @@ export function UsersView({ initialResult }: UsersViewProps) {
         <button
           type="button"
           onClick={openCreate}
-          className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
         >
           Create user
         </button>
       </div>
 
       {successMessage ? (
-        <p className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+        <p className="rounded-md border border-success-border bg-success-muted px-4 py-3 text-sm text-success">
           {successMessage}
         </p>
       ) : null}
 
       {error ? (
-        <p className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <p className="rounded-md border border-danger-border bg-danger-muted px-4 py-3 text-sm text-danger">
           {error}
         </p>
       ) : null}
 
-      <section className="rounded-lg border border-zinc-200 bg-zinc-50 p-4">
+      <section className="rounded-lg border border-border bg-surface-muted p-4">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <label className="text-sm lg:col-span-2">
-            <span className="mb-1 block text-xs text-zinc-500">Search</span>
+            <span className="mb-1 block text-xs text-foreground-subtle">Search</span>
             <input
               type="search"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Name or email"
-              className="w-full rounded-md border border-zinc-300 px-3 py-1.5 text-sm"
+              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
             />
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-xs text-zinc-500">Role</span>
+            <span className="mb-1 block text-xs text-foreground-subtle">Role</span>
             <select
               value={role}
               onChange={(event) =>
                 setRole(event.target.value as AdminUserRole | "all")
               }
-              className="w-full rounded-md border border-zinc-300 px-3 py-1.5 text-sm"
+              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
             >
               <option value="all">All roles</option>
               <option value="client">{formatUserRoleLabel("client")}</option>
@@ -255,13 +255,13 @@ export function UsersView({ initialResult }: UsersViewProps) {
             </select>
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-xs text-zinc-500">Status</span>
+            <span className="mb-1 block text-xs text-foreground-subtle">Status</span>
             <select
               value={status}
               onChange={(event) =>
                 setStatus(event.target.value as AdminUserStatus | "all")
               }
-              className="w-full rounded-md border border-zinc-300 px-3 py-1.5 text-sm"
+              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
             >
               <option value="all">All statuses</option>
               <option value="ACTIVE">Active</option>
@@ -272,16 +272,16 @@ export function UsersView({ initialResult }: UsersViewProps) {
         </div>
       </section>
 
-      <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white">
+      <div className="overflow-hidden rounded-lg border border-border bg-surface">
         <div className="overflow-x-auto">
           <table className="min-w-full text-left text-sm">
-            <thead className="border-b border-zinc-200 bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
+            <thead className="border-b border-border bg-surface-muted text-xs uppercase tracking-wide text-foreground-subtle">
               <tr>
                 <th className="px-4 py-3">
                   <button
                     type="button"
                     onClick={() => toggleSort("name")}
-                    className="font-medium hover:text-zinc-800"
+                    className="font-medium hover:text-foreground"
                   >
                     Name{sortIndicator("name")}
                   </button>
@@ -290,7 +290,7 @@ export function UsersView({ initialResult }: UsersViewProps) {
                   <button
                     type="button"
                     onClick={() => toggleSort("email")}
-                    className="font-medium hover:text-zinc-800"
+                    className="font-medium hover:text-foreground"
                   >
                     Email{sortIndicator("email")}
                   </button>
@@ -299,7 +299,7 @@ export function UsersView({ initialResult }: UsersViewProps) {
                   <button
                     type="button"
                     onClick={() => toggleSort("role")}
-                    className="font-medium hover:text-zinc-800"
+                    className="font-medium hover:text-foreground"
                   >
                     Role{sortIndicator("role")}
                   </button>
@@ -309,7 +309,7 @@ export function UsersView({ initialResult }: UsersViewProps) {
                   <button
                     type="button"
                     onClick={() => toggleSort("status")}
-                    className="font-medium hover:text-zinc-800"
+                    className="font-medium hover:text-foreground"
                   >
                     Status{sortIndicator("status")}
                   </button>
@@ -321,25 +321,25 @@ export function UsersView({ initialResult }: UsersViewProps) {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-zinc-500">
+                  <td colSpan={7} className="px-4 py-8 text-center text-foreground-subtle">
                     Loading users…
                   </td>
                 </tr>
               ) : result.items.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-zinc-500">
+                  <td colSpan={7} className="px-4 py-8 text-center text-foreground-subtle">
                     No users match your filters.
                   </td>
                 </tr>
               ) : (
                 result.items.map((user) => (
-                  <tr key={user.id} className="border-b border-zinc-100 last:border-0">
-                    <td className="px-4 py-3 font-medium text-zinc-900">{user.name}</td>
-                    <td className="px-4 py-3 text-zinc-700">{user.email}</td>
-                    <td className="px-4 py-3 text-zinc-700">
+                  <tr key={user.id} className="border-b border-border last:border-0">
+                    <td className="px-4 py-3 font-medium text-foreground">{user.name}</td>
+                    <td className="px-4 py-3 text-foreground-muted">{user.email}</td>
+                    <td className="px-4 py-3 text-foreground-muted">
                       {formatUserRoleLabel(user.role)}
                     </td>
-                    <td className="px-4 py-3 text-zinc-600">
+                    <td className="px-4 py-3 text-foreground-muted">
                       {user.role === "opco"
                         ? user.opcoName ?? "—"
                         : user.role === "partner"
@@ -353,7 +353,7 @@ export function UsersView({ initialResult }: UsersViewProps) {
                         {formatUserStatusLabel(user.status)}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-zinc-600">
+                    <td className="px-4 py-3 text-foreground-muted">
                       {formatDateTime(user.lastLoginAt)}
                     </td>
                     <td className="px-4 py-3">
@@ -361,14 +361,14 @@ export function UsersView({ initialResult }: UsersViewProps) {
                         <button
                           type="button"
                           onClick={() => openEdit(user)}
-                          className="rounded-md border border-zinc-300 px-2.5 py-1 text-xs text-zinc-700 hover:bg-zinc-50"
+                          className="rounded-md border border-border-strong px-2.5 py-1 text-xs text-foreground-muted hover:bg-surface-muted"
                         >
                           Edit
                         </button>
                         <button
                           type="button"
                           onClick={() => openDelete(user)}
-                          className="rounded-md border border-red-200 px-2.5 py-1 text-xs text-red-700 hover:bg-red-50"
+                          className="rounded-md border border-danger-border px-2.5 py-1 text-xs text-danger hover:bg-danger-muted"
                         >
                           Delete
                         </button>
@@ -381,7 +381,7 @@ export function UsersView({ initialResult }: UsersViewProps) {
           </table>
         </div>
 
-        <div className="flex items-center justify-between border-t border-zinc-200 px-4 py-3 text-sm text-zinc-600">
+        <div className="flex items-center justify-between border-t border-border px-4 py-3 text-sm text-foreground-muted">
           <p>
             {result.total} user{result.total === 1 ? "" : "s"}
             {loading ? " · refreshing…" : ""}
@@ -391,7 +391,7 @@ export function UsersView({ initialResult }: UsersViewProps) {
               type="button"
               onClick={() => goToPage(result.page - 1)}
               disabled={result.page <= 1 || loading}
-              className="rounded-md border border-zinc-300 px-3 py-1 disabled:opacity-50"
+              className="rounded-md border border-border-strong px-3 py-1 disabled:opacity-50"
             >
               Previous
             </button>
@@ -402,7 +402,7 @@ export function UsersView({ initialResult }: UsersViewProps) {
               type="button"
               onClick={() => goToPage(result.page + 1)}
               disabled={result.page >= result.totalPages || loading}
-              className="rounded-md border border-zinc-300 px-3 py-1 disabled:opacity-50"
+              className="rounded-md border border-border-strong px-3 py-1 disabled:opacity-50"
             >
               Next
             </button>

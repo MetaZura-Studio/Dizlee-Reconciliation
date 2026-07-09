@@ -44,7 +44,7 @@ export default async function OpcoInvoicesPage({
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">Invoices</h1>
-        <p className="mt-1 text-zinc-600">
+        <p className="mt-1 text-foreground-muted">
           View Dizlee → OpCo invoices. Opening an invoice acknowledges receipt automatically.
         </p>
       </div>

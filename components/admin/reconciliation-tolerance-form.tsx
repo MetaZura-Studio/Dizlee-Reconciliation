@@ -105,12 +105,12 @@ export function ReconciliationToleranceForm({
   return (
     <div className="space-y-6">
       {error ? (
-        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="rounded-md border border-danger-border bg-danger-muted px-3 py-2 text-sm text-danger">
           {error}
         </p>
       ) : null}
       {success ? (
-        <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+        <p className="rounded-md border border-success-border bg-success-muted px-3 py-2 text-sm text-success">
           {success}
         </p>
       ) : null}
@@ -119,7 +119,7 @@ export function ReconciliationToleranceForm({
         <div className="space-y-1">
           <label
             htmlFor="reconciliationNegligiblePercent"
-            className="text-sm font-medium text-zinc-700"
+            className="text-sm font-medium text-foreground-muted"
           >
             Negligible difference (%)
           </label>
@@ -136,15 +136,15 @@ export function ReconciliationToleranceForm({
                 reconciliationNegligiblePercent: event.target.value,
               }))
             }
-            className="w-full max-w-xs rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+            className="w-full max-w-xs rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
           />
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-foreground-subtle">
             Current saved value:{" "}
             {formatPercent(savedSettings.reconciliationNegligiblePercent)}%
           </p>
         </div>
 
-        <p className="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-600">
+        <p className="rounded-md border border-border bg-surface-muted px-3 py-2 text-sm text-foreground-muted">
           Lines within this percentage relative difference are treated as
           matched when Dizlee runs reconciliation. Unlinked or larger variances
           remain mismatched.
@@ -154,7 +154,7 @@ export function ReconciliationToleranceForm({
           <button
             type="submit"
             disabled={saving || reloading}
-            className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
           >
             {saving ? "Saving…" : "Save"}
           </button>
@@ -162,7 +162,7 @@ export function ReconciliationToleranceForm({
             type="button"
             onClick={() => void reloadSettings()}
             disabled={saving || reloading}
-            className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-60"
+            className="rounded-md border border-border-strong px-4 py-2 text-sm font-medium text-foreground-muted hover:bg-surface-muted disabled:opacity-60"
           >
             {reloading ? "Reloading…" : "Reload"}
           </button>

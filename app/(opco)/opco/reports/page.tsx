@@ -42,7 +42,7 @@ export default async function OpcoReportsPage({ searchParams }: OpcoReportsPageP
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">Reports history</h1>
-        <p className="mt-1 text-zinc-600">
+        <p className="mt-1 text-foreground-muted">
           Find and review submitted reports. Filter by period, partner, or status.
         </p>
       </div>

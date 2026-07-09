@@ -119,12 +119,12 @@ export function ReminderSettingsForm({
   return (
     <div className="space-y-6">
       {error ? (
-        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="rounded-md border border-danger-border bg-danger-muted px-3 py-2 text-sm text-danger">
           {error}
         </p>
       ) : null}
       {success ? (
-        <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+        <p className="rounded-md border border-success-border bg-success-muted px-3 py-2 text-sm text-success">
           {success}
         </p>
       ) : null}
@@ -133,7 +133,7 @@ export function ReminderSettingsForm({
         <div className="space-y-1">
           <label
             htmlFor="remindersEnabled"
-            className="text-sm font-medium text-zinc-700"
+            className="text-sm font-medium text-foreground-muted"
           >
             Enabled
           </label>
@@ -146,7 +146,7 @@ export function ReminderSettingsForm({
                 remindersEnabled: event.target.value === "enabled",
               }))
             }
-            className="w-full max-w-xs rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+            className="w-full max-w-xs rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
           >
             <option value="disabled">Disabled</option>
             <option value="enabled">Enabled</option>
@@ -157,7 +157,7 @@ export function ReminderSettingsForm({
           <div className="space-y-1">
             <label
               htmlFor="reminderValue"
-              className="text-sm font-medium text-zinc-700"
+              className="text-sm font-medium text-foreground-muted"
             >
               Reminder value
             </label>
@@ -173,14 +173,14 @@ export function ReminderSettingsForm({
                 }))
               }
               placeholder="3"
-              className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+              className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
             />
           </div>
 
           <div className="space-y-1">
             <label
               htmlFor="reminderUnit"
-              className="text-sm font-medium text-zinc-700"
+              className="text-sm font-medium text-foreground-muted"
             >
               Reminder unit
             </label>
@@ -193,7 +193,7 @@ export function ReminderSettingsForm({
                   reminderUnit: event.target.value as ReminderUnit,
                 }))
               }
-              className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+              className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
             >
               <option value="days">Days</option>
               <option value="weeks">Weeks</option>
@@ -201,7 +201,7 @@ export function ReminderSettingsForm({
           </div>
         </div>
 
-        <p className="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-600">
+        <p className="rounded-md border border-border bg-surface-muted px-3 py-2 text-sm text-foreground-muted">
           Automatic reminders apply after the{" "}
           <span className="font-medium">1st day of the reporting period</span>.
           Example: value 3 + days means eligible from the 4th of the month if
@@ -213,7 +213,7 @@ export function ReminderSettingsForm({
           <button
             type="submit"
             disabled={saving || reloading}
-            className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
           >
             {saving ? "Saving…" : "Save"}
           </button>
@@ -221,14 +221,14 @@ export function ReminderSettingsForm({
             type="button"
             onClick={() => void reloadSettings()}
             disabled={saving || reloading}
-            className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-60"
+            className="rounded-md border border-border-strong px-4 py-2 text-sm font-medium text-foreground-muted hover:bg-surface-muted disabled:opacity-60"
           >
             {reloading ? "Reloading…" : "Reload"}
           </button>
         </div>
       </form>
 
-      <p className="text-xs text-zinc-500">
+      <p className="text-xs text-foreground-subtle">
         Last saved: {savedSettings.remindersEnabled ? "Enabled" : "Disabled"}
         {savedSettings.remindersEnabled && savedSchedule
           ? ` · Schedule: ${savedSchedule} after period start`

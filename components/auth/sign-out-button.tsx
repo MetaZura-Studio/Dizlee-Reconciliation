@@ -10,7 +10,7 @@ type SignOutButtonProps = {
 
 export function SignOutButton({
   callbackUrl = "/login",
-  className = "text-sm text-zinc-600 underline hover:text-zinc-900",
+  className = "text-sm text-foreground-muted underline hover:text-foreground",
   label = "Sign out",
 }: SignOutButtonProps) {
   return (

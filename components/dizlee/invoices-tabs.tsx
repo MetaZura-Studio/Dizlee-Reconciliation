@@ -22,7 +22,7 @@ const TABS: Array<{
 
 export function InvoicesTabs({ active }: InvoicesTabsProps) {
   return (
-    <div className="border-b border-zinc-200">
+    <div className="border-b border-border">
       <nav className="-mb-px flex gap-6">
         {TABS.map((tab) => {
           const isActive = tab.id === active;
@@ -33,8 +33,8 @@ export function InvoicesTabs({ active }: InvoicesTabsProps) {
               href={tab.href}
               className={`border-b-2 px-1 pb-3 text-sm font-medium ${
                 isActive
-                  ? "border-zinc-900 text-zinc-900"
-                  : "border-transparent text-zinc-500 hover:text-zinc-700"
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-foreground-subtle hover:text-foreground-muted"
               }`}
             >
               {tab.label}

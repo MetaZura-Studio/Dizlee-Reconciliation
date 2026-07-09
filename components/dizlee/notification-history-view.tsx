@@ -78,8 +78,8 @@ export function NotificationHistoryView({
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-zinc-900">Notifications</h1>
-        <p className="mt-1 text-sm text-zinc-500">
+        <h1 className="text-2xl font-semibold text-foreground">Notifications</h1>
+        <p className="mt-1 text-sm text-foreground-subtle">
           View all notifications sent from Dizlee (UC-9A).
         </p>
       </div>
@@ -87,21 +87,21 @@ export function NotificationHistoryView({
       <NotificationsTabs active="history" />
 
       {error ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-lg border border-danger-border bg-danger-muted px-4 py-3 text-sm text-danger">
           {error}
         </div>
       ) : null}
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-xl border border-zinc-200 bg-white">
-          <div className="border-b border-zinc-200 px-4 py-3">
-            <h2 className="font-medium text-zinc-900">Sent notifications</h2>
-            <p className="text-sm text-zinc-500">{result.totalCount} total</p>
+        <div className="rounded-xl border border-border bg-surface">
+          <div className="border-b border-border px-4 py-3">
+            <h2 className="font-medium text-foreground">Sent notifications</h2>
+            <p className="text-sm text-foreground-subtle">{result.totalCount} total</p>
           </div>
 
-          <div className="divide-y divide-zinc-100">
+          <div className="divide-y divide-border">
             {result.items.length === 0 ? (
-              <p className="px-4 py-8 text-center text-sm text-zinc-500">
+              <p className="px-4 py-8 text-center text-sm text-foreground-subtle">
                 No notifications sent yet.
               </p>
             ) : (
@@ -110,23 +110,23 @@ export function NotificationHistoryView({
                   key={item.id}
                   type="button"
                   onClick={() => void loadDetail(item.id)}
-                  className={`w-full px-4 py-3 text-left transition-colors hover:bg-zinc-50 ${
-                    selectedId === item.id ? "bg-zinc-50" : ""
+                  className={`w-full px-4 py-3 text-left transition-colors hover:bg-surface-muted ${
+                    selectedId === item.id ? "bg-surface-muted" : ""
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <p className="font-medium text-zinc-900">{item.subject}</p>
+                    <p className="font-medium text-foreground">{item.subject}</p>
                     {item.priority ? (
-                      <span className="shrink-0 rounded-full bg-zinc-200 px-2 py-0.5 text-xs text-zinc-700">
+                      <span className="shrink-0 rounded-full bg-primary-muted px-2 py-0.5 text-xs text-foreground-muted">
                         {item.priority}
                       </span>
                     ) : null}
                   </div>
-                  <p className="mt-1 text-sm text-zinc-600">{item.bodyPreview}</p>
-                  <p className="mt-2 text-xs text-zinc-500">
+                  <p className="mt-1 text-sm text-foreground-muted">{item.bodyPreview}</p>
+                  <p className="mt-2 text-xs text-foreground-subtle">
                     To: {item.recipientSummary}
                   </p>
-                  <p className="mt-1 text-xs text-zinc-500">
+                  <p className="mt-1 text-xs text-foreground-subtle">
                     {formatDateTime(item.sentAt)} · {item.sentBy}
                   </p>
                 </button>
@@ -135,7 +135,7 @@ export function NotificationHistoryView({
           </div>
 
           {result.totalPages > 1 ? (
-            <div className="flex items-center justify-between border-t border-zinc-200 px-4 py-3 text-sm text-zinc-600">
+            <div className="flex items-center justify-between border-t border-border px-4 py-3 text-sm text-foreground-muted">
               <span>
                 Page {result.page} of {result.totalPages}
               </span>
@@ -144,7 +144,7 @@ export function NotificationHistoryView({
                   type="button"
                   disabled={result.page <= 1 || loading}
                   onClick={() => void loadList(result.page - 1)}
-                  className="rounded-lg border border-zinc-300 px-3 py-1 disabled:opacity-50"
+                  className="rounded-lg border border-border-strong px-3 py-1 disabled:opacity-50"
                 >
                   Previous
                 </button>
@@ -152,7 +152,7 @@ export function NotificationHistoryView({
                   type="button"
                   disabled={result.page >= result.totalPages || loading}
                   onClick={() => void loadList(result.page + 1)}
-                  className="rounded-lg border border-zinc-300 px-3 py-1 disabled:opacity-50"
+                  className="rounded-lg border border-border-strong px-3 py-1 disabled:opacity-50"
                 >
                   Next
                 </button>
@@ -161,22 +161,22 @@ export function NotificationHistoryView({
           ) : null}
         </div>
 
-        <div className="rounded-xl border border-zinc-200 bg-white p-4">
-          <h2 className="font-medium text-zinc-900">Detail</h2>
+        <div className="rounded-xl border border-border bg-surface p-4">
+          <h2 className="font-medium text-foreground">Detail</h2>
           {detailLoading ? (
-            <p className="mt-4 text-sm text-zinc-500">Loading…</p>
+            <p className="mt-4 text-sm text-foreground-subtle">Loading…</p>
           ) : detail ? (
             <div className="mt-4 space-y-4">
               <div>
-                <h3 className="text-lg font-medium text-zinc-900">{detail.subject}</h3>
-                <p className="mt-1 text-sm text-zinc-500">
+                <h3 className="text-lg font-medium text-foreground">{detail.subject}</h3>
+                <p className="mt-1 text-sm text-foreground-subtle">
                   Sent {formatDateTime(detail.sentAt)} by {detail.sentBy}
                 </p>
               </div>
-              <p className="whitespace-pre-wrap text-sm text-zinc-700">{detail.body}</p>
+              <p className="whitespace-pre-wrap text-sm text-foreground-muted">{detail.body}</p>
               <div>
-                <p className="text-sm font-medium text-zinc-700">Recipients</p>
-                <ul className="mt-2 space-y-1 text-sm text-zinc-600">
+                <p className="text-sm font-medium text-foreground-muted">Recipients</p>
+                <ul className="mt-2 space-y-1 text-sm text-foreground-muted">
                   {detail.recipients.map((recipient, index) => (
                     <li key={`${recipient.type}-${recipient.name}-${index}`}>
                       {recipient.type}: {recipient.name}
@@ -186,7 +186,7 @@ export function NotificationHistoryView({
               </div>
             </div>
           ) : (
-            <p className="mt-4 text-sm text-zinc-500">
+            <p className="mt-4 text-sm text-foreground-subtle">
               Select a notification to view details.
             </p>
           )}

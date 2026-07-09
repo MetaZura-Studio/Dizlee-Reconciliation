@@ -256,14 +256,14 @@ export function ConsolidationView({
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-zinc-900">Consolidation</h1>
-        <p className="mt-1 text-sm text-zinc-500">
+        <h1 className="text-2xl font-semibold text-foreground">Consolidation</h1>
+        <p className="mt-1 text-sm text-foreground-subtle">
           Generate OpCo monthly consolidations from uploaded OpCo reports and export
           Excel.
         </p>
       </div>
 
-      <div className="border-b border-zinc-200">
+      <div className="border-b border-border">
         <nav className="-mb-px flex gap-6">
           {[
             { id: "generate" as const, label: "Generate" },
@@ -280,8 +280,8 @@ export function ConsolidationView({
               }}
               className={`border-b-2 px-1 pb-3 text-sm font-medium ${
                 activeTab === tab.id
-                  ? "border-zinc-900 text-zinc-900"
-                  : "border-transparent text-zinc-500 hover:text-zinc-700"
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-foreground-subtle hover:text-foreground-muted"
               }`}
             >
               {tab.label}
@@ -291,27 +291,27 @@ export function ConsolidationView({
       </div>
 
       {error ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-lg border border-danger-border bg-danger-muted px-4 py-3 text-sm text-danger">
           {error}
         </div>
       ) : null}
 
       {message ? (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+        <div className="rounded-lg border border-success-border bg-success-muted px-4 py-3 text-sm text-success">
           {message}
         </div>
       ) : null}
 
       {activeTab === "generate" ? (
         <div className="space-y-6">
-          <div className="rounded-xl border border-zinc-200 bg-white p-4">
+          <div className="rounded-xl border border-border bg-surface p-4">
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <label className="block text-sm">
-                <span className="text-zinc-600">Month</span>
+                <span className="text-foreground-muted">Month</span>
                 <select
                   value={month}
                   onChange={(event) => setMonth(Number(event.target.value))}
-                  className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2"
+                  className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
                 >
                   {MONTHS.map((label, index) => (
                     <option key={label} value={index + 1}>
@@ -322,11 +322,11 @@ export function ConsolidationView({
               </label>
 
               <label className="block text-sm">
-                <span className="text-zinc-600">Year</span>
+                <span className="text-foreground-muted">Year</span>
                 <select
                   value={year}
                   onChange={(event) => setYear(Number(event.target.value))}
-                  className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2"
+                  className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
                 >
                   {yearOptions.map((value) => (
                     <option key={value} value={value}>
@@ -337,11 +337,11 @@ export function ConsolidationView({
               </label>
 
               <label className="block text-sm sm:col-span-2">
-                <span className="text-zinc-600">OpCo</span>
+                <span className="text-foreground-muted">OpCo</span>
                 <select
                   value={opcoId}
                   onChange={(event) => setOpcoId(event.target.value)}
-                  className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2"
+                  className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
                 >
                   <option value="">Select OpCo</option>
                   {filterOptions.opcos.map((opco) => (
@@ -358,7 +358,7 @@ export function ConsolidationView({
                 type="button"
                 onClick={applyGenerateFilters}
                 disabled={!opcoId || loading}
-                className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+                className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
               >
                 Check readiness
               </button>
@@ -366,7 +366,7 @@ export function ConsolidationView({
                 type="button"
                 onClick={() => void runGenerate()}
                 disabled={!canGenerate || generating}
-                className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-900 disabled:opacity-50"
+                className="rounded-lg border border-border-strong px-4 py-2 text-sm font-medium text-foreground disabled:opacity-50"
               >
                 {generating
                   ? "Working…"
@@ -378,13 +378,13 @@ export function ConsolidationView({
           </div>
 
           {readiness ? (
-            <div className="rounded-xl border border-zinc-200 bg-white p-4">
+            <div className="rounded-xl border border-border bg-surface p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <h2 className="text-lg font-medium text-zinc-900">
+                  <h2 className="text-lg font-medium text-foreground">
                     {readiness.opcoName} — {readiness.period.label}
                   </h2>
-                  <p className="mt-1 text-sm text-zinc-500">
+                  <p className="mt-1 text-sm text-foreground-subtle">
                     {readiness.linkedCount} linked partner
                     {readiness.linkedCount === 1 ? "" : "s"}
                     {readiness.existingConsolidationId
@@ -395,8 +395,8 @@ export function ConsolidationView({
                 <span
                   className={`rounded-full px-3 py-1 text-xs font-medium ${
                     readiness.ready
-                      ? "bg-emerald-50 text-emerald-700"
-                      : "bg-amber-50 text-amber-700"
+                      ? "bg-success-muted text-success"
+                      : "bg-warning-muted text-warning"
                   }`}
                 >
                   {readiness.ready ? "Ready to generate" : "Not ready"}
@@ -404,7 +404,7 @@ export function ConsolidationView({
               </div>
 
               {readiness.missingPartners.length > 0 ? (
-                <p className="mt-3 text-sm text-amber-700">
+                <p className="mt-3 text-sm text-warning">
                   Missing OpCo reports or line items for:{" "}
                   {readiness.missingPartners.join(", ")}
                 </p>
@@ -412,7 +412,7 @@ export function ConsolidationView({
 
               <div className="mt-4 overflow-x-auto">
                 <table className="min-w-full text-left text-sm">
-                  <thead className="border-b border-zinc-200 text-zinc-500">
+                  <thead className="border-b border-border text-foreground-subtle">
                     <tr>
                       <th className="px-3 py-2 font-medium">Partner</th>
                       <th className="px-3 py-2 font-medium">OpCo report</th>
@@ -421,16 +421,16 @@ export function ConsolidationView({
                   </thead>
                   <tbody>
                     {readiness.partners.map((partner) => (
-                      <tr key={partner.partnerId} className="border-b border-zinc-100">
-                        <td className="px-3 py-2 text-zinc-900">{partner.partnerName}</td>
+                      <tr key={partner.partnerId} className="border-b border-border">
+                        <td className="px-3 py-2 text-foreground">{partner.partnerName}</td>
                         <td className="px-3 py-2">
                           {partner.hasReport ? (
-                            <span className="text-emerald-700">Uploaded</span>
+                            <span className="text-success">Uploaded</span>
                           ) : (
-                            <span className="text-amber-700">Missing</span>
+                            <span className="text-warning">Missing</span>
                           )}
                         </td>
-                        <td className="px-3 py-2 text-zinc-700">
+                        <td className="px-3 py-2 text-foreground-muted">
                           {partner.lineItemCount}
                         </td>
                       </tr>
@@ -442,32 +442,32 @@ export function ConsolidationView({
           ) : null}
 
           {detail ? (
-            <div className="rounded-xl border border-zinc-200 bg-white p-4">
+            <div className="rounded-xl border border-border bg-surface p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <h2 className="text-lg font-medium text-zinc-900">
+                  <h2 className="text-lg font-medium text-foreground">
                     Latest detail — {detail.opcoName}
                   </h2>
-                  <p className="mt-1 text-sm text-zinc-500">
+                  <p className="mt-1 text-sm text-foreground-subtle">
                     Generated {formatDateTime(detail.generatedAt)} by {detail.runBy}
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => downloadExcel(detail.id)}
-                  className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-900"
+                  className="rounded-lg border border-border-strong px-3 py-1.5 text-sm font-medium text-foreground"
                 >
                   Download Excel
                 </button>
               </div>
 
-              <p className="mt-3 text-sm text-zinc-700">
+              <p className="mt-3 text-sm text-foreground-muted">
                 Total USD: {formatUsd(detail.totalAmountUsd)}
               </p>
 
               <div className="mt-4 max-h-80 overflow-auto">
                 <table className="min-w-full text-left text-sm">
-                  <thead className="sticky top-0 border-b border-zinc-200 bg-white text-zinc-500">
+                  <thead className="sticky top-0 border-b border-border bg-surface text-foreground-subtle">
                     <tr>
                       <th className="px-3 py-2 font-medium">Partner</th>
                       <th className="px-3 py-2 font-medium">Service</th>
@@ -480,18 +480,18 @@ export function ConsolidationView({
                     {detail.items.map((item, index) => (
                       <tr
                         key={`${item.partnerName}-${item.serviceCode}-${index}`}
-                        className="border-b border-zinc-100"
+                        className="border-b border-border"
                       >
-                        <td className="px-3 py-2 text-zinc-900">{item.partnerName}</td>
-                        <td className="px-3 py-2 text-zinc-700">
+                        <td className="px-3 py-2 text-foreground">{item.partnerName}</td>
+                        <td className="px-3 py-2 text-foreground-muted">
                           {item.serviceCode ?? "—"}
                         </td>
-                        <td className="px-3 py-2 text-zinc-700">{item.description}</td>
-                        <td className="px-3 py-2 text-right text-zinc-700">
+                        <td className="px-3 py-2 text-foreground-muted">{item.description}</td>
+                        <td className="px-3 py-2 text-right text-foreground-muted">
                           {formatNumber(item.usageAmount)}
                           {item.usageUnit ? ` ${item.usageUnit}` : ""}
                         </td>
-                        <td className="px-3 py-2 text-right text-zinc-700">
+                        <td className="px-3 py-2 text-right text-foreground-muted">
                           {formatUsd(item.usageUsd)}
                         </td>
                       </tr>
@@ -504,14 +504,14 @@ export function ConsolidationView({
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="rounded-xl border border-zinc-200 bg-white p-4">
+          <div className="rounded-xl border border-border bg-surface p-4">
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <label className="block text-sm">
-                <span className="text-zinc-600">Month</span>
+                <span className="text-foreground-muted">Month</span>
                 <select
                   value={month}
                   onChange={(event) => setMonth(Number(event.target.value))}
-                  className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2"
+                  className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
                 >
                   {MONTHS.map((label, index) => (
                     <option key={label} value={index + 1}>
@@ -522,11 +522,11 @@ export function ConsolidationView({
               </label>
 
               <label className="block text-sm">
-                <span className="text-zinc-600">Year</span>
+                <span className="text-foreground-muted">Year</span>
                 <select
                   value={year}
                   onChange={(event) => setYear(Number(event.target.value))}
-                  className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2"
+                  className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
                 >
                   {yearOptions.map((value) => (
                     <option key={value} value={value}>
@@ -537,11 +537,11 @@ export function ConsolidationView({
               </label>
 
               <label className="block text-sm sm:col-span-2">
-                <span className="text-zinc-600">OpCo</span>
+                <span className="text-foreground-muted">OpCo</span>
                 <select
                   value={opcoId}
                   onChange={(event) => setOpcoId(event.target.value)}
-                  className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2"
+                  className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
                 >
                   <option value="">All OpCos</option>
                   {filterOptions.opcos.map((opco) => (
@@ -557,15 +557,15 @@ export function ConsolidationView({
               type="button"
               onClick={() => void loadHistory(1)}
               disabled={loading}
-              className="mt-4 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+              className="mt-4 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
             >
               Apply filters
             </button>
           </div>
 
-          <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
+          <div className="overflow-hidden rounded-xl border border-border bg-surface">
             <table className="min-w-full text-left text-sm">
-              <thead className="border-b border-zinc-200 bg-zinc-50 text-zinc-500">
+              <thead className="border-b border-border bg-surface-muted text-foreground-subtle">
                 <tr>
                   <th className="px-4 py-3 font-medium">Period</th>
                   <th className="px-4 py-3 font-medium">OpCo</th>
@@ -579,41 +579,41 @@ export function ConsolidationView({
               <tbody>
                 {history.items.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-8 text-center text-zinc-500">
+                    <td colSpan={7} className="px-4 py-8 text-center text-foreground-subtle">
                       No consolidations found for the selected filters.
                     </td>
                   </tr>
                 ) : (
                   history.items.map((item) => (
-                    <tr key={item.id} className="border-b border-zinc-100">
-                      <td className="px-4 py-3 text-zinc-900">
+                    <tr key={item.id} className="border-b border-border">
+                      <td className="px-4 py-3 text-foreground">
                         {formatPeriod(item.period.month, item.period.year)}
                       </td>
-                      <td className="px-4 py-3 text-zinc-900">{item.opcoName}</td>
-                      <td className="px-4 py-3 text-zinc-700">{item.status}</td>
-                      <td className="px-4 py-3 text-right text-zinc-700">
+                      <td className="px-4 py-3 text-foreground">{item.opcoName}</td>
+                      <td className="px-4 py-3 text-foreground-muted">{item.status}</td>
+                      <td className="px-4 py-3 text-right text-foreground-muted">
                         {formatUsd(item.totalAmountUsd)}
                       </td>
-                      <td className="px-4 py-3 text-right text-zinc-700">
+                      <td className="px-4 py-3 text-right text-foreground-muted">
                         {item.itemCount}
                       </td>
-                      <td className="px-4 py-3 text-zinc-700">
+                      <td className="px-4 py-3 text-foreground-muted">
                         <div>{formatDateTime(item.generatedAt)}</div>
-                        <div className="text-xs text-zinc-500">by {item.runBy}</div>
+                        <div className="text-xs text-foreground-subtle">by {item.runBy}</div>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap gap-2">
                           <button
                             type="button"
                             onClick={() => void loadDetail(item.id)}
-                            className="text-sm font-medium text-zinc-900 underline"
+                            className="text-sm font-medium text-foreground underline"
                           >
                             View
                           </button>
                           <button
                             type="button"
                             onClick={() => downloadExcel(item.id)}
-                            className="text-sm font-medium text-zinc-900 underline"
+                            className="text-sm font-medium text-foreground underline"
                           >
                             Excel
                           </button>
@@ -627,7 +627,7 @@ export function ConsolidationView({
           </div>
 
           {history.totalPages > 1 ? (
-            <div className="flex items-center justify-between text-sm text-zinc-600">
+            <div className="flex items-center justify-between text-sm text-foreground-muted">
               <span>
                 Page {history.page} of {history.totalPages}
               </span>
@@ -636,7 +636,7 @@ export function ConsolidationView({
                   type="button"
                   disabled={history.page <= 1 || loading}
                   onClick={() => void loadHistory(history.page - 1)}
-                  className="rounded-lg border border-zinc-300 px-3 py-1 disabled:opacity-50"
+                  className="rounded-lg border border-border-strong px-3 py-1 disabled:opacity-50"
                 >
                   Previous
                 </button>
@@ -644,7 +644,7 @@ export function ConsolidationView({
                   type="button"
                   disabled={history.page >= history.totalPages || loading}
                   onClick={() => void loadHistory(history.page + 1)}
-                  className="rounded-lg border border-zinc-300 px-3 py-1 disabled:opacity-50"
+                  className="rounded-lg border border-border-strong px-3 py-1 disabled:opacity-50"
                 >
                   Next
                 </button>
@@ -653,32 +653,32 @@ export function ConsolidationView({
           ) : null}
 
           {detail ? (
-            <div className="rounded-xl border border-zinc-200 bg-white p-4">
+            <div className="rounded-xl border border-border bg-surface p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <h2 className="text-lg font-medium text-zinc-900">
+                  <h2 className="text-lg font-medium text-foreground">
                     {detail.opcoName} — {detail.period.label}
                   </h2>
-                  <p className="mt-1 text-sm text-zinc-500">
+                  <p className="mt-1 text-sm text-foreground-subtle">
                     {detail.status} · Generated {formatDateTime(detail.generatedAt)}
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => downloadExcel(detail.id)}
-                  className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-900"
+                  className="rounded-lg border border-border-strong px-3 py-1.5 text-sm font-medium text-foreground"
                 >
                   Download Excel
                 </button>
               </div>
 
-              <p className="mt-3 text-sm text-zinc-700">
+              <p className="mt-3 text-sm text-foreground-muted">
                 Total USD: {formatUsd(detail.totalAmountUsd)}
               </p>
 
               <div className="mt-4 max-h-96 overflow-auto">
                 <table className="min-w-full text-left text-sm">
-                  <thead className="sticky top-0 border-b border-zinc-200 bg-white text-zinc-500">
+                  <thead className="sticky top-0 border-b border-border bg-surface text-foreground-subtle">
                     <tr>
                       <th className="px-3 py-2 font-medium">Partner</th>
                       <th className="px-3 py-2 font-medium">Service</th>
@@ -691,18 +691,18 @@ export function ConsolidationView({
                     {detail.items.map((item, index) => (
                       <tr
                         key={`${item.partnerName}-${item.serviceCode}-${index}`}
-                        className="border-b border-zinc-100"
+                        className="border-b border-border"
                       >
-                        <td className="px-3 py-2 text-zinc-900">{item.partnerName}</td>
-                        <td className="px-3 py-2 text-zinc-700">
+                        <td className="px-3 py-2 text-foreground">{item.partnerName}</td>
+                        <td className="px-3 py-2 text-foreground-muted">
                           {item.serviceCode ?? "—"}
                         </td>
-                        <td className="px-3 py-2 text-zinc-700">{item.description}</td>
-                        <td className="px-3 py-2 text-right text-zinc-700">
+                        <td className="px-3 py-2 text-foreground-muted">{item.description}</td>
+                        <td className="px-3 py-2 text-right text-foreground-muted">
                           {formatNumber(item.usageAmount)}
                           {item.usageUnit ? ` ${item.usageUnit}` : ""}
                         </td>
-                        <td className="px-3 py-2 text-right text-zinc-700">
+                        <td className="px-3 py-2 text-right text-foreground-muted">
                           {formatUsd(item.usageUsd)}
                         </td>
                       </tr>

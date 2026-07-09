@@ -43,7 +43,7 @@ export function NotificationsBell({
   return (
     <Link
       href="/dizlee/notifications?tab=inbox"
-      className="relative inline-flex items-center rounded-md p-2 text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900"
+      className="relative inline-flex items-center rounded-md p-2 text-foreground-muted transition-colors hover:bg-surface-muted hover:text-foreground"
       aria-label={
         unreadCount > 0
           ? `Notifications, ${unreadCount} unread`
@@ -66,7 +66,7 @@ export function NotificationsBell({
         <path d="M13.73 21a2 2 0 0 1-3.46 0" />
       </svg>
       {unreadCount > 0 ? (
-        <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white">
+        <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-primary-foreground">
           {unreadCount > 9 ? "9+" : unreadCount}
         </span>
       ) : null}

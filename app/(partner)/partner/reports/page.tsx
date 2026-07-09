@@ -44,7 +44,7 @@ export default async function PartnerReportsPage({
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">Reports</h1>
-        <p className="mt-1 text-zinc-600">
+        <p className="mt-1 text-foreground-muted">
           Find and review submitted reports. Filter by period, OpCo, or status.
         </p>
       </div>
