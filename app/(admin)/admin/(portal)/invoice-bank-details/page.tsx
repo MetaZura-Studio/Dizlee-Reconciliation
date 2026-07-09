@@ -1,10 +1,48 @@
-import { AdminPlaceholderPage } from "@/components/admin/placeholder-page";
+import { InvoiceBankDetailsForm } from "@/components/admin/invoice-bank-details-form";
+import {
+  getInvoiceBankDetailsView,
+  InvoiceBankDetailsError,
+  type InvoiceBankDetailsView,
+} from "@/lib/admin/invoice-bank-details";
 
-export default function AdminInvoiceBankDetailsPage() {
+export default async function AdminInvoiceBankDetailsPage() {
+  let settings: InvoiceBankDetailsView | null = null;
+  let errorMessage: string | null = null;
+
+  try {
+    settings = await getInvoiceBankDetailsView();
+  } catch (error) {
+    errorMessage =
+      error instanceof InvoiceBankDetailsError
+        ? error.message
+        : "Application settings could not be loaded.";
+  }
+
+  if (errorMessage) {
+    return (
+      <div className="mx-auto max-w-3xl space-y-3">
+        <h1 className="text-2xl font-semibold tracking-tight">
+          Invoice bank details
+        </h1>
+        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {errorMessage}
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <AdminPlaceholderPage
-      title="Invoice bank details"
-      description="Set default invoice bank account details."
-    />
+    <div className="mx-auto max-w-3xl space-y-6">
+      <div className="space-y-1">
+        <h1 className="text-2xl font-semibold tracking-tight">
+          Invoice bank details
+        </h1>
+        <p className="text-sm text-zinc-600">
+          Default bank account details for Dizlee → OpCo digital invoices.
+        </p>
+      </div>
+
+      <InvoiceBankDetailsForm initialSettings={settings!} />
+    </div>
   );
 }
