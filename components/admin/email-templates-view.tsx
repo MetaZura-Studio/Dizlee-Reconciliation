@@ -43,7 +43,9 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
     initialData.selected,
   );
   const [form, setForm] = useState<EditorFormState>(() =>
-    initialData.selected ? toFormState(initialData.selected) : { subject: "", body: "", changeNote: "" },
+    initialData.selected
+      ? toFormState(initialData.selected)
+      : { subject: "", body: "", changeNote: "" },
   );
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -94,10 +96,10 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
   };
 
   const handleSelect = (code: string) => {
-    if (code === selectedCode) {
-      return;
+    setSelectedCode(code);
+    if (code) {
+      void loadTemplate(code);
     }
-    void loadTemplate(code);
   };
 
   const reloadTemplate = async () => {
@@ -184,13 +186,15 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
     }
   };
 
-  if (!detail) {
+  if (!detail || templates.length === 0) {
     return (
       <p className="rounded-md border border-warning-border bg-warning-muted px-3 py-2 text-sm text-warning">
         No email templates are available.
       </p>
     );
   }
+
+  const selectedTemplate = templates.find((item) => item.code === selectedCode);
 
   return (
     <div className="space-y-6">
@@ -205,170 +209,171 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
         </p>
       ) : null}
 
-      <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
-        <section className="rounded-lg border border-border bg-surface p-4">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-foreground-subtle">
-            Templates
-          </h2>
-          <ul className="mt-3 space-y-1">
-            {templates.map((template: EmailTemplateListItem) => {
-              const isActive = template.code === selectedCode;
-              return (
-                <li key={template.code}>
-                  <button
-                    type="button"
-                    onClick={() => handleSelect(template.code)}
-                    disabled={loading || saving || revertingVersion !== null}
-                    className={`w-full rounded-md px-3 py-2 text-left text-sm transition ${
-                      isActive
-                        ? "bg-primary text-primary-foreground"
-                        : "text-foreground-muted hover:bg-surface-muted"
-                    }`}
-                  >
-                    <span className="block font-medium">{template.name}</span>
-                    <span
-                      className={`block text-xs ${isActive ? "text-foreground-subtle" : "text-foreground-subtle"}`}
-                    >
-                      v{template.currentVersion}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
+      <section className="rounded-lg border border-border bg-surface p-5">
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <label htmlFor="templateSelect" className="text-sm font-medium text-foreground-muted">
+              Template
+            </label>
+            <select
+              id="templateSelect"
+              value={selectedCode}
+              onChange={(event) => handleSelect(event.target.value)}
+              disabled={loading || saving || revertingVersion !== null}
+              className="w-full max-w-xl rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
+            >
+              {templates.map((template: EmailTemplateListItem) => (
+                <option key={template.code} value={template.code}>
+                  {template.name} (v{template.currentVersion})
+                </option>
+              ))}
+            </select>
+          </div>
 
-        <section className="space-y-6">
-          <div className="rounded-lg border border-border bg-surface p-5">
-            <div className="space-y-1">
-              <h2 className="text-lg font-semibold text-foreground">
-                {detail.name}
-              </h2>
-              <p className="text-sm text-foreground-muted">
-                Code: <span className="font-mono">{detail.code}</span> · Current
-                version v{detail.currentVersion}
-              </p>
-            </div>
-
-            <p className="mt-4 rounded-md border border-border bg-surface-muted px-3 py-2 text-sm text-foreground-muted">
-              Placeholders: {formatPlaceholderTokens(detail.placeholders)}
+          <div className="rounded-md border border-border bg-surface-muted px-3 py-2 text-sm text-foreground-muted">
+            <p>
+              <span className="font-medium text-foreground">Code:</span>{" "}
+              <span className="font-mono">{detail.code}</span>
             </p>
+            <p className="mt-1">
+              <span className="font-medium text-foreground">Current version:</span>{" "}
+              v{detail.currentVersion}
+              {selectedTemplate ? ` · ${selectedTemplate.subject}` : null}
+            </p>
+          </div>
+        </div>
+      </section>
 
-            <form onSubmit={(event) => void saveTemplate(event)} className="mt-4 space-y-4">
-              <div className="space-y-1">
-                <label htmlFor="templateSubject" className="text-sm font-medium text-foreground-muted">
-                  Subject
-                </label>
-                <input
-                  id="templateSubject"
-                  value={form.subject}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, subject: event.target.value }))
-                  }
-                  className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
-                />
-              </div>
+      <section className="rounded-lg border border-border bg-surface p-5">
+        <div className="space-y-1">
+          <h2 className="text-lg font-semibold text-foreground">Format</h2>
+          <p className="text-sm text-foreground-muted">
+            Edit the subject and body for the selected template. Use placeholders
+            where shown — they are replaced with real values when the email is sent.
+          </p>
+        </div>
 
-              <div className="space-y-1">
-                <label htmlFor="templateBody" className="text-sm font-medium text-foreground-muted">
-                  Body
-                </label>
-                <textarea
-                  id="templateBody"
-                  rows={8}
-                  value={form.body}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, body: event.target.value }))
-                  }
-                  className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
-                />
-              </div>
+        <p className="mt-4 rounded-md border border-border bg-surface-muted px-3 py-2 text-sm text-foreground-muted">
+          Placeholders: {formatPlaceholderTokens(detail.placeholders)}
+        </p>
 
-              <div className="space-y-1">
-                <label htmlFor="changeNote" className="text-sm font-medium text-foreground-muted">
-                  Change note
-                </label>
-                <input
-                  id="changeNote"
-                  value={form.changeNote}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, changeNote: event.target.value }))
-                  }
-                  placeholder="Optional note for this version"
-                  className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
-                />
-              </div>
-
-              <div className="flex flex-wrap gap-3">
-                <button
-                  type="submit"
-                  disabled={saving || loading || revertingVersion !== null}
-                  className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
-                >
-                  {saving ? "Saving…" : "Save"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void reloadTemplate()}
-                  disabled={saving || loading || revertingVersion !== null}
-                  className="rounded-md border border-border-strong px-4 py-2 text-sm font-medium text-foreground-muted hover:bg-surface-muted disabled:opacity-60"
-                >
-                  {loading ? "Reloading…" : "Reload"}
-                </button>
-              </div>
-            </form>
+        <form onSubmit={(event) => void saveTemplate(event)} className="mt-4 space-y-4">
+          <div className="space-y-1">
+            <label htmlFor="templateSubject" className="text-sm font-medium text-foreground-muted">
+              Subject
+            </label>
+            <input
+              id="templateSubject"
+              value={form.subject}
+              onChange={(event) =>
+                setForm((current) => ({ ...current, subject: event.target.value }))
+              }
+              className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
+            />
           </div>
 
-          <div className="rounded-lg border border-border bg-surface p-5">
-            <h3 className="text-lg font-semibold text-foreground">Version history</h3>
-            <div className="mt-4 overflow-x-auto">
-              <table className="min-w-full text-left text-sm">
-                <thead className="border-b border-border text-foreground-subtle">
-                  <tr>
-                    <th className="px-3 py-2 font-medium">Version</th>
-                    <th className="px-3 py-2 font-medium">Subject</th>
-                    <th className="px-3 py-2 font-medium">Saved</th>
-                    <th className="px-3 py-2 font-medium">Note</th>
-                    <th className="px-3 py-2 font-medium">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {detail.versions.map((version) => (
-                    <tr key={version.version} className="border-b border-border">
-                      <td className="px-3 py-2 font-medium text-foreground">
-                        v{version.version}
-                      </td>
-                      <td className="px-3 py-2 text-foreground-muted">{version.subject}</td>
-                      <td className="px-3 py-2 text-foreground-muted">
-                        {formatDateTime(version.createdAt)}
-                      </td>
-                      <td className="px-3 py-2 text-foreground-muted">
-                        {version.changeNote ?? "—"}
-                      </td>
-                      <td className="px-3 py-2">
-                        <button
-                          type="button"
-                          onClick={() => void revertToVersion(version.version)}
-                          disabled={
-                            saving ||
-                            loading ||
-                            revertingVersion === version.version
-                          }
-                          className="text-sm font-medium text-foreground-muted hover:text-foreground disabled:opacity-60"
-                        >
-                          {revertingVersion === version.version
-                            ? "Reverting…"
-                            : "Revert"}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <div className="space-y-1">
+            <label htmlFor="templateBody" className="text-sm font-medium text-foreground-muted">
+              Body
+            </label>
+            <textarea
+              id="templateBody"
+              rows={10}
+              value={form.body}
+              onChange={(event) =>
+                setForm((current) => ({ ...current, body: event.target.value }))
+              }
+              className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
+            />
           </div>
-        </section>
-      </div>
+
+          <div className="space-y-1">
+            <label htmlFor="changeNote" className="text-sm font-medium text-foreground-muted">
+              Change note
+            </label>
+            <input
+              id="changeNote"
+              value={form.changeNote}
+              onChange={(event) =>
+                setForm((current) => ({ ...current, changeNote: event.target.value }))
+              }
+              placeholder="Optional note for this version"
+              className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
+            />
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="submit"
+              disabled={saving || loading || revertingVersion !== null}
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
+            >
+              {saving ? "Saving…" : "Save"}
+            </button>
+            <button
+              type="button"
+              onClick={() => void reloadTemplate()}
+              disabled={saving || loading || revertingVersion !== null}
+              className="rounded-md border border-border-strong px-4 py-2 text-sm font-medium text-foreground-muted hover:bg-surface-muted disabled:opacity-60"
+            >
+              {loading ? "Reloading…" : "Reload"}
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <section className="rounded-lg border border-border bg-surface p-5">
+        <h3 className="text-lg font-semibold text-foreground">Version history</h3>
+        <p className="mt-1 text-sm text-foreground-muted">
+          Each save creates a new version. Revert copies an older version forward
+          without deleting history.
+        </p>
+        <div className="mt-4 overflow-x-auto">
+          <table className="min-w-full text-left text-sm">
+            <thead className="border-b border-border text-foreground-subtle">
+              <tr>
+                <th className="px-3 py-2 font-medium">Version</th>
+                <th className="px-3 py-2 font-medium">Subject</th>
+                <th className="px-3 py-2 font-medium">Saved</th>
+                <th className="px-3 py-2 font-medium">Note</th>
+                <th className="px-3 py-2 font-medium">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {detail.versions.map((version) => (
+                <tr key={version.version} className="border-b border-border">
+                  <td className="px-3 py-2 font-medium text-foreground">
+                    v{version.version}
+                  </td>
+                  <td className="px-3 py-2 text-foreground-muted">{version.subject}</td>
+                  <td className="px-3 py-2 text-foreground-muted">
+                    {formatDateTime(version.createdAt)}
+                  </td>
+                  <td className="px-3 py-2 text-foreground-muted">
+                    {version.changeNote ?? "—"}
+                  </td>
+                  <td className="px-3 py-2">
+                    <button
+                      type="button"
+                      onClick={() => void revertToVersion(version.version)}
+                      disabled={
+                        saving ||
+                        loading ||
+                        revertingVersion === version.version
+                      }
+                      className="text-sm font-medium text-foreground-muted hover:text-foreground disabled:opacity-60"
+                    >
+                      {revertingVersion === version.version
+                        ? "Reverting…"
+                        : "Revert"}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   );
 }

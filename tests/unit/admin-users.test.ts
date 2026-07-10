@@ -18,53 +18,26 @@ describe("admin user validation", () => {
     expect(result.success).toBe(true);
   });
 
-  it("requires OpCo when role is opco", () => {
+  it("accepts OpCo users without selecting an existing OpCo", () => {
     const result = createUserSchema.safeParse({
-      name: "OpCo User",
-      email: "opco.user@dizlee.com",
+      name: "New OpCo",
+      email: "newopco@gmail.com",
       role: "opco",
       status: "ACTIVE",
-    });
-
-    expect(result.success).toBe(false);
-  });
-
-  it("requires Partner when role is partner", () => {
-    const result = createUserSchema.safeParse({
-      name: "Partner User",
-      email: "partner.user@dizlee.com",
-      role: "partner",
-      status: "ACTIVE",
-      opcoId: null,
-      partnerId: null,
-    });
-
-    expect(result.success).toBe(false);
-  });
-
-  it("accepts a valid OpCo user with assignment", () => {
-    const result = createUserSchema.safeParse({
-      name: "Jordan OpCo",
-      email: "zain-jordan@dizlee.com",
-      role: "opco",
-      status: "ACTIVE",
-      opcoId: "4",
-      partnerId: null,
     });
 
     expect(result.success).toBe(true);
   });
 
-  it("rejects Dizlee users linked to OpCo or Partner", () => {
+  it("accepts Partner users without selecting an existing Partner", () => {
     const result = createUserSchema.safeParse({
-      name: "Invalid Client",
-      email: "bad@dizlee.com",
-      role: "client",
+      name: "New Partner",
+      email: "newpartner@gmail.com",
+      role: "partner",
       status: "ACTIVE",
-      opcoId: "1",
     });
 
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 
   it("does not require password on update", () => {
@@ -73,7 +46,6 @@ describe("admin user validation", () => {
       email: "spotify@dizlee.com",
       role: "partner",
       status: "INACTIVE",
-      partnerId: "11",
     });
 
     expect(result.success).toBe(true);

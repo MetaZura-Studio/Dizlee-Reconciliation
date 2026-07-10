@@ -1,6 +1,6 @@
 export const APP_SETTINGS_SEED = {
   emailEnabled: false,
-  smtpHost: "smtp.example.com",
+  smtpHost: null,
   smtpPort: 587,
   senderAddress: "noreply@dizlee.com",
   remindersEnabled: true,

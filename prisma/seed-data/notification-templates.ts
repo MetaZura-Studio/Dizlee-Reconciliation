@@ -11,88 +11,57 @@ export type NotificationTemplateSeed = {
   }>;
 };
 
+/** Admin-editable broadcast templates. Password emails stay hardcoded in lib/auth/password-email-content.ts */
 export const NOTIFICATION_TEMPLATE_SEEDS: NotificationTemplateSeed[] = [
   {
-    code: "PASSWORD_RESET",
-    name: "Password Reset",
-    subject: "Reset your password",
-    body: "Use the link to reset your password.",
+    code: "REPORT_SUBMISSION",
+    name: "Report submission notice",
+    subject: "Monthly report submission",
+    body: "Please submit your monthly report for {{period}} through the portal when it is ready.",
     versions: [
       {
         version: 1,
-        subject: "Reset your password",
-        body: "Use the link to reset your password.",
-      },
-    ],
-  },
-  {
-    code: "TEST_EMAIL",
-    name: "Test Email",
-    subject: "Test email from Dizlee",
-    body: "This is a test email.",
-    versions: [
-      {
-        version: 1,
-        subject: "Test email from Dizlee",
-        body: "This is a test email.",
-      },
-    ],
-  },
-  {
-    code: "NOTIFICATION_EMAIL",
-    name: "Notification Email",
-    subject: "Notification",
-    body: "You have a new notification.",
-    versions: [
-      {
-        version: 1,
-        subject: "Notification",
-        body: "You have a new notification.",
-      },
-    ],
-  },
-  {
-    code: "INVOICE_SENT",
-    name: "Invoice Sent",
-    subject: "Invoice sent",
-    body: "An invoice has been sent.",
-    versions: [
-      {
-        version: 1,
-        subject: "Invoice sent",
-        body: "An invoice has been sent.",
-      },
-      {
-        version: 2,
-        subject: "Your invoice is ready",
-        body: "Your invoice has been issued and is available in the portal.",
-        changeNote: "Updated subject and body for clarity",
+        subject: "Monthly report submission",
+        body: "Please submit your monthly report for {{period}} through the portal when it is ready.",
       },
     ],
   },
   {
     code: "REPORT_REMINDER",
-    name: "Report Reminder",
+    name: "Report reminder",
     subject: "Report submission reminder",
-    body: "Please submit your report.",
+    body: "Your monthly report for {{period}} is still missing. Please log in and upload it as soon as possible.",
     versions: [
       {
         version: 1,
         subject: "Report submission reminder",
-        body: "Please submit your report.",
+        body: "Your monthly report for {{period}} is still missing. Please log in and upload it as soon as possible.",
+      },
+    ],
+  },
+  {
+    code: "INVOICE_SUBMISSION",
+    name: "Invoice submission notice",
+    subject: "Monthly invoice submission",
+    body: "Please submit your monthly invoice for {{period}} through the portal when it is ready.",
+    versions: [
+      {
+        version: 1,
+        subject: "Monthly invoice submission",
+        body: "Please submit your monthly invoice for {{period}} through the portal when it is ready.",
       },
     ],
   },
   {
     code: "INVOICE_REMINDER",
-    name: "Invoice Reminder",
+    name: "Invoice reminder",
     subject: "Invoice submission reminder",
-    body: "Please submit your invoice.",
+    body: "Your monthly invoice for {{period}} is still missing. Please log in and upload it as soon as possible.",
     versions: [
       {
         version: 1,
         subject: "Invoice submission reminder",
-        body: "Please submit your invoice.",
+        body: "Your monthly invoice for {{period}} is still missing. Please log in and upload it as soon as possible.",
       },
     ],
   },

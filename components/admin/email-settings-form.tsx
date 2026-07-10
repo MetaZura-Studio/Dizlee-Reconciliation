@@ -8,34 +8,22 @@ type EmailSettingsFormProps = {
   initialSettings: EmailSettingsView;
 };
 
-function toFormState(settings: EmailSettingsView) {
-  return {
-    emailEnabled: settings.emailEnabled,
-    senderAddress: settings.senderAddress ?? "",
-    smtpHost: settings.smtpHost ?? "",
-    smtpPort:
-      settings.smtpPort === null || settings.smtpPort === undefined
-        ? ""
-        : String(settings.smtpPort),
-  };
+function formatValue(value: string | number | null | undefined): string {
+  if (value === null || value === undefined || value === "") {
+    return "Not set";
+  }
+  return String(value);
 }
 
 export function EmailSettingsForm({ initialSettings }: EmailSettingsFormProps) {
-  const [form, setForm] = useState(() => toFormState(initialSettings));
-  const [savedSettings, setSavedSettings] = useState(initialSettings);
+  const [settings, setSettings] = useState(initialSettings);
   const [testRecipient, setTestRecipient] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
   const [reloading, setReloading] = useState(false);
   const [sendingTest, setSendingTest] = useState(false);
 
-  const applySettings = useCallback((settings: EmailSettingsView) => {
-    setSavedSettings(settings);
-    setForm(toFormState(settings));
-  }, []);
-
-  const reloadSettings = async () => {
+  const reloadSettings = useCallback(async () => {
     setError(null);
     setSuccess(null);
     setReloading(true);
@@ -46,7 +34,7 @@ export function EmailSettingsForm({ initialSettings }: EmailSettingsFormProps) {
       if (!response.ok) {
         throw new Error(body.error ?? "Failed to reload email settings");
       }
-      applySettings(body.data as EmailSettingsView);
+      setSettings(body.data as EmailSettingsView);
     } catch (reloadError) {
       setError(
         reloadError instanceof Error
@@ -56,49 +44,7 @@ export function EmailSettingsForm({ initialSettings }: EmailSettingsFormProps) {
     } finally {
       setReloading(false);
     }
-  };
-
-  const saveSettings = async (event: React.FormEvent) => {
-    event.preventDefault();
-    setError(null);
-    setSuccess(null);
-    setSaving(true);
-
-    try {
-      const smtpPort =
-        form.smtpPort.trim() === "" ? null : Number.parseInt(form.smtpPort, 10);
-
-      if (form.smtpPort.trim() !== "" && Number.isNaN(smtpPort)) {
-        throw new Error("SMTP port must be a number");
-      }
-
-      const response = await fetch("/api/admin/email-settings", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          emailEnabled: form.emailEnabled,
-          senderAddress: form.senderAddress,
-          smtpHost: form.smtpHost,
-          smtpPort,
-        }),
-      });
-      const body = await response.json();
-      if (!response.ok) {
-        throw new Error(body.error ?? "Failed to save email settings");
-      }
-
-      applySettings(body.data as EmailSettingsView);
-      setSuccess("Email settings saved.");
-    } catch (saveError) {
-      setError(
-        saveError instanceof Error
-          ? saveError.message
-          : "Failed to save email settings",
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
+  }, []);
 
   const sendTest = async () => {
     setError(null);
@@ -133,7 +79,7 @@ export function EmailSettingsForm({ initialSettings }: EmailSettingsFormProps) {
   };
 
   const testDisabled =
-    !form.emailEnabled || sendingTest || testRecipient.trim().length === 0;
+    !settings.emailEnabled || sendingTest || testRecipient.trim().length === 0;
 
   return (
     <div className="space-y-8">
@@ -148,109 +94,58 @@ export function EmailSettingsForm({ initialSettings }: EmailSettingsFormProps) {
         </p>
       ) : null}
 
-      <form onSubmit={(event) => void saveSettings(event)} className="space-y-6">
+      <section className="space-y-4">
         <div className="space-y-1">
-          <label htmlFor="emailEnabled" className="text-sm font-medium text-foreground-muted">
-            Enabled
-          </label>
-          <select
-            id="emailEnabled"
-            value={form.emailEnabled ? "enabled" : "disabled"}
-            onChange={(event) =>
-              setForm((current) => ({
-                ...current,
-                emailEnabled: event.target.value === "enabled",
-              }))
-            }
-            className="w-full max-w-xs rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
-          >
-            <option value="disabled">Disabled</option>
-            <option value="enabled">Enabled</option>
-          </select>
+          <h2 className="text-lg font-medium text-foreground">SMTP from .env</h2>
+          <p className="text-sm text-foreground-muted">
+            Outbound email is configured in the server <code>.env</code> file.
+            Update values there and restart the dev server. Admin email settings
+            in the database are not used for sending.
+          </p>
         </div>
 
-        <div className="space-y-1">
-          <label htmlFor="senderAddress" className="text-sm font-medium text-foreground-muted">
-            Sender address
-          </label>
-          <input
-            id="senderAddress"
-            type="email"
-            value={form.senderAddress}
-            onChange={(event) =>
-              setForm((current) => ({
-                ...current,
-                senderAddress: event.target.value,
-              }))
-            }
-            placeholder="dizlee@metazura.com"
-            className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
-          />
-        </div>
+        <dl className="grid gap-3 rounded-lg border border-border bg-surface-muted p-4 text-sm">
+          <div className="grid gap-1 sm:grid-cols-[180px_1fr]">
+            <dt className="font-medium text-foreground-muted">EMAIL_ENABLED</dt>
+            <dd>{settings.emailEnabled ? "true" : "false"}</dd>
+          </div>
+          <div className="grid gap-1 sm:grid-cols-[180px_1fr]">
+            <dt className="font-medium text-foreground-muted">SMTP_HOST</dt>
+            <dd>{formatValue(settings.smtpHost)}</dd>
+          </div>
+          <div className="grid gap-1 sm:grid-cols-[180px_1fr]">
+            <dt className="font-medium text-foreground-muted">SMTP_PORT</dt>
+            <dd>{formatValue(settings.smtpPort)}</dd>
+          </div>
+          <div className="grid gap-1 sm:grid-cols-[180px_1fr]">
+            <dt className="font-medium text-foreground-muted">SMTP_FROM</dt>
+            <dd>{formatValue(settings.senderAddress)}</dd>
+          </div>
+          <div className="grid gap-1 sm:grid-cols-[180px_1fr]">
+            <dt className="font-medium text-foreground-muted">SMTP_USER</dt>
+            <dd>Set in .env (not shown)</dd>
+          </div>
+          <div className="grid gap-1 sm:grid-cols-[180px_1fr]">
+            <dt className="font-medium text-foreground-muted">SMTP_PASSWORD</dt>
+            <dd>Set in .env (not shown)</dd>
+          </div>
+        </dl>
 
-        <div className="space-y-1">
-          <label htmlFor="smtpHost" className="text-sm font-medium text-foreground-muted">
-            SMTP host
-          </label>
-          <input
-            id="smtpHost"
-            type="text"
-            value={form.smtpHost}
-            onChange={(event) =>
-              setForm((current) => ({ ...current, smtpHost: event.target.value }))
-            }
-            placeholder="smtp.titan.email"
-            className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
-          />
-        </div>
-
-        <div className="space-y-1">
-          <label htmlFor="smtpPort" className="text-sm font-medium text-foreground-muted">
-            SMTP port
-          </label>
-          <input
-            id="smtpPort"
-            type="number"
-            min={1}
-            value={form.smtpPort}
-            onChange={(event) =>
-              setForm((current) => ({ ...current, smtpPort: event.target.value }))
-            }
-            placeholder="587"
-            className="w-full max-w-xs rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
-          />
-        </div>
-
-        <p className="rounded-md border border-border bg-surface-muted px-3 py-2 text-sm text-foreground-muted">
-          Outbound mail is sent as Dizlee. SMTP username and password are set in
-          server environment variables, not stored in the database.
-        </p>
-
-        <div className="flex flex-wrap gap-3">
-          <button
-            type="submit"
-            disabled={saving || reloading}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
-          >
-            {saving ? "Saving…" : "Save"}
-          </button>
-          <button
-            type="button"
-            onClick={() => void reloadSettings()}
-            disabled={saving || reloading}
-            className="rounded-md border border-border-strong px-4 py-2 text-sm font-medium text-foreground-muted hover:bg-surface-muted disabled:opacity-60"
-          >
-            {reloading ? "Reloading…" : "Reload"}
-          </button>
-        </div>
-      </form>
+        <button
+          type="button"
+          onClick={() => void reloadSettings()}
+          disabled={reloading}
+          className="rounded-md border border-border-strong px-4 py-2 text-sm font-medium text-foreground-muted hover:bg-surface-muted disabled:opacity-60"
+        >
+          {reloading ? "Reloading…" : "Reload from .env"}
+        </button>
+      </section>
 
       <section className="space-y-4 border-t border-border pt-6">
         <div className="space-y-1">
           <h2 className="text-lg font-medium text-foreground">Send test email</h2>
           <p className="text-sm text-foreground-muted">
-            Save settings with email enabled, then send a test message to verify
-            delivery.
+            Verify delivery using the current .env SMTP configuration.
           </p>
         </div>
 
@@ -277,12 +172,6 @@ export function EmailSettingsForm({ initialSettings }: EmailSettingsFormProps) {
           {sendingTest ? "Sending…" : "Send test email"}
         </button>
       </section>
-
-      <p className="text-xs text-foreground-subtle">
-        Last saved: {savedSettings.emailEnabled ? "Enabled" : "Disabled"}
-        {savedSettings.smtpHost ? ` · ${savedSettings.smtpHost}` : ""}
-        {savedSettings.smtpPort ? `:${savedSettings.smtpPort}` : ""}
-      </p>
     </div>
   );
 }

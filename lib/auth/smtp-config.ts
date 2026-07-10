@@ -1,5 +1,3 @@
-import { prisma } from "@/lib/prisma";
-
 export type ResolvedSmtpConfig = {
   host: string;
   port: number;
@@ -12,27 +10,68 @@ export type SmtpResolutionResult =
   | { ok: true; config: ResolvedSmtpConfig }
   | { ok: false; reason: "email_disabled" | "smtp_not_configured" };
 
-export type EmailSettingsSnapshot = {
+const PLACEHOLDER_SMTP_HOSTS = new Set(["smtp.example.com", "example.com"]);
+
+export function normalizeSmtpHost(host: string | null | undefined): string {
+  const trimmed = host?.trim() ?? "";
+  if (!trimmed || PLACEHOLDER_SMTP_HOSTS.has(trimmed.toLowerCase())) {
+    return "";
+  }
+  return trimmed;
+}
+
+function parseEnvPort(): number {
+  const raw = process.env.SMTP_PORT?.trim();
+  if (!raw) {
+    return 587;
+  }
+
+  const port = Number(raw);
+  return Number.isFinite(port) && port > 0 ? port : 587;
+}
+
+export function isEmailEnabledFromEnv(): boolean {
+  const raw = process.env.EMAIL_ENABLED?.trim().toLowerCase();
+  if (raw === "false" || raw === "0" || raw === "no") {
+    return false;
+  }
+  if (raw === "true" || raw === "1" || raw === "yes") {
+    return true;
+  }
+
+  return Boolean(normalizeSmtpHost(process.env.SMTP_HOST));
+}
+
+export function getEmailSettingsFromEnv(): {
   emailEnabled: boolean;
   senderAddress: string | null;
   smtpHost: string | null;
   smtpPort: number | null;
-};
+} {
+  const smtpHost = normalizeSmtpHost(process.env.SMTP_HOST) || null;
+  const port = parseEnvPort();
 
-export function resolveSmtpConfigFromSnapshot(
-  settings: EmailSettingsSnapshot | null,
-): SmtpResolutionResult {
-  if (settings && !settings.emailEnabled) {
+  return {
+    emailEnabled: isEmailEnabledFromEnv(),
+    senderAddress:
+      process.env.SMTP_FROM?.trim() ||
+      process.env.SENDER_ADDRESS?.trim() ||
+      null,
+    smtpHost,
+    smtpPort: smtpHost ? port : null,
+  };
+}
+
+export function resolveSmtpConfigFromEnv(): SmtpResolutionResult {
+  if (!isEmailEnabledFromEnv()) {
     return { ok: false, reason: "email_disabled" };
   }
 
-  const host =
-    settings?.smtpHost?.trim() || process.env.SMTP_HOST?.trim() || "";
-  const port = settings?.smtpPort ?? Number(process.env.SMTP_PORT ?? "587");
+  const host = normalizeSmtpHost(process.env.SMTP_HOST);
+  const port = parseEnvPort();
   const user = process.env.SMTP_USER?.trim();
   const pass = process.env.SMTP_PASSWORD;
   const from =
-    settings?.senderAddress?.trim() ||
     process.env.SMTP_FROM?.trim() ||
     process.env.SENDER_ADDRESS?.trim() ||
     "noreply@dizlee.com";
@@ -54,15 +93,5 @@ export function resolveSmtpConfigFromSnapshot(
 }
 
 export async function resolveSmtpConfig(): Promise<SmtpResolutionResult> {
-  const settings = await prisma.appSettings.findFirst({
-    where: { id: 1 },
-    select: {
-      emailEnabled: true,
-      senderAddress: true,
-      smtpHost: true,
-      smtpPort: true,
-    },
-  });
-
-  return resolveSmtpConfigFromSnapshot(settings);
+  return resolveSmtpConfigFromEnv();
 }

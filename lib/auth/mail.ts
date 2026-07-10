@@ -2,7 +2,7 @@ import nodemailer from "nodemailer";
 
 import { buildPasswordEmailContent } from "@/lib/auth/password-email-content";
 import type { PasswordResetPurpose } from "@/lib/auth/password-reset";
-import { resolveSmtpConfig } from "@/lib/auth/smtp-config";
+import { resolveSmtpConfig, type ResolvedSmtpConfig } from "@/lib/auth/smtp-config";
 
 export type SendPasswordEmailInput = {
   to: string;
@@ -46,6 +46,41 @@ export function applyEmailRedirect(input: {
   };
 }
 
+function formatSmtpSendError(error: unknown): string {
+  const message = error instanceof Error ? error.message : "Unknown SMTP error";
+  if (message.includes("ENOTFOUND")) {
+    return `Cannot reach SMTP server (${message}). Replace smtp.example.com with your real provider host in Admin → Email settings, and set SMTP_USER/SMTP_PASSWORD in .env.`;
+  }
+  if (message.includes("EAUTH") || message.toLowerCase().includes("authentication")) {
+    return "SMTP authentication failed. Set SMTP_USER and SMTP_PASSWORD in your .env file and restart the dev server.";
+  }
+  return `Failed to send email: ${message}`;
+}
+
+async function deliverEmail(
+  config: ResolvedSmtpConfig,
+  routed: { to: string; subject: string; text: string; html: string },
+): Promise<void> {
+  const transporter = nodemailer.createTransport({
+    host: config.host,
+    port: config.port,
+    secure: config.secure,
+    auth: config.auth,
+  });
+
+  try {
+    await transporter.sendMail({
+      from: config.from,
+      to: routed.to,
+      subject: routed.subject,
+      text: routed.text,
+      html: routed.html,
+    });
+  } catch (error) {
+    throw new Error(formatSmtpSendError(error));
+  }
+}
+
 export async function sendPlatformEmail(
   input: SendPlatformEmailInput,
 ): Promise<SendMailResult> {
@@ -63,13 +98,6 @@ export async function sendPlatformEmail(
     return { sent: false, reason: smtpResult.reason };
   }
 
-  const transporter = nodemailer.createTransport({
-    host: smtpResult.config.host,
-    port: smtpResult.config.port,
-    secure: smtpResult.config.secure,
-    auth: smtpResult.config.auth,
-  });
-
   const routed = applyEmailRedirect({
     to: input.to,
     subject: input.subject,
@@ -77,14 +105,7 @@ export async function sendPlatformEmail(
     html: input.html,
   });
 
-  await transporter.sendMail({
-    from: smtpResult.config.from,
-    to: routed.to,
-    subject: routed.subject,
-    text: routed.text,
-    html: routed.html,
-  });
-
+  await deliverEmail(smtpResult.config, routed);
   return { sent: true };
 }
 
@@ -109,13 +130,6 @@ export async function sendPasswordEmail(
     return { sent: false, reason: smtpResult.reason };
   }
 
-  const transporter = nodemailer.createTransport({
-    host: smtpResult.config.host,
-    port: smtpResult.config.port,
-    secure: smtpResult.config.secure,
-    auth: smtpResult.config.auth,
-  });
-
   const routed = applyEmailRedirect({
     to: input.to,
     subject: content.subject,
@@ -123,13 +137,6 @@ export async function sendPasswordEmail(
     html: content.html,
   });
 
-  await transporter.sendMail({
-    from: smtpResult.config.from,
-    to: routed.to,
-    subject: routed.subject,
-    text: routed.text,
-    html: routed.html,
-  });
-
+  await deliverEmail(smtpResult.config, routed);
   return { sent: true };
 }

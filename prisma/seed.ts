@@ -22,6 +22,13 @@ const SEED_PASSWORD = "Password123!";
 
 const RETIRED_USER_EMAILS = ["opco@dizlee.com", "partner@dizlee.com"] as const;
 
+const RETIRED_EMAIL_TEMPLATE_CODES = [
+  "TEST_EMAIL",
+  "NOTIFICATION_EMAIL",
+  "PASSWORD_RESET",
+  "INVOICE_SENT",
+] as const;
+
 async function seedLookups() {
   for (const [typeCode, codes] of Object.entries(LOOKUP_SEEDS)) {
     const lookupType = await prisma.lookupType.upsert({
@@ -156,6 +163,13 @@ async function seedNotificationTemplates(activeStatusId: number) {
         },
       });
     }
+  }
+
+  for (const code of RETIRED_EMAIL_TEMPLATE_CODES) {
+    await prisma.notificationTemplate.updateMany({
+      where: { code },
+      data: { isDeleted: true, deletedAt: new Date() },
+    });
   }
 }
 

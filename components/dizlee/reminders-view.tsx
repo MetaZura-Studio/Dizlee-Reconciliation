@@ -222,11 +222,8 @@ export function RemindersView({
           {settings.remindersEnabled ? ` · Schedule: ${scheduleLabel}` : ""}
         </p>
         <p className="mt-1 text-foreground-subtle">
-          Manual sends below use the REPORT_REMINDER template. Placeholders:{" "}
-          <code className="text-xs">{"{{period}}"}</code>,{" "}
-          <code className="text-xs">{"{{opco_name}}"}</code>,{" "}
-          <code className="text-xs">{"{{partner_name}}"}</code>,{" "}
-          <code className="text-xs">{"{{lane}}"}</code>
+          Manual sends below use the Report reminder template. Placeholder:{" "}
+          <code className="text-xs">{"{{period}}"}</code>
         </p>
       </div>
 
