@@ -1,5 +1,6 @@
 import { formatPeriodLabel } from "@/lib/partner/period";
 import { getPartnerLookupId } from "@/lib/partner/lookups";
+import { PARTNER_REPORT_VERSION } from "@/lib/platform/reports/sides";
 import prisma from "@/lib/prisma";
 
 export class ReportChangeRequestError extends Error {
@@ -66,6 +67,7 @@ export async function createReportChangeRequest(
     where: {
       id: input.reportId,
       partnerId: input.partnerId,
+      version: PARTNER_REPORT_VERSION,
     },
     include: {
       partner: { select: { name: true } },

@@ -3,6 +3,10 @@ import { Prisma } from "@prisma/client";
 import type { ParsedReportLine } from "@/lib/partner/excel/parse-report";
 import { isOpcoLinkedToPartner } from "@/lib/partner/queries/opcos";
 import { saveReportFileLocally } from "@/lib/partner/storage/save-report-file";
+import {
+  PARTNER_REPORT_VERSION,
+  laneReportWhere,
+} from "@/lib/platform/reports/sides";
 import prisma from "@/lib/prisma";
 
 export class ReportUploadError extends Error {
@@ -59,13 +63,12 @@ export async function createReportUpload(
   }
 
   const existingReport = await prisma.report.findFirst({
-    where: {
+    where: laneReportWhere("partner", {
       opcoId: input.opcoId,
       partnerId: input.partnerId,
       year: input.year,
       month: input.month,
-      version: 1,
-    },
+    }),
     select: { id: true },
   });
 
@@ -103,7 +106,7 @@ export async function createReportUpload(
         fileId: file.id,
         currencyId: opco.defaultCurrencyId,
         statusId: submittedStatus.id,
-        version: 1,
+        version: PARTNER_REPORT_VERSION,
         createdByUserId: input.userId,
         uploadedByUserId: input.userId,
         updatedByUserId: input.userId,

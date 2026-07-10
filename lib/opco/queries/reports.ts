@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { formatPeriodLabel } from "@/lib/opco/period";
 import { getLinkedPartnersForOpco } from "@/lib/opco/queries/partners";
 import { mapReuploadEligibility } from "@/lib/opco/reupload/eligibility";
+import { OPCO_REPORT_VERSION } from "@/lib/platform/reports/sides";
 import prisma from "@/lib/prisma";
 
 export type OpcoReportSortField = "uploaded" | "period" | "partner";
@@ -96,7 +97,10 @@ function buildWhere(
   opcoId: bigint,
   filters: OpcoReportListFilters,
 ): Prisma.ReportWhereInput {
-  const where: Prisma.ReportWhereInput = { opcoId };
+  const where: Prisma.ReportWhereInput = {
+    opcoId,
+    version: OPCO_REPORT_VERSION,
+  };
 
   if (filters.year !== undefined) {
     where.year = filters.year;
@@ -269,6 +273,7 @@ export async function getReportDetailForOpco(
     where: {
       id: reportId,
       opcoId,
+      version: OPCO_REPORT_VERSION,
     },
     include: {
       partner: { select: { name: true } },

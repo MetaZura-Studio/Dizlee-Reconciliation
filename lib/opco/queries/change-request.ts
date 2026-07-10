@@ -1,5 +1,6 @@
 import { formatPeriodLabel } from "@/lib/opco/period";
 import { getOpcoLookupId } from "@/lib/opco/lookups";
+import { OPCO_REPORT_VERSION } from "@/lib/platform/reports/sides";
 import prisma from "@/lib/prisma";
 
 export class ReportChangeRequestError extends Error {
@@ -66,6 +67,7 @@ export async function createReportChangeRequest(
     where: {
       id: input.reportId,
       opcoId: input.opcoId,
+      version: OPCO_REPORT_VERSION,
     },
     include: {
       partner: { select: { name: true } },
