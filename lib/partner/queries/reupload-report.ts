@@ -4,6 +4,7 @@ import type { ParsedReportLine } from "@/lib/partner/excel/parse-report";
 import { getPartnerLookupId } from "@/lib/partner/lookups";
 import { mapReuploadEligibility } from "@/lib/partner/reupload/eligibility";
 import { saveReportFileLocally } from "@/lib/partner/storage/save-report-file";
+import { PARTNER_REPORT_VERSION } from "@/lib/platform/reports/sides";
 import prisma from "@/lib/prisma";
 
 export class ReportReuploadError extends Error {
@@ -33,6 +34,7 @@ export async function reuploadCorrectedReport(
     where: {
       id: input.reportId,
       partnerId: input.partnerId,
+      version: PARTNER_REPORT_VERSION,
     },
     include: {
       status: { select: { code: true } },

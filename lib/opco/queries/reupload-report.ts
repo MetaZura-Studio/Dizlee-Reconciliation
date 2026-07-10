@@ -4,6 +4,7 @@ import type { ParsedReportLine } from "@/lib/opco/excel/parse-report";
 import { getOpcoLookupId } from "@/lib/opco/lookups";
 import { mapReuploadEligibility } from "@/lib/opco/reupload/eligibility";
 import { saveReportFileLocally } from "@/lib/opco/storage/save-report-file";
+import { OPCO_REPORT_VERSION } from "@/lib/platform/reports/sides";
 import prisma from "@/lib/prisma";
 
 export class ReportReuploadError extends Error {
@@ -33,6 +34,7 @@ export async function reuploadCorrectedReport(
     where: {
       id: input.reportId,
       opcoId: input.opcoId,
+      version: OPCO_REPORT_VERSION,
     },
     include: {
       status: { select: { code: true } },

@@ -1,4 +1,5 @@
 import ExcelJS from "exceljs";
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -51,5 +52,30 @@ describe("parse report workbook", () => {
     await expect(parseReportWorkbook(buffer)).rejects.toBeInstanceOf(
       ReportParseError,
     );
+  });
+
+  it("parses partner sample report headers", async () => {
+    const buffer = readFileSync("Reports/partner-report-sample-full-columns.xlsx");
+    const lines = await parseReportWorkbook(buffer);
+
+    expect(lines.length).toBeGreaterThan(0);
+    expect(lines[0]).toMatchObject({
+      description: "Games",
+      amount: 50,
+    });
+    expect(lines[0]?.sourceColumns.service_code).toBe(100);
+  });
+
+  it("parses opco sample report headers", async () => {
+    const buffer = readFileSync("Reports/opco-report-sample-1-full-columns.xlsx");
+    const lines = await parseReportWorkbook(buffer);
+
+    expect(lines.length).toBeGreaterThan(0);
+    expect(lines[0]).toMatchObject({
+      description: "UHD",
+      usageAmount: 50,
+      usageUsd: 10,
+      amount: 50,
+    });
   });
 });

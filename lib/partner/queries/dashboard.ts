@@ -1,4 +1,5 @@
 import { ACTIVE_OPCO_PARTNER_LINK_FILTER } from "@/lib/platform/opco-partner-links";
+import { PARTNER_REPORT_VERSION } from "@/lib/platform/reports/sides";
 import prisma from "@/lib/prisma";
 
 export type OpcoSubmissionStatus =
@@ -102,7 +103,7 @@ export async function getPartnerDashboard(
         },
       }),
       prisma.report.findMany({
-        where: { partnerId, year, month },
+        where: { partnerId, year, month, version: PARTNER_REPORT_VERSION },
         include: {
           opco: {
             select: { id: true, name: true },
@@ -114,7 +115,7 @@ export async function getPartnerDashboard(
         orderBy: [{ opcoId: "asc" }, { version: "desc" }],
       }),
       prisma.report.findMany({
-        where: { partnerId },
+        where: { partnerId, version: PARTNER_REPORT_VERSION },
         include: {
           opco: {
             select: { name: true },
