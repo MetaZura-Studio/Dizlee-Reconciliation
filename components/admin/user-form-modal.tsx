@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import type {
   AdminUserRole,
   AdminUserStatus,
-  UserFormOptions,
   UserListItem,
 } from "@/lib/admin/users.shared";
 import { formatUserRoleLabel } from "@/lib/admin/users.shared";
@@ -15,8 +14,6 @@ type UserFormValues = {
   email: string;
   role: AdminUserRole;
   status: AdminUserStatus;
-  opcoId: string;
-  partnerId: string;
 };
 
 type UserFormModalProps = {
@@ -39,8 +36,6 @@ const EMPTY_FORM: UserFormValues = {
   email: "",
   role: "client",
   status: "ACTIVE",
-  opcoId: "",
-  partnerId: "",
 };
 
 function getInitialValues(
@@ -53,12 +48,26 @@ function getInitialValues(
       email: user.email,
       role: user.role,
       status: user.status,
-      opcoId: user.opcoId ?? "",
-      partnerId: user.partnerId ?? "",
     };
   }
 
   return EMPTY_FORM;
+}
+
+function roleHint(role: AdminUserRole, mode: "create" | "edit"): string | null {
+  if (mode !== "create") {
+    return null;
+  }
+
+  if (role === "opco") {
+    return "A new OpCo organization is created for this account using the name above.";
+  }
+
+  if (role === "partner") {
+    return "A new Partner organization is created for this account using the name above.";
+  }
+
+  return null;
 }
 
 function UserFormModalContent({
@@ -67,53 +76,20 @@ function UserFormModalContent({
   onClose,
   onSaved,
 }: UserFormModalContentProps) {
-  const [formOptions, setFormOptions] = useState<UserFormOptions | null>(null);
-  const [loadingOptions, setLoadingOptions] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [values, setValues] = useState<UserFormValues>(() =>
     getInitialValues(mode, user),
   );
 
-  useEffect(() => {
-    void fetch("/api/admin/users?form=options")
-      .then(async (response) => {
-        const payload = await response.json();
-        if (!response.ok) {
-          throw new Error(payload.error ?? "Failed to load form options");
-        }
-        setFormOptions(payload.data as UserFormOptions);
-      })
-      .catch((loadError) => {
-        setError(
-          loadError instanceof Error
-            ? loadError.message
-            : "Failed to load form options",
-        );
-      })
-      .finally(() => setLoadingOptions(false));
-  }, []);
-
   const title = mode === "create" ? "Create user" : "Edit user";
+  const hint = roleHint(values.role, mode);
 
   const updateField = <K extends keyof UserFormValues>(
     field: K,
     value: UserFormValues[K],
   ) => {
-    setValues((current) => {
-      const next = { ...current, [field]: value };
-      if (field === "role") {
-        if (value === "client") {
-          next.opcoId = "";
-          next.partnerId = "";
-        } else if (value === "opco") {
-          next.partnerId = "";
-        } else if (value === "partner") {
-          next.opcoId = "";
-        }
-      }
-      return next;
-    });
+    setValues((current) => ({ ...current, [field]: value }));
   };
 
   const submit = async () => {
@@ -125,8 +101,6 @@ function UserFormModalContent({
       email: values.email,
       role: values.role,
       status: values.status,
-      opcoId: values.role === "opco" ? values.opcoId : null,
-      partnerId: values.role === "partner" ? values.partnerId : null,
     };
 
     try {
@@ -238,42 +212,10 @@ function UserFormModalContent({
             </select>
           </label>
 
-          {values.role === "opco" ? (
-            <label className="block text-sm">
-              <span className="mb-1 block font-medium text-foreground-muted">OpCo</span>
-              <select
-                value={values.opcoId}
-                onChange={(event) => updateField("opcoId", event.target.value)}
-                disabled={loadingOptions}
-                className="w-full rounded-md border border-border-strong px-3 py-2 text-sm"
-              >
-                <option value="">Select OpCo</option>
-                {formOptions?.opcos.map((opco) => (
-                  <option key={opco.id} value={opco.id}>
-                    {opco.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : null}
-
-          {values.role === "partner" ? (
-            <label className="block text-sm">
-              <span className="mb-1 block font-medium text-foreground-muted">Partner</span>
-              <select
-                value={values.partnerId}
-                onChange={(event) => updateField("partnerId", event.target.value)}
-                disabled={loadingOptions}
-                className="w-full rounded-md border border-border-strong px-3 py-2 text-sm"
-              >
-                <option value="">Select Partner</option>
-                {formOptions?.partners.map((partner) => (
-                  <option key={partner.id} value={partner.id}>
-                    {partner.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+          {hint ? (
+            <p className="rounded-md border border-border bg-surface-muted px-3 py-2 text-sm text-foreground-muted">
+              {hint}
+            </p>
           ) : null}
 
           <label className="block text-sm">
@@ -304,7 +246,7 @@ function UserFormModalContent({
           <button
             type="button"
             onClick={() => void submit()}
-            disabled={submitting || loadingOptions}
+            disabled={submitting}
             className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
           >
             {submitting ? "Saving…" : mode === "create" ? "Create user" : "Save changes"}

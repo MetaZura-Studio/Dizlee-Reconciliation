@@ -35,7 +35,7 @@ export class ReportReminderError extends Error {
 
 const DEFAULT_SUBJECT = "Report submission reminder";
 const DEFAULT_BODY =
-  "Please submit your monthly report for {{period}} as soon as possible.";
+  "Your monthly report for {{period}} is still missing. Please log in and upload it as soon as possible.";
 
 function periodLabel(month: number, year: number): string {
   return new Date(year, month - 1, 1).toLocaleString("en-US", {
@@ -177,38 +177,18 @@ export async function sendMissingReportReminders(
   const shouldSendPartner = target === "partner" || target === "both";
 
   if (shouldSendOpco) {
-    const byOpco = new Map<
-      string,
-      { opcoName: string; partners: string[] }
-    >();
+    const opcoIds = new Set<string>();
 
     for (const lane of fullEligible) {
       if (lane.opcoReport.status !== "Missing") {
         continue;
       }
-
-      const entry = byOpco.get(lane.opcoId) ?? {
-        opcoName: lane.opcoName,
-        partners: [],
-      };
-      entry.partners.push(lane.partnerName);
-      byOpco.set(lane.opcoId, entry);
+      opcoIds.add(lane.opcoId);
     }
 
-    for (const [opcoId, entry] of byOpco) {
-      const partnerList = [...new Set(entry.partners)].join(", ");
-      const subject = applyTemplate(subjectTemplate, {
-        period,
-        opco_name: entry.opcoName,
-        partner_name: partnerList,
-        lane: partnerList,
-      });
-      const body = applyTemplate(bodyTemplate, {
-        period,
-        opco_name: entry.opcoName,
-        partner_name: partnerList,
-        lane: partnerList,
-      });
+    for (const opcoId of opcoIds) {
+      const subject = applyTemplate(subjectTemplate, { period });
+      const body = applyTemplate(bodyTemplate, { period });
 
       await prisma.notification.create({
         data: {
@@ -235,38 +215,18 @@ export async function sendMissingReportReminders(
   }
 
   if (shouldSendPartner) {
-    const byPartner = new Map<
-      string,
-      { partnerName: string; lanes: string[] }
-    >();
+    const partnerIds = new Set<string>();
 
     for (const lane of fullEligible) {
       if (lane.partnerReport.status !== "Missing") {
         continue;
       }
-
-      const entry = byPartner.get(lane.partnerId) ?? {
-        partnerName: lane.partnerName,
-        lanes: [],
-      };
-      entry.lanes.push(`${lane.opcoName} / ${lane.partnerName}`);
-      byPartner.set(lane.partnerId, entry);
+      partnerIds.add(lane.partnerId);
     }
 
-    for (const [partnerId, entry] of byPartner) {
-      const laneList = [...new Set(entry.lanes)].join("; ");
-      const subject = applyTemplate(subjectTemplate, {
-        period,
-        opco_name: entry.lanes[0]?.split(" / ")[0] ?? "",
-        partner_name: entry.partnerName,
-        lane: laneList,
-      });
-      const body = applyTemplate(bodyTemplate, {
-        period,
-        opco_name: entry.lanes[0]?.split(" / ")[0] ?? "",
-        partner_name: entry.partnerName,
-        lane: laneList,
-      });
+    for (const partnerId of partnerIds) {
+      const subject = applyTemplate(subjectTemplate, { period });
+      const body = applyTemplate(bodyTemplate, { period });
 
       await prisma.notification.create({
         data: {

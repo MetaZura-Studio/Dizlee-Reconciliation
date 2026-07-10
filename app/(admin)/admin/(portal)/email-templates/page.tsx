@@ -34,9 +34,9 @@ export default async function AdminEmailTemplatesPage() {
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">Email templates</h1>
         <p className="text-sm text-foreground-muted">
-          Edit subject and body for system emails. Each save creates a new
-          version; revert copies an older version forward without changing
-          history rows.
+          Generic monthly notices and reminders for OpCos and Partners. Password
+          emails are hardcoded in the app and are not edited here. Each save
+          creates a new version.
         </p>
       </div>
 

@@ -56,12 +56,8 @@ describe("email template helpers", () => {
   });
 
   it("returns placeholders per template code", () => {
-    expect(getPlaceholdersForTemplate("REPORT_REMINDER")).toEqual([
-      "period",
-      "opco_name",
-      "partner_name",
-      "lane",
-    ]);
-    expect(formatPlaceholderTokens(["period", "lane"])).toBe("{{period}}, {{lane}}");
+    expect(getPlaceholdersForTemplate("REPORT_REMINDER")).toEqual(["period"]);
+    expect(getPlaceholdersForTemplate("REPORT_SUBMISSION")).toEqual(["period"]);
+    expect(formatPlaceholderTokens(["period"])).toBe("{{period}}");
   });
 });

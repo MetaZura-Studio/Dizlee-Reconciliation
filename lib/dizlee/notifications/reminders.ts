@@ -36,7 +36,7 @@ export type SendReportRemindersResult = {
 
 const DEFAULT_SUBJECT = "Report submission reminder";
 const DEFAULT_BODY =
-  "Please submit your monthly report for {{period}} as soon as possible.";
+  "Your monthly report for {{period}} is still missing. Please log in and upload it as soon as possible.";
 
 export function parseReminderFilters(
   searchParams: URLSearchParams,

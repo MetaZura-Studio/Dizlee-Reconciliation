@@ -1,71 +1,48 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { updateEmailSettingsSchema } from "@/lib/admin/validation/email-settings";
+import { sendTestEmailSchema } from "@/lib/admin/validation/email-settings";
 import {
-  resolveSmtpConfigFromSnapshot,
-  type EmailSettingsSnapshot,
+  getEmailSettingsFromEnv,
+  isEmailEnabledFromEnv,
+  resolveSmtpConfigFromEnv,
 } from "@/lib/auth/smtp-config";
 
 describe("email settings validation", () => {
-  it("accepts enabled settings with optional blank fields", () => {
-    const result = updateEmailSettingsSchema.safeParse({
-      emailEnabled: true,
-      senderAddress: "",
-      smtpHost: "smtp.titan.email",
-      smtpPort: 465,
-    });
-
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.senderAddress).toBeNull();
-    }
-  });
-
-  it("rejects invalid test recipient emails", () => {
-    const result = updateEmailSettingsSchema.safeParse({
-      emailEnabled: true,
-      senderAddress: "noreply@dizlee.com",
-      smtpHost: "smtp.titan.email",
-      smtpPort: null,
+  it("accepts a valid test recipient email", () => {
+    const result = sendTestEmailSchema.safeParse({
+      recipient: "you@example.com",
     });
 
     expect(result.success).toBe(true);
   });
 });
 
-describe("resolveSmtpConfigFromSnapshot", () => {
+describe("resolveSmtpConfigFromEnv", () => {
   const originalEnv = { ...process.env };
 
   afterEach(() => {
     process.env = { ...originalEnv };
   });
 
-  it("returns email_disabled when notifications are disabled", () => {
-    const settings: EmailSettingsSnapshot = {
-      emailEnabled: false,
-      senderAddress: "noreply@dizlee.com",
-      smtpHost: "smtp.titan.email",
-      smtpPort: 465,
-    };
+  it("returns email_disabled when EMAIL_ENABLED is false", () => {
+    process.env.EMAIL_ENABLED = "false";
+    process.env.SMTP_HOST = "smtp.titan.email";
 
-    expect(resolveSmtpConfigFromSnapshot(settings)).toEqual({
+    expect(resolveSmtpConfigFromEnv()).toEqual({
       ok: false,
       reason: "email_disabled",
     });
   });
 
-  it("uses database host, port, and sender when enabled", () => {
+  it("uses SMTP values from the environment when enabled", () => {
+    process.env.EMAIL_ENABLED = "true";
+    process.env.SMTP_HOST = "smtp.titan.email";
+    process.env.SMTP_PORT = "465";
+    process.env.SMTP_FROM = "noreply@dizlee.com";
     process.env.SMTP_USER = "user@example.com";
     process.env.SMTP_PASSWORD = "secret";
 
-    const settings: EmailSettingsSnapshot = {
-      emailEnabled: true,
-      senderAddress: "noreply@dizlee.com",
-      smtpHost: "smtp.titan.email",
-      smtpPort: 465,
-    };
-
-    const result = resolveSmtpConfigFromSnapshot(settings);
+    const result = resolveSmtpConfigFromEnv();
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.config.host).toBe("smtp.titan.email");
@@ -79,40 +56,38 @@ describe("resolveSmtpConfigFromSnapshot", () => {
     }
   });
 
-  it("falls back to environment SMTP host when database host is blank", () => {
-    process.env.SMTP_HOST = "smtp.env.example";
-    process.env.SMTP_PORT = "587";
-    process.env.SMTP_FROM = "env@dizlee.com";
-
-    const settings: EmailSettingsSnapshot = {
-      emailEnabled: true,
-      senderAddress: null,
-      smtpHost: null,
-      smtpPort: null,
-    };
-
-    const result = resolveSmtpConfigFromSnapshot(settings);
-    expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.config.host).toBe("smtp.env.example");
-      expect(result.config.port).toBe(587);
-      expect(result.config.from).toBe("env@dizlee.com");
-    }
-  });
-
-  it("returns smtp_not_configured when no host is available", () => {
+  it("returns smtp_not_configured when SMTP_HOST is missing", () => {
     delete process.env.SMTP_HOST;
+    process.env.EMAIL_ENABLED = "true";
 
-    const settings: EmailSettingsSnapshot = {
-      emailEnabled: true,
-      senderAddress: null,
-      smtpHost: null,
-      smtpPort: null,
-    };
-
-    expect(resolveSmtpConfigFromSnapshot(settings)).toEqual({
+    expect(resolveSmtpConfigFromEnv()).toEqual({
       ok: false,
       reason: "smtp_not_configured",
     });
+  });
+
+  it("ignores the placeholder SMTP host", () => {
+    process.env.SMTP_HOST = "smtp.example.com";
+    process.env.EMAIL_ENABLED = "true";
+
+    expect(resolveSmtpConfigFromEnv()).toEqual({
+      ok: false,
+      reason: "smtp_not_configured",
+    });
+  });
+
+  it("exposes env values for the admin read-only view", () => {
+    process.env.EMAIL_ENABLED = "true";
+    process.env.SMTP_HOST = "smtp.titan.email";
+    process.env.SMTP_PORT = "587";
+    process.env.SMTP_FROM = "env@dizlee.com";
+
+    expect(getEmailSettingsFromEnv()).toEqual({
+      emailEnabled: true,
+      senderAddress: "env@dizlee.com",
+      smtpHost: "smtp.titan.email",
+      smtpPort: 587,
+    });
+    expect(isEmailEnabledFromEnv()).toBe(true);
   });
 });

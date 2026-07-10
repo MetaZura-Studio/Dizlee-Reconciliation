@@ -28,13 +28,12 @@ export type EmailTemplatesPageData = {
   selected: EmailTemplateDetail | null;
 };
 
+/** Generic broadcast templates — only {{period}} is substituted at send time. */
 export const EMAIL_TEMPLATE_PLACEHOLDERS: Record<string, string[]> = {
-  REPORT_REMINDER: ["period", "opco_name", "partner_name", "lane"],
-  PASSWORD_RESET: ["name", "link", "expiry_hours"],
-  INVOICE_SENT: ["period", "opco_name", "partner_name"],
-  INVOICE_REMINDER: ["period", "opco_name", "partner_name"],
-  TEST_EMAIL: ["message"],
-  NOTIFICATION_EMAIL: ["message"],
+  REPORT_SUBMISSION: ["period"],
+  REPORT_REMINDER: ["period"],
+  INVOICE_SUBMISSION: ["period"],
+  INVOICE_REMINDER: ["period"],
 };
 
 export function getPlaceholdersForTemplate(code: string): string[] {

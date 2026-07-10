@@ -4,7 +4,6 @@ import type { NextRequest } from "next/server";
 import { requireAdminApiSession } from "@/lib/admin/api-auth";
 import {
   createUser,
-  getUserFormOptions,
   listUsers,
   parseUserListFilters,
   UserActionError,
@@ -19,11 +18,6 @@ export async function GET(request: NextRequest) {
 
   try {
     const { searchParams } = new URL(request.url);
-    if (searchParams.get("form") === "options") {
-      const formOptions = await getUserFormOptions();
-      return NextResponse.json({ data: formOptions });
-    }
-
     const filters = parseUserListFilters(searchParams);
     const data = await listUsers(filters);
     return NextResponse.json({ data });

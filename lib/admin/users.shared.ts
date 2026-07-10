@@ -16,11 +16,6 @@ export type UserListItem = {
   lastLoginAt: string | null;
 };
 
-export type UserFormOptions = {
-  opcos: Array<{ id: string; name: string }>;
-  partners: Array<{ id: string; name: string }>;
-};
-
 export type UserListFilters = {
   search: string;
   role: AdminUserRole | "all";

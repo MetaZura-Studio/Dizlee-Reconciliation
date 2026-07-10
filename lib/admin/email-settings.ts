@@ -1,12 +1,13 @@
 import { writeSettingsAuditLog } from "@/lib/admin/audit";
 import {
   sendTestEmailSchema,
-  updateEmailSettingsSchema,
   type SendTestEmailInput,
-  type UpdateEmailSettingsInput,
 } from "@/lib/admin/validation/email-settings";
 import { sendPlatformEmail } from "@/lib/auth/mail";
-import { prisma } from "@/lib/prisma";
+import {
+  getEmailSettingsFromEnv,
+  resolveSmtpConfigFromEnv,
+} from "@/lib/auth/smtp-config";
 
 export type EmailSettingsView = {
   emailEnabled: boolean;
@@ -25,88 +26,14 @@ export class EmailSettingsError extends Error {
   }
 }
 
-function mapSettingsRow(row: {
-  emailEnabled: boolean;
-  senderAddress: string | null;
-  smtpHost: string | null;
-  smtpPort: number | null;
-}): EmailSettingsView {
-  return {
-    emailEnabled: row.emailEnabled,
-    senderAddress: row.senderAddress,
-    smtpHost: row.smtpHost,
-    smtpPort: row.smtpPort,
-  };
-}
-
 export async function getEmailSettings(): Promise<EmailSettingsView> {
-  const settings = await prisma.appSettings.findFirst({
-    where: { id: 1 },
-    select: {
-      emailEnabled: true,
-      senderAddress: true,
-      smtpHost: true,
-      smtpPort: true,
-    },
-  });
-
-  if (!settings) {
-    throw new EmailSettingsError(
-      "Application settings could not be loaded.",
-      500,
-    );
-  }
-
-  return mapSettingsRow(settings);
+  return getEmailSettingsFromEnv();
 }
 
-export async function updateEmailSettings(
-  rawInput: UpdateEmailSettingsInput,
-  actorUserId: bigint,
-): Promise<EmailSettingsView> {
-  const parsed = updateEmailSettingsSchema.safeParse(rawInput);
-  if (!parsed.success) {
-    throw new EmailSettingsError(
-      parsed.error.issues[0]?.message ?? "Invalid input",
-    );
-  }
-
-  const updated = await prisma.appSettings.upsert({
-    where: { id: 1 },
-    create: {
-      id: 1,
-      emailEnabled: parsed.data.emailEnabled,
-      senderAddress: parsed.data.senderAddress ?? null,
-      smtpHost: parsed.data.smtpHost ?? null,
-      smtpPort: parsed.data.smtpPort ?? null,
-    },
-    update: {
-      emailEnabled: parsed.data.emailEnabled,
-      senderAddress: parsed.data.senderAddress ?? null,
-      smtpHost: parsed.data.smtpHost ?? null,
-      smtpPort: parsed.data.smtpPort ?? null,
-    },
-    select: {
-      emailEnabled: true,
-      senderAddress: true,
-      smtpHost: true,
-      smtpPort: true,
-    },
-  });
-
-  await writeSettingsAuditLog({
-    actorUserId,
-    action: "SETTINGS_EMAIL_UPDATED",
-    message: "Email notification settings updated.",
-    metadata: {
-      emailEnabled: updated.emailEnabled,
-      senderAddress: updated.senderAddress,
-      smtpHost: updated.smtpHost,
-      smtpPort: updated.smtpPort,
-    },
-  });
-
-  return mapSettingsRow(updated);
+export async function updateEmailSettings(): Promise<EmailSettingsView> {
+  throw new EmailSettingsError(
+    "SMTP settings are read from the server .env file. Update EMAIL_ENABLED, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, and SMTP_FROM there, then restart the dev server.",
+  );
 }
 
 export async function sendTestEmail(
@@ -120,10 +47,15 @@ export async function sendTestEmail(
     );
   }
 
-  const settings = await getEmailSettings();
-  if (!settings.emailEnabled) {
+  const smtpResult = resolveSmtpConfigFromEnv();
+  if (!smtpResult.ok) {
+    if (smtpResult.reason === "email_disabled") {
+      throw new EmailSettingsError(
+        "Email is disabled. Set EMAIL_ENABLED=true in .env or configure SMTP_HOST.",
+      );
+    }
     throw new EmailSettingsError(
-      "Enable email notifications before sending a test email.",
+      "SMTP is not configured. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, and SMTP_FROM in .env, then restart the dev server.",
     );
   }
 
@@ -138,12 +70,12 @@ export async function sendTestEmail(
   if (!result.sent) {
     if (result.reason === "email_disabled") {
       throw new EmailSettingsError(
-        "Enable email notifications before sending a test email.",
+        "Email is disabled. Set EMAIL_ENABLED=true in .env or configure SMTP_HOST.",
       );
     }
     if (result.reason === "smtp_not_configured") {
       throw new EmailSettingsError(
-        "SMTP is not configured. Set SMTP host in email settings and credentials in server environment variables.",
+        "SMTP is not configured. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, and SMTP_FROM in .env, then restart the dev server.",
       );
     }
     throw new EmailSettingsError("Failed to send test email.");
