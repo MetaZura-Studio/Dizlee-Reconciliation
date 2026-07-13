@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 
 import { currentPeriod, type DashboardPeriod } from "@/lib/dizlee/dashboard";
 import { getLookupId } from "@/lib/dizlee/lookups";
+import { writePlatformAuditLog } from "@/lib/platform/audit-log";
 import {
   getReportFilterOptions,
   type ReportFilterOptions,
@@ -215,6 +216,18 @@ export async function approveReuploadRequest(
     subject: "Reupload request approved",
     body: `Your reupload request for ${request.report.opco.name} / ${request.report.partner.name} (${periodLabel}) was approved. You may upload a corrected report file.`,
   });
+
+  await writePlatformAuditLog({
+    actorUserId: deciderId,
+    action: "REPORT_CHANGE_REQUESTED",
+    entityType: "REPORT",
+    entityId: request.reportId,
+    message: `Dizlee approved report reupload for ${request.report.opco.name} / ${request.report.partner.name} (${periodLabel})`,
+    metadata: {
+      changeRequestId: request.id.toString(),
+      decision: "approved",
+    },
+  });
 }
 
 export async function rejectReuploadRequest(
@@ -274,6 +287,19 @@ export async function rejectReuploadRequest(
     fromUserId: deciderId,
     subject: "Reupload request rejected",
     body: `Your reupload request for ${request.report.opco.name} / ${request.report.partner.name} (${periodLabel}) was rejected.${noteSuffix}`,
+  });
+
+  await writePlatformAuditLog({
+    actorUserId: deciderId,
+    action: "REPORT_CHANGE_REQUESTED",
+    entityType: "REPORT",
+    entityId: request.reportId,
+    message: `Dizlee rejected report reupload for ${request.report.opco.name} / ${request.report.partner.name} (${periodLabel})`,
+    metadata: {
+      changeRequestId: request.id.toString(),
+      decision: "rejected",
+      decisionNote: trimmedNote,
+    },
   });
 }
 

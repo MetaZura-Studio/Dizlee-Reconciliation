@@ -1,6 +1,7 @@
 import { formatPeriodLabel } from "@/lib/opco/period";
 import { getOpcoLookupId } from "@/lib/opco/lookups";
 import { OPCO_REPORT_VERSION } from "@/lib/platform/reports/sides";
+import { writePlatformAuditLog } from "@/lib/platform/audit-log";
 import prisma from "@/lib/prisma";
 
 export class ReportChangeRequestError extends Error {
@@ -120,6 +121,18 @@ export async function createReportChangeRequest(
     fromUserId: input.userId,
     subject: "OpCo report reupload requested",
     body: `${report.opco.name} requested a reupload for ${report.partner.name} (${periodLabel}). Reason: ${input.reason}`,
+  });
+
+  await writePlatformAuditLog({
+    actorUserId: input.userId,
+    action: "REPORT_CHANGE_REQUESTED",
+    entityType: "REPORT",
+    entityId: input.reportId,
+    message: `OpCo requested report reupload for ${report.opco.name} / ${report.partner.name} (${periodLabel})`,
+    metadata: {
+      changeRequestId: changeRequest.id.toString(),
+      reason: input.reason,
+    },
   });
 
   return { changeRequestId: changeRequest.id.toString() };

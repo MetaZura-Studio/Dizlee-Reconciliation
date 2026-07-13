@@ -1,12 +1,15 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { NotificationsTabs } from "@/components/dizlee/notifications-tabs";
 import type {
+  BroadcastAudience,
+  BroadcastMessageSource,
   IntimationFormOptions,
   IntimationListResult,
-} from "@/lib/dizlee/notifications/intimations";
+} from "@/lib/dizlee/notifications/broadcast.shared";
+import type { ReportFilterOptions } from "@/lib/dizlee/reports";
 
 const PRIORITY_OPTIONS = [
   { value: "", label: "Normal" },
@@ -14,11 +17,48 @@ const PRIORITY_OPTIONS = [
   { value: "LOW", label: "Low" },
 ];
 
+const AUDIENCE_OPTIONS: Array<{ value: BroadcastAudience; label: string }> = [
+  { value: "opco", label: "OpCo" },
+  { value: "partner", label: "Partner" },
+  { value: "both", label: "Both (OpCo + Partner)" },
+];
+
+const MESSAGE_SOURCE_OPTIONS: Array<{
+  value: BroadcastMessageSource;
+  label: string;
+}> = [
+  { value: "custom", label: "Custom message" },
+  { value: "REPORT_SUBMISSION", label: "Report submission" },
+  { value: "REPORT_REMINDER", label: "Report reminder" },
+  { value: "INVOICE_SUBMISSION", label: "Invoice submission" },
+  { value: "INVOICE_REMINDER", label: "Invoice reminder" },
+];
+
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
 function formatDateTime(value: string): string {
   return new Date(value).toLocaleString("en-US", {
     dateStyle: "medium",
     timeStyle: "short",
   });
+}
+
+function currentPeriodDefaults() {
+  const now = new Date();
+  return { month: now.getMonth() + 1, year: now.getFullYear() };
 }
 
 type IntimationsViewProps = {
@@ -34,16 +74,64 @@ export function IntimationsView({
   const [formOptions, setFormOptions] =
     useState<IntimationFormOptions>(initialFormOptions);
 
+  const [audience, setAudience] = useState<BroadcastAudience>("opco");
+  const [messageSource, setMessageSource] =
+    useState<BroadcastMessageSource>("custom");
+  const [month, setMonth] = useState(currentPeriodDefaults().month);
+  const [year, setYear] = useState(currentPeriodDefaults().year);
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [priority, setPriority] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
   const [selectedOpcoIds, setSelectedOpcoIds] = useState<string[]>([]);
+  const [selectedPartnerIds, setSelectedPartnerIds] = useState<string[]>([]);
 
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+
+  const showOpcos = audience === "opco" || audience === "both";
+  const showPartners = audience === "partner" || audience === "both";
+  const usingTemplate = messageSource !== "custom";
+
+  const sendLabel = useMemo(() => {
+    if (sending) {
+      return "Sending…";
+    }
+    if (audience === "opco") {
+      return "Send to OpCos";
+    }
+    if (audience === "partner") {
+      return "Send to Partners";
+    }
+    return "Send to all selected";
+  }, [audience, sending]);
+
+  const canSend = useMemo(() => {
+    const hasSubjectAndBody = subject.trim().length > 0 && body.trim().length > 0;
+    const hasRecipients =
+      (showOpcos && selectedOpcoIds.length > 0) ||
+      (showPartners && selectedPartnerIds.length > 0);
+
+    if (!hasRecipients) {
+      return false;
+    }
+
+    if (usingTemplate) {
+      return true;
+    }
+
+    return hasSubjectAndBody;
+  }, [
+    body,
+    selectedOpcoIds.length,
+    selectedPartnerIds.length,
+    showOpcos,
+    showPartners,
+    subject,
+    usingTemplate,
+  ]);
 
   const loadList = useCallback(async (page = 1) => {
     setLoading(true);
@@ -69,6 +157,30 @@ export function IntimationsView({
     }
   }, []);
 
+  const applyTemplate = (source: BroadcastMessageSource) => {
+    if (source === "custom") {
+      setSubject("");
+      setBody("");
+      return;
+    }
+
+    const template = formOptions.templates.find((row) => row.code === source);
+    if (!template) {
+      return;
+    }
+
+    const defaults = currentPeriodDefaults();
+    setMonth(defaults.month);
+    setYear(defaults.year);
+    setSubject(template.subject);
+    setBody(template.body);
+  };
+
+  const handleMessageSourceChange = (source: BroadcastMessageSource) => {
+    setMessageSource(source);
+    applyTemplate(source);
+  };
+
   const toggleOpco = (opcoId: string) => {
     setSelectedOpcoIds((current) =>
       current.includes(opcoId)
@@ -77,12 +189,12 @@ export function IntimationsView({
     );
   };
 
-  const selectAllOpcos = () => {
-    setSelectedOpcoIds(formOptions.opcos.map((opco) => opco.id));
-  };
-
-  const clearOpcos = () => {
-    setSelectedOpcoIds([]);
+  const togglePartner = (partnerId: string) => {
+    setSelectedPartnerIds((current) =>
+      current.includes(partnerId)
+        ? current.filter((id) => id !== partnerId)
+        : [...current, partnerId],
+    );
   };
 
   const sendIntimation = async () => {
@@ -94,9 +206,14 @@ export function IntimationsView({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          audience,
+          messageSource,
+          month: usingTemplate ? month : undefined,
+          year: usingTemplate ? year : undefined,
           subject,
           body,
-          opcoIds: selectedOpcoIds,
+          opcoIds: showOpcos ? selectedOpcoIds : [],
+          partnerIds: showPartners ? selectedPartnerIds : [],
           priority: priority || null,
           expiresAt: expiresAt || null,
         }),
@@ -111,7 +228,9 @@ export function IntimationsView({
       setBody("");
       setPriority("");
       setExpiresAt("");
+      setMessageSource("custom");
       setSelectedOpcoIds([]);
+      setSelectedPartnerIds([]);
       await loadList(1);
     } catch (sendError) {
       setError(
@@ -127,7 +246,7 @@ export function IntimationsView({
       <div>
         <h1 className="text-2xl font-semibold text-foreground">Notifications</h1>
         <p className="mt-1 text-sm text-foreground-subtle">
-          Send in-app intimations to OpCos (UC-07).
+          Send in-app messages to OpCos and/or Partners.
         </p>
       </div>
 
@@ -149,10 +268,77 @@ export function IntimationsView({
         <div className="rounded-xl border border-border bg-surface p-4">
           <h2 className="text-lg font-medium text-foreground">Compose intimation</h2>
           <p className="mt-1 text-sm text-foreground-subtle">
-            Delivered to the selected OpCos&apos; notification inboxes.
+            Delivered to the selected recipients&apos; notification inboxes.
           </p>
 
           <div className="mt-4 space-y-4">
+            <label className="block text-sm">
+              <span className="text-foreground-muted">Audience</span>
+              <select
+                value={audience}
+                onChange={(event) =>
+                  setAudience(event.target.value as BroadcastAudience)
+                }
+                className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
+              >
+                {AUDIENCE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block text-sm">
+              <span className="text-foreground-muted">Message source</span>
+              <select
+                value={messageSource}
+                onChange={(event) =>
+                  handleMessageSourceChange(
+                    event.target.value as BroadcastMessageSource,
+                  )
+                }
+                className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
+              >
+                {MESSAGE_SOURCE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {usingTemplate ? (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block text-sm">
+                  <span className="text-foreground-muted">Month</span>
+                  <select
+                    value={month}
+                    onChange={(event) => setMonth(Number(event.target.value))}
+                    className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
+                  >
+                    {MONTHS.map((label, index) => (
+                      <option key={label} value={index + 1}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="block text-sm">
+                  <span className="text-foreground-muted">Year</span>
+                  <input
+                    type="number"
+                    min={2000}
+                    max={2100}
+                    value={year}
+                    onChange={(event) => setYear(Number(event.target.value))}
+                    className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
+                  />
+                </label>
+              </div>
+            ) : null}
+
             <label className="block text-sm">
               <span className="text-foreground-muted">Subject</span>
               <input
@@ -175,6 +361,13 @@ export function IntimationsView({
                 placeholder="Please submit partner reports for the current period by end of week."
               />
             </label>
+
+            {usingTemplate ? (
+              <p className="text-xs text-foreground-subtle">
+                Placeholder {"{{period}}"} is filled from the month and year above.
+                You can edit the text before sending.
+              </p>
+            ) : null}
 
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block text-sm">
@@ -203,61 +396,119 @@ export function IntimationsView({
               </label>
             </div>
 
-            <div>
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-sm text-foreground-muted">Recipients (OpCos)</span>
-                <div className="flex gap-2 text-xs">
-                  <button
-                    type="button"
-                    onClick={selectAllOpcos}
-                    className="font-medium text-foreground-muted underline"
-                  >
-                    Select all
-                  </button>
-                  <button
-                    type="button"
-                    onClick={clearOpcos}
-                    className="font-medium text-foreground-muted underline"
-                  >
-                    Clear
-                  </button>
+            {showOpcos ? (
+              <div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm text-foreground-muted">
+                    Recipients (OpCos)
+                  </span>
+                  <div className="flex gap-2 text-xs">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSelectedOpcoIds(
+                          formOptions.opcos.map((opco) => opco.id),
+                        )
+                      }
+                      className="font-medium text-foreground-muted underline"
+                    >
+                      Select all
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedOpcoIds([])}
+                      className="font-medium text-foreground-muted underline"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-2 max-h-48 space-y-2 overflow-y-auto rounded-lg border border-border p-3">
+                  {formOptions.opcos.length === 0 ? (
+                    <p className="text-sm text-foreground-subtle">
+                      No OpCos configured.
+                    </p>
+                  ) : (
+                    formOptions.opcos.map((opco) => (
+                      <label
+                        key={opco.id}
+                        className="flex cursor-pointer items-center gap-2 text-sm text-foreground"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedOpcoIds.includes(opco.id)}
+                          onChange={() => toggleOpco(opco.id)}
+                          className="rounded border-border-strong"
+                        />
+                        {opco.name}
+                      </label>
+                    ))
+                  )}
                 </div>
               </div>
+            ) : null}
 
-              <div className="mt-2 max-h-48 space-y-2 overflow-y-auto rounded-lg border border-border p-3">
-                {formOptions.opcos.length === 0 ? (
-                  <p className="text-sm text-foreground-subtle">No OpCos configured.</p>
-                ) : (
-                  formOptions.opcos.map((opco) => (
-                    <label
-                      key={opco.id}
-                      className="flex cursor-pointer items-center gap-2 text-sm text-foreground"
+            {showPartners ? (
+              <div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm text-foreground-muted">
+                    Recipients (Partners)
+                  </span>
+                  <div className="flex gap-2 text-xs">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSelectedPartnerIds(
+                          formOptions.partners.map((partner) => partner.id),
+                        )
+                      }
+                      className="font-medium text-foreground-muted underline"
                     >
-                      <input
-                        type="checkbox"
-                        checked={selectedOpcoIds.includes(opco.id)}
-                        onChange={() => toggleOpco(opco.id)}
-                        className="rounded border-border-strong"
-                      />
-                      {opco.name}
-                    </label>
-                  ))
-                )}
+                      Select all
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPartnerIds([])}
+                      className="font-medium text-foreground-muted underline"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-2 max-h-48 space-y-2 overflow-y-auto rounded-lg border border-border p-3">
+                  {formOptions.partners.length === 0 ? (
+                    <p className="text-sm text-foreground-subtle">
+                      No Partners configured.
+                    </p>
+                  ) : (
+                    formOptions.partners.map((partner) => (
+                      <label
+                        key={partner.id}
+                        className="flex cursor-pointer items-center gap-2 text-sm text-foreground"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedPartnerIds.includes(partner.id)}
+                          onChange={() => togglePartner(partner.id)}
+                          className="rounded border-border-strong"
+                        />
+                        {partner.name}
+                      </label>
+                    ))
+                  )}
+                </div>
               </div>
-            </div>
+            ) : null}
 
             <button
               type="button"
               onClick={() => void sendIntimation()}
-              disabled={
-                sending ||
-                !subject.trim() ||
-                !body.trim() ||
-                selectedOpcoIds.length === 0
-              }
+              disabled={sending || !canSend}
               className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
             >
-              {sending ? "Sending…" : "Send to OpCos"}
+              {sendLabel}
             </button>
           </div>
         </div>
@@ -265,7 +516,7 @@ export function IntimationsView({
         <div className="rounded-xl border border-border bg-surface p-4">
           <h2 className="text-lg font-medium text-foreground">Recent intimations</h2>
           <p className="mt-1 text-sm text-foreground-subtle">
-            Notifications sent to OpCos from Dizlee.
+            Notifications sent to OpCos and Partners from Dizlee.
           </p>
 
           <div className="mt-4 space-y-3">
@@ -287,7 +538,7 @@ export function IntimationsView({
                   </div>
                   <p className="mt-1 text-sm text-foreground-muted">{item.bodyPreview}</p>
                   <p className="mt-2 text-xs text-foreground-subtle">
-                    To: {item.opcoNames.join(", ") || `${item.recipientCount} OpCo(s)`}
+                    To: {item.recipientSummary || `${item.recipientCount} recipient(s)`}
                   </p>
                   <p className="mt-1 text-xs text-foreground-subtle">
                     {formatDateTime(item.sentAt)} · {item.sentBy}

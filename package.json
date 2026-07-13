@@ -18,6 +18,7 @@
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:seed": "prisma db seed",
+    "db:clear-transactional": "npx tsx prisma/clear-transactional-data.ts",
     "seed": "prisma db seed",
     "postinstall": "prisma generate"
   },

@@ -67,7 +67,7 @@ export function ReportDetailModal({
               <dd className="font-medium text-foreground">{detail.period.label}</dd>
             </div>
             <div>
-              <dt className="text-foreground-subtle">OpCo / Partner lane</dt>
+              <dt className="text-foreground-subtle">OpCo / Partner</dt>
               <dd className="font-medium text-foreground">{detail.lane}</dd>
             </div>
             <div>

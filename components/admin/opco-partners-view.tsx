@@ -157,7 +157,7 @@ export function OpcoPartnersView({ initialData }: OpcoPartnersViewProps) {
       ) : null}
 
       <p className="rounded-md border border-border bg-surface-muted px-3 py-2 text-sm text-foreground-muted">
-        Linked partners control upload dropdowns, monitoring lanes, consolidation
+        Linked partners control upload dropdowns, monitoring pairs, consolidation
         readiness, and report validation. Unlinked OpCo–Partner uploads are
         rejected.
       </p>

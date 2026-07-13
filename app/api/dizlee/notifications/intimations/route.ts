@@ -7,7 +7,9 @@ import {
   listIntimations,
   NotificationError,
   parseIntimationListFilters,
-  sendIntimationToOpcos,
+  sendBroadcastNotification,
+  type BroadcastAudience,
+  type BroadcastMessageSource,
 } from "@/lib/dizlee/notifications/intimations";
 
 export async function GET(request: NextRequest) {
@@ -40,19 +42,29 @@ export async function POST(request: Request) {
 
   try {
     const body = (await request.json()) as {
+      audience?: BroadcastAudience;
       subject?: string;
       message?: string;
       body?: string;
       opcoIds?: string[];
+      partnerIds?: string[];
+      messageSource?: BroadcastMessageSource;
+      month?: number;
+      year?: number;
       priority?: string | null;
       expiresAt?: string | null;
     };
 
-    const result = await sendIntimationToOpcos({
+    const result = await sendBroadcastNotification({
       input: {
-        subject: body.subject ?? "",
-        body: body.body ?? body.message ?? "",
+        audience: body.audience ?? "opco",
         opcoIds: body.opcoIds ?? [],
+        partnerIds: body.partnerIds ?? [],
+        messageSource: body.messageSource ?? "custom",
+        month: body.month,
+        year: body.year,
+        subject: body.subject,
+        body: body.body ?? body.message,
         priority: body.priority,
         expiresAt: body.expiresAt,
       },
