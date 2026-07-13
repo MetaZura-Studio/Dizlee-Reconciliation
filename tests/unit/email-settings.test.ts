@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { sendTestEmailSchema } from "@/lib/admin/validation/email-settings";
+import {
+  sendTestEmailSchema,
+  updateEmailSettingsSchema,
+} from "@/lib/admin/validation/email-settings";
 import {
   getEmailSettingsFromEnv,
   isEmailEnabledFromEnv,
@@ -11,6 +14,39 @@ describe("email settings validation", () => {
   it("accepts a valid test recipient email", () => {
     const result = sendTestEmailSchema.safeParse({
       recipient: "you@example.com",
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts a valid update payload", () => {
+    const result = updateEmailSettingsSchema.safeParse({
+      emailEnabled: true,
+      smtpHost: "smtp.titan.email",
+      smtpPort: 465,
+      senderAddress: "noreply@dizlee.com",
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("requires host/port/sender when email is enabled", () => {
+    const result = updateEmailSettingsSchema.safeParse({
+      emailEnabled: true,
+      smtpHost: "",
+      smtpPort: null,
+      senderAddress: "",
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("allows disabling email without host", () => {
+    const result = updateEmailSettingsSchema.safeParse({
+      emailEnabled: false,
+      smtpHost: null,
+      smtpPort: 587,
+      senderAddress: null,
     });
 
     expect(result.success).toBe(true);
@@ -76,7 +112,7 @@ describe("resolveSmtpConfigFromEnv", () => {
     });
   });
 
-  it("exposes env values for the admin read-only view", () => {
+  it("exposes env values for admin form prefills", () => {
     process.env.EMAIL_ENABLED = "true";
     process.env.SMTP_HOST = "smtp.titan.email";
     process.env.SMTP_PORT = "587";

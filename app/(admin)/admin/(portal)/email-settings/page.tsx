@@ -37,7 +37,10 @@ export default async function AdminEmailSettingsPage() {
         <h1 className="text-2xl font-semibold tracking-tight">
           Email Notification Settings
         </h1>
-        <p className="text-sm text-foreground-muted">Admin-only system setting.</p>
+        <p className="text-sm text-foreground-muted">
+          Configure SMTP host, port, and sender. Credentials stay in{" "}
+          <code>.env</code>.
+        </p>
       </div>
 
       <EmailSettingsForm initialSettings={settings!} />

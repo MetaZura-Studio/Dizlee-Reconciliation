@@ -55,6 +55,7 @@ export function CreateOpcoInvoiceModal({
   const [year, setYear] = useState(defaultYear);
   const [opcoId, setOpcoId] = useState("");
   const [currencyId, setCurrencyId] = useState("");
+  const [bankAccountId, setBankAccountId] = useState("");
   const [lineItems, setLineItems] = useState<CreateOpcoInvoiceLineInput[]>([
     emptyLine(),
   ]);
@@ -75,6 +76,11 @@ export function CreateOpcoInvoiceModal({
           const first = options.opcos[0];
           setOpcoId(first.id);
           setCurrencyId(first.defaultCurrencyId);
+        }
+        if (options.bankAccounts.length === 1) {
+          setBankAccountId(options.bankAccounts[0].id);
+        } else {
+          setBankAccountId("");
         }
       })
       .catch((loadError) => {
@@ -125,6 +131,7 @@ export function CreateOpcoInvoiceModal({
         year,
         opcoId,
         currencyId: currencyId || undefined,
+        bankAccountId: bankAccountId || undefined,
         lineItems,
       };
       const response = await fetch("/api/dizlee/invoices", {
@@ -157,6 +164,10 @@ export function CreateOpcoInvoiceModal({
   for (let value = year + 1; value >= year - 4; value -= 1) {
     yearOptions.push(value);
   }
+
+  const selectedBankPreview =
+    formOptions?.bankAccounts.find((account) => account.id === bankAccountId) ??
+    null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -243,41 +254,100 @@ export function CreateOpcoInvoiceModal({
               </label>
             </div>
 
-            {formOptions?.bankDetails ? (
+            {formOptions && formOptions.bankAccounts.length === 0 ? (
+              <p className="text-sm text-warning">
+                Bank details are not configured in admin settings yet.
+              </p>
+            ) : null}
+
+            {formOptions && formOptions.bankAccounts.length === 1 ? (
               <div className="rounded-md border border-border bg-surface-muted p-3 text-sm text-foreground-muted">
-                <p className="font-medium text-foreground">Bank details (from admin)</p>
+                <p className="font-medium text-foreground">
+                  Bank details ({formOptions.bankAccounts[0].label})
+                </p>
                 <dl className="mt-2 grid gap-1 sm:grid-cols-2">
-                  {formOptions.bankDetails.bankName ? (
+                  {formOptions.bankAccounts[0].bankName ? (
                     <div>
                       <dt className="text-xs text-foreground-subtle">Bank</dt>
-                      <dd>{formOptions.bankDetails.bankName}</dd>
+                      <dd>{formOptions.bankAccounts[0].bankName}</dd>
                     </div>
                   ) : null}
-                  {formOptions.bankDetails.accountName ? (
+                  {formOptions.bankAccounts[0].accountName ? (
                     <div>
                       <dt className="text-xs text-foreground-subtle">Account name</dt>
-                      <dd>{formOptions.bankDetails.accountName}</dd>
+                      <dd>{formOptions.bankAccounts[0].accountName}</dd>
                     </div>
                   ) : null}
-                  {formOptions.bankDetails.accountNumber ? (
+                  {formOptions.bankAccounts[0].accountNumber ? (
                     <div>
                       <dt className="text-xs text-foreground-subtle">Account number</dt>
-                      <dd>{formOptions.bankDetails.accountNumber}</dd>
+                      <dd>{formOptions.bankAccounts[0].accountNumber}</dd>
                     </div>
                   ) : null}
-                  {formOptions.bankDetails.iban ? (
+                  {formOptions.bankAccounts[0].iban ? (
                     <div>
                       <dt className="text-xs text-foreground-subtle">IBAN</dt>
-                      <dd>{formOptions.bankDetails.iban}</dd>
+                      <dd>{formOptions.bankAccounts[0].iban}</dd>
                     </div>
                   ) : null}
                 </dl>
               </div>
-            ) : (
-              <p className="text-sm text-warning">
-                Bank details are not configured in admin settings yet.
-              </p>
-            )}
+            ) : null}
+
+            {formOptions && formOptions.bankAccounts.length > 1 ? (
+              <div className="space-y-3">
+                <label className="block text-sm">
+                  <span className="mb-1 block text-xs text-foreground-subtle">
+                    Bank account
+                  </span>
+                  <select
+                    value={bankAccountId}
+                    onChange={(event) => setBankAccountId(event.target.value)}
+                    className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
+                  >
+                    <option value="">Select bank account</option>
+                    {formOptions.bankAccounts.map((account) => (
+                      <option key={account.id} value={account.id}>
+                        {account.label}
+                        {account.bankName ? ` — ${account.bankName}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {selectedBankPreview ? (
+                  <div className="rounded-md border border-border bg-surface-muted p-3 text-sm text-foreground-muted">
+                    <dl className="grid gap-1 sm:grid-cols-2">
+                      {selectedBankPreview.bankName ? (
+                        <div>
+                          <dt className="text-xs text-foreground-subtle">Bank</dt>
+                          <dd>{selectedBankPreview.bankName}</dd>
+                        </div>
+                      ) : null}
+                      {selectedBankPreview.accountName ? (
+                        <div>
+                          <dt className="text-xs text-foreground-subtle">
+                            Account name
+                          </dt>
+                          <dd>{selectedBankPreview.accountName}</dd>
+                        </div>
+                      ) : null}
+                      {selectedBankPreview.iban ? (
+                        <div>
+                          <dt className="text-xs text-foreground-subtle">IBAN</dt>
+                          <dd>{selectedBankPreview.iban}</dd>
+                        </div>
+                      ) : null}
+                      {selectedBankPreview.swift ? (
+                        <div>
+                          <dt className="text-xs text-foreground-subtle">SWIFT</dt>
+                          <dd>{selectedBankPreview.swift}</dd>
+                        </div>
+                      ) : null}
+                    </dl>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">

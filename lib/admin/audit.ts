@@ -21,6 +21,13 @@ type CurrencyAuditAction =
 
 type NotificationAuditAction = "EMAIL_TEMPLATE_UPDATED";
 
+type OpcoAuditAction = "OPCO_CREATED" | "OPCO_UPDATED" | "OPCO_DELETED";
+
+type PartnerAuditAction =
+  | "PARTNER_CREATED"
+  | "PARTNER_UPDATED"
+  | "PARTNER_DELETED";
+
 export async function writeUserAuditLog(params: {
   actorUserId: bigint;
   action: UserAuditAction;
@@ -110,6 +117,54 @@ export async function writeNotificationAuditLog(params: {
       actionId,
       entityTypeId,
       entityId: params.notificationTemplateId,
+      message: params.message,
+      metadata: params.metadata ?? undefined,
+    },
+  });
+}
+
+export async function writeOpcoAuditLog(params: {
+  actorUserId: bigint;
+  action: OpcoAuditAction;
+  opcoId: bigint;
+  message: string;
+  metadata?: Prisma.InputJsonValue;
+}): Promise<void> {
+  const [actionId, entityTypeId] = await Promise.all([
+    getLookupId("AUDIT_ACTION", params.action),
+    getLookupId("AUDIT_ENTITY_TYPE", "OPCO"),
+  ]);
+
+  await prisma.auditLog.create({
+    data: {
+      actorUserId: params.actorUserId,
+      actionId,
+      entityTypeId,
+      entityId: params.opcoId,
+      message: params.message,
+      metadata: params.metadata ?? undefined,
+    },
+  });
+}
+
+export async function writePartnerAuditLog(params: {
+  actorUserId: bigint;
+  action: PartnerAuditAction;
+  partnerId: bigint;
+  message: string;
+  metadata?: Prisma.InputJsonValue;
+}): Promise<void> {
+  const [actionId, entityTypeId] = await Promise.all([
+    getLookupId("AUDIT_ACTION", params.action),
+    getLookupId("AUDIT_ENTITY_TYPE", "PARTNER"),
+  ]);
+
+  await prisma.auditLog.create({
+    data: {
+      actorUserId: params.actorUserId,
+      actionId,
+      entityTypeId,
+      entityId: params.partnerId,
       message: params.message,
       metadata: params.metadata ?? undefined,
     },

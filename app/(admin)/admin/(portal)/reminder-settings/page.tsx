@@ -34,8 +34,8 @@ export default async function AdminReminderSettingsPage() {
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">Reminder Settings</h1>
         <p className="text-sm text-foreground-muted">
-          Admin-only system setting. Controls how long after the start of a
-          reporting period automatic reminders wait before sending.
+          Configure per-event due dates, multiple pre-due intimations, and
+          multiple post-due reminders for Report and Invoice cycles.
         </p>
       </div>
 

@@ -1,3 +1,5 @@
+import { prisma } from "@/lib/prisma";
+
 export type ResolvedSmtpConfig = {
   host: string;
   port: number;
@@ -92,6 +94,56 @@ export function resolveSmtpConfigFromEnv(): SmtpResolutionResult {
   };
 }
 
+/**
+ * Prefer Admin Email Settings (DB) for host/port/from/enabled.
+ * Fall back to .env when DB host is empty. Credentials always come from .env.
+ */
 export async function resolveSmtpConfig(): Promise<SmtpResolutionResult> {
-  return resolveSmtpConfigFromEnv();
+  const settings = await prisma.appSettings.findFirst({
+    where: { id: 1 },
+    select: {
+      emailEnabled: true,
+      smtpHost: true,
+      smtpPort: true,
+      senderAddress: true,
+    },
+  });
+
+  const dbHost = normalizeSmtpHost(settings?.smtpHost);
+  const envHost = normalizeSmtpHost(process.env.SMTP_HOST);
+  const host = dbHost || envHost;
+
+  const emailEnabled = dbHost
+    ? Boolean(settings?.emailEnabled)
+    : isEmailEnabledFromEnv();
+
+  if (!emailEnabled) {
+    return { ok: false, reason: "email_disabled" };
+  }
+
+  if (!host) {
+    return { ok: false, reason: "smtp_not_configured" };
+  }
+
+  const port =
+    (dbHost ? settings?.smtpPort : null) ??
+    parseEnvPort();
+  const from =
+    (dbHost ? settings?.senderAddress?.trim() : null) ||
+    process.env.SMTP_FROM?.trim() ||
+    process.env.SENDER_ADDRESS?.trim() ||
+    "noreply@dizlee.com";
+  const user = process.env.SMTP_USER?.trim();
+  const pass = process.env.SMTP_PASSWORD;
+
+  return {
+    ok: true,
+    config: {
+      host,
+      port,
+      secure: port === 465,
+      auth: user && pass ? { user, pass } : undefined,
+      from,
+    },
+  };
 }

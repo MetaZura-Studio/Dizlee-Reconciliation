@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import type { DonutSegment } from "@/lib/dizlee/dashboard";
 
 const PALETTE = [
@@ -15,9 +17,15 @@ type DonutChartProps = {
   title: string;
   segments: DonutSegment[];
   formatValue?: (value: number) => string;
+  getSegmentHref?: (segment: DonutSegment) => string | undefined;
 };
 
-export function DonutChart({ title, segments, formatValue }: DonutChartProps) {
+export function DonutChart({
+  title,
+  segments,
+  formatValue,
+  getSegmentHref,
+}: DonutChartProps) {
   const total = segments.reduce((sum, segment) => sum + segment.value, 0);
   const format = formatValue ?? ((value: number) => value.toLocaleString());
 
@@ -40,7 +48,7 @@ export function DonutChart({ title, segments, formatValue }: DonutChartProps) {
                 const percent = (segment.value / total) * 100;
                 const circle = (
                   <circle
-                    key={segment.label}
+                    key={segment.id ?? segment.label}
                     cx="18"
                     cy="18"
                     r="15.915"
@@ -57,23 +65,42 @@ export function DonutChart({ title, segments, formatValue }: DonutChartProps) {
             })()}
           </svg>
           <ul className="min-w-0 flex-1 space-y-1 text-sm">
-            {segments.map((segment, index) => (
-              <li
-                key={segment.label}
-                className="flex items-center justify-between gap-3"
-              >
-                <span className="flex min-w-0 items-center gap-2">
-                  <span
-                    className="h-2.5 w-2.5 shrink-0 rounded-full"
-                    style={{ backgroundColor: PALETTE[index % PALETTE.length] }}
-                  />
-                  <span className="truncate text-foreground-muted">{segment.label}</span>
-                </span>
-                <span className="shrink-0 font-medium text-foreground">
-                  {format(segment.value)}
-                </span>
-              </li>
-            ))}
+            {segments.map((segment, index) => {
+              const href = getSegmentHref?.(segment);
+              const valueLabel = format(segment.value);
+              const row = (
+                <>
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span
+                      className="h-2.5 w-2.5 shrink-0 rounded-full"
+                      style={{ backgroundColor: PALETTE[index % PALETTE.length] }}
+                    />
+                    <span className="truncate text-foreground-muted">
+                      {segment.label}
+                    </span>
+                  </span>
+                  <span className="shrink-0 font-medium text-foreground">
+                    {valueLabel}
+                  </span>
+                </>
+              );
+
+              return (
+                <li key={segment.id ?? segment.label}>
+                  {href ? (
+                    <Link
+                      href={href}
+                      className="flex items-center justify-between gap-3 underline-offset-2 hover:underline"
+                      title={`View details for ${segment.label}`}
+                    >
+                      {row}
+                    </Link>
+                  ) : (
+                    <div className="flex items-center justify-between gap-3">{row}</div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}

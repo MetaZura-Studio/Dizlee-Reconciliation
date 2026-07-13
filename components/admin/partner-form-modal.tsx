@@ -1,0 +1,197 @@
+"use client";
+
+import { useState } from "react";
+
+import type {
+  AdminEntityStatus,
+  PartnerListItem,
+} from "@/lib/admin/partners.shared";
+
+type PartnerFormValues = {
+  name: string;
+  status: AdminEntityStatus;
+};
+
+type PartnerFormModalProps = {
+  open: boolean;
+  mode: "create" | "edit";
+  partner: PartnerListItem | null;
+  onClose: () => void;
+  onSaved: (partner: PartnerListItem, message: string) => void;
+};
+
+type PartnerFormModalContentProps = {
+  mode: "create" | "edit";
+  partner: PartnerListItem | null;
+  onClose: () => void;
+  onSaved: (partner: PartnerListItem, message: string) => void;
+};
+
+function getInitialValues(
+  mode: "create" | "edit",
+  partner: PartnerListItem | null,
+): PartnerFormValues {
+  if (mode === "edit" && partner) {
+    return {
+      name: partner.name,
+      status: partner.status,
+    };
+  }
+
+  return {
+    name: "",
+    status: "ACTIVE",
+  };
+}
+
+function PartnerFormModalContent({
+  mode,
+  partner,
+  onClose,
+  onSaved,
+}: PartnerFormModalContentProps) {
+  const [values, setValues] = useState<PartnerFormValues>(() =>
+    getInitialValues(mode, partner),
+  );
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      const payload = {
+        name: values.name,
+        status: values.status,
+      };
+
+      const response = await fetch(
+        mode === "create"
+          ? "/api/admin/partners"
+          : `/api/admin/partners/${partner?.id}`,
+        {
+          method: mode === "create" ? "POST" : "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+      );
+      const body = await response.json();
+      if (!response.ok) {
+        throw new Error(body.error ?? "Failed to save Partner");
+      }
+
+      onSaved(
+        body.data as PartnerListItem,
+        mode === "create" ? "Partner created." : "Partner updated.",
+      );
+      onClose();
+    } catch (saveError) {
+      setError(
+        saveError instanceof Error
+          ? saveError.message
+          : "Failed to save Partner",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="partner-form-title"
+        className="w-full max-w-md rounded-lg bg-surface shadow-xl"
+      >
+        <form onSubmit={(event) => void submit(event)}>
+          <div className="space-y-4 px-6 py-5">
+            <h2
+              id="partner-form-title"
+              className="text-lg font-semibold text-foreground"
+            >
+              {mode === "create" ? "Create Partner" : "Edit Partner"}
+            </h2>
+
+            {error ? (
+              <p className="rounded-md border border-danger-border bg-danger-muted px-3 py-2 text-sm text-danger">
+                {error}
+              </p>
+            ) : null}
+
+            <label className="block space-y-1 text-sm">
+              <span className="font-medium text-foreground-muted">Name</span>
+              <input
+                value={values.name}
+                onChange={(event) =>
+                  setValues((current) => ({ ...current, name: event.target.value }))
+                }
+                required
+                className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
+              />
+            </label>
+
+            <label className="block space-y-1 text-sm">
+              <span className="font-medium text-foreground-muted">Status</span>
+              <select
+                value={values.status}
+                onChange={(event) =>
+                  setValues((current) => ({
+                    ...current,
+                    status: event.target.value as AdminEntityStatus,
+                  }))
+                }
+                className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
+              >
+                <option value="ACTIVE">Active</option>
+                <option value="INACTIVE">Inactive</option>
+              </select>
+            </label>
+          </div>
+
+          <div className="flex justify-end gap-3 border-t border-border px-6 py-4">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={submitting}
+              className="rounded-md border border-border-strong px-4 py-2 text-sm font-medium text-foreground-muted hover:bg-surface-muted disabled:opacity-60"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
+            >
+              {submitting ? "Saving…" : "Save"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+export function PartnerFormModal({
+  open,
+  mode,
+  partner,
+  onClose,
+  onSaved,
+}: PartnerFormModalProps) {
+  if (!open) {
+    return null;
+  }
+
+  return (
+    <PartnerFormModalContent
+      key={`${mode}-${partner?.id ?? "new"}`}
+      mode={mode}
+      partner={partner}
+      onClose={onClose}
+      onSaved={onSaved}
+    />
+  );
+}

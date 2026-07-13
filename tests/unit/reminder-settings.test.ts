@@ -1,71 +1,110 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  formatReminderSchedule,
-  getReminderDurationMs,
-  isReminderPeriodEligible,
-} from "@/lib/admin/reminder-duration";
+  getDueScheduleSteps,
+  parseNotificationSchedulesJson,
+  triggerDateForStep,
+} from "@/lib/admin/notification-schedules.shared";
 import { updateReminderSettingsSchema } from "@/lib/admin/validation/reminder-settings";
 
 describe("reminder settings validation", () => {
-  it("accepts enabled settings with days or weeks", () => {
-    expect(
-      updateReminderSettingsSchema.safeParse({
-        remindersEnabled: true,
-        reminderValue: 3,
-        reminderUnit: "days",
-      }).success,
-    ).toBe(true);
-
-    expect(
-      updateReminderSettingsSchema.safeParse({
-        remindersEnabled: true,
-        reminderValue: 1,
-        reminderUnit: "weeks",
-      }).success,
-    ).toBe(true);
-  });
-
-  it("allows blank reminder value", () => {
+  it("accepts schedules with intimations and reminders", () => {
     const result = updateReminderSettingsSchema.safeParse({
-      remindersEnabled: false,
-      reminderValue: null,
+      remindersEnabled: true,
       reminderUnit: "days",
+      schedules: [
+        {
+          eventCode: "REPORT",
+          enabled: true,
+          dueDayOfMonth: 10,
+          intimations: [{ id: "a", offsetDays: 3 }],
+          reminders: [{ id: "b", offsetDays: 1 }],
+        },
+        {
+          eventCode: "INVOICE",
+          enabled: false,
+          dueDayOfMonth: 15,
+          intimations: [],
+          reminders: [],
+        },
+      ],
     });
 
     expect(result.success).toBe(true);
   });
+
+  it("rejects invalid due day", () => {
+    const result = updateReminderSettingsSchema.safeParse({
+      remindersEnabled: true,
+      schedules: [
+        {
+          eventCode: "REPORT",
+          enabled: true,
+          dueDayOfMonth: 31,
+          intimations: [],
+          reminders: [],
+        },
+      ],
+    });
+
+    expect(result.success).toBe(false);
+  });
 });
 
-describe("reminder duration helpers", () => {
-  it("formats schedule labels", () => {
-    expect(formatReminderSchedule(3, "days")).toBe("3 days");
-    expect(formatReminderSchedule(1, "weeks")).toBe("1 week");
-  });
-
-  it("converts days and weeks to milliseconds", () => {
-    expect(getReminderDurationMs(3, "days")).toBe(3 * 24 * 60 * 60 * 1000);
-    expect(getReminderDurationMs(1, "weeks")).toBe(7 * 24 * 60 * 60 * 1000);
-  });
-
-  it("checks eligibility from period start", () => {
-    const eligible = isReminderPeriodEligible({
-      periodYear: 2026,
-      periodMonth: 7,
-      reminderValue: 3,
-      reminderUnit: "days",
-      now: new Date("2026-07-04T12:00:00Z"),
+describe("notification schedule helpers", () => {
+  it("computes intimation and reminder trigger dates from due day", () => {
+    const intimation = triggerDateForStep({
+      year: 2026,
+      month: 7,
+      dueDayOfMonth: 10,
+      kind: "INTIMATION",
+      offsetDays: 3,
+    });
+    const reminder = triggerDateForStep({
+      year: 2026,
+      month: 7,
+      dueDayOfMonth: 10,
+      kind: "REMINDER",
+      offsetDays: 2,
     });
 
-    const tooEarly = isReminderPeriodEligible({
-      periodYear: 2026,
-      periodMonth: 7,
-      reminderValue: 3,
-      reminderUnit: "days",
-      now: new Date("2026-07-03T12:00:00Z"),
+    expect(intimation.getFullYear()).toBe(2026);
+    expect(intimation.getMonth()).toBe(6);
+    expect(intimation.getDate()).toBe(7);
+    expect(reminder.getDate()).toBe(12);
+  });
+
+  it("returns due steps for today", () => {
+    const schedules = parseNotificationSchedulesJson(
+      JSON.stringify([
+        {
+          eventCode: "REPORT",
+          enabled: true,
+          dueDayOfMonth: 10,
+          intimations: [{ id: "i1", offsetDays: 3 }],
+          reminders: [{ id: "r1", offsetDays: 1 }],
+        },
+        {
+          eventCode: "INVOICE",
+          enabled: true,
+          dueDayOfMonth: 15,
+          intimations: [],
+          reminders: [],
+        },
+      ]),
+    );
+
+    const due = getDueScheduleSteps({
+      schedules,
+      now: new Date(2026, 6, 7, 12, 0, 0),
     });
 
-    expect(eligible).toBe(true);
-    expect(tooEarly).toBe(false);
+    expect(due).toHaveLength(1);
+    expect(due[0]).toMatchObject({
+      eventCode: "REPORT",
+      kind: "INTIMATION",
+      offsetDays: 3,
+      templateCode: "REPORT_SUBMISSION",
+    });
   });
 });

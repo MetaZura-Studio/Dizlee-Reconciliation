@@ -9,7 +9,6 @@ import type {
   IntimationFormOptions,
   IntimationListResult,
 } from "@/lib/dizlee/notifications/broadcast.shared";
-import type { ReportFilterOptions } from "@/lib/dizlee/reports";
 
 const PRIORITY_OPTIONS = [
   { value: "", label: "Normal" },

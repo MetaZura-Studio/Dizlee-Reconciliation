@@ -36,6 +36,17 @@ export type ReportListResult = {
   filters: ReportListFilters;
 };
 
+export type ReportLineItem = {
+  lineNumber: number;
+  description: string | null;
+  usageAmount: string | null;
+  usageUsd: string | null;
+  amount: string | null;
+  exchangeRate: string | null;
+  usageUnit: string | null;
+  reconciliationBasis: string | null;
+};
+
 export type ReportDetail = {
   id: string;
   period: DashboardPeriod;
@@ -48,6 +59,8 @@ export type ReportDetail = {
   filename: string | null;
   fileSizeBytes: number | null;
   previewUrl: string | null;
+  lineItemCount: number;
+  lineItems: ReportLineItem[];
 };
 
 export type ReportFilterOptions = {
@@ -195,6 +208,13 @@ export async function listReports(
   };
 }
 
+function decimalToString(value: Prisma.Decimal | null | undefined): string | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  return value.toString();
+}
+
 export async function getReportDetail(id: string): Promise<ReportDetail | null> {
   const report = await prisma.report.findFirst({
     where: { id: BigInt(id) },
@@ -204,6 +224,19 @@ export async function getReportDetail(id: string): Promise<ReportDetail | null> 
       status: { select: { code: true } },
       file: { select: { id: true, filename: true, sizeBytes: true } },
       uploadedByUser: { select: { role: { select: { code: true } } } },
+      lineItems: {
+        orderBy: { lineNumber: "asc" },
+        select: {
+          lineNumber: true,
+          description: true,
+          usageAmount: true,
+          usageUsd: true,
+          amount: true,
+          exchangeRate: true,
+          usageUnit: true,
+          reconciliationBasis: true,
+        },
+      },
     },
   });
 
@@ -225,6 +258,17 @@ export async function getReportDetail(id: string): Promise<ReportDetail | null> 
     filename: report.file?.filename ?? null,
     fileSizeBytes: report.file?.sizeBytes ? Number(report.file.sizeBytes) : null,
     previewUrl: fileId ? `/api/dizlee/reports/${report.id.toString()}/preview` : null,
+    lineItemCount: report.lineItems.length,
+    lineItems: report.lineItems.map((item) => ({
+      lineNumber: item.lineNumber,
+      description: item.description,
+      usageAmount: decimalToString(item.usageAmount),
+      usageUsd: decimalToString(item.usageUsd),
+      amount: decimalToString(item.amount),
+      exchangeRate: decimalToString(item.exchangeRate),
+      usageUnit: item.usageUnit,
+      reconciliationBasis: item.reconciliationBasis,
+    })),
   };
 }
 

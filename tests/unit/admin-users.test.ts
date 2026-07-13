@@ -7,7 +7,7 @@ import {
 import { parseUserListFilters } from "@/lib/admin/users.shared";
 
 describe("admin user validation", () => {
-  it("accepts a valid Dizlee user without admin password", () => {
+  it("accepts a valid Dizlee user without org links", () => {
     const result = createUserSchema.safeParse({
       name: "Jane Doe",
       email: "jane@dizlee.com",
@@ -18,37 +18,65 @@ describe("admin user validation", () => {
     expect(result.success).toBe(true);
   });
 
-  it("accepts OpCo users without selecting an existing OpCo", () => {
-    const result = createUserSchema.safeParse({
-      name: "New OpCo",
-      email: "newopco@gmail.com",
+  it("requires an OpCo when role is opco", () => {
+    const missing = createUserSchema.safeParse({
+      name: "OpCo User",
+      email: "opco-user@gmail.com",
       role: "opco",
       status: "ACTIVE",
     });
 
-    expect(result.success).toBe(true);
+    expect(missing.success).toBe(false);
+    if (!missing.success) {
+      expect(missing.error.issues[0]?.message).toBe("Select an OpCo");
+    }
+
+    const ok = createUserSchema.safeParse({
+      name: "OpCo User",
+      email: "opco-user@gmail.com",
+      role: "opco",
+      status: "ACTIVE",
+      opcoId: "4",
+    });
+
+    expect(ok.success).toBe(true);
   });
 
-  it("accepts Partner users without selecting an existing Partner", () => {
-    const result = createUserSchema.safeParse({
-      name: "New Partner",
-      email: "newpartner@gmail.com",
+  it("requires a Partner when role is partner", () => {
+    const missing = createUserSchema.safeParse({
+      name: "Partner User",
+      email: "partner-user@gmail.com",
       role: "partner",
       status: "ACTIVE",
     });
 
-    expect(result.success).toBe(true);
-  });
+    expect(missing.success).toBe(false);
+    if (!missing.success) {
+      expect(missing.error.issues[0]?.message).toBe("Select a Partner");
+    }
 
-  it("does not require password on update", () => {
-    const result = updateUserSchema.safeParse({
-      name: "Spotify",
-      email: "spotify@dizlee.com",
+    const ok = createUserSchema.safeParse({
+      name: "Partner User",
+      email: "partner-user@gmail.com",
       role: "partner",
-      status: "INACTIVE",
+      status: "ACTIVE",
+      partnerId: "11",
     });
 
-    expect(result.success).toBe(true);
+    expect(ok.success).toBe(true);
+  });
+
+  it("rejects cross-role org links", () => {
+    const result = updateUserSchema.safeParse({
+      name: "Spotify User",
+      email: "spotify-user@dizlee.com",
+      role: "partner",
+      status: "INACTIVE",
+      partnerId: "11",
+      opcoId: "4",
+    });
+
+    expect(result.success).toBe(false);
   });
 });
 

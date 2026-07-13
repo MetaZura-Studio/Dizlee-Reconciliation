@@ -1,3 +1,12 @@
+import type { InvoiceBankAccount } from "@/lib/dizlee/invoice-bank-details";
+
+export type InvoiceBankAccountView = InvoiceBankAccount;
+
+export type InvoiceBankDetailsListView = {
+  accounts: InvoiceBankAccountView[];
+};
+
+/** @deprecated Prefer InvoiceBankAccountView / list view */
 export type InvoiceBankDetailsView = {
   bankName: string | null;
   accountName: string | null;

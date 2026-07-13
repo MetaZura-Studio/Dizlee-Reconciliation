@@ -1,16 +1,18 @@
 import { writeSettingsAuditLog } from "@/lib/admin/audit";
-import {
-  EMPTY_INVOICE_BANK_DETAILS,
-  type InvoiceBankDetailsView,
-} from "@/lib/admin/invoice-bank-details.shared";
+import type { InvoiceBankDetailsListView } from "@/lib/admin/invoice-bank-details.shared";
 import {
   updateInvoiceBankDetailsSchema,
   type UpdateInvoiceBankDetailsInput,
 } from "@/lib/admin/validation/invoice-bank-details";
-import { parseInvoiceBankDetailsJson } from "@/lib/dizlee/invoice-bank-details";
+import {
+  createBankAccountId,
+  parseInvoiceBankAccountsJson,
+  serializeInvoiceBankAccounts,
+  type InvoiceBankAccount,
+} from "@/lib/dizlee/invoice-bank-details";
 import { prisma } from "@/lib/prisma";
 
-export type { InvoiceBankDetailsView } from "@/lib/admin/invoice-bank-details.shared";
+export type { InvoiceBankDetailsListView } from "@/lib/admin/invoice-bank-details.shared";
 
 export class InvoiceBankDetailsError extends Error {
   status: number;
@@ -22,41 +24,11 @@ export class InvoiceBankDetailsError extends Error {
   }
 }
 
-function serializeBankDetailsJson(
-  input: UpdateInvoiceBankDetailsInput,
-): string | null {
-  const details = {
-    bankName: input.bankName,
-    accountName: input.accountName,
-    accountNumber: input.accountNumber,
-    iban: input.iban,
-    swift: input.swift,
-    reference: input.reference,
-  };
-
-  if (
-    !details.bankName &&
-    !details.accountName &&
-    !details.accountNumber &&
-    !details.iban &&
-    !details.swift &&
-    !details.reference
-  ) {
-    return null;
-  }
-
-  return JSON.stringify(details);
+function toListView(accounts: InvoiceBankAccount[]): InvoiceBankDetailsListView {
+  return { accounts };
 }
 
-function toView(parsed: ReturnType<typeof parseInvoiceBankDetailsJson>): InvoiceBankDetailsView {
-  if (!parsed) {
-    return { ...EMPTY_INVOICE_BANK_DETAILS };
-  }
-
-  return { ...parsed };
-}
-
-export async function getInvoiceBankDetailsView(): Promise<InvoiceBankDetailsView> {
+export async function getInvoiceBankDetailsView(): Promise<InvoiceBankDetailsListView> {
   const settings = await prisma.appSettings.findFirst({
     where: { id: 1 },
     select: { opcoInvoiceBankDetailsJson: true },
@@ -69,13 +41,15 @@ export async function getInvoiceBankDetailsView(): Promise<InvoiceBankDetailsVie
     );
   }
 
-  return toView(parseInvoiceBankDetailsJson(settings.opcoInvoiceBankDetailsJson));
+  return toListView(
+    parseInvoiceBankAccountsJson(settings.opcoInvoiceBankDetailsJson),
+  );
 }
 
 export async function updateInvoiceBankDetails(
   rawInput: UpdateInvoiceBankDetailsInput,
   actorUserId: bigint,
-): Promise<InvoiceBankDetailsView> {
+): Promise<InvoiceBankDetailsListView> {
   const parsed = updateInvoiceBankDetailsSchema.safeParse(rawInput);
   if (!parsed.success) {
     throw new InvoiceBankDetailsError(
@@ -83,7 +57,18 @@ export async function updateInvoiceBankDetails(
     );
   }
 
-  const opcoInvoiceBankDetailsJson = serializeBankDetailsJson(parsed.data);
+  const accounts: InvoiceBankAccount[] = parsed.data.accounts.map((account) => ({
+    id: account.id?.trim() || createBankAccountId(),
+    label: account.label.trim(),
+    bankName: account.bankName,
+    accountName: account.accountName,
+    accountNumber: account.accountNumber,
+    iban: account.iban,
+    swift: account.swift,
+    reference: account.reference,
+  }));
+
+  const opcoInvoiceBankDetailsJson = serializeInvoiceBankAccounts(accounts);
 
   await prisma.appSettings.upsert({
     where: { id: 1 },
@@ -100,8 +85,8 @@ export async function updateInvoiceBankDetails(
     actorUserId,
     action: "SETTINGS_BANK_DETAILS_UPDATED",
     message: "Invoice bank details updated.",
-    metadata: parsed.data,
+    metadata: { accountCount: accounts.length, accounts },
   });
 
-  return toView(parseInvoiceBankDetailsJson(opcoInvoiceBankDetailsJson));
+  return toListView(accounts);
 }

@@ -1,23 +1,27 @@
 /**
- * UC-07 — Automatic submission reminders (cron-ready orchestrator).
+ * UC-07 — Automatic submission intimations & reminders (cron-ready).
  *
  * External scheduler example:
  *   curl -H "Authorization: Bearer $CRON_SECRET" \
  *     http://localhost:3000/api/admin/cron/submission-reminders
  *
- * Scheduling (Vercel cron, etc.) is intentionally not wired in this stub.
+ * Fires schedule steps whose trigger day is today (per Admin → Reminder Settings).
  */
 
-import { isReminderPeriodEligible } from "@/lib/admin/reminder-duration";
+import {
+  getDueScheduleSteps,
+  type DueScheduleStep,
+} from "@/lib/admin/notification-schedules.shared";
 import { getReminderSettings } from "@/lib/admin/reminder-settings";
+import { sendBroadcastNotification } from "@/lib/dizlee/notifications/intimations";
+import { sendMissingInvoiceReminders } from "@/lib/platform/invoice-reminders";
 import { sendMissingReportReminders } from "@/lib/platform/report-reminders";
 import { prisma } from "@/lib/prisma";
 
 export type AutomaticReminderSkipReason =
   | "disabled"
-  | "invalid_schedule"
-  | "not_eligible"
-  | "no_missing_reports";
+  | "no_steps_due"
+  | "no_recipients";
 
 export type AutomaticReminderPeriod = {
   month: number;
@@ -32,6 +36,7 @@ export type RunAutomaticSubmissionRemindersResult =
       opcoNotifications: 0;
       partnerNotifications: 0;
       message: string;
+      stepsFired?: number;
     }
   | {
       status: "sent";
@@ -39,6 +44,7 @@ export type RunAutomaticSubmissionRemindersResult =
       opcoNotifications: number;
       partnerNotifications: number;
       message: string;
+      stepsFired: number;
     };
 
 function currentPeriod(now: Date): AutomaticReminderPeriod {
@@ -77,6 +83,90 @@ export async function resolveAutomaticReminderActorId(
   return adminUser.id;
 }
 
+async function listAllActiveOrgIds(): Promise<{
+  opcoIds: string[];
+  partnerIds: string[];
+}> {
+  const [opcos, partners] = await Promise.all([
+    prisma.opco.findMany({
+      where: { isDeleted: false },
+      select: { id: true },
+      orderBy: { name: "asc" },
+    }),
+    prisma.partner.findMany({
+      where: { isDeleted: false },
+      select: { id: true },
+      orderBy: { name: "asc" },
+    }),
+  ]);
+
+  return {
+    opcoIds: opcos.map((row) => row.id.toString()),
+    partnerIds: partners.map((row) => row.id.toString()),
+  };
+}
+
+async function fireScheduleStep(params: {
+  step: DueScheduleStep;
+  period: AutomaticReminderPeriod;
+  fromUserId: bigint;
+}): Promise<{ opcoNotifications: number; partnerNotifications: number }> {
+  const { step, period, fromUserId } = params;
+
+  if (step.kind === "INTIMATION") {
+    const { opcoIds, partnerIds } = await listAllActiveOrgIds();
+    if (opcoIds.length === 0 && partnerIds.length === 0) {
+      return { opcoNotifications: 0, partnerNotifications: 0 };
+    }
+
+    await sendBroadcastNotification({
+      fromUserId: fromUserId.toString(),
+      input: {
+        audience: "both",
+        messageSource: step.templateCode,
+        month: period.month,
+        year: period.year,
+        opcoIds,
+        partnerIds,
+        priority: "NORMAL",
+      },
+    });
+
+    return {
+      opcoNotifications: opcoIds.length,
+      partnerNotifications: partnerIds.length,
+    };
+  }
+
+  if (step.eventCode === "REPORT") {
+    const result = await sendMissingReportReminders({
+      month: period.month,
+      year: period.year,
+      target: "both",
+      fromUserId,
+      templateCode: step.templateCode,
+      throwIfNoRecipients: false,
+    });
+    return {
+      opcoNotifications: result.opcoNotifications,
+      partnerNotifications: result.partnerNotifications,
+    };
+  }
+
+  const result = await sendMissingInvoiceReminders({
+    month: period.month,
+    year: period.year,
+    target: "both",
+    fromUserId,
+    templateCode: step.templateCode,
+    throwIfNoRecipients: false,
+  });
+  return {
+    opcoNotifications: result.opcoNotifications,
+    partnerNotifications: result.partnerNotifications,
+  };
+}
+
 export async function runAutomaticSubmissionReminders(params?: {
   now?: Date;
   fromUserId?: bigint;
@@ -97,69 +187,55 @@ export async function runAutomaticSubmissionReminders(params?: {
     };
   }
 
-  if (
-    settings.reminderValue === null ||
-    settings.reminderValue < 1 ||
-    !settings.reminderUnit
-  ) {
-    return {
-      status: "skipped",
-      reason: "invalid_schedule",
-      period,
-      opcoNotifications: 0,
-      partnerNotifications: 0,
-      message: "Reminder schedule is not configured.",
-    };
-  }
-
-  const eligible = isReminderPeriodEligible({
-    periodYear: period.year,
-    periodMonth: period.month,
-    reminderValue: settings.reminderValue,
-    reminderUnit: settings.reminderUnit,
+  const dueSteps = getDueScheduleSteps({
+    schedules: settings.schedules,
     now,
   });
 
-  if (!eligible) {
+  if (dueSteps.length === 0) {
     return {
       status: "skipped",
-      reason: "not_eligible",
+      reason: "no_steps_due",
       period,
       opcoNotifications: 0,
       partnerNotifications: 0,
-      message: "Reporting period is not yet eligible for automatic reminders.",
+      message: "No intimation or reminder steps are scheduled for today.",
+      stepsFired: 0,
     };
   }
 
   const fromUserId = await resolveAutomaticReminderActorId(params?.fromUserId);
+  let opcoNotifications = 0;
+  let partnerNotifications = 0;
+  const messages: string[] = [];
 
-  const result = await sendMissingReportReminders({
-    month: period.month,
-    year: period.year,
-    target: "both",
-    fromUserId,
-    throwIfNoRecipients: false,
-  });
+  for (const step of dueSteps) {
+    const result = await fireScheduleStep({ step, period, fromUserId });
+    opcoNotifications += result.opcoNotifications;
+    partnerNotifications += result.partnerNotifications;
+    messages.push(
+      `${step.eventCode} ${step.kind.toLowerCase()} (${step.offsetDays}d): ${result.opcoNotifications + result.partnerNotifications} recipients`,
+    );
+  }
 
-  if (
-    result.opcoNotifications === 0 &&
-    result.partnerNotifications === 0
-  ) {
+  if (opcoNotifications === 0 && partnerNotifications === 0) {
     return {
       status: "skipped",
-      reason: "no_missing_reports",
+      reason: "no_recipients",
       period,
       opcoNotifications: 0,
       partnerNotifications: 0,
-      message: result.message,
+      message: `Due steps ran but no recipients were notified. ${messages.join("; ")}`,
+      stepsFired: dueSteps.length,
     };
   }
 
   return {
     status: "sent",
     period,
-    opcoNotifications: result.opcoNotifications,
-    partnerNotifications: result.partnerNotifications,
-    message: result.message,
+    opcoNotifications,
+    partnerNotifications,
+    stepsFired: dueSteps.length,
+    message: `Fired ${dueSteps.length} schedule step(s). ${messages.join("; ")}`,
   };
 }

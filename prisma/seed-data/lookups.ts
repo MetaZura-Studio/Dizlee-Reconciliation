@@ -44,6 +44,12 @@ export const LOOKUP_SEEDS: Record<string, string[]> = {
     "CURRENCY_RATE_UPDATED",
     "EMAIL_TEST_SENT",
     "EMAIL_TEMPLATE_UPDATED",
+    "OPCO_CREATED",
+    "OPCO_UPDATED",
+    "OPCO_DELETED",
+    "PARTNER_CREATED",
+    "PARTNER_UPDATED",
+    "PARTNER_DELETED",
   ],
   AUDIT_ENTITY_TYPE: [
     "USER",
@@ -54,5 +60,7 @@ export const LOOKUP_SEEDS: Record<string, string[]> = {
     "SETTINGS",
     "NOTIFICATION",
     "CURRENCY",
+    "OPCO",
+    "PARTNER",
   ],
 };

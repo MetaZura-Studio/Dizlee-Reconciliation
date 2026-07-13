@@ -2,7 +2,11 @@ import type { Prisma } from "@prisma/client";
 
 import { currentPeriod, type DashboardPeriod } from "@/lib/dizlee/dashboard";
 import {
-  getInvoiceBankDetails,
+  findBankAccountById,
+  getInvoiceBankAccounts,
+  parseInvoiceBankDetailsJson,
+  serializeInvoiceBankDetailsSnapshot,
+  type InvoiceBankAccount,
   type InvoiceBankDetails,
 } from "@/lib/dizlee/invoice-bank-details";
 import { getLookupId } from "@/lib/dizlee/lookups";
@@ -88,13 +92,14 @@ export type CreateOpcoInvoiceInput = {
   year: number;
   opcoId: string;
   currencyId?: string;
+  bankAccountId?: string;
   lineItems: CreateOpcoInvoiceLineInput[];
 };
 
 export type CreateOpcoInvoiceFormOptions = {
   opcos: Array<{ id: string; name: string; defaultCurrencyId: string }>;
   currencies: Array<{ id: string; isoCode: string; symbol: string | null }>;
-  bankDetails: InvoiceBankDetails | null;
+  bankAccounts: InvoiceBankAccount[];
 };
 
 export class InvoiceActionError extends Error {
@@ -208,7 +213,7 @@ export async function getInvoiceFilterOptions(): Promise<InvoiceFilterOptions> {
 }
 
 export async function getCreateOpcoInvoiceFormOptions(): Promise<CreateOpcoInvoiceFormOptions> {
-  const [opcos, currencies, bankDetails] = await Promise.all([
+  const [opcos, currencies, bankAccounts] = await Promise.all([
     prisma.opco.findMany({
       orderBy: { name: "asc" },
       select: { id: true, name: true, defaultCurrencyId: true },
@@ -217,7 +222,7 @@ export async function getCreateOpcoInvoiceFormOptions(): Promise<CreateOpcoInvoi
       orderBy: { isoCode: "asc" },
       select: { id: true, isoCode: true, symbol: true },
     }),
-    getInvoiceBankDetails(),
+    getInvoiceBankAccounts(),
   ]);
 
   return {
@@ -231,7 +236,7 @@ export async function getCreateOpcoInvoiceFormOptions(): Promise<CreateOpcoInvoi
       isoCode: row.isoCode,
       symbol: row.symbol,
     })),
-    bankDetails,
+    bankAccounts,
   };
 }
 
@@ -332,6 +337,15 @@ export async function createOpcoInvoice(
     );
   }
 
+  const bankAccounts = await getInvoiceBankAccounts();
+  const selectedBank = findBankAccountById(bankAccounts, input.bankAccountId);
+  if (bankAccounts.length > 1 && !selectedBank) {
+    throw new InvoiceActionError("Select a bank account for this invoice.");
+  }
+  const bankDetailsJson = selectedBank
+    ? serializeInvoiceBankDetailsSnapshot(selectedBank)
+    : null;
+
   const now = new Date();
   const invoiceNumber = buildInvoiceNumber(opcoId, input.month, input.year);
 
@@ -344,6 +358,7 @@ export async function createOpcoInvoice(
       partnerId: null,
       invoiceTypeId,
       currencyId,
+      bankDetailsJson,
       invoiceStatusId: sentStatusId,
       paymentStatusId: unpaidStatusId,
       sentAt: now,
@@ -535,9 +550,23 @@ export async function getInvoiceDetail(id: string): Promise<InvoiceDetail | null
     return null;
   }
 
-  const bankDetails = invoice.invoiceType.code === "CLIENT_TO_OPCO"
-    ? await getInvoiceBankDetails()
-    : null;
+  let bankDetails: InvoiceBankDetails | null = null;
+  if (invoice.invoiceType.code === "CLIENT_TO_OPCO") {
+    bankDetails = parseInvoiceBankDetailsJson(invoice.bankDetailsJson);
+    if (!bankDetails) {
+      const accounts = await getInvoiceBankAccounts();
+      bankDetails = accounts[0]
+        ? {
+            bankName: accounts[0].bankName,
+            accountName: accounts[0].accountName,
+            accountNumber: accounts[0].accountNumber,
+            iban: accounts[0].iban,
+            swift: accounts[0].swift,
+            reference: accounts[0].reference,
+          }
+        : null;
+    }
+  }
 
   return mapInvoiceDetail(invoice, bankDetails);
 }

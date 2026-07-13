@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { ReportDetailModal } from "@/components/dizlee/report-detail-modal";
 import { ReportsTabs } from "@/components/dizlee/reports-tabs";
-import type { ReportFilterOptions } from "@/lib/dizlee/reports";
+import { ReportFilenameLink } from "@/components/shared/report-filename-link";
+import type { ReportDetail, ReportFilterOptions } from "@/lib/dizlee/reports";
 import type {
   ReuploadListFilters,
   ReuploadListResult,
@@ -82,6 +84,9 @@ export function ReuploadRequestsView({
     null,
   );
   const [decisionNote, setDecisionNote] = useState("");
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detail, setDetail] = useState<ReportDetail | null>(null);
 
   const loadRequests = useCallback(async (filters: ReuploadListFilters) => {
     setLoading(true);
@@ -131,6 +136,29 @@ export function ReuploadRequestsView({
 
   const goToPage = (nextPage: number) => {
     void loadRequests({ ...result.filters, page: nextPage });
+  };
+
+  const openDetail = async (reportId: string) => {
+    setDetailOpen(true);
+    setDetailLoading(true);
+    setDetail(null);
+    try {
+      const response = await fetch(`/api/dizlee/reports/${reportId}`);
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Failed to load report");
+      }
+      setDetail(payload.data as ReportDetail);
+    } catch (detailError) {
+      setError(
+        detailError instanceof Error
+          ? detailError.message
+          : "Failed to load report",
+      );
+      setDetailOpen(false);
+    } finally {
+      setDetailLoading(false);
+    }
   };
 
   const approve = async (requestId: string) => {
@@ -346,7 +374,14 @@ export function ReuploadRequestsView({
                           {row.partnerName}
                         </td>
                         <td className="px-4 py-3 text-foreground-muted">
-                          {row.filename ?? "—"}
+                          <ReportFilenameLink
+                            filename={row.filename}
+                            onClick={
+                              row.filename
+                                ? () => void openDetail(row.reportId)
+                                : undefined
+                            }
+                          />
                         </td>
                         <td className="px-4 py-3 text-foreground-muted">
                           {row.requestedBy}
@@ -460,6 +495,17 @@ export function ReuploadRequestsView({
             </div>
           </div>
         </div>
+      ) : null}
+
+      {detailOpen ? (
+        <ReportDetailModal
+          detail={detail}
+          loading={detailLoading}
+          onClose={() => {
+            setDetailOpen(false);
+            setDetail(null);
+          }}
+        />
       ) : null}
     </div>
   );

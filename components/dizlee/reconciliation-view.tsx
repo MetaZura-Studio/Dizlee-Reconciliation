@@ -1,13 +1,14 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
-import type { ReportFilterOptions } from "@/lib/dizlee/reports";
+import { ReportDetailModal } from "@/components/dizlee/report-detail-modal";
+import { LaneRemindModal } from "@/components/dizlee/lane-remind-modal";
+import { ReportFilenameLink } from "@/components/shared/report-filename-link";
+import type { ReportDetail, ReportFilterOptions } from "@/lib/dizlee/reports";
 import type {
   CompareLaneFilters,
   CompareLaneRow,
-  ReconciliationDetail,
   ReconciliationHistoryResult,
   ReconciliationSearchBy,
 } from "@/lib/dizlee/reconciliation";
@@ -41,15 +42,12 @@ function formatPeriod(month: number, year: number): string {
   });
 }
 
-function formatUsd(value: number | null): string {
-  if (value === null) {
-    return "—";
-  }
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 2,
-  }).format(value);
+function openReconciliationResult(id: number | string) {
+  window.open(
+    `/dizlee/reconciliation/${id}`,
+    "_blank",
+    "noopener,noreferrer",
+  );
 }
 
 function stateClass(state: CompareLaneRow["state"]): string {
@@ -65,6 +63,30 @@ function stateClass(state: CompareLaneRow["state"]): string {
     default:
       return "text-foreground-muted";
   }
+}
+
+function needsReportReminder(state: CompareLaneRow["state"]): boolean {
+  return (
+    state === "MISSING" ||
+    state === "NO_OPCO_REPORT" ||
+    state === "NO_PARTNER_REPORT"
+  );
+}
+
+function lastReminderLabel(lane: CompareLaneRow): string {
+  const times = [
+    lane.lastOpcoReminderAt,
+    lane.lastPartnerReminderAt,
+    lane.lastOpcoIntimationAt,
+    lane.lastPartnerIntimationAt,
+  ].filter((value): value is string => Boolean(value));
+
+  if (times.length === 0) {
+    return "No reminders yet";
+  }
+
+  const latest = times.sort((a, b) => (a < b ? 1 : -1))[0];
+  return `Last notice: ${formatDateTime(latest)}`;
 }
 
 function buildLaneQuery(filters: CompareLaneFilters): string {
@@ -86,7 +108,6 @@ type ReconciliationViewProps = {
   initialFilterOptions: ReportFilterOptions;
   initialTolerancePercent: number;
   initialHistory: ReconciliationHistoryResult;
-  initialDetail: ReconciliationDetail | null;
 };
 
 export function ReconciliationView({
@@ -96,7 +117,6 @@ export function ReconciliationView({
   initialFilterOptions,
   initialTolerancePercent,
   initialHistory,
-  initialDetail,
 }: ReconciliationViewProps) {
   const [activeTab, setActiveTab] = useState<"compare" | "history">(initialTab);
   const [month, setMonth] = useState(initialCompareFilters.month);
@@ -113,12 +133,39 @@ export function ReconciliationView({
     initialTolerancePercent,
   );
   const [history, setHistory] = useState(initialHistory);
-  const [detail, setDetail] = useState<ReconciliationDetail | null>(initialDetail);
 
   const [loading, setLoading] = useState(false);
   const [actionId, setActionId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [reportDetailOpen, setReportDetailOpen] = useState(false);
+  const [reportDetailLoading, setReportDetailLoading] = useState(false);
+  const [reportDetail, setReportDetail] = useState<ReportDetail | null>(null);
+  const [remindLane, setRemindLane] = useState<CompareLaneRow | null>(null);
+  const [reconcilingLabel, setReconcilingLabel] = useState<string | null>(null);
+
+  const openReportDetail = async (reportId: string) => {
+    setReportDetailOpen(true);
+    setReportDetailLoading(true);
+    setReportDetail(null);
+    try {
+      const response = await fetch(`/api/dizlee/reports/${reportId}`);
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Failed to load report");
+      }
+      setReportDetail(payload.data as ReportDetail);
+    } catch (detailError) {
+      setError(
+        detailError instanceof Error
+          ? detailError.message
+          : "Failed to load report",
+      );
+      setReportDetailOpen(false);
+    } finally {
+      setReportDetailLoading(false);
+    }
+  };
 
   const loadLanes = useCallback(async (filters: CompareLaneFilters) => {
     setLoading(true);
@@ -162,28 +209,6 @@ export function ReconciliationView({
     }
   }, []);
 
-  const loadDetail = useCallback(async (id: number) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetch(`/api/dizlee/reconciliation/${id}`);
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to load reconciliation");
-      }
-      setDetail(payload.data as ReconciliationDetail);
-    } catch (loadError) {
-      setError(
-        loadError instanceof Error
-          ? loadError.message
-          : "Failed to load reconciliation",
-      );
-      setDetail(null);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   const applyCompareFilters = () => {
     void loadLanes({
       month,
@@ -196,6 +221,7 @@ export function ReconciliationView({
   const runReconciliation = async (lane: CompareLaneRow) => {
     const key = `${lane.opcoId}-${lane.partnerId}`;
     setActionId(key);
+    setReconcilingLabel(`${lane.opcoName} / ${lane.partnerName}`);
     setError(null);
     setMessage(null);
     try {
@@ -214,51 +240,20 @@ export function ReconciliationView({
         throw new Error(payload.error ?? "Failed to run reconciliation");
       }
       setMessage(payload.data.message as string);
-      await Promise.all([
-        loadLanes({ month, year, searchBy, entityId: entityId || undefined }),
-        loadDetail(payload.data.id as number),
-      ]);
-      setActiveTab("compare");
+      await loadLanes({
+        month,
+        year,
+        searchBy,
+        entityId: entityId || undefined,
+      });
+      openReconciliationResult(payload.data.id as number);
     } catch (runError) {
       setError(
         runError instanceof Error ? runError.message : "Failed to run reconciliation",
       );
     } finally {
       setActionId(null);
-    }
-  };
-
-  const confirmReconciliation = async () => {
-    if (!detail) {
-      return;
-    }
-
-    setActionId(String(detail.id));
-    setError(null);
-    setMessage(null);
-    try {
-      const response = await fetch(
-        `/api/dizlee/reconciliation/${detail.id}/confirm`,
-        { method: "PATCH" },
-      );
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to confirm reconciliation");
-      }
-      setMessage("Reconciliation confirmed.");
-      await Promise.all([
-        loadDetail(detail.id),
-        loadLanes({ month, year, searchBy, entityId: entityId || undefined }),
-        loadHistory(history.page),
-      ]);
-    } catch (confirmError) {
-      setError(
-        confirmError instanceof Error
-          ? confirmError.message
-          : "Failed to confirm reconciliation",
-      );
-    } finally {
-      setActionId(null);
+      setReconcilingLabel(null);
     }
   };
 
@@ -283,7 +278,31 @@ export function ReconciliationView({
     searchBy === "opco" ? filterOptions.opcos : filterOptions.partners;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className={`mx-auto max-w-6xl space-y-6 ${reconcilingLabel ? "cursor-wait" : ""}`}>
+      {reconcilingLabel ? (
+        <div
+          className="fixed inset-0 z-[60] flex cursor-wait items-center justify-center bg-black/50 p-4"
+          role="status"
+          aria-live="polite"
+          aria-busy="true"
+        >
+          <div className="w-full max-w-md rounded-lg border border-border bg-surface p-6 text-center shadow-xl">
+            <div
+              className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-border-strong border-t-primary"
+              aria-hidden="true"
+            />
+            <h2 className="mt-4 text-lg font-semibold text-foreground">
+              Reconciliation in progress
+            </h2>
+            <p className="mt-2 text-sm text-foreground-muted">
+              Comparing OpCo and Partner reports for{" "}
+              <span className="font-medium text-foreground">{reconcilingLabel}</span>.
+              Please wait…
+            </p>
+          </div>
+        </div>
+      ) : null}
+
       <div>
         <h1 className="text-2xl font-semibold text-foreground">Reconciliation</h1>
         <p className="mt-1 text-sm text-foreground-subtle">
@@ -434,6 +453,9 @@ export function ReconciliationView({
                         Outcome
                       </th>
                       <th className="px-4 py-3 text-left font-medium text-foreground-muted">
+                        Last reminder
+                      </th>
+                      <th className="px-4 py-3 text-left font-medium text-foreground-muted">
                         Actions
                       </th>
                     </tr>
@@ -441,7 +463,7 @@ export function ReconciliationView({
                   <tbody className="divide-y divide-border bg-surface">
                     {lanes.map((lane) => {
                       const key = `${lane.opcoId}-${lane.partnerId}`;
-                      const busy = actionId === key;
+                      const busy = actionId === key || Boolean(reconcilingLabel);
                       return (
                         <tr key={key}>
                           <td className="px-4 py-3 text-foreground-muted">
@@ -452,10 +474,27 @@ export function ReconciliationView({
                             {lane.partnerName}
                           </td>
                           <td className="px-4 py-3 text-foreground-muted">
-                            {lane.opcoReportFilename ?? "—"}
+                            <ReportFilenameLink
+                              filename={lane.opcoReportFilename}
+                              onClick={
+                                lane.opcoReportId
+                                  ? () => void openReportDetail(lane.opcoReportId as string)
+                                  : undefined
+                              }
+                            />
                           </td>
                           <td className="px-4 py-3 text-foreground-muted">
-                            {lane.partnerReportFilename ?? "—"}
+                            <ReportFilenameLink
+                              filename={lane.partnerReportFilename}
+                              onClick={
+                                lane.partnerReportId
+                                  ? () =>
+                                      void openReportDetail(
+                                        lane.partnerReportId as string,
+                                      )
+                                  : undefined
+                              }
+                            />
                           </td>
                           <td className={`px-4 py-3 ${stateClass(lane.state)}`}>
                             {lane.state.replaceAll("_", " ")}
@@ -463,8 +502,17 @@ export function ReconciliationView({
                           <td className="px-4 py-3 text-foreground-muted">
                             {lane.outcome ?? "—"}
                           </td>
+                          <td className="px-4 py-3 text-xs text-foreground-muted">
+                            <p>{lastReminderLabel(lane)}</p>
+                            {lane.notificationCount > 0 ? (
+                              <p className="mt-1 text-foreground-subtle">
+                                {lane.notificationCount} prior notice
+                                {lane.notificationCount === 1 ? "" : "s"}
+                              </p>
+                            ) : null}
+                          </td>
                           <td className="px-4 py-3">
-                            <div className="flex gap-2">
+                            <div className="flex flex-wrap gap-2">
                               {lane.canRun ? (
                                 <button
                                   type="button"
@@ -475,15 +523,24 @@ export function ReconciliationView({
                                   Run reconciliation
                                 </button>
                               ) : null}
+                              {needsReportReminder(lane.state) ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setRemindLane(lane)}
+                                  className="rounded-md border border-warning-border bg-warning-muted px-3 py-1 text-xs font-medium text-warning hover:bg-warning-muted"
+                                >
+                                  Remind…
+                                </button>
+                              ) : null}
                               {lane.reconciliationId ? (
                                 <button
                                   type="button"
                                   onClick={() =>
-                                    void loadDetail(Number(lane.reconciliationId))
+                                    openReconciliationResult(lane.reconciliationId as string)
                                   }
                                   className="rounded-md border border-border-strong px-3 py-1 text-xs text-foreground-muted hover:bg-surface-muted"
                                 >
-                                  View
+                                  View result
                                 </button>
                               ) : null}
                             </div>
@@ -554,13 +611,13 @@ export function ReconciliationView({
                           {formatDateTime(row.runAt)}
                         </td>
                         <td className="px-4 py-3">
-                          <button
-                            type="button"
-                            onClick={() => void loadDetail(row.id)}
-                            className="text-sm text-foreground-muted underline hover:text-foreground"
-                          >
-                            View
-                          </button>
+                        <button
+                          type="button"
+                          onClick={() => openReconciliationResult(row.id)}
+                          className="text-sm text-foreground-muted underline hover:text-foreground"
+                        >
+                          View result
+                        </button>
                         </td>
                       </tr>
                     ))}
@@ -603,122 +660,33 @@ export function ReconciliationView({
         </>
       )}
 
-      {detail ? (
-        <section className="space-y-4 rounded-lg border border-border bg-surface p-6">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h2 className="text-lg font-medium text-foreground">
-                {detail.opcoName} / {detail.partnerName}
-              </h2>
-              <p className="text-sm text-foreground-subtle">
-                {formatPeriod(detail.period.month, detail.period.year)} ·{" "}
-                {detail.status}
-              </p>
-              <p className="mt-1 text-xs text-foreground-subtle">
-                OpCo file: {detail.opcoReportFilename ?? "—"} · Partner file:{" "}
-                {detail.partnerReportFilename ?? "—"}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setDetail(null)}
-              className="text-sm text-foreground-subtle hover:text-foreground"
-            >
-              Close
-            </button>
-          </div>
+      {remindLane ? (
+        <LaneRemindModal
+          lane={remindLane}
+          month={month}
+          year={year}
+          onClose={() => setRemindLane(null)}
+          onSent={(sentMessage) => {
+            setMessage(sentMessage);
+            void loadLanes({
+              month,
+              year,
+              searchBy,
+              entityId: entityId || undefined,
+            });
+          }}
+        />
+      ) : null}
 
-          <div className="grid gap-4 sm:grid-cols-4">
-            <div className="rounded-md border border-border p-3 text-sm">
-              <p className="text-xs text-foreground-subtle">Matched</p>
-              <p className="font-medium text-foreground">{detail.matchedCount}</p>
-            </div>
-            <div className="rounded-md border border-border p-3 text-sm">
-              <p className="text-xs text-foreground-subtle">Unmatched</p>
-              <p className="font-medium text-foreground">{detail.unmatchedCount}</p>
-            </div>
-            <div className="rounded-md border border-border p-3 text-sm">
-              <p className="text-xs text-foreground-subtle">Total variance</p>
-              <p className="font-medium text-foreground">
-                {formatUsd(detail.totalVariance)}
-              </p>
-            </div>
-            <div className="rounded-md border border-border p-3 text-sm">
-              <p className="text-xs text-foreground-subtle">Tolerance</p>
-              <p className="font-medium text-foreground">{detail.tolerancePercent}%</p>
-            </div>
-          </div>
-
-          {detail.canConfirm ? (
-            <button
-              type="button"
-              disabled={actionId === String(detail.id)}
-              onClick={() => void confirmReconciliation()}
-              className="rounded-md bg-success px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-success/90 disabled:opacity-40"
-            >
-              Confirm reconciliation
-            </button>
-          ) : null}
-
-          <div className="overflow-hidden rounded-lg border border-border">
-            <table className="min-w-full divide-y divide-border text-sm">
-              <thead className="bg-surface-muted">
-                <tr>
-                  <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                    Service
-                  </th>
-                  <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                    OpCo (USD)
-                  </th>
-                  <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                    Partner (USD)
-                  </th>
-                  <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                    Variance
-                  </th>
-                  <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                    Confirmed
-                  </th>
-                  <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                    Status
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border bg-surface">
-                {detail.items.map((item) => (
-                  <tr key={item.serviceCode}>
-                    <td className="px-4 py-3 text-foreground">
-                      {item.description ?? item.serviceCode}
-                    </td>
-                    <td className="px-4 py-3 text-foreground-muted">
-                      {formatUsd(item.opcoAmount)}
-                    </td>
-                    <td className="px-4 py-3 text-foreground-muted">
-                      {formatUsd(item.partnerAmount)}
-                    </td>
-                    <td className="px-4 py-3 text-foreground-muted">
-                      {formatUsd(item.varianceAmount)}
-                    </td>
-                    <td className="px-4 py-3 text-foreground-muted">
-                      {formatUsd(item.confirmedValue)}
-                    </td>
-                    <td className="px-4 py-3 text-foreground-muted">{item.matchStatus}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <p className="text-xs text-foreground-subtle">
-            Run at {formatDateTime(detail.runAt)} ·{" "}
-            <Link
-              href={`/dizlee/reconciliation?id=${detail.id}`}
-              className="underline"
-            >
-              Permalink
-            </Link>
-          </p>
-        </section>
+      {reportDetailOpen ? (
+        <ReportDetailModal
+          detail={reportDetail}
+          loading={reportDetailLoading}
+          onClose={() => {
+            setReportDetailOpen(false);
+            setReportDetail(null);
+          }}
+        />
       ) : null}
     </div>
   );

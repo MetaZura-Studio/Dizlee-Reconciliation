@@ -1,5 +1,6 @@
 import { currentPeriod, type DashboardPeriod } from "@/lib/dizlee/dashboard";
 import { getLookupId } from "@/lib/dizlee/lookups";
+import { getLaneNotificationSummaries } from "@/lib/dizlee/lane-report-notifications";
 import {
   compareReportLines,
   type CompareLineInput,
@@ -38,6 +39,11 @@ export type CompareLaneRow = {
   outcome: string | null;
   reconciliationId: string | null;
   canRun: boolean;
+  lastOpcoReminderAt: string | null;
+  lastPartnerReminderAt: string | null;
+  lastOpcoIntimationAt: string | null;
+  lastPartnerIntimationAt: string | null;
+  notificationCount: number;
 };
 
 export type ReconciliationHistoryItem = {
@@ -74,8 +80,12 @@ export type ReconciliationItemView = {
 export type ReconciliationDetail = {
   id: number;
   period: DashboardPeriod;
+  opcoId: string;
+  partnerId: string;
   opcoName: string;
   partnerName: string;
+  opcoReportId: string;
+  partnerReportId: string;
   opcoReportFilename: string | null;
   partnerReportFilename: string | null;
   status: string;
@@ -294,6 +304,15 @@ export async function listCompareLanes(
     ]),
   );
 
+  const notificationSummaries = await getLaneNotificationSummaries({
+    month: filters.month,
+    year: filters.year,
+    lanes: links.map((link) => ({
+      opcoId: link.opco.id.toString(),
+      partnerId: link.partner.id.toString(),
+    })),
+  });
+
   return links.map((link) => {
     const laneKey = `${link.opcoId.toString()}-${link.partnerId.toString()}`;
     const laneReports = reportsByLane.get(laneKey);
@@ -303,6 +322,7 @@ export async function listCompareLanes(
       hasPartnerReport: Boolean(laneReports?.partner),
       reconciliationStatusCode: reconciliation?.status.code ?? null,
     });
+    const notificationSummary = notificationSummaries.get(laneKey);
 
     return {
       opcoId: link.opco.id.toString(),
@@ -318,6 +338,11 @@ export async function listCompareLanes(
       outcome: outcomeLabel(reconciliation?.status.code ?? null),
       reconciliationId: reconciliation ? String(reconciliation.id) : null,
       canRun: state === "READY",
+      lastOpcoReminderAt: notificationSummary?.lastOpcoReminderAt ?? null,
+      lastPartnerReminderAt: notificationSummary?.lastPartnerReminderAt ?? null,
+      lastOpcoIntimationAt: notificationSummary?.lastOpcoIntimationAt ?? null,
+      lastPartnerIntimationAt: notificationSummary?.lastPartnerIntimationAt ?? null,
+      notificationCount: notificationSummary?.totalCount ?? 0,
     };
   });
 }
@@ -590,8 +615,12 @@ export async function getReconciliationDetail(
   return {
     id: reconciliation.id,
     period: periodFromParts(reconciliation.month, reconciliation.year),
+    opcoId: reconciliation.opcoId.toString(),
+    partnerId: reconciliation.partnerId.toString(),
     opcoName: reconciliation.opco.name,
     partnerName: reconciliation.partner.name,
+    opcoReportId: reconciliation.opcoReportId.toString(),
+    partnerReportId: reconciliation.partnerReportId.toString(),
     opcoReportFilename: reconciliation.opcoReport.file?.filename ?? null,
     partnerReportFilename: reconciliation.partnerReport.file?.filename ?? null,
     status: reconciliation.status.code.replaceAll("_", " "),

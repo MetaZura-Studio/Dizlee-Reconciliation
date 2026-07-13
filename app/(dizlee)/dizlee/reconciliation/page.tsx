@@ -1,6 +1,7 @@
+import { redirect } from "next/navigation";
+
 import { ReconciliationView } from "@/components/dizlee/reconciliation-view";
 import {
-  getReconciliationDetail,
   getTolerancePercent,
   listCompareLanes,
   listReconciliationHistory,
@@ -24,6 +25,14 @@ export default async function DizleeReconciliationPage({
   searchParams,
 }: DizleeReconciliationPageProps) {
   const params = await searchParams;
+
+  if (params.id) {
+    const reconciliationId = Number(params.id);
+    if (Number.isInteger(reconciliationId) && reconciliationId >= 1) {
+      redirect(`/dizlee/reconciliation/${reconciliationId}`);
+    }
+  }
+
   const query = new URLSearchParams();
 
   for (const [key, value] of Object.entries(params)) {
@@ -34,17 +43,13 @@ export default async function DizleeReconciliationPage({
 
   const compareFilters = parseCompareLaneFilters(query);
   const historyFilters = parseHistoryFilters(new URLSearchParams());
-  const reconciliationId = params.id ? Number(params.id) : null;
 
-  const [initialLanes, filterOptions, tolerancePercent, initialHistory, initialDetail] =
+  const [initialLanes, filterOptions, tolerancePercent, initialHistory] =
     await Promise.all([
       listCompareLanes(compareFilters),
       getReportFilterOptions(),
       getTolerancePercent(),
       listReconciliationHistory(historyFilters),
-      reconciliationId && Number.isInteger(reconciliationId)
-        ? getReconciliationDetail(reconciliationId)
-        : Promise.resolve(null),
     ]);
 
   return (
@@ -55,7 +60,6 @@ export default async function DizleeReconciliationPage({
       initialFilterOptions={filterOptions}
       initialTolerancePercent={tolerancePercent}
       initialHistory={initialHistory}
-      initialDetail={initialDetail}
     />
   );
 }

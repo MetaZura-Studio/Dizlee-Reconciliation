@@ -8,7 +8,7 @@ import { KpiCard } from "@/components/dizlee/kpi-card";
 import type {
   DashboardData,
   DirectionPanel,
-  ReconciliationLane,
+  DonutSegment,
 } from "@/lib/dizlee/dashboard";
 
 const MONTHS = [
@@ -42,8 +42,26 @@ function formatDateTime(value: string | null): string {
   });
 }
 
-function reportsLink(month: number, year: number): string {
-  return `/dizlee/reports?month=${month}&year=${year}&from=dashboard`;
+function reportsLink(
+  month: number,
+  year: number,
+  options?: { opcoId?: string; partnerId?: string; reportId?: string },
+): string {
+  const params = new URLSearchParams({
+    month: String(month),
+    year: String(year),
+    from: "dashboard",
+  });
+  if (options?.opcoId) {
+    params.set("opcoId", options.opcoId);
+  }
+  if (options?.partnerId) {
+    params.set("partnerId", options.partnerId);
+  }
+  if (options?.reportId) {
+    params.set("reportId", options.reportId);
+  }
+  return `/dizlee/reports?${params.toString()}`;
 }
 
 function reportsMonitoringLink(
@@ -65,7 +83,11 @@ function reportsMonitoringLink(
 function invoicesLink(
   month: number,
   year: number,
-  options?: { paymentStatus?: "paid" | "pending" },
+  options?: {
+    paymentStatus?: "paid" | "pending";
+    opcoId?: string;
+    partnerId?: string;
+  },
 ): string {
   const params = new URLSearchParams({
     month: String(month),
@@ -74,6 +96,12 @@ function invoicesLink(
   });
   if (options?.paymentStatus) {
     params.set("paymentStatus", options.paymentStatus);
+  }
+  if (options?.opcoId) {
+    params.set("opcoId", options.opcoId);
+  }
+  if (options?.partnerId) {
+    params.set("partnerId", options.partnerId);
   }
   return `/dizlee/invoices?${params.toString()}`;
 }
@@ -92,6 +120,21 @@ function invoicesMonitoringLink(
     params.set("missing", missing);
   }
   return `/dizlee/invoices/monitoring?${params.toString()}`;
+}
+
+function paymentStatusHref(
+  month: number,
+  year: number,
+  segment: DonutSegment,
+): string | undefined {
+  const code = (segment.id ?? segment.label).toUpperCase();
+  if (code === "PAID") {
+    return invoicesLink(month, year, { paymentStatus: "paid" });
+  }
+  if (code === "UNPAID" || code === "OVERDUE") {
+    return invoicesLink(month, year, { paymentStatus: "pending" });
+  }
+  return invoicesLink(month, year);
 }
 
 type DashboardViewProps = {
@@ -207,14 +250,22 @@ export function DashboardView({ initialData }: DashboardViewProps) {
       />
 
       <section className="space-y-3">
-        <h2 className="text-lg font-medium text-foreground">Upload activity</h2>
+        <div className="flex items-center justify-between gap-4">
+          <h2 className="text-lg font-medium text-foreground">Upload activity</h2>
+          <Link
+            href={reportsLink(month, year)}
+            className="text-sm text-foreground-muted hover:text-foreground"
+          >
+            View all reports
+          </Link>
+        </div>
         {recentUploads.length > 0 ? (
           <div className="overflow-hidden rounded-lg border border-border">
             <table className="min-w-full divide-y divide-border text-sm">
               <thead className="bg-surface-muted">
                 <tr>
                   <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                    Actor
+                    Submitted by
                   </th>
                   <th className="px-4 py-3 text-left font-medium text-foreground-muted">
                     OpCo / Partner
@@ -226,13 +277,30 @@ export function DashboardView({ initialData }: DashboardViewProps) {
               </thead>
               <tbody className="divide-y divide-border bg-surface">
                 {recentUploads.map((upload) => (
-                  <tr key={upload.id}>
+                  <tr key={upload.id} className="hover:bg-surface-muted">
                     <td className="px-4 py-3 text-foreground">
-                      {upload.actorRole}
+                      <Link
+                        href={reportsLink(month, year, { reportId: upload.id })}
+                        className="underline decoration-foreground-subtle underline-offset-2 hover:text-foreground hover:decoration-foreground"
+                      >
+                        {upload.actorRole}
+                      </Link>
                     </td>
-                    <td className="px-4 py-3 text-foreground-muted">{upload.lane}</td>
                     <td className="px-4 py-3 text-foreground-muted">
-                      {formatDateTime(upload.uploadedAt)}
+                      <Link
+                        href={reportsLink(month, year, { reportId: upload.id })}
+                        className="underline decoration-foreground-subtle underline-offset-2 hover:text-foreground hover:decoration-foreground"
+                      >
+                        {upload.lane}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3 text-foreground-muted">
+                      <Link
+                        href={reportsLink(month, year, { reportId: upload.id })}
+                        className="underline decoration-foreground-subtle underline-offset-2 hover:text-foreground hover:decoration-foreground"
+                      >
+                        {formatDateTime(upload.uploadedAt)}
+                      </Link>
                     </td>
                   </tr>
                 ))}
@@ -289,6 +357,7 @@ function BillingSectionView({
         <KpiCard
           label="Total revenue (paid OpCos)"
           value={usdFormatter.format(kpis.totalRevenuePaidUsd)}
+          href={paidInvoicesHref}
         />
         <KpiCard
           label="Invoices paid"
@@ -314,6 +383,14 @@ function BillingSectionView({
           title="Revenue by OpCo (paid)"
           segments={billing.revenueByOpco}
           formatValue={(value) => usdFormatter.format(value)}
+          getSegmentHref={(segment) =>
+            segment.id
+              ? invoicesLink(month, year, {
+                  paymentStatus: "paid",
+                  opcoId: segment.id,
+                })
+              : undefined
+          }
         />
         <DonutChart
           title="Payment status"
@@ -321,6 +398,7 @@ function BillingSectionView({
             ...segment,
             label: segment.label.replaceAll("_", " "),
           }))}
+          getSegmentHref={(segment) => paymentStatusHref(month, year, segment)}
         />
       </div>
 
@@ -328,12 +406,16 @@ function BillingSectionView({
         <DirectionPanelView
           title="Sent to OpCos"
           panel={billing.sentToOpcos}
+          invoicedHref={allInvoicesHref}
+          paidHref={paidInvoicesHref}
           missingLabel="OpCos without an invoice"
           missingHref={opcoInvoiceMissingHref}
         />
         <DirectionPanelView
           title="Received from partners"
           panel={billing.receivedFromPartners}
+          invoicedHref={allInvoicesHref}
+          paidHref={paidInvoicesHref}
           missingLabel="Partners without an invoice"
           missingHref={partnerInvoiceMissingHref}
         />
@@ -345,11 +427,15 @@ function BillingSectionView({
 function DirectionPanelView({
   title,
   panel,
+  invoicedHref,
+  paidHref,
   missingLabel,
   missingHref,
 }: {
   title: string;
   panel: DirectionPanel;
+  invoicedHref: string;
+  paidHref: string;
   missingLabel: string;
   missingHref: string;
 }) {
@@ -359,13 +445,21 @@ function DirectionPanelView({
       <div className="mt-3 flex gap-6 text-sm">
         <div>
           <p className="text-xs text-foreground-subtle">Invoiced</p>
-          <p className="text-lg font-semibold text-foreground">
+          <Link
+            href={invoicedHref}
+            className="text-lg font-semibold text-foreground underline decoration-foreground-subtle underline-offset-2 hover:decoration-foreground"
+          >
             {panel.invoiced} / {panel.linked}
-          </p>
+          </Link>
         </div>
         <div>
           <p className="text-xs text-foreground-subtle">Paid</p>
-          <p className="text-lg font-semibold text-foreground">{panel.paid}</p>
+          <Link
+            href={paidHref}
+            className="text-lg font-semibold text-foreground underline decoration-foreground-subtle underline-offset-2 hover:decoration-foreground"
+          >
+            {panel.paid}
+          </Link>
         </div>
       </div>
       {panel.missingNames.length > 0 ? (
@@ -417,13 +511,28 @@ function ReportsReconSectionView({
             View reports
           </Link>
           <p className="text-xs text-foreground-subtle">
-            Latest upload: {formatDateTime(reportsRecon.latestUpload)}
+            Latest upload:{" "}
+            {reportsRecon.latestUpload ? (
+              <Link
+                href={reportsHref}
+                className="underline decoration-foreground-subtle underline-offset-2 hover:decoration-foreground"
+              >
+                {formatDateTime(reportsRecon.latestUpload)}
+              </Link>
+            ) : (
+              "—"
+            )}
           </p>
         </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <KpiCard label="Reports submitted" value={reportsRecon.reportsSubmitted} />
+        <KpiCard
+          label="Reports submitted"
+          value={reportsRecon.reportsSubmitted}
+          href={reportsHref}
+          hint="View OpCo / Partner submissions"
+        />
         <KpiCard
           label="OpCo reports missing"
           value={reportsRecon.opcoReportsMissing}
@@ -440,64 +549,22 @@ function ReportsReconSectionView({
         <DonutChart
           title="Reports submitted by OpCo"
           segments={reportsRecon.reportsByOpco}
+          getSegmentHref={(segment) =>
+            segment.id
+              ? reportsLink(month, year, { opcoId: segment.id })
+              : undefined
+          }
         />
         <DonutChart
           title="Reports submitted by Partner"
           segments={reportsRecon.reportsByPartner}
+          getSegmentHref={(segment) =>
+            segment.id
+              ? reportsLink(month, year, { partnerId: segment.id })
+              : undefined
+          }
         />
       </div>
-
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-medium text-foreground-muted">
-            Reconciliation Overview
-          </h3>
-          <Link
-            href="/dizlee/reconciliation"
-            className="text-sm text-foreground-muted hover:text-foreground"
-          >
-            View All
-          </Link>
-        </div>
-        {reportsRecon.reconciliation.length > 0 ? (
-          <ul className="space-y-2">
-            {reportsRecon.reconciliation.map((lane) => (
-              <ReconciliationLaneView key={lane.id} lane={lane} />
-            ))}
-          </ul>
-        ) : (
-          <p className="text-sm text-foreground-subtle">No reconciliation activity yet.</p>
-        )}
-      </div>
     </section>
-  );
-}
-
-function ReconciliationLaneView({ lane }: { lane: ReconciliationLane }) {
-  return (
-    <li>
-      <Link
-        href={`/dizlee/reconciliation?id=${lane.id}`}
-        className="block rounded-lg border border-border bg-surface p-3 shadow-sm transition-colors hover:bg-surface-muted"
-      >
-        <div className="flex items-center justify-between gap-4">
-          <span className="truncate text-sm font-medium text-foreground">
-            {lane.lane}
-          </span>
-          <span className="shrink-0 text-xs text-foreground-subtle">{lane.status}</span>
-        </div>
-        <div className="mt-2 flex items-center gap-3">
-          <div className="h-2 flex-1 overflow-hidden rounded-full bg-surface-muted">
-            <div
-              className="h-full rounded-full bg-success-muted0"
-              style={{ width: `${lane.matchRate}%` }}
-            />
-          </div>
-          <span className="shrink-0 text-xs text-foreground-muted">
-            {lane.matchRate}%
-          </span>
-        </div>
-      </Link>
-    </li>
   );
 }
