@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 import { requireDizleeSession } from "@/lib/dizlee/auth";
+import {
+  DEFAULT_REMINDER_MESSAGE_SOURCE,
+  type SendReportRemindersInput,
+} from "@/lib/dizlee/notifications/broadcast.shared";
 import { NotificationError } from "@/lib/dizlee/notifications/intimations";
 import {
   getReminderSettings,
@@ -46,6 +50,7 @@ export async function POST(request: Request) {
       year?: number;
       laneKeys?: string[];
       target?: "opco" | "partner" | "both";
+      messageSource?: SendReportRemindersInput["messageSource"];
       subject?: string;
       body?: string;
     };
@@ -65,6 +70,7 @@ export async function POST(request: Request) {
         year: body.year,
         laneKeys: body.laneKeys ?? [],
         target,
+        messageSource: body.messageSource ?? DEFAULT_REMINDER_MESSAGE_SOURCE,
         subject: body.subject,
         body: body.body,
       },

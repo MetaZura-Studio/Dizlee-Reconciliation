@@ -125,7 +125,7 @@ describe("runAutomaticSubmissionReminders", () => {
     mockedSendMissingReportReminders.mockResolvedValue({
       opcoNotifications: 0,
       partnerNotifications: 0,
-      message: "No lanes with missing reports found for this period.",
+      message: "No OpCo–Partner pairs with missing reports found for this period.",
     });
 
     const result = await runAutomaticSubmissionReminders({

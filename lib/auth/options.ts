@@ -3,12 +3,13 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { z } from "zod";
 
 import { verifyPassword } from "@/lib/auth/password";
+import { writeUserSessionAuditLog } from "@/lib/auth/audit";
 import {
   isAuthLoginScope,
   roleAllowedForLoginScope,
   type AuthLoginScope,
 } from "@/lib/auth/scopes";
-import { normalizeRoleCode } from "@/lib/auth/types";
+import { isAppRole, normalizeRoleCode } from "@/lib/auth/types";
 import prisma from "@/lib/prisma";
 
 const credentialsSchema = z.object({
@@ -84,6 +85,14 @@ export const authOptions: NextAuthOptions = {
           data: { lastLoginAt: new Date() },
         });
 
+        await writeUserSessionAuditLog({
+          userId: user.id,
+          action: "USER_LOGIN",
+          role,
+          email: user.email,
+          scope,
+        });
+
         return {
           id: user.id.toString(),
           email: user.email,
@@ -113,6 +122,31 @@ export const authOptions: NextAuthOptions = {
         session.user.partnerId = token.partnerId ?? null;
       }
       return session;
+    },
+  },
+  events: {
+    async signOut(message) {
+      const token = "token" in message ? message.token : null;
+      const userId = token?.userId;
+      const role = token?.role;
+      const email = token?.email;
+
+      if (
+        typeof userId !== "string" ||
+        typeof role !== "string" ||
+        typeof email !== "string"
+      ) {
+        return;
+      }
+
+      const normalizedRole = isAppRole(role) ? role : normalizeRoleCode(role);
+
+      await writeUserSessionAuditLog({
+        userId: BigInt(userId),
+        action: "USER_LOGOUT",
+        role: normalizedRole,
+        email,
+      });
     },
   },
 };

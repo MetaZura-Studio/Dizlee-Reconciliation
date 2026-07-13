@@ -217,7 +217,7 @@ export function DashboardView({ initialData }: DashboardViewProps) {
                     Actor
                   </th>
                   <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                    Lane
+                    OpCo / Partner
                   </th>
                   <th className="px-4 py-3 text-left font-medium text-foreground-muted">
                     Uploaded
@@ -378,7 +378,7 @@ function DirectionPanelView({
           </p>
         </div>
       ) : (
-        <p className="mt-3 text-xs text-foreground-subtle">All lanes invoiced.</p>
+        <p className="mt-3 text-xs text-foreground-subtle">All pairs invoiced.</p>
       )}
     </div>
   );

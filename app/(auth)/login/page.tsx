@@ -17,11 +17,6 @@ export default function LoginPage() {
         <Suspense fallback={<p className="text-sm text-foreground-subtle">Loading...</p>}>
           <LoginForm />
         </Suspense>
-
-        <p className="text-xs text-foreground-subtle">
-          Local dev seed users are documented in{" "}
-          <code className="rounded bg-surface-muted px-1">docs/AUTH_SESSION.md</code>.
-        </p>
       </div>
     </div>
   );

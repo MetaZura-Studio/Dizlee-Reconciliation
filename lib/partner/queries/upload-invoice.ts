@@ -2,6 +2,7 @@ import { getPartnerLookupId } from "@/lib/partner/lookups";
 import { isOpcoLinkedToPartner } from "@/lib/partner/queries/opcos";
 import { saveInvoiceFileLocally } from "@/lib/partner/storage/save-invoice-file";
 import type { PartnerInvoiceUploadMetadata } from "@/lib/partner/validation/invoice-upload";
+import { writePlatformAuditLog } from "@/lib/platform/audit-log";
 import prisma from "@/lib/prisma";
 
 export class InvoiceUploadError extends Error {
@@ -162,6 +163,20 @@ export async function createPartnerInvoice(
       statusField: "invoice_status",
       previousStatus: "DRAFT",
       newStatus: "SENT",
+    },
+  });
+
+  await writePlatformAuditLog({
+    actorUserId: input.userId,
+    action: "INVOICE_STATUS_UPDATED",
+    entityType: "INVOICE",
+    entityId: invoice.id,
+    message: `Partner submitted invoice ${invoiceNumber} to Dizlee (${input.metadata.year}-${String(input.metadata.month).padStart(2, "0")})`,
+    metadata: {
+      partnerId: input.partnerId.toString(),
+      opcoId: opcoId.toString(),
+      month: input.metadata.month,
+      year: input.metadata.year,
     },
   });
 

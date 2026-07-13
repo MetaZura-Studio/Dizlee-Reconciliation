@@ -1,42 +1,30 @@
-import { NotificationError } from "@/lib/dizlee/notifications/intimations";
+import {
+  DEFAULT_REMINDER_MESSAGE_SOURCE,
+  type ReminderSettingsView,
+  type SendReportRemindersInput,
+  type SendReportRemindersResult,
+} from "@/lib/dizlee/notifications/broadcast.shared";
+import {
+  getBroadcastTemplateOptions,
+  NotificationError,
+} from "@/lib/dizlee/notifications/intimations";
 import {
   listReportMonitoringLanes,
   parseReportMonitoringFilters,
   type ReportMonitoringResult,
 } from "@/lib/dizlee/reports-monitoring";
-import { getActiveEmailTemplate } from "@/lib/platform/email-templates";
 import {
   ReportReminderError,
   sendMissingReportReminders,
 } from "@/lib/platform/report-reminders";
 import { prisma } from "@/lib/prisma";
 
-export type ReminderSettingsView = {
-  remindersEnabled: boolean;
-  reminderValue: number | null;
-  reminderUnit: string | null;
-  templateSubject: string;
-  templateBody: string;
-};
-
-export type SendReportRemindersInput = {
-  month: number;
-  year: number;
-  laneKeys: string[];
-  target: "opco" | "partner" | "both";
-  subject?: string;
-  body?: string;
-};
-
-export type SendReportRemindersResult = {
-  opcoNotifications: number;
-  partnerNotifications: number;
-  message: string;
-};
-
-const DEFAULT_SUBJECT = "Report submission reminder";
-const DEFAULT_BODY =
-  "Your monthly report for {{period}} is still missing. Please log in and upload it as soon as possible.";
+export {
+  DEFAULT_REMINDER_MESSAGE_SOURCE,
+  type ReminderSettingsView,
+  type SendReportRemindersInput,
+  type SendReportRemindersResult,
+} from "@/lib/dizlee/notifications/broadcast.shared";
 
 export function parseReminderFilters(
   searchParams: URLSearchParams,
@@ -45,7 +33,7 @@ export function parseReminderFilters(
 }
 
 export async function getReminderSettings(): Promise<ReminderSettingsView> {
-  const [settings, template] = await Promise.all([
+  const [settings, templates] = await Promise.all([
     prisma.appSettings.findFirst({
       where: { id: 1 },
       select: {
@@ -54,15 +42,14 @@ export async function getReminderSettings(): Promise<ReminderSettingsView> {
         reminderUnit: true,
       },
     }),
-    getActiveEmailTemplate("REPORT_REMINDER"),
+    getBroadcastTemplateOptions(),
   ]);
 
   return {
     remindersEnabled: settings?.remindersEnabled ?? false,
     reminderValue: settings?.reminderValue ?? null,
     reminderUnit: settings?.reminderUnit ?? null,
-    templateSubject: template?.subject ?? DEFAULT_SUBJECT,
-    templateBody: template?.body ?? DEFAULT_BODY,
+    templates,
   };
 }
 
@@ -90,6 +77,7 @@ export async function sendReportReminders(params: {
       laneKeys: input.laneKeys,
       target: input.target,
       fromUserId: BigInt(fromUserId),
+      templateCode: input.messageSource,
       subject: input.subject,
       body: input.body,
       throwIfNoRecipients: true,

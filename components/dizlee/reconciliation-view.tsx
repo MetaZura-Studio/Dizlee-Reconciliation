@@ -287,7 +287,7 @@ export function ReconciliationView({
       <div>
         <h1 className="text-2xl font-semibold text-foreground">Reconciliation</h1>
         <p className="mt-1 text-sm text-foreground-subtle">
-          Compare OpCo and Partner reports per lane. Tolerance: {tolerancePercent}%
+          Compare OpCo and Partner reports for each pair. Tolerance: {tolerancePercent}%
         </p>
       </div>
 
@@ -404,7 +404,7 @@ export function ReconciliationView({
             </div>
           </section>
 
-          {loading ? <p className="text-sm text-foreground-subtle">Loading lanes…</p> : null}
+          {loading ? <p className="text-sm text-foreground-subtle">Loading pairs…</p> : null}
 
           {!loading ? (
             lanes.length > 0 ? (
@@ -496,9 +496,9 @@ export function ReconciliationView({
               </div>
             ) : (
               <div className="rounded-lg border border-border bg-surface p-8 text-center">
-                <p className="font-medium text-foreground">No lanes found</p>
+                <p className="font-medium text-foreground">No pairs found</p>
                 <p className="mt-1 text-sm text-foreground-muted">
-                  Adjust period or search filters to see linked OpCo–Partner lanes.
+                  Adjust period or search filters to see linked OpCo–Partner pairs.
                 </p>
               </div>
             )
@@ -517,7 +517,7 @@ export function ReconciliationView({
                         Period
                       </th>
                       <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                        Lane
+                        OpCo / Partner
                       </th>
                       <th className="px-4 py-3 text-left font-medium text-foreground-muted">
                         Status
@@ -596,7 +596,7 @@ export function ReconciliationView({
             <div className="rounded-lg border border-border bg-surface p-8 text-center">
               <p className="font-medium text-foreground">No reconciliation history</p>
               <p className="mt-1 text-sm text-foreground-muted">
-                Run reconciliation on a ready lane to see results here.
+                Run reconciliation on a ready pair to see results here.
               </p>
             </div>
           ) : null}

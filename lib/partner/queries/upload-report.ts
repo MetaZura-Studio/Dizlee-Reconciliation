@@ -7,6 +7,7 @@ import {
   PARTNER_REPORT_VERSION,
   laneReportWhere,
 } from "@/lib/platform/reports/sides";
+import { writePlatformAuditLog } from "@/lib/platform/audit-log";
 import prisma from "@/lib/prisma";
 
 export class ReportUploadError extends Error {
@@ -124,7 +125,26 @@ export async function createReportUpload(
           })),
         },
       },
-      select: { id: true },
+      select: {
+        id: true,
+        opco: { select: { name: true } },
+        partner: { select: { name: true } },
+      },
+    });
+
+    await writePlatformAuditLog({
+      actorUserId: input.userId,
+      action: "REPORT_UPLOADED",
+      entityType: "REPORT",
+      entityId: report.id,
+      message: `Partner uploaded report for ${report.opco.name} / ${report.partner.name} (${input.year}-${String(input.month).padStart(2, "0")})`,
+      metadata: {
+        opcoId: input.opcoId.toString(),
+        partnerId: input.partnerId.toString(),
+        month: input.month,
+        year: input.year,
+        filename: input.filename,
+      },
     });
 
     return { reportId: report.id.toString() };

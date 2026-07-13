@@ -159,7 +159,7 @@ export function ReportsMonitoringView({
       <div>
         <h1 className="text-2xl font-semibold text-foreground">Dizlee - Reports</h1>
         <p className="mt-1 text-sm text-foreground-subtle">
-          Linked OpCo and Partner report lanes for the selected period.
+          Track OpCo and Partner report uploads for each linked pair in the selected period.
         </p>
         {fromDashboard ? (
           <p className="mt-1 text-xs text-foreground-subtle">From dashboard</p>
@@ -169,7 +169,7 @@ export function ReportsMonitoringView({
       <ReportsTabs active="monitoring" />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard label="Linked lanes" value={summary.linkedLanes} />
+        <KpiCard label="OpCo–Partner pairs" value={summary.linkedLanes} />
         <KpiCard label="OpCo reports missing" value={summary.opcoMissing} />
         <KpiCard label="Partner reports missing" value={summary.partnerMissing} />
         <KpiCard label="Reports submitted" value={summary.reportsSubmitted} />
@@ -244,7 +244,7 @@ export function ReportsMonitoringView({
               }
               className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
             >
-              <option value="">All lanes</option>
+              <option value="">All pairs</option>
               <option value="opco">Missing OpCo reports</option>
               <option value="partner">Missing Partner reports</option>
               <option value="any">Any missing report</option>
@@ -377,7 +377,7 @@ export function ReportsMonitoringView({
           </>
         ) : (
           <div className="rounded-lg border border-border bg-surface p-8 text-center">
-            <p className="font-medium text-foreground">No lanes match filters</p>
+            <p className="font-medium text-foreground">No pairs match filters</p>
             <p className="mt-1 text-sm text-foreground-muted">
               {summary.linkedLanes === 0
                 ? "No OpCo–Partner links are configured for this scope."

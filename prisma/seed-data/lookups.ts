@@ -25,6 +25,8 @@ export const LOOKUP_SEEDS: Record<string, string[]> = {
     "USER_CREATED",
     "USER_UPDATED",
     "USER_DELETED",
+    "USER_LOGIN",
+    "USER_LOGOUT",
     "REPORT_UPLOADED",
     "REPORT_CHANGE_REQUESTED",
     "INVOICE_STATUS_UPDATED",

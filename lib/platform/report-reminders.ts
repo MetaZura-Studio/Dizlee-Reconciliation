@@ -1,9 +1,14 @@
 import { getLookupId } from "@/lib/admin/lookups";
+import type { BroadcastTemplateCode } from "@/lib/dizlee/notifications/broadcast.shared";
 import {
   listReportMonitoringLanes,
   type ReportMonitoringLane,
 } from "@/lib/dizlee/reports-monitoring";
 import { getActiveEmailTemplate } from "@/lib/platform/email-templates";
+import {
+  applyTemplate,
+  periodLabel,
+} from "@/lib/platform/template-placeholders";
 import { prisma } from "@/lib/prisma";
 
 export type SendMissingReportRemindersResult = {
@@ -18,6 +23,7 @@ export type SendMissingReportRemindersInput = {
   target: "opco" | "partner" | "both";
   laneKeys?: string[];
   fromUserId: bigint;
+  templateCode?: BroadcastTemplateCode;
   subject?: string;
   body?: string;
   throwIfNoRecipients?: boolean;
@@ -31,28 +37,6 @@ export class ReportReminderError extends Error {
     this.name = "ReportReminderError";
     this.status = status;
   }
-}
-
-const DEFAULT_SUBJECT = "Report submission reminder";
-const DEFAULT_BODY =
-  "Your monthly report for {{period}} is still missing. Please log in and upload it as soon as possible.";
-
-function periodLabel(month: number, year: number): string {
-  return new Date(year, month - 1, 1).toLocaleString("en-US", {
-    month: "long",
-    year: "numeric",
-  });
-}
-
-function applyTemplate(
-  template: string,
-  values: Record<string, string>,
-): string {
-  let result = template;
-  for (const [key, value] of Object.entries(values)) {
-    result = result.replaceAll(`{{${key}}}`, value);
-  }
-  return result;
 }
 
 async function getAllMonitoringLanes(
@@ -108,17 +92,18 @@ function lanesWithMissing(
 }
 
 async function resolveTemplates(
+  templateCode: BroadcastTemplateCode,
   subject?: string,
   body?: string,
 ): Promise<{ subjectTemplate: string; bodyTemplate: string }> {
-  if (subject?.trim() && body?.trim()) {
-    return { subjectTemplate: subject.trim(), bodyTemplate: body.trim() };
+  const template = await getActiveEmailTemplate(templateCode);
+  if (!template) {
+    throw new ReportReminderError("Selected template was not found.", 400);
   }
 
-  const template = await getActiveEmailTemplate("REPORT_REMINDER");
   return {
-    subjectTemplate: subject?.trim() || template?.subject || DEFAULT_SUBJECT,
-    bodyTemplate: body?.trim() || template?.body || DEFAULT_BODY,
+    subjectTemplate: subject?.trim() || template.subject,
+    bodyTemplate: body?.trim() || template.body,
   };
 }
 
@@ -146,18 +131,19 @@ export async function sendMissingReportReminders(
       return {
         opcoNotifications: 0,
         partnerNotifications: 0,
-        message: "No lanes with missing reports found for this period.",
+        message: "No OpCo–Partner pairs with missing reports found for this period.",
       };
     }
 
     throw new ReportReminderError(
       laneKeys.length > 0
-        ? "No selected lanes have missing reports for the chosen target."
-        : "No lanes with missing reports found for this period.",
+        ? "No selected pairs have missing reports for the chosen target."
+        : "No OpCo–Partner pairs with missing reports found for this period.",
     );
   }
 
   const { subjectTemplate, bodyTemplate } = await resolveTemplates(
+    params.templateCode ?? "REPORT_REMINDER",
     params.subject,
     params.body,
   );

@@ -221,7 +221,7 @@ export function ReportingView({
       </p>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard label="Linked lanes" value={String(summary.linkedLanes)} />
+        <KpiCard label="OpCo–Partner pairs" value={String(summary.linkedLanes)} />
         <KpiCard
           label="Reports complete"
           value={`${summary.reportsComplete} / ${summary.linkedLanes}`}
@@ -275,13 +275,13 @@ export function ReportingView({
 
       <div className="overflow-hidden rounded-xl border border-border bg-surface">
         <div className="border-b border-border px-4 py-3">
-          <h2 className="font-medium text-foreground">Lane overview</h2>
+          <h2 className="font-medium text-foreground">OpCo–Partner overview</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-left text-sm">
             <thead className="border-b border-border bg-surface-muted text-foreground-subtle">
               <tr>
-                <th className="px-4 py-3 font-medium">Lane</th>
+                <th className="px-4 py-3 font-medium">OpCo / Partner</th>
                 <th className="px-4 py-3 font-medium">OpCo report</th>
                 <th className="px-4 py-3 font-medium">Partner report</th>
                 <th className="px-4 py-3 font-medium">OpCo invoice</th>
@@ -294,7 +294,7 @@ export function ReportingView({
               {overview.lanes.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center text-foreground-subtle">
-                    No lanes match the selected filters.
+                    No OpCo–Partner pairs match the selected filters.
                   </td>
                 </tr>
               ) : (

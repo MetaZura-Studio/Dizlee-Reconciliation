@@ -4,7 +4,6 @@ import Link from "next/link";
 
 type NotificationsTabId =
   | "intimations"
-  | "partners"
   | "reminders"
   | "history"
   | "inbox";
@@ -23,12 +22,6 @@ const TABS: Array<{
     id: "intimations",
     label: "Intimations",
     href: "/dizlee/notifications",
-    enabled: true,
-  },
-  {
-    id: "partners",
-    label: "Partners",
-    href: "/dizlee/notifications?tab=partners",
     enabled: true,
   },
   {

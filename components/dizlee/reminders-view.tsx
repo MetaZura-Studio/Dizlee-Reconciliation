@@ -3,11 +3,13 @@
 import { useCallback, useState } from "react";
 
 import { NotificationsTabs } from "@/components/dizlee/notifications-tabs";
+import {
+  DEFAULT_REMINDER_MESSAGE_SOURCE,
+  type BroadcastTemplateCode,
+  type ReminderSettingsView,
+  type SendReportRemindersInput,
+} from "@/lib/dizlee/notifications/broadcast.shared";
 import type { ReportFilterOptions } from "@/lib/dizlee/reports";
-import type {
-  ReminderSettingsView,
-  SendReportRemindersInput,
-} from "@/lib/dizlee/notifications/reminders";
 import type {
   MissingSideFilter,
   ReportMonitoringResult,
@@ -27,6 +29,27 @@ const MONTHS = [
   "November",
   "December",
 ];
+
+const MESSAGE_SOURCE_OPTIONS: Array<{
+  value: BroadcastTemplateCode;
+  label: string;
+}> = [
+  { value: "REPORT_SUBMISSION", label: "Report submission" },
+  { value: "REPORT_REMINDER", label: "Report reminder" },
+  { value: "INVOICE_SUBMISSION", label: "Invoice submission" },
+  { value: "INVOICE_REMINDER", label: "Invoice reminder" },
+];
+
+function getTemplateContent(
+  templates: ReminderSettingsView["templates"],
+  code: BroadcastTemplateCode,
+) {
+  const template = templates.find((row) => row.code === code);
+  return {
+    subject: template?.subject ?? "",
+    body: template?.body ?? "",
+  };
+}
 
 function formatDateTime(value: string | null): string {
   if (!value) {
@@ -87,8 +110,15 @@ export function RemindersView({
     initialResult.filters.missing ?? "any",
   );
 
-  const [subject, setSubject] = useState(initialSettings.templateSubject);
-  const [body, setBody] = useState(initialSettings.templateBody);
+  const [messageSource, setMessageSource] = useState<BroadcastTemplateCode>(
+    DEFAULT_REMINDER_MESSAGE_SOURCE,
+  );
+  const initialTemplate = getTemplateContent(
+    initialSettings.templates,
+    DEFAULT_REMINDER_MESSAGE_SOURCE,
+  );
+  const [subject, setSubject] = useState(initialTemplate.subject);
+  const [body, setBody] = useState(initialTemplate.body);
   const [selectedLaneKeys, setSelectedLaneKeys] = useState<string[]>([]);
 
   const [loading, setLoading] = useState(false);
@@ -116,9 +146,13 @@ export function RemindersView({
           throw new Error(payload.error ?? "Failed to load reminders");
         }
         setResult(payload.data as ReportMonitoringResult);
-        setSettings(payload.settings as ReminderSettingsView);
+        const nextSettings = payload.settings as ReminderSettingsView;
+        setSettings(nextSettings);
         setFilterOptions(payload.filterOptions as ReportFilterOptions);
         setSelectedLaneKeys([]);
+        const template = getTemplateContent(nextSettings.templates, messageSource);
+        setSubject(template.subject);
+        setBody(template.body);
       } catch (loadError) {
         setError(
           loadError instanceof Error ? loadError.message : "Failed to load reminders",
@@ -127,8 +161,15 @@ export function RemindersView({
         setLoading(false);
       }
     },
-    [missing, month, opcoId, partnerId, year],
+    [messageSource, missing, month, opcoId, partnerId, year],
   );
+
+  const handleMessageSourceChange = (source: BroadcastTemplateCode) => {
+    setMessageSource(source);
+    const template = getTemplateContent(settings.templates, source);
+    setSubject(template.subject);
+    setBody(template.body);
+  };
 
   const toggleLane = (laneKey: string) => {
     setSelectedLaneKeys((current) =>
@@ -162,6 +203,7 @@ export function RemindersView({
           year,
           laneKeys: selectedLaneKeys,
           target,
+          messageSource,
           subject,
           body,
         }),
@@ -222,8 +264,9 @@ export function RemindersView({
           {settings.remindersEnabled ? ` · Schedule: ${scheduleLabel}` : ""}
         </p>
         <p className="mt-1 text-foreground-subtle">
-          Manual sends below use the Report reminder template. Placeholder:{" "}
-          <code className="text-xs">{"{{period}}"}</code>
+          Manual sends below use admin email templates. Placeholder:{" "}
+          <code className="text-xs">{"{{period}}"}</code> is filled from the
+          selected month and year.
         </p>
       </div>
 
@@ -319,7 +362,7 @@ export function RemindersView({
 
       <div className="grid gap-4 sm:grid-cols-4">
         <div className="rounded-xl border border-border bg-surface p-4">
-          <p className="text-xs text-foreground-subtle">Linked lanes</p>
+          <p className="text-xs text-foreground-subtle">OpCo–Partner pairs</p>
           <p className="mt-1 text-2xl font-semibold text-foreground">
             {result.summary.linkedLanes}
           </p>
@@ -337,14 +380,14 @@ export function RemindersView({
           </p>
         </div>
         <div className="rounded-xl border border-border bg-surface p-4">
-          <p className="text-xs text-foreground-subtle">Selected lanes</p>
+          <p className="text-xs text-foreground-subtle">Selected pairs</p>
           <p className="mt-1 text-2xl font-semibold text-foreground">
             {selectedLaneKeys.length || "All"}
           </p>
           <p className="mt-1 text-xs text-foreground-subtle">
             {selectedLaneKeys.length === 0
-              ? "Empty selection sends to all missing lanes"
-              : "Only selected lanes"}
+              ? "Empty selection sends to all pairs with missing reports"
+              : "Only selected pairs"}
           </p>
         </div>
       </div>
@@ -352,7 +395,7 @@ export function RemindersView({
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="rounded-xl border border-border bg-surface p-4 lg:col-span-2">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-medium text-foreground">Report lanes</h2>
+            <h2 className="text-lg font-medium text-foreground">OpCo–Partner pairs</h2>
             <button
               type="button"
               onClick={selectMissingOnPage}
@@ -367,7 +410,7 @@ export function RemindersView({
               <thead className="border-b border-border text-foreground-subtle">
                 <tr>
                   <th className="px-3 py-2 font-medium" />
-                  <th className="px-3 py-2 font-medium">Lane</th>
+                  <th className="px-3 py-2 font-medium">OpCo / Partner</th>
                   <th className="px-3 py-2 font-medium">OpCo report</th>
                   <th className="px-3 py-2 font-medium">Partner report</th>
                 </tr>
@@ -376,7 +419,7 @@ export function RemindersView({
                 {result.items.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="px-3 py-8 text-center text-foreground-subtle">
-                      No lanes match the selected filters.
+                      No OpCo–Partner pairs match the selected filters.
                     </td>
                   </tr>
                 ) : (
@@ -462,10 +505,29 @@ export function RemindersView({
         <div className="rounded-xl border border-border bg-surface p-4">
           <h2 className="text-lg font-medium text-foreground">Reminder message</h2>
           <p className="mt-1 text-sm text-foreground-subtle">
-            Edit before sending. Defaults from REPORT_REMINDER template.
+            Choose an admin template and edit before sending.
           </p>
 
           <div className="mt-4 space-y-4">
+            <label className="block text-sm">
+              <span className="text-foreground-muted">Template</span>
+              <select
+                value={messageSource}
+                onChange={(event) =>
+                  handleMessageSourceChange(
+                    event.target.value as BroadcastTemplateCode,
+                  )
+                }
+                className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
+              >
+                {MESSAGE_SOURCE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
             <label className="block text-sm">
               <span className="text-foreground-muted">Subject</span>
               <input
@@ -486,6 +548,10 @@ export function RemindersView({
                 className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
               />
             </label>
+
+            <p className="text-xs text-foreground-subtle">
+              Placeholder {"{{period}}"} uses the month and year filters above.
+            </p>
 
             <div className="space-y-2">
               <button

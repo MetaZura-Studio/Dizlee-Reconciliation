@@ -1,7 +1,6 @@
 import { NotificationHistoryView } from "@/components/dizlee/notification-history-view";
 import { NotificationsInboxView } from "@/components/dizlee/notifications-inbox-view";
 import { IntimationsView } from "@/components/dizlee/intimations-view";
-import { PartnerNotificationsView } from "@/components/dizlee/partner-notifications-view";
 import { RemindersView } from "@/components/dizlee/reminders-view";
 import {
   getIntimationFormOptions,
@@ -18,11 +17,6 @@ import {
   listInboxNotifications,
   parseInboxFilters,
 } from "@/lib/dizlee/notifications/inbox";
-import {
-  getPartnerNotificationFormOptions,
-  listPartnerNotifications,
-  parsePartnerNotificationListFilters,
-} from "@/lib/dizlee/notifications/partners";
 import {
   getReminderSettings,
   listReminderLanes,
@@ -60,21 +54,6 @@ export default async function DizleeNotificationsPage({
     if (value && key !== "tab" && key !== "id") {
       query.set(key, value);
     }
-  }
-
-  if (params.tab === "partners") {
-    const filters = parsePartnerNotificationListFilters(query);
-    const [initialResult, initialFormOptions] = await Promise.all([
-      listPartnerNotifications(filters),
-      getPartnerNotificationFormOptions(),
-    ]);
-
-    return (
-      <PartnerNotificationsView
-        initialResult={initialResult}
-        initialFormOptions={initialFormOptions}
-      />
-    );
   }
 
   if (params.tab === "reminders") {
