@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import { ReportDetailModal } from "@/components/dizlee/report-detail-modal";
