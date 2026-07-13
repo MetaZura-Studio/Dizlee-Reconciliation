@@ -13,6 +13,7 @@ import { useMemo, useState } from "react";
 import { ReportDetailModal } from "@/components/partner/ReportDetailModal";
 import { ReportReuploadDialog } from "@/components/partner/ReportReuploadDialog";
 import { RequestChangeDialog } from "@/components/partner/RequestChangeDialog";
+import { ReportFilenameLink } from "@/components/shared/report-filename-link";
 import { formatPeriodLabel } from "@/lib/partner/period";
 import type {
   PartnerReportDetail,
@@ -188,7 +189,16 @@ export function ReportsTable({ initialResult, filterOptions }: ReportsTableProps
       }),
       columnHelper.accessor("filename", {
         header: "File",
-        cell: (info) => info.getValue() ?? "—",
+        cell: ({ row }) => (
+          <ReportFilenameLink
+            filename={row.original.filename}
+            onClick={
+              row.original.filename
+                ? () => void openDetail(row.original.id)
+                : undefined
+            }
+          />
+        ),
       }),
       columnHelper.accessor("lineItemCount", {
         header: "Lines",

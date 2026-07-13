@@ -4,6 +4,8 @@ export type AdminNavIcon =
   | "email-settings"
   | "email-templates"
   | "reminder"
+  | "opcos"
+  | "partners"
   | "opco-partners"
   | "tolerance"
   | "settings"
@@ -34,6 +36,20 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     href: "/admin/users",
     icon: "users",
     description: "Create, edit, and manage user accounts.",
+    section: "main",
+  },
+  {
+    label: "OpCos",
+    href: "/admin/opcos",
+    icon: "opcos",
+    description: "Create and manage OpCo organizations.",
+    section: "main",
+  },
+  {
+    label: "Partners",
+    href: "/admin/partners",
+    icon: "partners",
+    description: "Create and manage Partner organizations.",
     section: "main",
   },
   {

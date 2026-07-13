@@ -192,7 +192,7 @@ export function OpcoPartnersView({ initialData }: OpcoPartnersViewProps) {
             </p>
           </div>
 
-          <div className="max-h-96 space-y-2 overflow-y-auto rounded-md border border-border p-3">
+          <div className="grid grid-cols-1 gap-2 rounded-md border border-border p-3 sm:grid-cols-2 lg:grid-cols-3">
             {(linksView?.partners ?? []).map((partner) => (
               <label
                 key={partner.id}
@@ -203,7 +203,7 @@ export function OpcoPartnersView({ initialData }: OpcoPartnersViewProps) {
                   checked={selectedPartnerIds.has(partner.id)}
                   onChange={() => togglePartner(partner.id)}
                   disabled={loading || saving}
-                  className="h-4 w-4 rounded border-border-strong"
+                  className="h-4 w-4 shrink-0 rounded border-border-strong"
                 />
                 <span className="text-sm text-foreground">{partner.name}</span>
               </label>

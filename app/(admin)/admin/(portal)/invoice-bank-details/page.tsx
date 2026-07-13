@@ -2,11 +2,11 @@ import { InvoiceBankDetailsForm } from "@/components/admin/invoice-bank-details-
 import {
   getInvoiceBankDetailsView,
   InvoiceBankDetailsError,
-  type InvoiceBankDetailsView,
+  type InvoiceBankDetailsListView,
 } from "@/lib/admin/invoice-bank-details";
 
 export default async function AdminInvoiceBankDetailsPage() {
-  let settings: InvoiceBankDetailsView | null = null;
+  let settings: InvoiceBankDetailsListView | null = null;
   let errorMessage: string | null = null;
 
   try {
@@ -38,7 +38,8 @@ export default async function AdminInvoiceBankDetailsPage() {
           Invoice bank details
         </h1>
         <p className="text-sm text-foreground-muted">
-          Default bank account details for Dizlee → OpCo digital invoices.
+          Add one or more bank accounts for Dizlee → OpCo digital invoices. If
+          multiple are saved, create-invoice will let you choose.
         </p>
       </div>
 

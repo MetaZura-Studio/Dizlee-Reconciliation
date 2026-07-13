@@ -9,6 +9,7 @@ export type DashboardPeriod = {
 };
 
 export type DonutSegment = {
+  id?: string;
   label: string;
   value: number;
 };
@@ -97,10 +98,30 @@ function pushSegment(map: Map<string, number>, label: string, value: number) {
   map.set(label, (map.get(label) ?? 0) + value);
 }
 
+function pushNamedSegment(
+  map: Map<string, DonutSegment>,
+  id: string,
+  label: string,
+  value: number,
+) {
+  const existing = map.get(id);
+  if (existing) {
+    existing.value += value;
+  } else {
+    map.set(id, { id, label, value });
+  }
+}
+
 function mapToSegments(map: Map<string, number>): DonutSegment[] {
   return [...map.entries()]
     .filter(([, value]) => value > 0)
-    .map(([label, value]) => ({ label, value }))
+    .map(([label, value]) => ({ id: label, label, value }))
+    .sort((a, b) => b.value - a.value);
+}
+
+function namedMapToSegments(map: Map<string, DonutSegment>): DonutSegment[] {
+  return [...map.values()]
+    .filter((segment) => segment.value > 0)
     .sort((a, b) => b.value - a.value);
 }
 
@@ -180,7 +201,7 @@ export async function getDashboardData(
   let missingFxCount = 0;
   let invoicesPaid = 0;
 
-  const revenueByOpco = new Map<string, number>();
+  const revenueByOpco = new Map<string, DonutSegment>();
   const paymentStatusCounts = new Map<string, number>();
 
   const opcoInvoiced = new Set<string>();
@@ -212,7 +233,7 @@ export async function getDashboardData(
           missingFxCount += 1;
         } else {
           totalRevenuePaidUsd += usd;
-          pushSegment(revenueByOpco, invoice.opco.name, usd);
+          pushNamedSegment(revenueByOpco, opcoKey, invoice.opco.name, usd);
         }
       } else if (usd !== null) {
         pendingCollectionUsd += usd;
@@ -256,14 +277,24 @@ export async function getDashboardData(
       .map(([, name]) => name),
   };
 
-  const reportsByOpco = new Map<string, number>();
-  const reportsByPartner = new Map<string, number>();
+  const reportsByOpco = new Map<string, DonutSegment>();
+  const reportsByPartner = new Map<string, DonutSegment>();
   const opcoReportLanes = new Set<string>();
   const partnerReportLanes = new Set<string>();
 
   for (const report of reports) {
-    pushSegment(reportsByOpco, report.opco.name, 1);
-    pushSegment(reportsByPartner, report.partner.name, 1);
+    pushNamedSegment(
+      reportsByOpco,
+      report.opcoId.toString(),
+      report.opco.name,
+      1,
+    );
+    pushNamedSegment(
+      reportsByPartner,
+      report.partnerId.toString(),
+      report.partner.name,
+      1,
+    );
 
     const laneKey = `${report.opcoId.toString()}-${report.partnerId.toString()}`;
     const uploaderRole = report.uploadedByUser?.role?.code;
@@ -307,7 +338,7 @@ export async function getDashboardData(
         pendingCollectionUsd,
         missingFxCount,
       },
-      revenueByOpco: mapToSegments(revenueByOpco),
+      revenueByOpco: namedMapToSegments(revenueByOpco),
       paymentStatus: mapToSegments(paymentStatusCounts),
       sentToOpcos,
       receivedFromPartners,
@@ -317,8 +348,8 @@ export async function getDashboardData(
       opcoReportsMissing: Math.max(0, linkKeys.size - opcoReportLanes.size),
       partnerReportsMissing: Math.max(0, linkKeys.size - partnerReportLanes.size),
       latestUpload,
-      reportsByOpco: mapToSegments(reportsByOpco),
-      reportsByPartner: mapToSegments(reportsByPartner),
+      reportsByOpco: namedMapToSegments(reportsByOpco),
+      reportsByPartner: namedMapToSegments(reportsByPartner),
       reconciliation,
     },
     recentUploads,

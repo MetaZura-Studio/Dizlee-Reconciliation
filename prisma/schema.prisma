@@ -272,6 +272,7 @@ model AppSettings {
   remindersEnabled                Boolean  @default(false) @map("reminders_enabled")
   reminderValue                   Int?     @map("reminder_value")
   reminderUnit                    String?  @map("reminder_unit") @db.VarChar(16)
+  notificationSchedulesJson       String?  @map("notification_schedules_json") @db.Text
   reconciliationNegligiblePercent Decimal? @map("reconciliation_negligible_percent") @db.Decimal(5, 2)
   opcoInvoiceBankDetailsJson      String?  @map("opco_invoice_bank_details_json") @db.Text
 
@@ -619,6 +620,7 @@ model Invoice {
   invoiceTypeId     Int       @map("invoice_type_id")
   fileId            BigInt?   @map("file_id")
   currencyId        BigInt    @map("currency_id")
+  bankDetailsJson   String?   @map("bank_details_json") @db.Text
   uploadedByUserId  BigInt?   @map("uploaded_by_user_id")
   invoiceStatusId   Int       @map("invoice_status_id")
   paymentStatusId   Int?      @map("payment_status_id")

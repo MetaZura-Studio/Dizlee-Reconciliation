@@ -12,6 +12,7 @@ type DizleeReportsPageProps = {
     from?: string;
     opcoId?: string;
     partnerId?: string;
+    reportId?: string;
     sortBy?: string;
     sortDir?: string;
     page?: string;
@@ -25,7 +26,7 @@ export default async function DizleeReportsPage({
   const query = new URLSearchParams();
 
   for (const [key, value] of Object.entries(params)) {
-    if (value && key !== "from") {
+    if (value && key !== "from" && key !== "reportId") {
       query.set(key, value);
     }
   }
@@ -41,6 +42,7 @@ export default async function DizleeReportsPage({
       initialResult={initialResult}
       initialFilterOptions={filterOptions}
       fromDashboard={params.from === "dashboard"}
+      initialReportId={params.reportId}
     />
   );
 }

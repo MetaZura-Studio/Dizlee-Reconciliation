@@ -9,11 +9,13 @@ import {
 } from "@/lib/admin/navigation";
 
 describe("admin navigation", () => {
-  it("defines seven main navigation items in SRS order", () => {
-    expect(ADMIN_MAIN_NAV_ITEMS).toHaveLength(7);
+  it("defines nine main navigation items in SRS order", () => {
+    expect(ADMIN_MAIN_NAV_ITEMS).toHaveLength(9);
     expect(ADMIN_MAIN_NAV_ITEMS.map((item) => item.label)).toEqual([
       "Audit logs",
       "Users",
+      "OpCos",
+      "Partners",
       "Email Settings",
       "Email Templates",
       "Reminder Settings",

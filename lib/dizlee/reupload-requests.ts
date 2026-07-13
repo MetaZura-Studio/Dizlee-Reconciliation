@@ -19,6 +19,7 @@ export type ReuploadListFilters = {
 
 export type ReuploadRequestItem = {
   id: string;
+  reportId: string;
   period: DashboardPeriod;
   opcoName: string;
   partnerName: string;
@@ -133,6 +134,7 @@ export async function listPendingReuploadRequests(
   return {
     items: rows.map((row) => ({
       id: row.id.toString(),
+      reportId: row.reportId.toString(),
       period: periodFromParts(row.report.month, row.report.year),
       opcoName: row.report.opco.name,
       partnerName: row.report.partner.name,

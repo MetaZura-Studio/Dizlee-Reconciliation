@@ -13,6 +13,7 @@ import { useMemo, useState } from "react";
 import { ReportDetailModal } from "@/components/opco/ReportDetailModal";
 import { ReportReuploadDialog } from "@/components/opco/ReportReuploadDialog";
 import { RequestChangeDialog } from "@/components/opco/RequestChangeDialog";
+import { ReportFilenameLink } from "@/components/shared/report-filename-link";
 import { formatPeriodLabel } from "@/lib/opco/period";
 import type {
   OpcoReportDetail,
@@ -188,7 +189,16 @@ export function ReportsTable({ initialResult, filterOptions }: ReportsTableProps
       }),
       columnHelper.accessor("filename", {
         header: "File",
-        cell: (info) => info.getValue() ?? "—",
+        cell: ({ row }) => (
+          <ReportFilenameLink
+            filename={row.original.filename}
+            onClick={
+              row.original.filename
+                ? () => void openDetail(row.original.id)
+                : undefined
+            }
+          />
+        ),
       }),
       columnHelper.accessor("lineItemCount", {
         header: "Lines",

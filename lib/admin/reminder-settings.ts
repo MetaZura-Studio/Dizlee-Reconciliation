@@ -1,4 +1,9 @@
 import { writeSettingsAuditLog } from "@/lib/admin/audit";
+import {
+  defaultNotificationSchedules,
+  parseNotificationSchedulesJson,
+  type NotificationSchedules,
+} from "@/lib/admin/notification-schedules.shared";
 import { isReminderUnit } from "@/lib/admin/reminder-duration";
 import {
   updateReminderSettingsSchema,
@@ -10,6 +15,7 @@ export type ReminderSettingsView = {
   remindersEnabled: boolean;
   reminderValue: number | null;
   reminderUnit: string | null;
+  schedules: NotificationSchedules;
 };
 
 export class ReminderSettingsError extends Error {
@@ -26,11 +32,16 @@ function mapSettingsRow(row: {
   remindersEnabled: boolean;
   reminderValue: number | null;
   reminderUnit: string | null;
+  notificationSchedulesJson: string | null;
 }): ReminderSettingsView {
   return {
     remindersEnabled: row.remindersEnabled,
     reminderValue: row.reminderValue,
-    reminderUnit: row.reminderUnit,
+    reminderUnit:
+      row.reminderUnit && isReminderUnit(row.reminderUnit)
+        ? row.reminderUnit
+        : "days",
+    schedules: parseNotificationSchedulesJson(row.notificationSchedulesJson),
   };
 }
 
@@ -41,6 +52,7 @@ export async function getReminderSettings(): Promise<ReminderSettingsView> {
       remindersEnabled: true,
       reminderValue: true,
       reminderUnit: true,
+      notificationSchedulesJson: true,
     },
   });
 
@@ -51,13 +63,7 @@ export async function getReminderSettings(): Promise<ReminderSettingsView> {
     );
   }
 
-  return mapSettingsRow({
-    ...settings,
-    reminderUnit:
-      settings.reminderUnit && isReminderUnit(settings.reminderUnit)
-        ? settings.reminderUnit
-        : "days",
-  });
+  return mapSettingsRow(settings);
 }
 
 export async function updateReminderSettings(
@@ -71,23 +77,28 @@ export async function updateReminderSettings(
     );
   }
 
+  const schedulesJson = JSON.stringify(parsed.data.schedules);
+
   const updated = await prisma.appSettings.upsert({
     where: { id: 1 },
     create: {
       id: 1,
       remindersEnabled: parsed.data.remindersEnabled,
       reminderValue: parsed.data.reminderValue ?? null,
-      reminderUnit: parsed.data.reminderUnit,
+      reminderUnit: parsed.data.reminderUnit ?? "days",
+      notificationSchedulesJson: schedulesJson,
     },
     update: {
       remindersEnabled: parsed.data.remindersEnabled,
       reminderValue: parsed.data.reminderValue ?? null,
-      reminderUnit: parsed.data.reminderUnit,
+      reminderUnit: parsed.data.reminderUnit ?? "days",
+      notificationSchedulesJson: schedulesJson,
     },
     select: {
       remindersEnabled: true,
       reminderValue: true,
       reminderUnit: true,
+      notificationSchedulesJson: true,
     },
   });
 
@@ -97,10 +108,15 @@ export async function updateReminderSettings(
     message: "Reminder settings updated.",
     metadata: {
       remindersEnabled: updated.remindersEnabled,
-      reminderValue: updated.reminderValue,
-      reminderUnit: updated.reminderUnit,
+      schedules: parsed.data.schedules,
     },
   });
 
   return mapSettingsRow(updated);
+}
+
+export function ensureDefaultSchedules(
+  schedules: NotificationSchedules | null | undefined,
+): NotificationSchedules {
+  return schedules?.length ? schedules : defaultNotificationSchedules();
 }

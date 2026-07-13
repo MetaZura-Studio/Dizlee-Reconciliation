@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { ReportDetailModal } from "@/components/dizlee/report-detail-modal";
 import { ReportsTabs } from "@/components/dizlee/reports-tabs";
+import { ReportFilenameLink } from "@/components/shared/report-filename-link";
 import type {
   ReportDetail,
   ReportFilterOptions,
@@ -64,12 +65,14 @@ type ReportsListViewProps = {
   initialResult: ReportListResult;
   initialFilterOptions: ReportFilterOptions;
   fromDashboard?: boolean;
+  initialReportId?: string;
 };
 
 export function ReportsListView({
   initialResult,
   initialFilterOptions,
   fromDashboard = false,
+  initialReportId,
 }: ReportsListViewProps) {
   const [month, setMonth] = useState(initialResult.filters.month);
   const [year, setYear] = useState(initialResult.filters.year);
@@ -87,6 +90,7 @@ export function ReportsListView({
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detail, setDetail] = useState<ReportDetail | null>(null);
+  const openedInitialReport = useRef(false);
 
   const loadReports = useCallback(async (filters: ReportListFilters) => {
     setLoading(true);
@@ -159,6 +163,14 @@ export function ReportsListView({
     }
   };
 
+  useEffect(() => {
+    if (!initialReportId || openedInitialReport.current) {
+      return;
+    }
+    openedInitialReport.current = true;
+    void openDetail(initialReportId);
+  }, [initialReportId]);
+
   const yearOptions = [];
   for (let value = year + 1; value >= year - 4; value -= 1) {
     yearOptions.push(value);
@@ -171,7 +183,10 @@ export function ReportsListView({
       <div>
         <h1 className="text-2xl font-semibold text-foreground">Dizlee - Reports</h1>
         {fromDashboard ? (
-          <p className="mt-1 text-xs text-foreground-subtle">From dashboard</p>
+          <p className="mt-1 text-sm text-foreground-muted">
+            Submitted reports for this period — OpCo, Partner, uploader, and file
+            details below.
+          </p>
         ) : null}
       </div>
 
@@ -331,7 +346,12 @@ export function ReportsListView({
                         {row.partnerName}
                       </td>
                       <td className="px-4 py-3 text-foreground-muted">
-                        {row.filename ?? "—"}
+                        <ReportFilenameLink
+                          filename={row.filename}
+                          onClick={
+                            row.filename ? () => void openDetail(row.id) : undefined
+                          }
+                        />
                       </td>
                       <td className="px-4 py-3 text-foreground-muted">
                         {formatDateTime(row.uploadedAt)}

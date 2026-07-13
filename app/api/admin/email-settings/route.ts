@@ -6,6 +6,7 @@ import {
   getEmailSettings,
   updateEmailSettings,
 } from "@/lib/admin/email-settings";
+import type { UpdateEmailSettingsInput } from "@/lib/admin/validation/email-settings";
 
 export async function GET() {
   const user = await requireAdminApiSession();
@@ -26,15 +27,16 @@ export async function GET() {
   }
 }
 
-export async function PATCH() {
+export async function PATCH(request: Request) {
   const user = await requireAdminApiSession();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
-    await updateEmailSettings();
-    return NextResponse.json({ data: await getEmailSettings() });
+    const body = (await request.json()) as UpdateEmailSettingsInput;
+    const data = await updateEmailSettings(body, BigInt(user.id));
+    return NextResponse.json({ data });
   } catch (error) {
     if (error instanceof EmailSettingsError) {
       return NextResponse.json({ error: error.message }, { status: error.status });

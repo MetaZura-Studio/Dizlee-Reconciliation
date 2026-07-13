@@ -1,11 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import { KpiCard } from "@/components/dizlee/kpi-card";
+import { ReportDetailModal } from "@/components/dizlee/report-detail-modal";
 import { ReportsTabs } from "@/components/dizlee/reports-tabs";
-import type { ReportFilterOptions } from "@/lib/dizlee/reports";
+import type { ReportDetail, ReportFilterOptions } from "@/lib/dizlee/reports";
 import type {
   MissingSideFilter,
   ReportMonitoringFilters,
@@ -94,6 +94,9 @@ export function ReportsMonitoringView({
     useState<ReportFilterOptions>(initialFilterOptions);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detail, setDetail] = useState<ReportDetail | null>(null);
 
   const loadMonitoring = useCallback(async (filters: ReportMonitoringFilters) => {
     setLoading(true);
@@ -144,6 +147,29 @@ export function ReportsMonitoringView({
 
   const goToPage = (nextPage: number) => {
     void loadMonitoring({ ...result.filters, page: nextPage });
+  };
+
+  const openDetail = async (reportId: string) => {
+    setDetailOpen(true);
+    setDetailLoading(true);
+    setDetail(null);
+    try {
+      const response = await fetch(`/api/dizlee/reports/${reportId}`);
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Failed to load report");
+      }
+      setDetail(payload.data as ReportDetail);
+    } catch (detailError) {
+      setError(
+        detailError instanceof Error
+          ? detailError.message
+          : "Failed to load report",
+      );
+      setDetailOpen(false);
+    } finally {
+      setDetailLoading(false);
+    }
   };
 
   const yearOptions = [];
@@ -320,12 +346,15 @@ export function ReportsMonitoringView({
                           {formatDateTime(row.opcoReport.uploadedAt)}
                         </p>
                         {row.opcoReport.reportId ? (
-                          <Link
-                            href={`/dizlee/reports?month=${row.period.month}&year=${row.period.year}&opcoId=${row.opcoId}&partnerId=${row.partnerId}`}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void openDetail(row.opcoReport.reportId as string)
+                            }
                             className="text-xs text-foreground-muted underline hover:text-foreground"
                           >
-                            View report
-                          </Link>
+                            View report data
+                          </button>
                         ) : null}
                       </td>
                       <td className="px-4 py-3">
@@ -336,12 +365,15 @@ export function ReportsMonitoringView({
                           {formatDateTime(row.partnerReport.uploadedAt)}
                         </p>
                         {row.partnerReport.reportId ? (
-                          <Link
-                            href={`/dizlee/reports?month=${row.period.month}&year=${row.period.year}&opcoId=${row.opcoId}&partnerId=${row.partnerId}`}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void openDetail(row.partnerReport.reportId as string)
+                            }
                             className="text-xs text-foreground-muted underline hover:text-foreground"
                           >
-                            View report
-                          </Link>
+                            View report data
+                          </button>
                         ) : null}
                       </td>
                     </tr>
@@ -385,6 +417,17 @@ export function ReportsMonitoringView({
             </p>
           </div>
         )
+      ) : null}
+
+      {detailOpen ? (
+        <ReportDetailModal
+          detail={detail}
+          loading={detailLoading}
+          onClose={() => {
+            setDetailOpen(false);
+            setDetail(null);
+          }}
+        />
       ) : null}
     </div>
   );

@@ -133,169 +133,70 @@ function buildUserOrderBy(
   }
 }
 
-async function getActiveEntityStatusId(): Promise<number> {
-  return getLookupId("USER_STATUS", "ACTIVE");
-}
-
-async function getDefaultOpcoCurrencyId(): Promise<bigint> {
-  const currency = await prisma.currency.findFirst({
-    where: { isoCode: "USD", isDeleted: false },
-    select: { id: true },
-  });
-
-  if (!currency) {
-    throw new UserActionError("Default currency (USD) is not configured");
-  }
-
-  return currency.id;
-}
-
-async function softDeleteOpco(opcoId: bigint, actorUserId: bigint): Promise<void> {
-  await prisma.opco.update({
-    where: { id: opcoId },
-    data: {
-      isDeleted: true,
-      deletedAt: new Date(),
-      deletedByUserId: actorUserId,
-      updatedByUserId: actorUserId,
-    },
-  });
-}
-
-async function softDeletePartner(
-  partnerId: bigint,
-  actorUserId: bigint,
-): Promise<void> {
-  await prisma.partner.update({
-    where: { id: partnerId },
-    data: {
-      isDeleted: true,
-      deletedAt: new Date(),
-      deletedByUserId: actorUserId,
-      updatedByUserId: actorUserId,
-    },
-  });
-}
-
-async function createOpcoEntity(params: {
-  name: string;
-  actorUserId: bigint;
-}): Promise<bigint> {
-  const [statusId, defaultCurrencyId] = await Promise.all([
-    getActiveEntityStatusId(),
-    getDefaultOpcoCurrencyId(),
+async function resolveRoleAndStatusIds(input: {
+  role: AdminUserRole;
+  status: AdminUserStatus;
+}): Promise<{ roleId: number; statusId: number }> {
+  const [roleId, statusId] = await Promise.all([
+    getLookupId("USER_ROLE", input.role.toUpperCase()),
+    getLookupId("USER_STATUS", input.status),
   ]);
 
-  const opco = await prisma.opco.create({
-    data: {
-      name: params.name.trim(),
-      defaultCurrencyId,
-      statusId,
-      createdByUserId: params.actorUserId,
-      updatedByUserId: params.actorUserId,
-    },
-    select: { id: true },
-  });
-
-  return opco.id;
+  return { roleId, statusId };
 }
 
-async function createPartnerEntity(params: {
-  name: string;
-  actorUserId: bigint;
-}): Promise<bigint> {
-  const statusId = await getActiveEntityStatusId();
-
-  const partner = await prisma.partner.create({
-    data: {
-      name: params.name.trim(),
-      statusId,
-      createdByUserId: params.actorUserId,
-      updatedByUserId: params.actorUserId,
-    },
-    select: { id: true },
+async function assertEmailAvailable(
+  email: string,
+  excludeUserId?: bigint,
+): Promise<void> {
+  const existing = await prisma.user.findUnique({
+    where: { email },
+    select: { id: true, isDeleted: true },
   });
 
-  return partner.id;
+  if (existing && existing.id !== excludeUserId) {
+    throw new UserActionError("A user with this email already exists");
+  }
 }
 
-async function resolveEntityLinksForUpdate(
-  existing: {
-    role: { code: string };
-    opcoId: bigint | null;
-    partnerId: bigint | null;
-  },
-  input: { role: AdminUserRole; name: string },
-  actorUserId: bigint,
-): Promise<{ opcoId: bigint | null; partnerId: bigint | null }> {
-  const existingRole = mapRoleCode(existing.role.code);
-  const trimmedName = input.name.trim();
-
+async function resolveOrgLinks(input: {
+  role: AdminUserRole;
+  opcoId?: string | null;
+  partnerId?: string | null;
+}): Promise<{ opcoId: bigint | null; partnerId: bigint | null }> {
   if (input.role === "client") {
-    if (existing.opcoId) {
-      await softDeleteOpco(existing.opcoId, actorUserId);
-    }
-    if (existing.partnerId) {
-      await softDeletePartner(existing.partnerId, actorUserId);
-    }
     return { opcoId: null, partnerId: null };
   }
 
   if (input.role === "opco") {
-    if (existingRole === "opco" && existing.opcoId) {
-      await prisma.opco.update({
-        where: { id: existing.opcoId },
-        data: {
-          name: trimmedName,
-          updatedByUserId: actorUserId,
-        },
-      });
-      if (existing.partnerId) {
-        await softDeletePartner(existing.partnerId, actorUserId);
-      }
-      return { opcoId: existing.opcoId, partnerId: null };
+    if (!input.opcoId) {
+      throw new UserActionError("Select an OpCo");
     }
 
-    if (existing.opcoId) {
-      await softDeleteOpco(existing.opcoId, actorUserId);
-    }
-    if (existing.partnerId) {
-      await softDeletePartner(existing.partnerId, actorUserId);
-    }
-
-    const opcoId = await createOpcoEntity({
-      name: trimmedName,
-      actorUserId,
+    const opco = await prisma.opco.findFirst({
+      where: { id: BigInt(input.opcoId), isDeleted: false },
+      select: { id: true },
     });
-    return { opcoId, partnerId: null };
-  }
-
-  if (existingRole === "partner" && existing.partnerId) {
-    await prisma.partner.update({
-      where: { id: existing.partnerId },
-      data: {
-        name: trimmedName,
-        updatedByUserId: actorUserId,
-      },
-    });
-    if (existing.opcoId) {
-      await softDeleteOpco(existing.opcoId, actorUserId);
+    if (!opco) {
+      throw new UserActionError("Selected OpCo was not found", 404);
     }
-    return { opcoId: null, partnerId: existing.partnerId };
+
+    return { opcoId: opco.id, partnerId: null };
   }
 
-  if (existing.opcoId) {
-    await softDeleteOpco(existing.opcoId, actorUserId);
-  }
-  if (existing.partnerId) {
-    await softDeletePartner(existing.partnerId, actorUserId);
+  if (!input.partnerId) {
+    throw new UserActionError("Select a Partner");
   }
 
-  const partnerId = await createPartnerEntity({
-    name: trimmedName,
-    actorUserId,
+  const partner = await prisma.partner.findFirst({
+    where: { id: BigInt(input.partnerId), isDeleted: false },
+    select: { id: true },
   });
-  return { opcoId: null, partnerId };
+  if (!partner) {
+    throw new UserActionError("Selected Partner was not found", 404);
+  }
+
+  return { opcoId: null, partnerId: partner.id };
 }
 
 export async function listUsers(filters: UserListFilters): Promise<UserListResult> {
@@ -331,32 +232,6 @@ export async function listUsers(filters: UserListFilters): Promise<UserListResul
   };
 }
 
-async function resolveRoleAndStatusIds(input: {
-  role: AdminUserRole;
-  status: AdminUserStatus;
-}): Promise<{ roleId: number; statusId: number }> {
-  const [roleId, statusId] = await Promise.all([
-    getLookupId("USER_ROLE", input.role.toUpperCase()),
-    getLookupId("USER_STATUS", input.status),
-  ]);
-
-  return { roleId, statusId };
-}
-
-async function assertEmailAvailable(
-  email: string,
-  excludeUserId?: bigint,
-): Promise<void> {
-  const existing = await prisma.user.findUnique({
-    where: { email },
-    select: { id: true, isDeleted: true },
-  });
-
-  if (existing && existing.id !== excludeUserId) {
-    throw new UserActionError("A user with this email already exists");
-  }
-}
-
 export type CreateUserResult = UserListItem & {
   inviteEmail: {
     sent: boolean;
@@ -381,77 +256,53 @@ export async function createUser(
     role: input.role,
     status: input.status,
   });
+  const { opcoId, partnerId } = await resolveOrgLinks(input);
   const actorId = BigInt(actorUserId);
-  const trimmedName = input.name.trim();
-  let opcoId: bigint | null = null;
-  let partnerId: bigint | null = null;
 
-  try {
-    if (input.role === "opco") {
-      opcoId = await createOpcoEntity({
-        name: trimmedName,
-        actorUserId: actorId,
-      });
-    } else if (input.role === "partner") {
-      partnerId = await createPartnerEntity({
-        name: trimmedName,
-        actorUserId: actorId,
-      });
-    }
+  const user = await prisma.user.create({
+    data: {
+      email,
+      name: input.name.trim(),
+      roleId,
+      statusId,
+      opcoId,
+      partnerId,
+      passwordHash: null,
+      createdByUserId: actorId,
+      updatedByUserId: actorId,
+    },
+    include: {
+      role: true,
+      status: true,
+      opco: { select: { name: true } },
+      partner: { select: { name: true } },
+    },
+  });
 
-    const user = await prisma.user.create({
-      data: {
-        email,
-        name: trimmedName,
-        roleId,
-        statusId,
-        opcoId,
-        partnerId,
-        passwordHash: null,
-        createdByUserId: actorId,
-        updatedByUserId: actorId,
-      },
-      include: {
-        role: true,
-        status: true,
-        opco: { select: { name: true } },
-        partner: { select: { name: true } },
-      },
-    });
+  const { emailResult } = await issuePasswordResetForUser(user.id, "invite");
 
-    const { emailResult } = await issuePasswordResetForUser(user.id, "invite");
+  await writeUserAuditLog({
+    actorUserId: actorId,
+    action: "USER_CREATED",
+    userId: user.id,
+    message: `User created: ${user.email}`,
+    metadata: {
+      email: user.email,
+      name: user.name,
+      role: input.role,
+      status: input.status,
+      opcoId: user.opcoId?.toString() ?? null,
+      partnerId: user.partnerId?.toString() ?? null,
+    },
+  });
 
-    await writeUserAuditLog({
-      actorUserId: BigInt(actorUserId),
-      action: "USER_CREATED",
-      userId: user.id,
-      message: `User created: ${user.email}`,
-      metadata: {
-        email: user.email,
-        name: user.name,
-        role: input.role,
-        status: input.status,
-        opcoId: user.opcoId?.toString() ?? null,
-        partnerId: user.partnerId?.toString() ?? null,
-      },
-    });
-
-    return {
-      ...mapUserRow(user),
-      inviteEmail: {
-        sent: emailResult.sent,
-        devPreviewUrl: emailResult.devPreviewUrl,
-      },
-    };
-  } catch (error) {
-    if (opcoId) {
-      await softDeleteOpco(opcoId, actorId);
-    }
-    if (partnerId) {
-      await softDeletePartner(partnerId, actorId);
-    }
-    throw error;
-  }
+  return {
+    ...mapUserRow(user),
+    inviteEmail: {
+      sent: emailResult.sent,
+      devPreviewUrl: emailResult.devPreviewUrl,
+    },
+  };
 }
 
 async function getEditableUser(userId: string) {
@@ -499,11 +350,7 @@ export async function updateUser(
     role: input.role,
     status: input.status,
   });
-  const { opcoId, partnerId } = await resolveEntityLinksForUpdate(
-    existing,
-    input,
-    BigInt(actorUserId),
-  );
+  const { opcoId, partnerId } = await resolveOrgLinks(input);
 
   const before = mapUserRow(existing);
 
@@ -548,15 +395,7 @@ export async function deleteUser(
   }
 
   const existing = await getEditableUser(userId);
-  const actorId = BigInt(actorUserId);
   const inactiveStatusId = await getLookupId("USER_STATUS", "INACTIVE");
-
-  if (existing.opcoId) {
-    await softDeleteOpco(existing.opcoId, actorId);
-  }
-  if (existing.partnerId) {
-    await softDeletePartner(existing.partnerId, actorId);
-  }
 
   await prisma.user.update({
     where: { id: existing.id },
@@ -581,7 +420,8 @@ export async function deleteUser(
       email: existing.email,
       name: existing.name,
       role: existing.role.code,
+      opcoId: existing.opcoId?.toString() ?? null,
+      partnerId: existing.partnerId?.toString() ?? null,
     },
   });
 }
-

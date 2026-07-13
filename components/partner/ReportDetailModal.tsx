@@ -1,5 +1,6 @@
 "use client";
 
+import { ReportLineItemsTable } from "@/components/shared/report-line-items-table";
 import type { PartnerReportDetail } from "@/lib/partner/queries/reports";
 
 function formatBytes(size: number | null): string {
@@ -99,43 +100,8 @@ export function ReportDetailModal({
 
               <div>
                 <h3 className="text-sm font-semibold text-foreground">Line items</h3>
-                <div className="mt-3 overflow-x-auto rounded-lg border border-border">
-                  <table className="min-w-full divide-y divide-border text-sm">
-                    <thead className="bg-surface-muted text-left text-foreground-muted">
-                      <tr>
-                        <th className="px-3 py-2 font-medium">#</th>
-                        <th className="px-3 py-2 font-medium">Description</th>
-                        <th className="px-3 py-2 font-medium">Usage</th>
-                        <th className="px-3 py-2 font-medium">USD</th>
-                        <th className="px-3 py-2 font-medium">Amount</th>
-                        <th className="px-3 py-2 font-medium">Rate</th>
-                        <th className="px-3 py-2 font-medium">Unit</th>
-                        <th className="px-3 py-2 font-medium">Basis</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
-                      {detail.lineItems.map((item) => (
-                        <tr key={item.lineNumber}>
-                          <td className="px-3 py-2 text-foreground-subtle">{item.lineNumber}</td>
-                          <td className="px-3 py-2 text-foreground">
-                            {item.description ?? "—"}
-                          </td>
-                          <td className="px-3 py-2 text-foreground-muted">
-                            {item.usageAmount ?? "—"}
-                          </td>
-                          <td className="px-3 py-2 text-foreground-muted">{item.usageUsd ?? "—"}</td>
-                          <td className="px-3 py-2 text-foreground-muted">{item.amount ?? "—"}</td>
-                          <td className="px-3 py-2 text-foreground-muted">
-                            {item.exchangeRate ?? "—"}
-                          </td>
-                          <td className="px-3 py-2 text-foreground-muted">{item.usageUnit ?? "—"}</td>
-                          <td className="px-3 py-2 text-foreground-muted">
-                            {item.reconciliationBasis ?? "—"}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="mt-3">
+                  <ReportLineItemsTable lineItems={detail.lineItems} />
                 </div>
               </div>
             </div>
