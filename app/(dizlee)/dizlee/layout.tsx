@@ -18,7 +18,7 @@ export default async function DizleeLayout({
 
   return (
     <DizleeWorkspace
-      name={user.name}
+      name={user.name ?? null}
       email={user.email}
       unreadCount={unreadCount}
     >

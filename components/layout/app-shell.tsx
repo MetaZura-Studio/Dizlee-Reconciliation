@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  useEffect,
   useState,
   useSyncExternalStore,
   type ReactNode,
@@ -58,27 +57,33 @@ type AppShellProps = {
   children: ReactNode;
 };
 
-function iconFor(name: AppShellNavItem["icon"]) {
+function NavIcon({
+  name,
+  className,
+}: {
+  name?: AppShellNavIcon;
+  className?: string;
+}) {
   switch (name) {
     case "file":
-      return IconFile;
+      return <IconFile className={className} />;
     case "users":
-      return IconUsers;
+      return <IconUsers className={className} />;
     case "settings":
-      return IconSettings;
+      return <IconSettings className={className} />;
     case "bell":
-      return IconBell;
+      return <IconBell className={className} />;
     case "invoice":
-      return IconInvoice;
+      return <IconInvoice className={className} />;
     case "layers":
-      return IconLayers;
+      return <IconLayers className={className} />;
     case "chart":
-      return IconChart;
+      return <IconChart className={className} />;
     case "compare":
-      return IconCompare;
+      return <IconCompare className={className} />;
     case "home":
     default:
-      return IconHome;
+      return <IconHome className={className} />;
   }
 }
 
@@ -155,7 +160,6 @@ function NavLinkItem({
   nested?: boolean;
 }) {
   const active = isNavActive(pathname, item.href, rootHref);
-  const Icon = iconFor(item.icon);
   const badgeCount = item.badge && item.badge > 0 ? item.badge : 0;
   const className = cn(
     active ? ui.navItemActive : ui.navItem,
@@ -176,12 +180,12 @@ function NavLinkItem({
 
   const content = collapsed ? (
     <span className="relative inline-flex">
-      <Icon className="h-[18px] w-[18px] shrink-0" />
+      <NavIcon name={item.icon} className="h-[18px] w-[18px] shrink-0" />
       {badge}
     </span>
   ) : (
     <>
-      <Icon className="h-[18px] w-[18px] shrink-0" />
+      <NavIcon name={item.icon} className="h-[18px] w-[18px] shrink-0" />
       <span className="min-w-0 flex-1 truncate">{item.label}</span>
       {badge}
     </>
@@ -231,14 +235,8 @@ function NavGroupItem({
   const childActive = children.some((child) =>
     isNavActive(pathname, child.href, rootHref),
   );
-  const [open, setOpen] = useState(childActive);
-  const Icon = iconFor(item.icon);
-
-  useEffect(() => {
-    if (childActive) {
-      setOpen(true);
-    }
-  }, [childActive]);
+  const [userOpen, setUserOpen] = useState(false);
+  const open = childActive || userOpen;
 
   if (collapsed) {
     return (
@@ -251,7 +249,7 @@ function NavGroupItem({
         )}
         aria-current={childActive ? "page" : undefined}
       >
-        <Icon className="h-[18px] w-[18px] shrink-0" />
+        <NavIcon name={item.icon} className="h-[18px] w-[18px] shrink-0" />
       </Link>
     );
   }
@@ -260,14 +258,19 @@ function NavGroupItem({
     <div className="space-y-1">
       <button
         type="button"
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => {
+          if (childActive) {
+            return;
+          }
+          setUserOpen((value) => !value);
+        }}
         className={cn(
           childActive ? ui.navItemActive : ui.navItem,
           "w-full",
         )}
         aria-expanded={open}
       >
-        <Icon className="h-[18px] w-[18px] shrink-0" />
+        <NavIcon name={item.icon} className="h-[18px] w-[18px] shrink-0" />
         <span className="min-w-0 flex-1 truncate text-left">{item.label}</span>
         <IconChevronRight
           className={cn(

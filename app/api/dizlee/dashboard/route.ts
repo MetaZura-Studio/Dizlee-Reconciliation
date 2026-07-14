@@ -17,7 +17,7 @@ function parsePeriod(request: NextRequest): DashboardPeriod {
 
   let validMonth =
     Number.isInteger(month) && month >= 1 && month <= 12 ? month : fallback.month;
-  let validYear =
+  const validYear =
     Number.isInteger(year) && year >= 2000 && year <= fallback.year
       ? year
       : fallback.year;

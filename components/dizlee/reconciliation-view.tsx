@@ -263,13 +263,16 @@ export function ReconciliationView({
       return;
     }
     const term = debouncedLaneSearch.trim();
-    void loadLanes({
-      month,
-      year,
-      searchBy,
-      entityId: term ? undefined : entityId || undefined,
-      search: term || undefined,
-    });
+    const timer = window.setTimeout(() => {
+      void loadLanes({
+        month,
+        year,
+        searchBy,
+        entityId: term ? undefined : entityId || undefined,
+        search: term || undefined,
+      });
+    }, 0);
+    return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- live search only
   }, [debouncedLaneSearch, loadLanes, activeTab]);
 
@@ -281,7 +284,10 @@ export function ReconciliationView({
     if (activeTab !== "history") {
       return;
     }
-    void loadHistory(1, debouncedHistorySearch);
+    const timer = window.setTimeout(() => {
+      void loadHistory(1, debouncedHistorySearch);
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [debouncedHistorySearch, loadHistory, activeTab]);
 
   const runReconciliation = async (lane: CompareLaneRow) => {

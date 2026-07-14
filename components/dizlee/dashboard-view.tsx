@@ -99,7 +99,7 @@ function clampPeriod(month: number, year: number): { month: number; year: number
   const now = new Date();
   const currentMonth = now.getMonth() + 1;
   const currentYear = now.getFullYear();
-  let nextYear = Math.min(year, currentYear);
+  const nextYear = Math.min(year, currentYear);
   let nextMonth = month;
   if (nextYear === currentYear && nextMonth > currentMonth) {
     nextMonth = currentMonth;

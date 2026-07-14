@@ -123,23 +123,20 @@ export function DizleeWorkspace({
   unreadCount: initialUnreadCount,
   children,
 }: DizleeWorkspaceProps) {
-  const [unreadCount, setUnreadCount] = useState(initialUnreadCount);
+  const [fetchedUnread, setFetchedUnread] = useState<number | null>(null);
+  const unreadCount = fetchedUnread ?? initialUnreadCount;
 
   const refreshCount = useCallback(async () => {
     try {
       const response = await fetch("/api/dizlee/notifications/unread-count");
       const payload = await response.json();
       if (response.ok) {
-        setUnreadCount((payload.data as { count: number }).count);
+        setFetchedUnread((payload.data as { count: number }).count);
       }
     } catch {
       // Ignore refresh errors silently.
     }
   }, []);
-
-  useEffect(() => {
-    setUnreadCount(initialUnreadCount);
-  }, [initialUnreadCount]);
 
   useEffect(() => {
     const handleFocus = () => {

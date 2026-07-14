@@ -189,16 +189,19 @@ export function ReportsListView({
       return;
     }
     const term = debouncedSearch.trim();
-    void loadReports({
-      month: result.filters.month,
-      year: result.filters.year,
-      opcoId: term ? undefined : result.filters.opcoId,
-      partnerId: term ? undefined : result.filters.partnerId,
-      search: term || undefined,
-      sortBy: result.filters.sortBy,
-      sortDir: result.filters.sortDir,
-      page: 1,
-    });
+    const timer = window.setTimeout(() => {
+      void loadReports({
+        month: result.filters.month,
+        year: result.filters.year,
+        opcoId: term ? undefined : result.filters.opcoId,
+        partnerId: term ? undefined : result.filters.partnerId,
+        search: term || undefined,
+        sortBy: result.filters.sortBy,
+        sortDir: result.filters.sortDir,
+        page: 1,
+      });
+    }, 0);
+    return () => window.clearTimeout(timer);
     // Only re-run when the debounced keyword changes — filters use Apply.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional
   }, [debouncedSearch, loadReports]);

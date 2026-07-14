@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { AdminNavIconGlyph } from "@/components/admin/nav-icons";
 import { DizleeLogo } from "@/components/brand/dizlee-logo";
@@ -81,13 +81,8 @@ function NavGroup({
   const childActive = children.some((child) =>
     isAdminNavActive(pathname, child.href),
   );
-  const [open, setOpen] = useState(childActive);
-
-  useEffect(() => {
-    if (childActive) {
-      setOpen(true);
-    }
-  }, [childActive]);
+  const [userOpen, setUserOpen] = useState(false);
+  const open = childActive || userOpen;
 
   if (collapsed) {
     return (
@@ -99,7 +94,12 @@ function NavGroup({
     <div className="space-y-1">
       <button
         type="button"
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => {
+          if (childActive) {
+            return;
+          }
+          setUserOpen((value) => !value);
+        }}
         aria-expanded={open}
         className={`flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${
           childActive

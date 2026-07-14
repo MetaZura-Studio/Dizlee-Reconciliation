@@ -104,6 +104,7 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
   const [confirmRevertVersion, setConfirmRevertVersion] = useState<number | null>(
     null,
   );
+  const [lastField, setLastField] = useState<"subject" | "body">("body");
   const lastFieldRef = useRef<"subject" | "body">("body");
   const subjectRef = useRef<HTMLInputElement>(null);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
@@ -491,7 +492,7 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
                           type="button"
                           onClick={() => insertPlaceholder(token)}
                           className="rounded-full border border-border bg-surface px-3 py-1 font-mono text-xs font-medium text-foreground-muted transition-colors hover:border-primary hover:bg-primary-muted hover:text-primary"
-                          title={`Insert {{${token}}} into ${lastFieldRef.current}`}
+                          title={`Insert {{${token}}} into ${lastField}`}
                         >
                           {`{{${token}}}`}
                         </button>
@@ -514,6 +515,7 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
                     value={form.subject}
                     onFocus={() => {
                       lastFieldRef.current = "subject";
+                      setLastField("subject");
                     }}
                     onChange={(event) =>
                       setForm((current) => ({
@@ -537,6 +539,7 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
                     value={form.body}
                     onFocus={() => {
                       lastFieldRef.current = "body";
+                      setLastField("body");
                     }}
                     onChange={(event) =>
                       setForm((current) => ({

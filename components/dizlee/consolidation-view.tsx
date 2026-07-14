@@ -214,7 +214,10 @@ export function ConsolidationView({
       return;
     }
     const term = debouncedHistorySearch.trim();
-    void loadHistory(1, month, year, term ? "" : opcoId, term);
+    const timer = window.setTimeout(() => {
+      void loadHistory(1, month, year, term ? "" : opcoId, term);
+    }, 0);
+    return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- live search only
   }, [debouncedHistorySearch, activeTab, loadHistory]);
 

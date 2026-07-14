@@ -201,17 +201,20 @@ export function InvoicesListView({
       skipAutoReload.current = false;
       return;
     }
-    void loadInvoices({
-      month,
-      year,
-      opcoId: usingSearch ? undefined : opcoId || undefined,
-      partnerId: usingSearch ? undefined : partnerId || undefined,
-      paymentStatus: usingSearch ? "all" : paymentStatus,
-      search: searchTerm || undefined,
-      sortBy,
-      sortDir,
-      page: 1,
-    });
+    const timer = window.setTimeout(() => {
+      void loadInvoices({
+        month,
+        year,
+        opcoId: usingSearch ? undefined : opcoId || undefined,
+        partnerId: usingSearch ? undefined : partnerId || undefined,
+        paymentStatus: usingSearch ? "all" : paymentStatus,
+        search: searchTerm || undefined,
+        sortBy,
+        sortDir,
+        page: 1,
+      });
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [
     month,
     year,
