@@ -1,4 +1,5 @@
 import { ReportsTable } from "@/components/partner/ReportsTable";
+import { PageCard, PageHeader } from "@/components/ui/page";
 import { requirePartnerSession } from "@/lib/partner/auth";
 import {
   getPartnerReportFilterOptions,
@@ -41,15 +42,12 @@ export default async function PartnerReportsPage({
   ]);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Reports</h1>
-        <p className="mt-1 text-foreground-muted">
-          Find and review submitted reports. Filter by period, OpCo, or status.
-        </p>
-      </div>
-
+    <PageCard>
+      <PageHeader
+        title="Reports"
+        description="Find and review submitted reports. Filter by period, OpCo, or status."
+      />
       <ReportsTable initialResult={result} filterOptions={filterOptions} />
-    </div>
+    </PageCard>
   );
 }

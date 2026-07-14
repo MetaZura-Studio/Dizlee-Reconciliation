@@ -4,6 +4,21 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { UserDeleteModal } from "@/components/admin/user-delete-modal";
 import { UserFormModal } from "@/components/admin/user-form-modal";
+import { Button } from "@/components/ui/button";
+import {
+  DataTable,
+  DataTableFrame,
+  DataTableHead,
+  DataTableRow,
+  DataTableTd,
+  DataTableTh,
+  SortableDataTableTh,
+} from "@/components/ui/data-table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { IconButton } from "@/components/ui/icon-button";
+import { IconPencil, IconTrash } from "@/components/ui/icons";
+import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
+import { StatusPill } from "@/components/ui/status-pill";
 import type {
   AdminUserRole,
   AdminUserStatus,
@@ -16,6 +31,8 @@ import {
   formatUserRoleLabel,
   formatUserStatusLabel,
 } from "@/lib/admin/users.shared";
+import { ui } from "@/lib/ui/classes";
+import { nextSortState } from "@/lib/ui/sort";
 
 function formatDateTime(value: string | null): string {
   if (!value) {
@@ -48,14 +65,14 @@ function buildQuery(filters: UserListResult["filters"]): string {
   return params.toString();
 }
 
-function statusBadgeClass(status: AdminUserStatus): string {
+function statusTone(status: AdminUserStatus): "success" | "neutral" | "warning" {
   switch (status) {
     case "ACTIVE":
-      return "bg-success-muted text-success ring-success/20";
+      return "success";
     case "INACTIVE":
-      return "bg-surface-muted text-foreground-muted ring-border-strong/20";
+      return "neutral";
     case "SUSPENDED":
-      return "bg-warning-muted text-warning ring-warning/20";
+      return "warning";
   }
 }
 
@@ -159,19 +176,9 @@ export function UsersView({ initialResult }: UsersViewProps) {
   };
 
   const toggleSort = (field: UserSortField) => {
-    if (sortBy === field) {
-      setSortDir((current) => (current === "asc" ? "desc" : "asc"));
-      return;
-    }
-    setSortBy(field);
-    setSortDir("asc");
-  };
-
-  const sortIndicator = (field: UserSortField) => {
-    if (sortBy !== field) {
-      return "";
-    }
-    return sortDir === "asc" ? " ↑" : " ↓";
+    const next = nextSortState(sortBy, sortDir, field);
+    setSortBy(next.sortBy);
+    setSortDir(next.sortDir);
   };
 
   const openCreate = () => {
@@ -197,56 +204,39 @@ export function UsersView({ initialResult }: UsersViewProps) {
   };
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">Users</h1>
-          <p className="mt-1 text-sm text-foreground-muted">
-            Create, edit, and manage portal user accounts. Admin accounts are not
-            listed here.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={openCreate}
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
-        >
-          Create user
-        </button>
-      </div>
+    <PageCard>
+      <PageHeader
+        title="Users"
+        description="Create, edit, and manage portal user accounts. Admin accounts are not listed here."
+        actions={<Button onClick={openCreate}>Create user</Button>}
+      />
 
       {successMessage ? (
-        <p className="rounded-md border border-success-border bg-success-muted px-4 py-3 text-sm text-success">
-          {successMessage}
-        </p>
+        <p className={ui.alertSuccess}>{successMessage}</p>
       ) : null}
 
-      {error ? (
-        <p className="rounded-md border border-danger-border bg-danger-muted px-4 py-3 text-sm text-danger">
-          {error}
-        </p>
-      ) : null}
+      {error ? <p className={ui.alertError}>{error}</p> : null}
 
-      <section className="rounded-lg border border-border bg-surface-muted p-4">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <FilterToolbar className="mt-6">
+        <div className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <label className="text-sm lg:col-span-2">
-            <span className="mb-1 block text-xs text-foreground-subtle">Search</span>
+            <span className={ui.label}>Search</span>
             <input
               type="search"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Name or email"
-              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
+              className={ui.input}
             />
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-xs text-foreground-subtle">Role</span>
+            <span className={ui.label}>Role</span>
             <select
               value={role}
               onChange={(event) =>
                 setRole(event.target.value as AdminUserRole | "all")
               }
-              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
+              className={ui.select}
             >
               <option value="all">All roles</option>
               <option value="client">{formatUserRoleLabel("client")}</option>
@@ -255,13 +245,13 @@ export function UsersView({ initialResult }: UsersViewProps) {
             </select>
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-xs text-foreground-subtle">Status</span>
+            <span className={ui.label}>Status</span>
             <select
               value={status}
               onChange={(event) =>
                 setStatus(event.target.value as AdminUserStatus | "all")
               }
-              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
+              className={ui.select}
             >
               <option value="all">All statuses</option>
               <option value="ACTIVE">Active</option>
@@ -270,142 +260,121 @@ export function UsersView({ initialResult }: UsersViewProps) {
             </select>
           </label>
         </div>
-      </section>
+      </FilterToolbar>
 
-      <div className="overflow-hidden rounded-lg border border-border bg-surface">
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-left text-sm">
-            <thead className="border-b border-border bg-surface-muted text-xs uppercase tracking-wide text-foreground-subtle">
-              <tr>
-                <th className="px-4 py-3">
-                  <button
-                    type="button"
-                    onClick={() => toggleSort("name")}
-                    className="font-medium hover:text-foreground"
-                  >
-                    Name{sortIndicator("name")}
-                  </button>
-                </th>
-                <th className="px-4 py-3">
-                  <button
-                    type="button"
-                    onClick={() => toggleSort("email")}
-                    className="font-medium hover:text-foreground"
-                  >
-                    Email{sortIndicator("email")}
-                  </button>
-                </th>
-                <th className="px-4 py-3">
-                  <button
-                    type="button"
-                    onClick={() => toggleSort("role")}
-                    className="font-medium hover:text-foreground"
-                  >
-                    Role{sortIndicator("role")}
-                  </button>
-                </th>
-                <th className="px-4 py-3">Assignment</th>
-                <th className="px-4 py-3">
-                  <button
-                    type="button"
-                    onClick={() => toggleSort("status")}
-                    className="font-medium hover:text-foreground"
-                  >
-                    Status{sortIndicator("status")}
-                  </button>
-                </th>
-                <th className="px-4 py-3">Last login</th>
-                <th className="px-4 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
+      <div className="mt-6 space-y-4">
+        {loading ? (
+          <p className="text-sm text-foreground-subtle">Loading users…</p>
+        ) : result.items.length === 0 ? (
+          <EmptyState
+            title="No users found"
+            description="No users match your filters."
+          />
+        ) : (
+          <DataTableFrame>
+            <DataTable>
+              <DataTableHead>
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-foreground-subtle">
-                    Loading users…
-                  </td>
+                  <SortableDataTableTh
+                    label="Name"
+                    active={sortBy === "name"}
+                    direction={sortDir}
+                    onSort={() => toggleSort("name")}
+                  />
+                  <SortableDataTableTh
+                    label="Email"
+                    active={sortBy === "email"}
+                    direction={sortDir}
+                    onSort={() => toggleSort("email")}
+                  />
+                  <SortableDataTableTh
+                    label="Role"
+                    active={sortBy === "role"}
+                    direction={sortDir}
+                    onSort={() => toggleSort("role")}
+                  />
+                  <DataTableTh>Assignment</DataTableTh>
+                  <SortableDataTableTh
+                    label="Status"
+                    active={sortBy === "status"}
+                    direction={sortDir}
+                    onSort={() => toggleSort("status")}
+                  />
+                  <DataTableTh>Last login</DataTableTh>
+                  <DataTableTh align="right">Actions</DataTableTh>
                 </tr>
-              ) : result.items.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-foreground-subtle">
-                    No users match your filters.
-                  </td>
-                </tr>
-              ) : (
-                result.items.map((user) => (
-                  <tr key={user.id} className="border-b border-border last:border-0">
-                    <td className="px-4 py-3 font-medium text-foreground">{user.name}</td>
-                    <td className="px-4 py-3 text-foreground-muted">{user.email}</td>
-                    <td className="px-4 py-3 text-foreground-muted">
+              </DataTableHead>
+              <tbody>
+                {result.items.map((user) => (
+                  <DataTableRow key={user.id}>
+                    <DataTableTd className="font-medium text-foreground">
+                      {user.name}
+                    </DataTableTd>
+                    <DataTableTd className="text-foreground-muted">
+                      {user.email}
+                    </DataTableTd>
+                    <DataTableTd className="text-foreground-muted">
                       {formatUserRoleLabel(user.role)}
-                    </td>
-                    <td className="px-4 py-3 text-foreground-muted">
+                    </DataTableTd>
+                    <DataTableTd className="text-foreground-muted">
                       {user.role === "opco"
                         ? user.opcoName ?? "—"
                         : user.role === "partner"
                           ? user.partnerName ?? "—"
                           : "—"}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${statusBadgeClass(user.status)}`}
-                      >
+                    </DataTableTd>
+                    <DataTableTd>
+                      <StatusPill tone={statusTone(user.status)}>
                         {formatUserStatusLabel(user.status)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-foreground-muted">
+                      </StatusPill>
+                    </DataTableTd>
+                    <DataTableTd className="text-foreground-muted">
                       {formatDateTime(user.lastLoginAt)}
-                    </td>
-                    <td className="px-4 py-3">
+                    </DataTableTd>
+                    <DataTableTd align="right">
                       <div className="flex justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => openEdit(user)}
-                          className="rounded-md border border-border-strong px-2.5 py-1 text-xs text-foreground-muted hover:bg-surface-muted"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
+                        <IconButton label="Edit user" onClick={() => openEdit(user)}>
+                          <IconPencil />
+                        </IconButton>
+                        <IconButton
+                          label="Delete user"
+                          variant="danger"
                           onClick={() => openDelete(user)}
-                          className="rounded-md border border-danger-border px-2.5 py-1 text-xs text-danger hover:bg-danger-muted"
                         >
-                          Delete
-                        </button>
+                          <IconTrash />
+                        </IconButton>
                       </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                    </DataTableTd>
+                  </DataTableRow>
+                ))}
+              </tbody>
+            </DataTable>
+          </DataTableFrame>
+        )}
 
-        <div className="flex items-center justify-between border-t border-border px-4 py-3 text-sm text-foreground-muted">
+        <div className="flex items-center justify-between text-sm text-foreground-muted">
           <p>
             {result.total} user{result.total === 1 ? "" : "s"}
             {loading ? " · refreshing…" : ""}
           </p>
           <div className="flex items-center gap-2">
-            <button
-              type="button"
+            <Button
+              variant="secondary"
               onClick={() => goToPage(result.page - 1)}
               disabled={result.page <= 1 || loading}
-              className="rounded-md border border-border-strong px-3 py-1 disabled:opacity-50"
             >
               Previous
-            </button>
+            </Button>
             <span>
               Page {result.page} of {result.totalPages}
             </span>
-            <button
-              type="button"
+            <Button
+              variant="secondary"
               onClick={() => goToPage(result.page + 1)}
               disabled={result.page >= result.totalPages || loading}
-              className="rounded-md border border-border-strong px-3 py-1 disabled:opacity-50"
             >
               Next
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -424,6 +393,6 @@ export function UsersView({ initialResult }: UsersViewProps) {
         onClose={() => setDeleteOpen(false)}
         onDeleted={showSuccess}
       />
-    </div>
+    </PageCard>
   );
 }

@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useState } from "react";
 
+import { ui } from "@/lib/ui/classes";
+
 export function ForgotPasswordForm() {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState<string | null>(null);
@@ -48,10 +50,10 @@ export function ForgotPasswordForm() {
   if (submitted && message) {
     return (
       <div className="space-y-4">
-        <div className="rounded-md border border-success-border bg-success-muted px-4 py-4">
-          <p className="text-sm font-medium text-success">Check your email</p>
-          <p className="mt-2 text-sm text-success">{message}</p>
-          <p className="mt-3 text-sm text-success">
+        <div className={`${ui.alertSuccess} px-4 py-4`}>
+          <p className="text-sm font-medium">Check your email</p>
+          <p className="mt-2 text-sm">{message}</p>
+          <p className="mt-3 text-sm">
             We sent a reset link to{" "}
             <span className="font-medium">{email}</span>. The link expires in 24
             hours and can only be used once.
@@ -74,14 +76,10 @@ export function ForgotPasswordForm() {
 
   return (
     <form onSubmit={(event) => void submit(event)} className="space-y-4">
-      {error ? (
-        <p className="rounded-md border border-danger-border bg-danger-muted px-3 py-2 text-sm text-danger">
-          {error}
-        </p>
-      ) : null}
+      {error ? <p className={ui.alertError}>{error}</p> : null}
 
       <div className="space-y-1">
-        <label htmlFor="email" className="text-sm font-medium text-foreground-muted">
+        <label htmlFor="email" className={ui.label}>
           Email address
         </label>
         <input
@@ -93,14 +91,14 @@ export function ForgotPasswordForm() {
           autoComplete="email"
           required
           placeholder="you@company.com"
-          className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
+          className={ui.input}
         />
       </div>
 
       <button
         type="submit"
         disabled={submitting}
-        className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
+        className={`w-full ${ui.btnPrimary}`}
       >
         {submitting ? "Sending reset link…" : "Send reset link"}
       </button>

@@ -2,7 +2,10 @@
 
 import { useState } from "react";
 
+import { Button } from "@/components/ui/button";
+import { PortalOverlay } from "@/components/ui/portal-overlay";
 import type { CurrencyListItem } from "@/lib/admin/currencies.shared";
+import { ui } from "@/lib/ui/classes";
 
 type CurrencyFormValues = {
   isoCode: string;
@@ -111,27 +114,23 @@ function CurrencyFormModalContent({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <PortalOverlay onClose={onClose}>
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="currency-form-title"
-        className="w-full max-w-md rounded-lg bg-surface shadow-xl"
+        className={ui.modal}
       >
         <form onSubmit={(event) => void submit(event)}>
-          <div className="space-y-4 px-6 py-5">
-            <h2 id="currency-form-title" className="text-lg font-semibold text-foreground">
-              {mode === "create" ? "Add currency" : "Edit currency"}
-            </h2>
+          <h2 id="currency-form-title" className="text-lg font-semibold tracking-tight text-foreground">
+            {mode === "create" ? "Add currency" : "Edit currency"}
+          </h2>
 
-            {error ? (
-              <p className="rounded-md border border-danger-border bg-danger-muted px-3 py-2 text-sm text-danger">
-                {error}
-              </p>
-            ) : null}
+          <div className="mt-4 space-y-4">
+            {error ? <p className={ui.alertError}>{error}</p> : null}
 
             <div className="space-y-1">
-              <label htmlFor="isoCode" className="text-sm font-medium text-foreground-muted">
+              <label htmlFor="isoCode" className={ui.label}>
                 ISO code
               </label>
               <input
@@ -145,12 +144,12 @@ function CurrencyFormModalContent({
                 }
                 disabled={mode === "edit"}
                 required
-                className="w-full rounded-md border border-border-strong px-3 py-2 text-sm uppercase outline-none focus:border-primary disabled:bg-surface-muted"
+                className={`${ui.input} uppercase disabled:bg-surface-muted`}
               />
             </div>
 
             <div className="space-y-1">
-              <label htmlFor="symbol" className="text-sm font-medium text-foreground-muted">
+              <label htmlFor="symbol" className={ui.label}>
                 Symbol
               </label>
               <input
@@ -159,15 +158,12 @@ function CurrencyFormModalContent({
                 onChange={(event) =>
                   setValues((current) => ({ ...current, symbol: event.target.value }))
                 }
-                className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
+                className={ui.input}
               />
             </div>
 
             <div className="space-y-1">
-              <label
-                htmlFor="decimalPrecision"
-                className="text-sm font-medium text-foreground-muted"
-              >
+              <label htmlFor="decimalPrecision" className={ui.label}>
                 Decimal precision
               </label>
               <input
@@ -183,31 +179,22 @@ function CurrencyFormModalContent({
                   }))
                 }
                 required
-                className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
+                className={ui.input}
               />
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 border-t border-border px-6 py-4">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={submitting}
-              className="rounded-md border border-border-strong px-4 py-2 text-sm font-medium text-foreground-muted hover:bg-surface-muted disabled:opacity-60"
-            >
+          <div className="mt-6 flex justify-end gap-3">
+            <Button type="button" variant="secondary" onClick={onClose} disabled={submitting}>
               Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
-            >
+            </Button>
+            <Button type="submit" disabled={submitting}>
               {submitting ? "Saving…" : "Save"}
-            </button>
+            </Button>
           </div>
         </form>
       </div>
-    </div>
+    </PortalOverlay>
   );
 }
 

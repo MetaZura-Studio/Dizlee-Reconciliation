@@ -2,55 +2,78 @@
 
 export const ui = {
   page: "min-h-screen bg-canvas text-foreground antialiased",
-  card: "rounded-lg border border-border bg-surface shadow-sm",
-  cardPadding: "rounded-lg border border-border bg-surface p-4 shadow-sm",
-  cardPaddingLg: "rounded-lg border border-border bg-surface p-5 shadow-sm",
+  pageCard:
+    "rounded-[28px] border border-border bg-surface p-6 shadow-[var(--shadow-md)] sm:p-8",
+  card: "rounded-[28px] border border-border bg-surface shadow-[var(--shadow-md)]",
+  cardPadding:
+    "rounded-[28px] border border-border bg-surface p-4 shadow-[var(--shadow-sm)] sm:p-5",
+  cardPaddingLg:
+    "rounded-[28px] border border-border bg-surface p-5 shadow-[var(--shadow-md)] sm:p-6",
   input:
-    "w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm text-foreground outline-none transition-colors placeholder:text-foreground-subtle focus:border-primary focus:ring-2 focus:ring-primary/20",
+    "h-11 w-full rounded-2xl border border-border bg-surface px-3.5 text-sm text-foreground outline-none transition-colors placeholder:text-foreground-subtle focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-[var(--ring)]",
   select:
-    "w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20",
+    "h-11 w-full rounded-2xl border border-border bg-surface px-3.5 text-sm text-foreground outline-none transition-colors focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-[var(--ring)]",
   btnPrimary:
-    "rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover disabled:opacity-60",
+    "inline-flex h-10 items-center justify-center rounded-2xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] disabled:opacity-60",
   btnSecondary:
-    "rounded-md border border-border-strong bg-surface px-4 py-2 text-sm font-medium text-foreground-muted transition-colors hover:bg-surface-muted disabled:opacity-60",
+    "inline-flex h-10 items-center justify-center rounded-2xl border border-border bg-surface px-4 text-sm font-semibold text-foreground transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] disabled:opacity-60",
   btnDanger:
-    "rounded-md border border-danger-border bg-surface px-4 py-2 text-sm font-medium text-danger transition-colors hover:bg-danger-muted disabled:opacity-60",
+    "inline-flex h-10 items-center justify-center rounded-2xl border border-danger-border bg-surface px-4 text-sm font-semibold text-danger transition-colors hover:bg-danger-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] disabled:opacity-60",
   btnGhost:
-    "rounded-md px-3 py-1.5 text-sm text-foreground-muted transition-colors hover:bg-surface-muted hover:text-foreground",
+    "inline-flex h-10 items-center justify-center rounded-2xl px-3 text-sm font-medium text-foreground-muted transition-colors hover:bg-surface-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]",
+  iconButton:
+    "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-border bg-surface text-foreground shadow-[var(--shadow-sm)] transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] disabled:opacity-60",
+  iconButtonPrimary:
+    "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-[var(--shadow-sm)] transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] disabled:opacity-60",
+  iconButtonDanger:
+    "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-danger-border bg-surface text-danger shadow-[var(--shadow-sm)] transition-colors hover:bg-danger-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] disabled:opacity-60",
   navItem:
-    "flex items-center gap-3 rounded-md px-3 py-2 text-sm text-foreground-muted transition-colors hover:bg-surface-muted hover:text-foreground",
+    "flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-foreground-muted transition-colors hover:bg-surface-muted hover:text-foreground",
   navItemActive:
-    "flex items-center gap-3 rounded-md bg-primary-muted px-3 py-2 text-sm font-medium text-primary",
+    "flex items-center gap-3 rounded-2xl bg-primary-muted px-3 py-2.5 text-sm font-semibold text-primary",
   navItemSimple:
-    "block rounded-md px-2 py-1.5 text-sm text-foreground-muted transition-colors hover:bg-surface-muted hover:text-foreground",
+    "block rounded-2xl px-2 py-1.5 text-sm text-foreground-muted transition-colors hover:bg-surface-muted hover:text-foreground",
   navItemSimpleActive:
-    "block rounded-md bg-primary-muted px-2 py-1.5 text-sm font-medium text-primary",
-  sidebar: "flex shrink-0 flex-col border-r border-border bg-surface-muted",
-  header: "border-b border-border bg-surface",
-  tableWrap: "overflow-hidden rounded-lg border border-border bg-surface",
-  tableHead: "border-b border-border bg-surface-muted text-foreground-subtle",
+    "block rounded-2xl bg-primary-muted px-2 py-1.5 text-sm font-semibold text-primary",
+  sidebar:
+    "flex shrink-0 flex-col rounded-[32px] border border-border bg-white/80 shadow-[var(--shadow-md)] backdrop-blur-md",
+  header:
+    "rounded-[28px] border border-border bg-white/80 shadow-[var(--shadow-sm)] backdrop-blur-md",
+  tableWrap:
+    "overflow-hidden rounded-[28px] border border-border bg-surface shadow-[var(--shadow-md)]",
+  table: "w-full border-separate border-spacing-0 text-sm",
+  tableHead:
+    "bg-surface-muted text-left text-xs font-semibold tracking-wide text-foreground-muted",
+  tableHeadCell: "px-4 py-3.5",
+  tableCell: "border-t border-border px-4 py-3.5",
+  tableRowHover: "hover:bg-surface-muted/50",
   alertSuccess:
-    "rounded-md border border-success-border bg-success-muted px-3 py-2 text-sm text-success",
+    "rounded-2xl border border-success-border bg-success-muted px-3 py-2 text-sm text-success",
   alertError:
-    "rounded-md border border-danger-border bg-danger-muted px-3 py-2 text-sm text-danger",
+    "rounded-2xl border border-danger-border bg-danger-muted px-3 py-2 text-sm text-danger",
   alertWarning:
-    "rounded-md border border-warning-border bg-warning-muted px-3 py-2 text-sm text-warning",
+    "rounded-2xl border border-warning-border bg-warning-muted px-3 py-2 text-sm text-warning",
   badge:
-    "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset",
-  unreadRow: "bg-accent-muted/60",
+    "inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold",
+  unreadRow: "bg-primary-muted/60",
   logoChip:
-    "flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary text-sm font-semibold text-primary-foreground",
+    "flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary text-sm font-semibold text-primary-foreground shadow-[var(--shadow-sm)]",
   logoChipSm:
-    "flex h-8 w-8 items-center justify-center rounded-md bg-primary text-xs font-semibold text-primary-foreground",
-  authCard: "w-full max-w-md space-y-6 rounded-lg border border-border bg-surface p-8 shadow-sm",
+    "flex h-8 w-8 items-center justify-center rounded-2xl bg-primary text-xs font-semibold text-primary-foreground",
+  authCard:
+    "w-full max-w-md space-y-6 rounded-[28px] border border-border bg-surface p-8 shadow-[var(--shadow-md)]",
   modal:
-    "w-full max-w-lg rounded-lg border border-border bg-surface p-6 shadow-lg",
+    "w-full max-w-lg rounded-[28px] border border-border bg-surface p-6 shadow-[var(--shadow-md)]",
   dropdown:
-    "absolute z-20 mt-2 rounded-md border border-border bg-surface py-1 shadow-lg",
-  label: "text-sm font-medium text-foreground-muted",
+    "absolute right-0 z-50 mt-2 min-w-[12rem] rounded-2xl border border-border bg-surface py-1 shadow-[var(--shadow-md)]",
+  label: "mb-1.5 block text-xs font-semibold tracking-wide text-foreground-muted",
   hint: "text-xs text-foreground-subtle",
-  pageTitle: "text-2xl font-semibold tracking-tight text-foreground",
-  pageSubtitle: "text-sm text-foreground-muted",
+  pageTitle: "text-xl font-semibold tracking-tight text-foreground sm:text-2xl",
+  pageSubtitle: "mt-1 text-sm text-foreground-muted",
+  filterToolbar:
+    "flex flex-wrap items-end gap-3 rounded-[24px] border border-border bg-surface-muted/60 p-4",
+  emptyState:
+    "rounded-3xl border border-dashed border-border-strong bg-surface px-6 py-12 text-center",
 } as const;
 
 export function cn(...classes: Array<string | false | null | undefined>): string {

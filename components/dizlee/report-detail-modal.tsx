@@ -1,6 +1,14 @@
 "use client";
 
-import { ReportLineItemsTable } from "@/components/shared/report-line-items-table";
+import {
+  DataTable,
+  DataTableFrame,
+  DataTableHead,
+  DataTableRow,
+  DataTableTd,
+  DataTableTh,
+} from "@/components/ui/data-table";
+import { Modal } from "@/components/ui/modal";
 import type { ReportDetail } from "@/lib/dizlee/reports";
 
 function formatBytes(size: number | null): string {
@@ -39,80 +47,113 @@ export function ReportDetailModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div
-        className="flex max-h-[90vh] w-full max-w-5xl flex-col rounded-lg bg-surface shadow-xl"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="report-detail-title"
-      >
-        <div className="flex items-start justify-between gap-4 border-b border-border px-6 py-4">
-          <h2 id="report-detail-title" className="text-lg font-semibold text-foreground">
-            Report details
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-sm text-foreground-subtle hover:text-foreground"
-          >
-            Close
-          </button>
-        </div>
-
-        <div className="overflow-y-auto px-6 py-4">
-          {loading ? (
-            <p className="text-sm text-foreground-subtle">Loading report details…</p>
-          ) : detail ? (
-            <div className="space-y-6">
-              <dl className="grid gap-4 text-sm sm:grid-cols-2">
-                <div>
-                  <dt className="text-foreground-subtle">Period</dt>
-                  <dd className="font-medium text-foreground">{detail.period.label}</dd>
-                </div>
-                <div>
-                  <dt className="text-foreground-subtle">OpCo / Partner</dt>
-                  <dd className="font-medium text-foreground">{detail.lane}</dd>
-                </div>
-                <div>
-                  <dt className="text-foreground-subtle">Uploaded by</dt>
-                  <dd className="font-medium text-foreground">{detail.uploadedBy}</dd>
-                </div>
-                <div>
-                  <dt className="text-foreground-subtle">Upload timestamp</dt>
-                  <dd className="font-medium text-foreground">
-                    {formatDateTime(detail.uploadedAt)}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-foreground-subtle">File</dt>
-                  <dd className="font-medium text-foreground">{detail.filename ?? "—"}</dd>
-                </div>
-                <div>
-                  <dt className="text-foreground-subtle">File size</dt>
-                  <dd className="font-medium text-foreground">
-                    {formatBytes(detail.fileSizeBytes)}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-foreground-subtle">Status</dt>
-                  <dd className="font-medium text-foreground">{detail.status}</dd>
-                </div>
-                <div>
-                  <dt className="text-foreground-subtle">Line items</dt>
-                  <dd className="font-medium text-foreground">{detail.lineItemCount}</dd>
-                </div>
-              </dl>
-
-              <div>
-                <h3 className="text-sm font-semibold text-foreground">Report data</h3>
-                <div className="mt-3">
-                  <ReportLineItemsTable lineItems={detail.lineItems} />
-                </div>
-              </div>
+    <Modal
+      open={!!detail || loading}
+      title="Report details"
+      onClose={onClose}
+      wide
+      className="max-w-5xl"
+    >
+      {loading ? (
+        <p className="text-sm text-foreground-subtle">Loading report details…</p>
+      ) : detail ? (
+        <div className="space-y-6">
+          <dl className="grid gap-4 text-sm sm:grid-cols-2">
+            <div>
+              <dt className="text-foreground-subtle">Period</dt>
+              <dd className="font-medium text-foreground">{detail.period.label}</dd>
             </div>
-          ) : null}
+            <div>
+              <dt className="text-foreground-subtle">OpCo / Partner</dt>
+              <dd className="font-medium text-foreground">{detail.lane}</dd>
+            </div>
+            <div>
+              <dt className="text-foreground-subtle">Uploaded by</dt>
+              <dd className="font-medium text-foreground">{detail.uploadedBy}</dd>
+            </div>
+            <div>
+              <dt className="text-foreground-subtle">Upload timestamp</dt>
+              <dd className="font-medium text-foreground">
+                {formatDateTime(detail.uploadedAt)}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-foreground-subtle">File</dt>
+              <dd className="font-medium text-foreground">{detail.filename ?? "—"}</dd>
+            </div>
+            <div>
+              <dt className="text-foreground-subtle">File size</dt>
+              <dd className="font-medium text-foreground">
+                {formatBytes(detail.fileSizeBytes)}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-foreground-subtle">Status</dt>
+              <dd className="font-medium text-foreground">{detail.status}</dd>
+            </div>
+            <div>
+              <dt className="text-foreground-subtle">Line items</dt>
+              <dd className="font-medium text-foreground">{detail.lineItemCount}</dd>
+            </div>
+          </dl>
+
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">Report data</h3>
+            <div className="mt-3">
+              {detail.lineItems.length === 0 ? (
+                <p className="rounded-2xl border border-border bg-surface-muted px-3 py-4 text-sm text-foreground-subtle">
+                  No line items found in this report.
+                </p>
+              ) : (
+                <DataTableFrame>
+                  <DataTable>
+                    <DataTableHead>
+                      <DataTableRow>
+                        <DataTableTh>#</DataTableTh>
+                        <DataTableTh>Description</DataTableTh>
+                        <DataTableTh>Usage</DataTableTh>
+                        <DataTableTh>USD</DataTableTh>
+                        <DataTableTh>Amount</DataTableTh>
+                        <DataTableTh>Rate</DataTableTh>
+                        <DataTableTh>Unit</DataTableTh>
+                        <DataTableTh>Basis</DataTableTh>
+                      </DataTableRow>
+                    </DataTableHead>
+                    <tbody>
+                      {detail.lineItems.map((item) => (
+                        <DataTableRow key={item.lineNumber}>
+                          <DataTableTd className="text-foreground-subtle">
+                            {item.lineNumber}
+                          </DataTableTd>
+                          <DataTableTd>{item.description ?? "—"}</DataTableTd>
+                          <DataTableTd className="text-foreground-muted">
+                            {item.usageAmount ?? "—"}
+                          </DataTableTd>
+                          <DataTableTd className="text-foreground-muted">
+                            {item.usageUsd ?? "—"}
+                          </DataTableTd>
+                          <DataTableTd className="text-foreground-muted">
+                            {item.amount ?? "—"}
+                          </DataTableTd>
+                          <DataTableTd className="text-foreground-muted">
+                            {item.exchangeRate ?? "—"}
+                          </DataTableTd>
+                          <DataTableTd className="text-foreground-muted">
+                            {item.usageUnit ?? "—"}
+                          </DataTableTd>
+                          <DataTableTd className="text-foreground-muted">
+                            {item.reconciliationBasis ?? "—"}
+                          </DataTableTd>
+                        </DataTableRow>
+                      ))}
+                    </tbody>
+                  </DataTable>
+                </DataTableFrame>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
+      ) : null}
+    </Modal>
   );
 }

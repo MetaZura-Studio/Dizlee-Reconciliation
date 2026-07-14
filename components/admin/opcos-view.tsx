@@ -1,12 +1,55 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 import { OpcoDeleteModal } from "@/components/admin/opco-delete-modal";
 import { OpcoFormModal } from "@/components/admin/opco-form-modal";
+import { Button } from "@/components/ui/button";
+import {
+  DataTable,
+  DataTableFrame,
+  DataTableHead,
+  DataTableRow,
+  DataTableTd,
+  DataTableTh,
+  SortableDataTableTh,
+} from "@/components/ui/data-table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { IconButton } from "@/components/ui/icon-button";
+import { IconPencil, IconTrash } from "@/components/ui/icons";
+import { PageCard, PageHeader } from "@/components/ui/page";
+import { StatusPill } from "@/components/ui/status-pill";
 import type { CurrencyListItem } from "@/lib/admin/currencies.shared";
-import type { OpcoListItem } from "@/lib/admin/opcos.shared";
+import type { AdminEntityStatus, OpcoListItem } from "@/lib/admin/opcos.shared";
 import { formatEntityStatusLabel } from "@/lib/admin/opcos.shared";
+import { ui } from "@/lib/ui/classes";
+import { nextSortState, type SortDirection } from "@/lib/ui/sort";
+
+type OpcoSortField = "name" | "currency" | "status" | "users";
+
+function entityStatusTone(status: AdminEntityStatus): "success" | "neutral" {
+  return status === "ACTIVE" ? "success" : "neutral";
+}
+
+function compareOpcos(
+  a: OpcoListItem,
+  b: OpcoListItem,
+  sortBy: OpcoSortField,
+  sortDir: SortDirection,
+): number {
+  const dir = sortDir === "asc" ? 1 : -1;
+  switch (sortBy) {
+    case "currency":
+      return a.defaultCurrencyIso.localeCompare(b.defaultCurrencyIso) * dir;
+    case "status":
+      return a.status.localeCompare(b.status) * dir;
+    case "users":
+      return (a.userCount - b.userCount) * dir;
+    case "name":
+    default:
+      return a.name.localeCompare(b.name) * dir;
+  }
+}
 
 type OpcosViewProps = {
   initialOpcos: OpcoListItem[];
@@ -15,6 +58,8 @@ type OpcosViewProps = {
 
 export function OpcosView({ initialOpcos, currencies }: OpcosViewProps) {
   const [opcos, setOpcos] = useState(initialOpcos);
+  const [sortBy, setSortBy] = useState<OpcoSortField>("name");
+  const [sortDir, setSortDir] = useState<SortDirection>("asc");
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -22,6 +67,17 @@ export function OpcosView({ initialOpcos, currencies }: OpcosViewProps) {
   const [selectedOpco, setSelectedOpco] = useState<OpcoListItem | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const sortedOpcos = useMemo(
+    () => [...opcos].sort((a, b) => compareOpcos(a, b, sortBy, sortDir)),
+    [opcos, sortBy, sortDir],
+  );
+
+  const applySort = (field: OpcoSortField) => {
+    const next = nextSortState(sortBy, sortDir, field);
+    setSortBy(next.sortBy);
+    setSortDir(next.sortDir);
+  };
 
   const showSuccess = useCallback((message: string) => {
     setSuccessMessage(message);
@@ -85,96 +141,93 @@ export function OpcosView({ initialOpcos, currencies }: OpcosViewProps) {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">OpCos</h1>
-          <p className="text-sm text-foreground-muted">
-            Create OpCo organizations first, then assign users under them from
-            Users.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={openCreate}
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
-        >
-          Create OpCo
-        </button>
-      </div>
+    <PageCard>
+      <PageHeader
+        title="OpCos"
+        description="Create OpCo organizations first, then assign users under them from Users."
+        actions={<Button onClick={openCreate}>Create OpCo</Button>}
+      />
 
       {successMessage ? (
-        <p className="rounded-md border border-success/30 bg-success-muted px-3 py-2 text-sm text-success">
-          {successMessage}
-        </p>
+        <p className={ui.alertSuccess}>{successMessage}</p>
       ) : null}
-      {error ? (
-        <p className="rounded-md border border-danger-border bg-danger-muted px-3 py-2 text-sm text-danger">
-          {error}
-        </p>
-      ) : null}
+      {error ? <p className={ui.alertError}>{error}</p> : null}
 
-      <div className="overflow-hidden rounded-lg border border-border bg-surface">
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-left text-sm">
-            <thead className="border-b border-border bg-surface-muted text-foreground-muted">
-              <tr>
-                <th className="px-4 py-3 font-medium">Name</th>
-                <th className="px-4 py-3 font-medium">Default currency</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium">Users</th>
-                <th className="px-4 py-3 text-right font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {opcos.length === 0 ? (
+      <div className="mt-6 space-y-4">
+        {sortedOpcos.length === 0 ? (
+          <EmptyState
+            title="No OpCos yet"
+            description="Create one to assign OpCo users."
+          />
+        ) : (
+          <DataTableFrame>
+            <DataTable>
+              <DataTableHead>
                 <tr>
-                  <td
-                    colSpan={5}
-                    className="px-4 py-8 text-center text-foreground-subtle"
-                  >
-                    No OpCos yet. Create one to assign OpCo users.
-                  </td>
+                  <SortableDataTableTh
+                    label="Name"
+                    active={sortBy === "name"}
+                    direction={sortDir}
+                    onSort={() => applySort("name")}
+                  />
+                  <SortableDataTableTh
+                    label="Default currency"
+                    active={sortBy === "currency"}
+                    direction={sortDir}
+                    onSort={() => applySort("currency")}
+                  />
+                  <SortableDataTableTh
+                    label="Status"
+                    active={sortBy === "status"}
+                    direction={sortDir}
+                    onSort={() => applySort("status")}
+                  />
+                  <SortableDataTableTh
+                    label="Users"
+                    active={sortBy === "users"}
+                    direction={sortDir}
+                    onSort={() => applySort("users")}
+                  />
+                  <DataTableTh align="right">Actions</DataTableTh>
                 </tr>
-              ) : (
-                opcos.map((opco) => (
-                  <tr key={opco.id} className="border-b border-border last:border-0">
-                    <td className="px-4 py-3 font-medium text-foreground">
+              </DataTableHead>
+              <tbody>
+                {sortedOpcos.map((opco) => (
+                  <DataTableRow key={opco.id}>
+                    <DataTableTd className="font-medium text-foreground">
                       {opco.name}
-                    </td>
-                    <td className="px-4 py-3 text-foreground-muted">
+                    </DataTableTd>
+                    <DataTableTd className="text-foreground-muted">
                       {opco.defaultCurrencyIso}
-                    </td>
-                    <td className="px-4 py-3 text-foreground-muted">
-                      {formatEntityStatusLabel(opco.status)}
-                    </td>
-                    <td className="px-4 py-3 text-foreground-muted">
+                    </DataTableTd>
+                    <DataTableTd>
+                      <StatusPill tone={entityStatusTone(opco.status)}>
+                        {formatEntityStatusLabel(opco.status)}
+                      </StatusPill>
+                    </DataTableTd>
+                    <DataTableTd className="text-foreground-muted">
                       {opco.userCount}
-                    </td>
-                    <td className="px-4 py-3">
+                    </DataTableTd>
+                    <DataTableTd align="right">
                       <div className="flex justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => openEdit(opco)}
-                          className="rounded-md border border-border-strong px-2.5 py-1 text-xs text-foreground-muted hover:bg-surface-muted"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
+                        <IconButton label="Edit OpCo" onClick={() => openEdit(opco)}>
+                          <IconPencil />
+                        </IconButton>
+                        <IconButton
+                          label="Delete OpCo"
+                          variant="danger"
                           onClick={() => openDelete(opco)}
-                          className="rounded-md border border-danger-border px-2.5 py-1 text-xs text-danger hover:bg-danger-muted"
                         >
-                          Delete
-                        </button>
+                          <IconTrash />
+                        </IconButton>
                       </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                    </DataTableTd>
+                  </DataTableRow>
+                ))}
+              </tbody>
+            </DataTable>
+          </DataTableFrame>
+        )}
       </div>
 
       <OpcoFormModal
@@ -192,6 +245,6 @@ export function OpcosView({ initialOpcos, currencies }: OpcosViewProps) {
         onClose={() => setDeleteOpen(false)}
         onDeleted={(message) => void handleDeleted(message)}
       />
-    </div>
+    </PageCard>
   );
 }

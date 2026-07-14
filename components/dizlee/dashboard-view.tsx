@@ -5,11 +5,22 @@ import { useCallback, useState } from "react";
 
 import { DonutChart } from "@/components/dizlee/donut-chart";
 import { KpiCard } from "@/components/dizlee/kpi-card";
+import {
+  DataTable,
+  DataTableFrame,
+  DataTableHead,
+  DataTableRow,
+  DataTableTd,
+  DataTableTh,
+} from "@/components/ui/data-table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageCard, PageHeader } from "@/components/ui/page";
 import type {
   DashboardData,
   DirectionPanel,
   DonutSegment,
 } from "@/lib/dizlee/dashboard";
+import { ui } from "@/lib/ui/classes";
 
 const MONTHS = [
   "January",
@@ -190,128 +201,119 @@ export function DashboardView({ initialData }: DashboardViewProps) {
   const { kpis } = billing;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-8">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">
-            Dizlee Dashboard
-          </h1>
-          <p className="mt-1 text-sm text-foreground-muted">
-            Role-specific dashboard with summary cards/widgets.
-          </p>
-        </div>
-        <div className="flex items-end gap-3">
-          <label className="text-sm">
-            <span className="mb-1 block text-xs text-foreground-subtle">Month</span>
-            <select
-              value={month}
-              onChange={(event) => handleMonthChange(Number(event.target.value))}
-              className="rounded-md border border-border-strong px-3 py-1.5 text-sm"
-            >
-              {MONTHS.map((name, index) => (
-                <option key={name} value={index + 1}>
-                  {name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-sm">
-            <span className="mb-1 block text-xs text-foreground-subtle">Year</span>
-            <select
-              value={year}
-              onChange={(event) => handleYearChange(Number(event.target.value))}
-              className="rounded-md border border-border-strong px-3 py-1.5 text-sm"
-            >
-              {yearOptions.map((value) => (
-                <option key={value} value={value}>
-                  {value}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-      </div>
+    <PageCard>
+      <PageHeader
+        title="Dizlee Dashboard"
+        description="Role-specific dashboard with summary cards/widgets."
+        actions={
+          <div className="flex items-end gap-3">
+            <label className="w-36 text-sm">
+              <span className={ui.label}>Month</span>
+              <select
+                value={month}
+                onChange={(event) => handleMonthChange(Number(event.target.value))}
+                className={ui.select}
+              >
+                {MONTHS.map((name, index) => (
+                  <option key={name} value={index + 1}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="w-28 text-sm">
+              <span className={ui.label}>Year</span>
+              <select
+                value={year}
+                onChange={(event) => handleYearChange(Number(event.target.value))}
+                className={ui.select}
+              >
+                {yearOptions.map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        }
+      />
 
       {loading ? (
         <p className="text-sm text-foreground-subtle">Updating dashboard…</p>
       ) : null}
-      {error ? (
-        <div className="rounded-md border border-danger-border bg-danger-muted p-4 text-sm text-danger">
-          {error}
-        </div>
-      ) : null}
+      {error ? <div className={ui.alertError}>{error}</div> : null}
 
-      <BillingSectionView billing={billing} kpis={kpis} month={month} year={year} />
+      <div className="space-y-8">
+        <BillingSectionView billing={billing} kpis={kpis} month={month} year={year} />
 
-      <ReportsReconSectionView
-        reportsRecon={reportsRecon}
-        month={month}
-        year={year}
-      />
+        <ReportsReconSectionView
+          reportsRecon={reportsRecon}
+          month={month}
+          year={year}
+        />
 
-      <section className="space-y-3">
-        <div className="flex items-center justify-between gap-4">
-          <h2 className="text-lg font-medium text-foreground">Upload activity</h2>
-          <Link
-            href={reportsLink(month, year)}
-            className="text-sm text-foreground-muted hover:text-foreground"
-          >
-            View all reports
-          </Link>
-        </div>
-        {recentUploads.length > 0 ? (
-          <div className="overflow-hidden rounded-lg border border-border">
-            <table className="min-w-full divide-y divide-border text-sm">
-              <thead className="bg-surface-muted">
-                <tr>
-                  <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                    Submitted by
-                  </th>
-                  <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                    OpCo / Partner
-                  </th>
-                  <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                    Uploaded
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border bg-surface">
-                {recentUploads.map((upload) => (
-                  <tr key={upload.id} className="hover:bg-surface-muted">
-                    <td className="px-4 py-3 text-foreground">
-                      <Link
-                        href={reportsLink(month, year, { reportId: upload.id })}
-                        className="underline decoration-foreground-subtle underline-offset-2 hover:text-foreground hover:decoration-foreground"
-                      >
-                        {upload.actorRole}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 text-foreground-muted">
-                      <Link
-                        href={reportsLink(month, year, { reportId: upload.id })}
-                        className="underline decoration-foreground-subtle underline-offset-2 hover:text-foreground hover:decoration-foreground"
-                      >
-                        {upload.lane}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 text-foreground-muted">
-                      <Link
-                        href={reportsLink(month, year, { reportId: upload.id })}
-                        className="underline decoration-foreground-subtle underline-offset-2 hover:text-foreground hover:decoration-foreground"
-                      >
-                        {formatDateTime(upload.uploadedAt)}
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <section className="space-y-3">
+          <div className="flex items-center justify-between gap-4">
+            <h2 className="text-lg font-medium text-foreground">Upload activity</h2>
+            <Link
+              href={reportsLink(month, year)}
+              className="text-sm text-foreground-muted hover:text-foreground"
+            >
+              View all reports
+            </Link>
           </div>
-        ) : (
-          <p className="text-sm text-foreground-subtle">No uploads yet.</p>
-        )}
-      </section>
-    </div>
+          {recentUploads.length > 0 ? (
+            <DataTableFrame>
+              <DataTable>
+                <DataTableHead>
+                  <tr>
+                    <DataTableTh>Submitted by</DataTableTh>
+                    <DataTableTh>OpCo / Partner</DataTableTh>
+                    <DataTableTh>Uploaded</DataTableTh>
+                  </tr>
+                </DataTableHead>
+                <tbody>
+                  {recentUploads.map((upload) => (
+                    <DataTableRow key={upload.id}>
+                      <DataTableTd>
+                        <Link
+                          href={reportsLink(month, year, { reportId: upload.id })}
+                          className="underline decoration-foreground-subtle underline-offset-2 hover:text-foreground hover:decoration-foreground"
+                        >
+                          {upload.actorRole}
+                        </Link>
+                      </DataTableTd>
+                      <DataTableTd className="text-foreground-muted">
+                        <Link
+                          href={reportsLink(month, year, { reportId: upload.id })}
+                          className="underline decoration-foreground-subtle underline-offset-2 hover:text-foreground hover:decoration-foreground"
+                        >
+                          {upload.lane}
+                        </Link>
+                      </DataTableTd>
+                      <DataTableTd className="text-foreground-muted">
+                        <Link
+                          href={reportsLink(month, year, { reportId: upload.id })}
+                          className="underline decoration-foreground-subtle underline-offset-2 hover:text-foreground hover:decoration-foreground"
+                        >
+                          {formatDateTime(upload.uploadedAt)}
+                        </Link>
+                      </DataTableTd>
+                    </DataTableRow>
+                  ))}
+                </tbody>
+              </DataTable>
+            </DataTableFrame>
+          ) : (
+            <EmptyState
+              title="No uploads yet"
+              description="Report uploads for this period will appear here."
+            />
+          )}
+        </section>
+      </div>
+    </PageCard>
   );
 }
 
@@ -372,7 +374,7 @@ function BillingSectionView({
       </div>
 
       {kpis.missingFxCount > 0 ? (
-        <div className="rounded-md border border-warning-border bg-warning-muted p-3 text-sm text-warning">
+        <div className={ui.alertWarning}>
           {kpis.missingFxCount} paid invoice(s) lack an FX rate for this period
           and are excluded from the USD total.
         </div>
@@ -440,7 +442,7 @@ function DirectionPanelView({
   missingHref: string;
 }) {
   return (
-    <div className="rounded-lg border border-border bg-surface p-4 shadow-sm">
+    <div className="rounded-[28px] border border-border bg-surface p-4 shadow-[var(--shadow-md)]">
       <p className="text-sm font-medium text-foreground-muted">{title}</p>
       <div className="mt-3 flex gap-6 text-sm">
         <div>

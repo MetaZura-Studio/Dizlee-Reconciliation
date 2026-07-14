@@ -2,7 +2,11 @@
 
 import { useState } from "react";
 
+import { Button } from "@/components/ui/button";
+import { FieldLabel } from "@/components/ui/field";
+import { Modal } from "@/components/ui/modal";
 import { formatPeriodLabel } from "@/lib/opco/period";
+import { ui } from "@/lib/ui/classes";
 import type { OpcoReportListItem } from "@/lib/opco/queries/reports";
 
 type RequestChangeDialogProps = {
@@ -49,63 +53,41 @@ export function RequestChangeDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div
-        className="w-full max-w-lg rounded-lg border border-border bg-surface p-6 shadow-lg"
-        role="dialog"
-        aria-labelledby="request-change-title"
-      >
-        <h2 id="request-change-title" className="text-lg font-semibold text-foreground">
-          Request reupload
-        </h2>
-        <p className="mt-1 text-sm text-foreground-muted">
-          {report.partnerName} — {formatPeriodLabel(report.year, report.month)}
-        </p>
+    <Modal open title="Request reupload" onClose={onClose}>
+      <p className="text-sm text-foreground-muted">
+        {report.partnerName} — {formatPeriodLabel(report.year, report.month)}
+      </p>
 
-        <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
-          <div>
-            <label htmlFor="change-reason" className="block text-sm font-medium text-foreground-muted">
-              Reason
-            </label>
-            <textarea
-              id="change-reason"
-              rows={4}
-              required
-              minLength={10}
-              maxLength={2000}
-              value={reason}
-              onChange={(event) => setReason(event.target.value)}
-              placeholder="Explain what needs to be corrected in the report..."
-              className="mt-1 w-full rounded border border-border-strong px-3 py-2 text-sm"
-            />
-            <p className="mt-1 text-xs text-foreground-subtle">Minimum 10 characters. Dizlee will review your request.</p>
-          </div>
+      <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
+        <div>
+          <FieldLabel htmlFor="change-reason">Reason</FieldLabel>
+          <textarea
+            id="change-reason"
+            rows={4}
+            required
+            minLength={10}
+            maxLength={2000}
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            placeholder="Explain what needs to be corrected in the report..."
+            className={`${ui.input} min-h-[120px] resize-y py-2`}
+          />
+          <p className={`mt-1 ${ui.hint}`}>
+            Minimum 10 characters. Dizlee will review your request.
+          </p>
+        </div>
 
-          {error ? (
-            <p className="rounded border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
-              {error}
-            </p>
-          ) : null}
+        {error ? <p className={ui.alertError}>{error}</p> : null}
 
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isSubmitting}
-              className="rounded border border-border-strong px-4 py-2 text-sm font-medium text-foreground-muted hover:bg-surface-muted"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
-            >
-              {isSubmitting ? "Submitting..." : "Submit request"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="secondary" onClick={onClose} disabled={isSubmitting}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? "Submitting..." : "Submit request"}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }

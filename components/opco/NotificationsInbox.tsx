@@ -4,6 +4,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { IconButton } from "@/components/ui/icon-button";
+import { IconTrash } from "@/components/ui/icons";
+import { cn, ui } from "@/lib/ui/classes";
 import type {
   OpcoInboxDetail,
   OpcoInboxFilters,
@@ -112,11 +117,7 @@ export function NotificationsInbox({ initialResult }: NotificationsInboxProps) {
 
   return (
     <div className="space-y-4">
-      {error ? (
-        <p className="rounded border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
-          {error}
-        </p>
-      ) : null}
+      {error ? <p className={ui.alertError}>{error}</p> : null}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-foreground-muted">
@@ -132,44 +133,45 @@ export function NotificationsInbox({ initialResult }: NotificationsInboxProps) {
                 unreadOnly: event.target.checked,
               });
             }}
-            className="rounded border-border-strong"
+            className="rounded border-border"
           />
           Unread only
         </label>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="overflow-hidden rounded-lg border border-border bg-surface">
+        <div className={ui.tableWrap}>
           <div className="border-b border-border px-4 py-3">
             <h2 className="font-medium text-foreground">Inbox</h2>
           </div>
 
           <div className="divide-y divide-border">
             {result.items.length === 0 ? (
-              <p className="px-4 py-8 text-center text-sm text-foreground-subtle">
-                {unreadOnly ? "No unread notifications." : "Your inbox is empty."}
-              </p>
+              <EmptyState
+                className="border-0 bg-transparent shadow-none"
+                title={
+                  unreadOnly ? "No unread notifications" : "Your inbox is empty"
+                }
+              />
             ) : (
               result.items.map((item) => (
                 <button
                   key={item.id}
                   type="button"
                   onClick={() => void loadDetail(item.id)}
-                  className={`w-full px-4 py-3 text-left transition-colors hover:bg-surface-muted ${
-                    selectedId === item.id ? "bg-surface-muted" : ""
-                  } ${item.isRead ? "" : "bg-accent-muted/60"}`}
+                  className={cn(
+                    "w-full px-4 py-3 text-left transition-colors hover:bg-surface-muted",
+                    selectedId === item.id && "bg-surface-muted",
+                    !item.isRead && ui.unreadRow,
+                  )}
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <p
-                      className={`font-medium ${
-                        item.isRead ? "text-foreground" : "text-foreground"
-                      }`}
-                    >
+                    <p className="font-medium text-foreground">
                       {!item.isRead ? "• " : ""}
                       {item.subject}
                     </p>
                     {item.priority ? (
-                      <span className="shrink-0 rounded-full bg-primary-muted px-2 py-0.5 text-xs text-foreground-muted">
+                      <span className="shrink-0 rounded-full border border-border bg-surface-muted px-2 py-0.5 text-xs font-semibold text-foreground-muted">
                         {item.priority}
                       </span>
                     ) : null}
@@ -189,8 +191,8 @@ export function NotificationsInbox({ initialResult }: NotificationsInboxProps) {
                 Page {result.page} of {result.totalPages}
               </span>
               <div className="flex gap-2">
-                <button
-                  type="button"
+                <Button
+                  variant="secondary"
                   disabled={result.page <= 1}
                   onClick={() =>
                     refreshList({
@@ -198,12 +200,11 @@ export function NotificationsInbox({ initialResult }: NotificationsInboxProps) {
                       page: result.page - 1,
                     })
                   }
-                  className="rounded border border-border-strong px-3 py-1 disabled:opacity-40"
                 >
                   Previous
-                </button>
-                <button
-                  type="button"
+                </Button>
+                <Button
+                  variant="secondary"
                   disabled={result.page >= result.totalPages}
                   onClick={() =>
                     refreshList({
@@ -211,27 +212,26 @@ export function NotificationsInbox({ initialResult }: NotificationsInboxProps) {
                       page: result.page + 1,
                     })
                   }
-                  className="rounded border border-border-strong px-3 py-1 disabled:opacity-40"
                 >
                   Next
-                </button>
+                </Button>
               </div>
             </div>
           ) : null}
         </div>
 
-        <div className="rounded-lg border border-border bg-surface p-4">
+        <div className={ui.cardPaddingLg}>
           <div className="flex items-center justify-between gap-3">
             <h2 className="font-medium text-foreground">Message</h2>
             {selectedId ? (
-              <button
-                type="button"
+              <IconButton
+                label={dismissing ? "Dismissing..." : "Dismiss"}
+                variant="danger"
                 onClick={() => void dismissSelected()}
                 disabled={dismissing}
-                className="text-sm text-foreground-muted underline hover:text-foreground disabled:opacity-50"
               >
-                {dismissing ? "Dismissing..." : "Dismiss"}
-              </button>
+                <IconTrash />
+              </IconButton>
             ) : null}
           </div>
 

@@ -1,4 +1,5 @@
 import { NotificationsInbox } from "@/components/partner/NotificationsInbox";
+import { PageCard, PageHeader } from "@/components/ui/page";
 import { requirePartnerSession } from "@/lib/partner/auth";
 import {
   listPartnerInboxNotifications,
@@ -38,15 +39,12 @@ export default async function PartnerNotificationsPage({
   });
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Notifications</h1>
-        <p className="mt-1 text-foreground-muted">
-          Your partner inbox — messages from Dizlee and the reconciliation system.
-        </p>
-      </div>
-
+    <PageCard>
+      <PageHeader
+        title="Notifications"
+        description="Your partner inbox — messages from Dizlee and the reconciliation system."
+      />
       <NotificationsInbox initialResult={result} />
-    </div>
+    </PageCard>
   );
 }

@@ -2,12 +2,15 @@
 
 import { useEffect, useState } from "react";
 
+import { Button } from "@/components/ui/button";
+import { PortalOverlay } from "@/components/ui/portal-overlay";
 import type {
   AdminUserRole,
   AdminUserStatus,
   UserListItem,
 } from "@/lib/admin/users.shared";
 import { formatUserRoleLabel } from "@/lib/admin/users.shared";
+import { ui } from "@/lib/ui/classes";
 
 type OrgOption = {
   id: string;
@@ -217,63 +220,57 @@ function UserFormModalContent({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <PortalOverlay onClose={onClose}>
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="user-form-title"
-        className="w-full max-w-lg rounded-lg bg-surface shadow-xl"
+        className={`${ui.modal} relative z-[101] max-h-[90vh] overflow-y-auto bg-surface`}
+        onClick={(event) => event.stopPropagation()}
       >
-        <div className="border-b border-border px-6 py-4">
-          <h2 id="user-form-title" className="text-lg font-semibold text-foreground">
-            {title}
-          </h2>
-          <p className="mt-1 text-sm text-foreground-subtle">
-            {mode === "create"
-              ? "A set-password link is emailed to the user (expires in 1 hour). They can change it later from their profile."
-              : "Profile and access only. Password changes are done by the user."}
-            {" "}
-            OpCo and Partner users must be linked to an existing organization.
-          </p>
-        </div>
+        <h2 id="user-form-title" className="text-lg font-semibold tracking-tight text-foreground">
+          {title}
+        </h2>
+        <p className="mt-1 text-sm text-foreground-subtle">
+          {mode === "create"
+            ? "A set-password link is emailed to the user (expires in 1 hour). They can change it later from their profile."
+            : "Profile and access only. Password changes are done by the user."}{" "}
+          OpCo and Partner users must be linked to an existing organization.
+        </p>
 
-        <div className="space-y-4 px-6 py-5">
-          {error ? (
-            <p className="rounded-md border border-danger-border bg-danger-muted px-3 py-2 text-sm text-danger">
-              {error}
-            </p>
-          ) : null}
+        <div className="mt-4 space-y-4">
+          {error ? <p className={ui.alertError}>{error}</p> : null}
 
           <label className="block text-sm">
-            <span className="mb-1 block font-medium text-foreground-muted">Name</span>
+            <span className={ui.label}>Name</span>
             <input
               type="text"
               value={values.name}
               onChange={(event) => updateField("name", event.target.value)}
-              className="w-full rounded-md border border-border-strong px-3 py-2 text-sm"
+              className={ui.input}
               autoComplete="name"
             />
           </label>
 
           <label className="block text-sm">
-            <span className="mb-1 block font-medium text-foreground-muted">Email</span>
+            <span className={ui.label}>Email</span>
             <input
               type="email"
               value={values.email}
               onChange={(event) => updateField("email", event.target.value)}
-              className="w-full rounded-md border border-border-strong px-3 py-2 text-sm"
+              className={ui.input}
               autoComplete="email"
             />
           </label>
 
           <label className="block text-sm">
-            <span className="mb-1 block font-medium text-foreground-muted">Role</span>
+            <span className={ui.label}>Role</span>
             <select
               value={values.role}
               onChange={(event) =>
                 updateField("role", event.target.value as AdminUserRole)
               }
-              className="w-full rounded-md border border-border-strong px-3 py-2 text-sm"
+              className={ui.select}
             >
               <option value="client">{formatUserRoleLabel("client")}</option>
               <option value="opco">{formatUserRoleLabel("opco")}</option>
@@ -283,14 +280,12 @@ function UserFormModalContent({
 
           {values.role === "opco" ? (
             <label className="block text-sm">
-              <span className="mb-1 block font-medium text-foreground-muted">
-                OpCo
-              </span>
+              <span className={ui.label}>OpCo</span>
               <select
                 value={values.opcoId}
                 onChange={(event) => updateField("opcoId", event.target.value)}
                 disabled={orgsLoading}
-                className="w-full rounded-md border border-border-strong px-3 py-2 text-sm disabled:bg-surface-muted"
+                className={`${ui.select} disabled:bg-surface-muted`}
               >
                 <option value="">
                   {orgsLoading ? "Loading OpCos…" : "Select OpCo"}
@@ -306,14 +301,12 @@ function UserFormModalContent({
 
           {values.role === "partner" ? (
             <label className="block text-sm">
-              <span className="mb-1 block font-medium text-foreground-muted">
-                Partner
-              </span>
+              <span className={ui.label}>Partner</span>
               <select
                 value={values.partnerId}
                 onChange={(event) => updateField("partnerId", event.target.value)}
                 disabled={orgsLoading}
-                className="w-full rounded-md border border-border-strong px-3 py-2 text-sm disabled:bg-surface-muted"
+                className={`${ui.select} disabled:bg-surface-muted`}
               >
                 <option value="">
                   {orgsLoading ? "Loading Partners…" : "Select Partner"}
@@ -328,13 +321,13 @@ function UserFormModalContent({
           ) : null}
 
           <label className="block text-sm">
-            <span className="mb-1 block font-medium text-foreground-muted">Status</span>
+            <span className={ui.label}>Status</span>
             <select
               value={values.status}
               onChange={(event) =>
                 updateField("status", event.target.value as AdminUserStatus)
               }
-              className="w-full rounded-md border border-border-strong px-3 py-2 text-sm"
+              className={ui.select}
             >
               <option value="ACTIVE">Active</option>
               <option value="INACTIVE">Inactive</option>
@@ -343,26 +336,19 @@ function UserFormModalContent({
           </label>
         </div>
 
-        <div className="flex justify-end gap-3 border-t border-border px-6 py-4">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={submitting}
-            className="rounded-md border border-border-strong px-4 py-2 text-sm text-foreground-muted hover:bg-surface-muted"
-          >
+        <div className="mt-6 flex justify-end gap-3">
+          <Button variant="secondary" onClick={onClose} disabled={submitting}>
             Cancel
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
             onClick={() => void submit()}
             disabled={submitting || orgsLoading}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
           >
             {submitting ? "Saving…" : mode === "create" ? "Create user" : "Save changes"}
-          </button>
+          </Button>
         </div>
       </div>
-    </div>
+    </PortalOverlay>
   );
 }
 

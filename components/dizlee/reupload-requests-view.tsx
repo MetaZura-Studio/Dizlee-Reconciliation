@@ -5,6 +5,20 @@ import { useCallback, useEffect, useState } from "react";
 import { ReportDetailModal } from "@/components/dizlee/report-detail-modal";
 import { ReportsTabs } from "@/components/dizlee/reports-tabs";
 import { ReportFilenameLink } from "@/components/shared/report-filename-link";
+import { Button } from "@/components/ui/button";
+import {
+  DataTable,
+  DataTableFrame,
+  DataTableHead,
+  DataTableRow,
+  DataTableTd,
+  DataTableTh,
+} from "@/components/ui/data-table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Modal } from "@/components/ui/modal";
+import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
+import { LoadingBar } from "@/components/ui/loading";
+import { cn, ui } from "@/lib/ui/classes";
 import type { ReportDetail, ReportFilterOptions } from "@/lib/dizlee/reports";
 import type {
   ReuploadListFilters,
@@ -233,21 +247,19 @@ export function ReuploadRequestsView({
   const items = result.items;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">Dizlee - Reports</h1>
-      </div>
+    <PageCard>
+      <PageHeader title="Dizlee - Reports" />
 
       <ReportsTabs active="reupload" />
 
-      <section className="rounded-lg border border-border bg-surface-muted p-4">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <FilterToolbar className="mt-4">
+        <div className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <label className="text-sm">
-            <span className="mb-1 block text-xs text-foreground-subtle">Period (month)</span>
+            <span className={ui.label}>Period (month)</span>
             <select
               value={month}
               onChange={(event) => setMonth(Number(event.target.value))}
-              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
+              className={ui.select}
             >
               {MONTHS.map((name, index) => (
                 <option key={name} value={index + 1}>
@@ -257,11 +269,11 @@ export function ReuploadRequestsView({
             </select>
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-xs text-foreground-subtle">Year</span>
+            <span className={ui.label}>Year</span>
             <select
               value={year}
               onChange={(event) => setYear(Number(event.target.value))}
-              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
+              className={ui.select}
             >
               {yearOptions.map((value) => (
                 <option key={value} value={value}>
@@ -271,11 +283,11 @@ export function ReuploadRequestsView({
             </select>
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-xs text-foreground-subtle">OpCo</span>
+            <span className={ui.label}>OpCo</span>
             <select
               value={opcoId}
               onChange={(event) => setOpcoId(event.target.value)}
-              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
+              className={ui.select}
             >
               <option value="">All OpCos</option>
               {filterOptions.opcos.map((opco) => (
@@ -286,11 +298,11 @@ export function ReuploadRequestsView({
             </select>
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-xs text-foreground-subtle">Partner</span>
+            <span className={ui.label}>Partner</span>
             <select
               value={partnerId}
               onChange={(event) => setPartnerId(event.target.value)}
-              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
+              className={ui.select}
             >
               <option value="">All Partners</option>
               {filterOptions.partners.map((partner) => (
@@ -301,79 +313,49 @@ export function ReuploadRequestsView({
             </select>
           </label>
         </div>
-        <div className="mt-4 flex gap-3">
-          <button
-            type="button"
-            onClick={applyFilters}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
-          >
-            Apply
-          </button>
-          <button
-            type="button"
-            onClick={refresh}
-            className="rounded-md border border-border-strong px-4 py-2 text-sm text-foreground-muted hover:bg-surface-muted"
-          >
+        <div className="flex w-full gap-3">
+          <Button onClick={applyFilters}>Apply</Button>
+          <Button variant="secondary" onClick={refresh}>
             Refresh
-          </button>
+          </Button>
         </div>
-      </section>
+      </FilterToolbar>
 
       {loading ? (
-        <p className="text-sm text-foreground-subtle">Loading reupload requests…</p>
-      ) : null}
-      {error ? (
-        <div className="rounded-md border border-danger-border bg-danger-muted p-4 text-sm text-danger">
-          {error}
+        <div className="mt-4">
+          <LoadingBar active />
         </div>
       ) : null}
+      {error ? <div className={`mt-4 ${ui.alertError}`}>{error}</div> : null}
 
       {!loading && !error ? (
         items.length > 0 ? (
-          <>
-            <div className="overflow-hidden rounded-lg border border-border">
-              <table className="min-w-full divide-y divide-border text-sm">
-                <thead className="bg-surface-muted">
+          <div className="mt-6 space-y-4">
+            <DataTableFrame>
+              <DataTable>
+                <DataTableHead>
                   <tr>
-                    <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                      Period
-                    </th>
-                    <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                      OpCo
-                    </th>
-                    <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                      Partner
-                    </th>
-                    <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                      Filename
-                    </th>
-                    <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                      Requested by
-                    </th>
-                    <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                      Requested
-                    </th>
-                    <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                      Reason
-                    </th>
-                    <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                      Actions
-                    </th>
+                    <DataTableTh>Period</DataTableTh>
+                    <DataTableTh>OpCo</DataTableTh>
+                    <DataTableTh>Partner</DataTableTh>
+                    <DataTableTh>Filename</DataTableTh>
+                    <DataTableTh>Requested by</DataTableTh>
+                    <DataTableTh>Requested</DataTableTh>
+                    <DataTableTh>Reason</DataTableTh>
+                    <DataTableTh>Actions</DataTableTh>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-border bg-surface">
+                </DataTableHead>
+                <tbody>
                   {items.map((row) => {
                     const busy = actionId === row.id;
                     return (
-                      <tr key={row.id}>
-                        <td className="px-4 py-3 text-foreground-muted">
+                      <DataTableRow key={row.id}>
+                        <DataTableTd className="text-foreground-muted">
                           {formatPeriod(row.period.month, row.period.year)}
-                        </td>
-                        <td className="px-4 py-3 text-foreground">{row.opcoName}</td>
-                        <td className="px-4 py-3 text-foreground">
-                          {row.partnerName}
-                        </td>
-                        <td className="px-4 py-3 text-foreground-muted">
+                        </DataTableTd>
+                        <DataTableTd>{row.opcoName}</DataTableTd>
+                        <DataTableTd>{row.partnerName}</DataTableTd>
+                        <DataTableTd className="text-foreground-muted">
                           <ReportFilenameLink
                             filename={row.filename}
                             onClick={
@@ -382,42 +364,39 @@ export function ReuploadRequestsView({
                                 : undefined
                             }
                           />
-                        </td>
-                        <td className="px-4 py-3 text-foreground-muted">
+                        </DataTableTd>
+                        <DataTableTd className="text-foreground-muted">
                           {row.requestedBy}
-                        </td>
-                        <td className="px-4 py-3 text-foreground-muted">
+                        </DataTableTd>
+                        <DataTableTd className="text-foreground-muted">
                           {formatDateTime(row.requestedAt)}
-                        </td>
-                        <td className="max-w-xs px-4 py-3 text-foreground-muted">
+                        </DataTableTd>
+                        <DataTableTd className="max-w-xs text-foreground-muted">
                           {row.reason ?? "—"}
-                        </td>
-                        <td className="px-4 py-3">
+                        </DataTableTd>
+                        <DataTableTd>
                           <div className="flex gap-2">
-                            <button
-                              type="button"
+                            <Button
                               disabled={busy}
                               onClick={() => void approve(row.id)}
-                              className="rounded-md bg-success px-3 py-1 text-xs font-medium text-primary-foreground hover:bg-success/90 disabled:opacity-40"
                             >
                               Approve
-                            </button>
-                            <button
-                              type="button"
+                            </Button>
+                            <Button
+                              variant="secondary"
                               disabled={busy}
                               onClick={() => openReject(row)}
-                              className="rounded-md border border-border-strong px-3 py-1 text-xs text-foreground-muted hover:bg-surface-muted disabled:opacity-40"
                             >
                               Reject
-                            </button>
+                            </Button>
                           </div>
-                        </td>
-                      </tr>
+                        </DataTableTd>
+                      </DataTableRow>
                     );
                   })}
                 </tbody>
-              </table>
-            </div>
+              </DataTable>
+            </DataTableFrame>
 
             <div className="flex items-center justify-between text-sm text-foreground-muted">
               <p>
@@ -425,77 +404,76 @@ export function ReuploadRequestsView({
                 {result.totalCount} records
               </p>
               <div className="flex gap-2">
-                <button
-                  type="button"
+                <Button
+                  variant="secondary"
                   disabled={result.page <= 1}
                   onClick={() => goToPage(result.page - 1)}
-                  className="rounded-md border border-border-strong px-3 py-1 disabled:opacity-40"
                 >
                   Prev
-                </button>
-                <button
-                  type="button"
+                </Button>
+                <Button
+                  variant="secondary"
                   disabled={result.page >= result.totalPages}
                   onClick={() => goToPage(result.page + 1)}
-                  className="rounded-md border border-border-strong px-3 py-1 disabled:opacity-40"
                 >
                   Next
-                </button>
+                </Button>
               </div>
             </div>
-          </>
-        ) : (
-          <div className="rounded-lg border border-border bg-surface p-8 text-center">
-            <p className="font-medium text-foreground">No pending reupload requests</p>
-            <p className="mt-1 text-sm text-foreground-muted">
-              Pending change requests from OpCos and Partners will appear here.
-            </p>
           </div>
+        ) : (
+          <EmptyState
+            className="mt-6"
+            title="No pending reupload requests"
+            description="Pending change requests from OpCos and Partners will appear here."
+          />
         )
       ) : null}
 
-      {rejectOpen && rejectTarget ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-lg bg-surface p-6 shadow-lg">
-            <h2 className="text-lg font-semibold text-foreground">Reject reupload request</h2>
-            <p className="mt-2 text-sm text-foreground-muted">
+      <Modal
+        open={rejectOpen && rejectTarget !== null}
+        title="Reject reupload request"
+        onClose={() => {
+          setRejectOpen(false);
+          setRejectTarget(null);
+        }}
+      >
+        {rejectTarget ? (
+          <>
+            <p className="text-sm text-foreground-muted">
               {rejectTarget.opcoName} / {rejectTarget.partnerName} ·{" "}
               {formatPeriod(rejectTarget.period.month, rejectTarget.period.year)}
             </p>
             <label className="mt-4 block text-sm">
-              <span className="mb-1 block text-xs text-foreground-subtle">
-                Decision note (optional)
-              </span>
+              <span className={ui.label}>Decision note (optional)</span>
               <textarea
                 value={decisionNote}
                 onChange={(event) => setDecisionNote(event.target.value)}
                 rows={3}
-                className="w-full rounded-md border border-border-strong px-3 py-2 text-sm"
+                className={cn(ui.input, "min-h-[5.5rem] resize-y py-2.5")}
               />
             </label>
             <div className="mt-6 flex justify-end gap-3">
-              <button
-                type="button"
+              <Button
+                variant="secondary"
                 onClick={() => {
                   setRejectOpen(false);
                   setRejectTarget(null);
                 }}
-                className="rounded-md border border-border-strong px-4 py-2 text-sm text-foreground-muted"
               >
                 Cancel
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
+                variant="danger"
                 disabled={actionId === rejectTarget.id}
                 onClick={() => void confirmReject()}
-                className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-red-700 disabled:opacity-40"
               >
                 Reject request
-              </button>
+              </Button>
             </div>
-          </div>
-        </div>
-      ) : null}
+          </>
+        ) : null}
+      </Modal>
 
       {detailOpen ? (
         <ReportDetailModal
@@ -507,6 +485,6 @@ export function ReuploadRequestsView({
           }}
         />
       ) : null}
-    </div>
+    </PageCard>
   );
 }

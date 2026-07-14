@@ -1,4 +1,9 @@
+"use client";
+
+import { useEffect } from "react";
+
 import { ReportLineItemsTable } from "@/components/shared/report-line-items-table";
+import { Button } from "@/components/ui/button";
 import type { ReportPreviewLineItem } from "@/lib/platform/report-preview";
 
 type ReportUploadReviewModalProps = {
@@ -20,10 +25,27 @@ export function ReportUploadReviewModal({
   onConfirm,
   onClose,
 }: ReportUploadReviewModalProps) {
+  useEffect(() => {
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape" && !confirming) {
+        onClose();
+      }
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previous;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [confirming, onClose]);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]">
       <div
-        className="flex max-h-[90vh] w-full max-w-5xl flex-col rounded-lg bg-surface shadow-xl"
+        className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-[28px] border border-border bg-surface shadow-[var(--shadow-md)]"
         role="dialog"
         aria-modal="true"
         aria-labelledby="report-upload-review-title"
@@ -32,7 +54,7 @@ export function ReportUploadReviewModal({
           <div>
             <h2
               id="report-upload-review-title"
-              className="text-lg font-semibold text-foreground"
+              className="text-lg font-semibold tracking-tight text-foreground"
             >
               Confirm report upload
             </h2>
@@ -62,22 +84,12 @@ export function ReportUploadReviewModal({
         </div>
 
         <div className="flex flex-wrap justify-end gap-2 border-t border-border px-6 py-4">
-          <button
-            type="button"
-            onClick={onReupload}
-            disabled={confirming}
-            className="rounded border border-border-strong px-4 py-2 text-sm font-medium text-foreground-muted hover:bg-surface-muted disabled:opacity-60"
-          >
+          <Button variant="secondary" onClick={onReupload} disabled={confirming}>
             Reupload
-          </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={confirming}
-            className="rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
-          >
+          </Button>
+          <Button onClick={onConfirm} disabled={confirming}>
             {confirming ? "Uploading..." : "Confirm upload"}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

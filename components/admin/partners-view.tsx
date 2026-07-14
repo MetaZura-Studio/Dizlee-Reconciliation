@@ -1,11 +1,52 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 import { PartnerDeleteModal } from "@/components/admin/partner-delete-modal";
 import { PartnerFormModal } from "@/components/admin/partner-form-modal";
-import type { PartnerListItem } from "@/lib/admin/partners.shared";
+import { Button } from "@/components/ui/button";
+import {
+  DataTable,
+  DataTableFrame,
+  DataTableHead,
+  DataTableRow,
+  DataTableTd,
+  DataTableTh,
+  SortableDataTableTh,
+} from "@/components/ui/data-table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { IconButton } from "@/components/ui/icon-button";
+import { IconPencil, IconTrash } from "@/components/ui/icons";
+import { PageCard, PageHeader } from "@/components/ui/page";
+import { StatusPill } from "@/components/ui/status-pill";
+import type { AdminEntityStatus, PartnerListItem } from "@/lib/admin/partners.shared";
 import { formatEntityStatusLabel } from "@/lib/admin/partners.shared";
+import { ui } from "@/lib/ui/classes";
+import { nextSortState, type SortDirection } from "@/lib/ui/sort";
+
+type PartnerSortField = "name" | "status" | "users";
+
+function entityStatusTone(status: AdminEntityStatus): "success" | "neutral" {
+  return status === "ACTIVE" ? "success" : "neutral";
+}
+
+function comparePartners(
+  a: PartnerListItem,
+  b: PartnerListItem,
+  sortBy: PartnerSortField,
+  sortDir: SortDirection,
+): number {
+  const dir = sortDir === "asc" ? 1 : -1;
+  switch (sortBy) {
+    case "status":
+      return a.status.localeCompare(b.status) * dir;
+    case "users":
+      return (a.userCount - b.userCount) * dir;
+    case "name":
+    default:
+      return a.name.localeCompare(b.name) * dir;
+  }
+}
 
 type PartnersViewProps = {
   initialPartners: PartnerListItem[];
@@ -13,6 +54,8 @@ type PartnersViewProps = {
 
 export function PartnersView({ initialPartners }: PartnersViewProps) {
   const [partners, setPartners] = useState(initialPartners);
+  const [sortBy, setSortBy] = useState<PartnerSortField>("name");
+  const [sortDir, setSortDir] = useState<SortDirection>("asc");
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -22,6 +65,17 @@ export function PartnersView({ initialPartners }: PartnersViewProps) {
   );
   const [deleteOpen, setDeleteOpen] = useState(false);
   const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const sortedPartners = useMemo(
+    () => [...partners].sort((a, b) => comparePartners(a, b, sortBy, sortDir)),
+    [partners, sortBy, sortDir],
+  );
+
+  const applySort = (field: PartnerSortField) => {
+    const next = nextSortState(sortBy, sortDir, field);
+    setSortBy(next.sortBy);
+    setSortDir(next.sortDir);
+  };
 
   const showSuccess = useCallback((message: string) => {
     setSuccessMessage(message);
@@ -85,95 +139,87 @@ export function PartnersView({ initialPartners }: PartnersViewProps) {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Partners</h1>
-          <p className="text-sm text-foreground-muted">
-            Create Partner organizations first, then assign users under them from
-            Users.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={openCreate}
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
-        >
-          Create Partner
-        </button>
-      </div>
+    <PageCard>
+      <PageHeader
+        title="Partners"
+        description="Create Partner organizations first, then assign users under them from Users."
+        actions={<Button onClick={openCreate}>Create Partner</Button>}
+      />
 
       {successMessage ? (
-        <p className="rounded-md border border-success/30 bg-success-muted px-3 py-2 text-sm text-success">
-          {successMessage}
-        </p>
+        <p className={ui.alertSuccess}>{successMessage}</p>
       ) : null}
-      {error ? (
-        <p className="rounded-md border border-danger-border bg-danger-muted px-3 py-2 text-sm text-danger">
-          {error}
-        </p>
-      ) : null}
+      {error ? <p className={ui.alertError}>{error}</p> : null}
 
-      <div className="overflow-hidden rounded-lg border border-border bg-surface">
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-left text-sm">
-            <thead className="border-b border-border bg-surface-muted text-foreground-muted">
-              <tr>
-                <th className="px-4 py-3 font-medium">Name</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium">Users</th>
-                <th className="px-4 py-3 text-right font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {partners.length === 0 ? (
+      <div className="mt-6 space-y-4">
+        {sortedPartners.length === 0 ? (
+          <EmptyState
+            title="No Partners yet"
+            description="Create one to assign Partner users."
+          />
+        ) : (
+          <DataTableFrame>
+            <DataTable>
+              <DataTableHead>
                 <tr>
-                  <td
-                    colSpan={4}
-                    className="px-4 py-8 text-center text-foreground-subtle"
-                  >
-                    No Partners yet. Create one to assign Partner users.
-                  </td>
+                  <SortableDataTableTh
+                    label="Name"
+                    active={sortBy === "name"}
+                    direction={sortDir}
+                    onSort={() => applySort("name")}
+                  />
+                  <SortableDataTableTh
+                    label="Status"
+                    active={sortBy === "status"}
+                    direction={sortDir}
+                    onSort={() => applySort("status")}
+                  />
+                  <SortableDataTableTh
+                    label="Users"
+                    active={sortBy === "users"}
+                    direction={sortDir}
+                    onSort={() => applySort("users")}
+                  />
+                  <DataTableTh align="right">Actions</DataTableTh>
                 </tr>
-              ) : (
-                partners.map((partner) => (
-                  <tr
-                    key={partner.id}
-                    className="border-b border-border last:border-0"
-                  >
-                    <td className="px-4 py-3 font-medium text-foreground">
+              </DataTableHead>
+              <tbody>
+                {sortedPartners.map((partner) => (
+                  <DataTableRow key={partner.id}>
+                    <DataTableTd className="font-medium text-foreground">
                       {partner.name}
-                    </td>
-                    <td className="px-4 py-3 text-foreground-muted">
-                      {formatEntityStatusLabel(partner.status)}
-                    </td>
-                    <td className="px-4 py-3 text-foreground-muted">
+                    </DataTableTd>
+                    <DataTableTd>
+                      <StatusPill tone={entityStatusTone(partner.status)}>
+                        {formatEntityStatusLabel(partner.status)}
+                      </StatusPill>
+                    </DataTableTd>
+                    <DataTableTd className="text-foreground-muted">
                       {partner.userCount}
-                    </td>
-                    <td className="px-4 py-3">
+                    </DataTableTd>
+                    <DataTableTd align="right">
                       <div className="flex justify-end gap-2">
-                        <button
-                          type="button"
+                        <IconButton
+                          label="Edit Partner"
                           onClick={() => openEdit(partner)}
-                          className="rounded-md border border-border-strong px-2.5 py-1 text-xs text-foreground-muted hover:bg-surface-muted"
                         >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
+                          <IconPencil />
+                        </IconButton>
+                        <IconButton
+                          label="Delete Partner"
+                          variant="danger"
                           onClick={() => openDelete(partner)}
-                          className="rounded-md border border-danger-border px-2.5 py-1 text-xs text-danger hover:bg-danger-muted"
                         >
-                          Delete
-                        </button>
+                          <IconTrash />
+                        </IconButton>
                       </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                    </DataTableTd>
+                  </DataTableRow>
+                ))}
+              </tbody>
+            </DataTable>
+          </DataTableFrame>
+        )}
       </div>
 
       <PartnerFormModal
@@ -190,6 +236,6 @@ export function PartnersView({ initialPartners }: PartnersViewProps) {
         onClose={() => setDeleteOpen(false)}
         onDeleted={(message) => void handleDeleted(message)}
       />
-    </div>
+    </PageCard>
   );
 }

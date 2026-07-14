@@ -4,6 +4,20 @@ import Link from "next/link";
 import { useCallback, useState } from "react";
 
 import { KpiCard } from "@/components/dizlee/kpi-card";
+import { Button } from "@/components/ui/button";
+import {
+  DataTable,
+  DataTableFrame,
+  DataTableHead,
+  DataTableRow,
+  DataTableTd,
+  DataTableTh,
+} from "@/components/ui/data-table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
+import { StatusPill } from "@/components/ui/status-pill";
+import { LoadingBar } from "@/components/ui/loading";
+import { ui } from "@/lib/ui/classes";
 import type { ReportFilterOptions } from "@/lib/dizlee/reports";
 import type {
   ReportingLaneStatus,
@@ -41,25 +55,23 @@ function formatDateTime(value: string | null): string {
   });
 }
 
-function statusClass(status: ReportingLaneStatus): string {
+function overallStatusTone(
+  status: ReportingLaneStatus,
+): "success" | "warning" | "danger" | "neutral" {
   switch (status) {
     case "Complete":
-      return "text-success";
+      return "success";
     case "Partial":
-      return "text-warning";
+      return "warning";
     case "Missing":
-      return "text-danger";
+      return "danger";
     default:
-      return "text-foreground-muted";
+      return "neutral";
   }
 }
 
-function boolLabel(value: boolean): string {
-  return value ? "Yes" : "No";
-}
-
-function boolClass(value: boolean): string {
-  return value ? "text-success" : "text-warning";
+function yesNoTone(value: boolean): "success" | "warning" {
+  return value ? "success" : "warning";
 }
 
 function buildQuery(month: number, year: number, opcoId: string, partnerId: string) {
@@ -127,28 +139,22 @@ export function ReportingView({
   const { summary } = overview;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">Reporting</h1>
-        <p className="mt-1 text-sm text-foreground-subtle">
-          Period overview for reports, invoices, reconciliation, and consolidation.
-        </p>
-      </div>
+    <PageCard>
+      <PageHeader
+        title="Reporting"
+        description="Period overview for reports, invoices, reconciliation, and consolidation."
+      />
 
-      {error ? (
-        <div className="rounded-lg border border-danger-border bg-danger-muted px-4 py-3 text-sm text-danger">
-          {error}
-        </div>
-      ) : null}
+      {error ? <div className={`mt-4 ${ui.alertError}`}>{error}</div> : null}
 
-      <div className="rounded-xl border border-border bg-surface p-4">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <label className="block text-sm">
-            <span className="text-foreground-muted">Month</span>
+      <FilterToolbar className="mt-4">
+        <div className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <label className="text-sm">
+            <span className={ui.label}>Month</span>
             <select
               value={month}
               onChange={(event) => setMonth(Number(event.target.value))}
-              className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
+              className={ui.select}
             >
               {MONTHS.map((label, index) => (
                 <option key={label} value={index + 1}>
@@ -158,12 +164,12 @@ export function ReportingView({
             </select>
           </label>
 
-          <label className="block text-sm">
-            <span className="text-foreground-muted">Year</span>
+          <label className="text-sm">
+            <span className={ui.label}>Year</span>
             <select
               value={year}
               onChange={(event) => setYear(Number(event.target.value))}
-              className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
+              className={ui.select}
             >
               {yearOptions.map((value) => (
                 <option key={value} value={value}>
@@ -173,12 +179,12 @@ export function ReportingView({
             </select>
           </label>
 
-          <label className="block text-sm">
-            <span className="text-foreground-muted">OpCo</span>
+          <label className="text-sm">
+            <span className={ui.label}>OpCo</span>
             <select
               value={opcoId}
               onChange={(event) => setOpcoId(event.target.value)}
-              className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
+              className={ui.select}
             >
               <option value="">All</option>
               {filterOptions.opcos.map((opco) => (
@@ -189,12 +195,12 @@ export function ReportingView({
             </select>
           </label>
 
-          <label className="block text-sm">
-            <span className="text-foreground-muted">Partner</span>
+          <label className="text-sm">
+            <span className={ui.label}>Partner</span>
             <select
               value={partnerId}
               onChange={(event) => setPartnerId(event.target.value)}
-              className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
+              className={ui.select}
             >
               <option value="">All</option>
               {filterOptions.partners.map((partner) => (
@@ -205,22 +211,27 @@ export function ReportingView({
             </select>
           </label>
         </div>
+        <div className="flex w-full gap-3">
+          <Button onClick={() => void loadOverview()} disabled={loading}>
+            Apply
+          </Button>
+          <Button variant="secondary" onClick={() => void loadOverview()} disabled={loading}>
+            Refresh
+          </Button>
+        </div>
+      </FilterToolbar>
 
-        <button
-          type="button"
-          onClick={() => void loadOverview()}
-          disabled={loading}
-          className="mt-4 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
-        >
-          Apply filters
-        </button>
-      </div>
+      {loading ? (
+        <div className="mt-4">
+          <LoadingBar active />
+        </div>
+      ) : null}
 
-      <p className="text-sm text-foreground-muted">
+      <p className="mt-4 text-sm text-foreground-muted">
         Showing <span className="font-medium">{overview.period.label}</span>
       </p>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard label="OpCo–Partner pairs" value={String(summary.linkedLanes)} />
         <KpiCard
           label="Reports complete"
@@ -246,7 +257,7 @@ export function ReportingView({
         />
       </div>
 
-      <div className="flex flex-wrap gap-3 text-sm">
+      <div className="mt-4 flex flex-wrap gap-3 text-sm">
         <Link
           href={`/dizlee/reports?month=${month}&year=${year}`}
           className="font-medium text-foreground-muted underline"
@@ -273,107 +284,111 @@ export function ReportingView({
         </Link>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-border bg-surface">
-        <div className="border-b border-border px-4 py-3">
-          <h2 className="font-medium text-foreground">OpCo–Partner overview</h2>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-left text-sm">
-            <thead className="border-b border-border bg-surface-muted text-foreground-subtle">
-              <tr>
-                <th className="px-4 py-3 font-medium">OpCo / Partner</th>
-                <th className="px-4 py-3 font-medium">OpCo report</th>
-                <th className="px-4 py-3 font-medium">Partner report</th>
-                <th className="px-4 py-3 font-medium">OpCo invoice</th>
-                <th className="px-4 py-3 font-medium">Partner invoice</th>
-                <th className="px-4 py-3 font-medium">Reconciliation</th>
-                <th className="px-4 py-3 font-medium">Overall</th>
-              </tr>
-            </thead>
-            <tbody>
-              {overview.lanes.length === 0 ? (
+      <div className="mt-6 space-y-4">
+        <h2 className="font-medium text-foreground">OpCo–Partner overview</h2>
+        {overview.lanes.length === 0 ? (
+          <EmptyState
+            title="No pairs match filters"
+            description="No OpCo–Partner pairs match the selected filters."
+          />
+        ) : (
+          <DataTableFrame>
+            <DataTable>
+              <DataTableHead>
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-foreground-subtle">
-                    No OpCo–Partner pairs match the selected filters.
-                  </td>
+                  <DataTableTh>OpCo / Partner</DataTableTh>
+                  <DataTableTh>OpCo report</DataTableTh>
+                  <DataTableTh>Partner report</DataTableTh>
+                  <DataTableTh>OpCo invoice</DataTableTh>
+                  <DataTableTh>Partner invoice</DataTableTh>
+                  <DataTableTh>Reconciliation</DataTableTh>
+                  <DataTableTh>Overall</DataTableTh>
                 </tr>
-              ) : (
-                overview.lanes.map((lane) => (
-                  <tr key={lane.laneKey} className="border-b border-border">
-                    <td className="px-4 py-3 text-foreground">
+              </DataTableHead>
+              <tbody>
+                {overview.lanes.map((lane) => (
+                  <DataTableRow key={lane.laneKey}>
+                    <DataTableTd>
                       {lane.opcoName} / {lane.partnerName}
-                    </td>
-                    <td className={`px-4 py-3 ${boolClass(lane.opcoReport)}`}>
-                      {boolLabel(lane.opcoReport)}
-                    </td>
-                    <td className={`px-4 py-3 ${boolClass(lane.partnerReport)}`}>
-                      {boolLabel(lane.partnerReport)}
-                    </td>
-                    <td className={`px-4 py-3 ${boolClass(lane.opcoInvoice)}`}>
-                      {boolLabel(lane.opcoInvoice)}
-                    </td>
-                    <td className={`px-4 py-3 ${boolClass(lane.partnerInvoice)}`}>
-                      {boolLabel(lane.partnerInvoice)}
-                    </td>
-                    <td className="px-4 py-3 text-foreground-muted">
+                    </DataTableTd>
+                    <DataTableTd>
+                      <StatusPill tone={yesNoTone(lane.opcoReport)}>
+                        {lane.opcoReport ? "Yes" : "No"}
+                      </StatusPill>
+                    </DataTableTd>
+                    <DataTableTd>
+                      <StatusPill tone={yesNoTone(lane.partnerReport)}>
+                        {lane.partnerReport ? "Yes" : "No"}
+                      </StatusPill>
+                    </DataTableTd>
+                    <DataTableTd>
+                      <StatusPill tone={yesNoTone(lane.opcoInvoice)}>
+                        {lane.opcoInvoice ? "Yes" : "No"}
+                      </StatusPill>
+                    </DataTableTd>
+                    <DataTableTd>
+                      <StatusPill tone={yesNoTone(lane.partnerInvoice)}>
+                        {lane.partnerInvoice ? "Yes" : "No"}
+                      </StatusPill>
+                    </DataTableTd>
+                    <DataTableTd className="text-foreground-muted">
                       {lane.reconciliationStatus ?? "—"}
-                    </td>
-                    <td className={`px-4 py-3 font-medium ${statusClass(lane.overallStatus)}`}>
-                      {lane.overallStatus}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                    </DataTableTd>
+                    <DataTableTd>
+                      <StatusPill tone={overallStatusTone(lane.overallStatus)}>
+                        {lane.overallStatus}
+                      </StatusPill>
+                    </DataTableTd>
+                  </DataTableRow>
+                ))}
+              </tbody>
+            </DataTable>
+          </DataTableFrame>
+        )}
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-border bg-surface">
-        <div className="border-b border-border px-4 py-3">
-          <h2 className="font-medium text-foreground">Consolidation by OpCo</h2>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-left text-sm">
-            <thead className="border-b border-border bg-surface-muted text-foreground-subtle">
-              <tr>
-                <th className="px-4 py-3 font-medium">OpCo</th>
-                <th className="px-4 py-3 font-medium">Generated</th>
-                <th className="px-4 py-3 font-medium">Generated at</th>
-                <th className="px-4 py-3 font-medium text-right">Total USD</th>
-              </tr>
-            </thead>
-            <tbody>
-              {overview.consolidations.length === 0 ? (
+      <div className="mt-8 space-y-4">
+        <h2 className="font-medium text-foreground">Consolidation by OpCo</h2>
+        {overview.consolidations.length === 0 ? (
+          <EmptyState
+            title="No OpCos in scope"
+            description="No OpCos in scope for this period."
+          />
+        ) : (
+          <DataTableFrame>
+            <DataTable>
+              <DataTableHead>
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-foreground-subtle">
-                    No OpCos in scope for this period.
-                  </td>
+                  <DataTableTh>OpCo</DataTableTh>
+                  <DataTableTh>Generated</DataTableTh>
+                  <DataTableTh>Generated at</DataTableTh>
+                  <DataTableTh className="text-right">Total USD</DataTableTh>
                 </tr>
-              ) : (
-                overview.consolidations.map((row) => (
-                  <tr key={row.opcoId} className="border-b border-border">
-                    <td className="px-4 py-3 text-foreground">{row.opcoName}</td>
-                    <td
-                      className={`px-4 py-3 ${row.generated ? "text-success" : "text-warning"}`}
-                    >
-                      {row.generated ? "Yes" : "No"}
-                    </td>
-                    <td className="px-4 py-3 text-foreground-muted">
+              </DataTableHead>
+              <tbody>
+                {overview.consolidations.map((row) => (
+                  <DataTableRow key={row.opcoId}>
+                    <DataTableTd>{row.opcoName}</DataTableTd>
+                    <DataTableTd>
+                      <StatusPill tone={yesNoTone(row.generated)}>
+                        {row.generated ? "Yes" : "No"}
+                      </StatusPill>
+                    </DataTableTd>
+                    <DataTableTd className="text-foreground-muted">
                       {formatDateTime(row.generatedAt)}
-                    </td>
-                    <td className="px-4 py-3 text-right text-foreground-muted">
+                    </DataTableTd>
+                    <DataTableTd className="text-right text-foreground-muted">
                       {row.totalAmountUsd !== null
                         ? usdFormatter.format(row.totalAmountUsd)
                         : "—"}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                    </DataTableTd>
+                  </DataTableRow>
+                ))}
+              </tbody>
+            </DataTable>
+          </DataTableFrame>
+        )}
       </div>
-    </div>
+    </PageCard>
   );
 }

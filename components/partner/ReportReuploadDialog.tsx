@@ -3,7 +3,11 @@
 import { useRef, useState } from "react";
 
 import { ReportUploadReviewModal } from "@/components/shared/report-upload-review-modal";
+import { Button } from "@/components/ui/button";
+import { FieldLabel } from "@/components/ui/field";
+import { Modal } from "@/components/ui/modal";
 import { formatPeriodLabel } from "@/lib/partner/period";
+import { ui } from "@/lib/ui/classes";
 import type { PartnerReportListItem } from "@/lib/partner/queries/reports";
 import type { ReportPreviewLineItem } from "@/lib/platform/report-preview";
 
@@ -130,64 +134,46 @@ export function ReportReuploadDialog({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-        <div
-          className="w-full max-w-lg rounded-lg border border-border bg-surface p-6 shadow-lg"
-          role="dialog"
-          aria-labelledby="report-reupload-title"
-        >
-          <h2 id="report-reupload-title" className="text-lg font-semibold text-foreground">
-            Reupload corrected file
-          </h2>
-          <p className="mt-1 text-sm text-foreground-muted">
-            {report.opcoName} — {formatPeriodLabel(report.year, report.month)}
-          </p>
-          <p className="mt-2 text-sm text-foreground-subtle">
-            Dizlee approved your reupload request. Select a corrected `.xlsx` file to
-            preview and confirm.
-          </p>
+      <Modal open title="Reupload corrected file" onClose={onClose}>
+        <p className="text-sm text-foreground-muted">
+          {report.opcoName} — {formatPeriodLabel(report.year, report.month)}
+        </p>
+        <p className={`mt-2 ${ui.hint}`}>
+          Dizlee approved your reupload request. Select a corrected `.xlsx` file to
+          preview and confirm.
+        </p>
 
-          <div className="mt-4 space-y-4">
-            <div>
-              <label
-                htmlFor="reupload-file"
-                className="block text-sm font-medium text-foreground-muted"
-              >
-                Corrected Excel file
-              </label>
-              <input
-                ref={fileInputRef}
-                id="reupload-file"
-                type="file"
-                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                onChange={handleFileChange}
-                disabled={isParsing || isConfirming}
-                className="mt-1 block w-full text-sm disabled:opacity-60"
-              />
-              {isParsing ? (
-                <p className="mt-2 text-sm text-foreground-muted">Parsing report…</p>
-              ) : null}
-            </div>
-
-            {error ? (
-              <p className="rounded border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
-                {error}
-              </p>
+        <div className="mt-4 space-y-4">
+          <div>
+            <FieldLabel htmlFor="reupload-file">Corrected Excel file</FieldLabel>
+            <input
+              ref={fileInputRef}
+              id="reupload-file"
+              type="file"
+              accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              onChange={handleFileChange}
+              disabled={isParsing || isConfirming}
+              className="mt-1 block w-full text-sm disabled:opacity-60"
+            />
+            {isParsing ? (
+              <p className="mt-2 text-sm text-foreground-muted">Parsing report…</p>
             ) : null}
+          </div>
 
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={onClose}
-                disabled={isParsing || isConfirming}
-                className="rounded border border-border-strong px-4 py-2 text-sm font-medium text-foreground-muted hover:bg-surface-muted"
-              >
-                Cancel
-              </button>
-            </div>
+          {error ? <p className={ui.alertError}>{error}</p> : null}
+
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={onClose}
+              disabled={isParsing || isConfirming}
+            >
+              Cancel
+            </Button>
           </div>
         </div>
-      </div>
+      </Modal>
 
       {review ? (
         <ReportUploadReviewModal

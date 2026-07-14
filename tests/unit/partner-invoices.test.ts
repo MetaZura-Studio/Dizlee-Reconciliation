@@ -57,4 +57,13 @@ describe("parsePartnerInvoiceListFilters", () => {
     expect(result.month).toBeUndefined();
     expect(result.page).toBe(1);
   });
+
+  it("parses opco sort field", () => {
+    const result = parsePartnerInvoiceListFilters(
+      new URLSearchParams({ sortBy: "opco", sortDir: "asc" }),
+    );
+
+    expect(result.sortBy).toBe("opco");
+    expect(result.sortDir).toBe("asc");
+  });
 });

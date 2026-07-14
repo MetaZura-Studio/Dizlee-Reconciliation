@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { PASSWORD_MIN_LENGTH, validatePasswordMatch } from "@/lib/auth/password-policy";
+import { ui } from "@/lib/ui/classes";
 
 type SetPasswordFormProps = {
   token: string;
@@ -59,14 +60,10 @@ export function SetPasswordForm({
 
   return (
     <form onSubmit={(event) => void submit(event)} className="space-y-4">
-      {error ? (
-        <p className="rounded-md border border-danger-border bg-danger-muted px-3 py-2 text-sm text-danger">
-          {error}
-        </p>
-      ) : null}
+      {error ? <p className={ui.alertError}>{error}</p> : null}
 
       <div className="space-y-1">
-        <label htmlFor="password" className="text-sm font-medium text-foreground-muted">
+        <label htmlFor="password" className={ui.label}>
           New password
         </label>
         <input
@@ -77,19 +74,16 @@ export function SetPasswordForm({
           onChange={(event) => setPassword(event.target.value)}
           autoComplete="new-password"
           required
-          className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
+          className={ui.input}
         />
-        <p className="text-xs text-foreground-subtle">
+        <p className={ui.hint}>
           At least {PASSWORD_MIN_LENGTH} characters with uppercase, lowercase, and a
           number.
         </p>
       </div>
 
       <div className="space-y-1">
-        <label
-          htmlFor="confirmPassword"
-          className="text-sm font-medium text-foreground-muted"
-        >
+        <label htmlFor="confirmPassword" className={ui.label}>
           Confirm new password
         </label>
         <input
@@ -100,14 +94,14 @@ export function SetPasswordForm({
           onChange={(event) => setConfirmPassword(event.target.value)}
           autoComplete="new-password"
           required
-          className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
+          className={ui.input}
         />
       </div>
 
       <button
         type="submit"
         disabled={submitting}
-        className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
+        className={`w-full ${ui.btnPrimary}`}
       >
         {submitting ? savingLabel : submitLabel}
       </button>

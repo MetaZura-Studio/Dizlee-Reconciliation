@@ -11,7 +11,26 @@ import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 
 import { InvoiceDetailModal } from "@/components/partner/InvoiceDetailModal";
+import { Button } from "@/components/ui/button";
+import {
+  DataTable,
+  DataTableFrame,
+  DataTableHead,
+  DataTableRow,
+  DataTableTd,
+  DataTableTh,
+  SortableDataTableTh,
+} from "@/components/ui/data-table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { FieldLabel, Input, Select } from "@/components/ui/field";
+import { IconButton } from "@/components/ui/icon-button";
+import { IconEye } from "@/components/ui/icons";
+import { FilterToolbar } from "@/components/ui/page";
+import { StatusPill } from "@/components/ui/status-pill";
 import { formatPeriodLabel } from "@/lib/partner/period";
+import { ui } from "@/lib/ui/classes";
+import { nextSortState } from "@/lib/ui/sort";
+import { invoiceStatusTone, paymentLabelTone } from "@/lib/ui/status-tones";
 import type {
   PartnerInvoiceDetail,
   PartnerInvoiceFilterOptions,
@@ -22,6 +41,12 @@ import type {
   PartnerInvoiceSortField,
   PartnerSortDirection,
 } from "@/lib/partner/queries/invoices";
+
+const SORTABLE_COLUMNS: Record<string, PartnerInvoiceSortField> = {
+  opcoName: "opco",
+  period: "period",
+  uploadedAt: "uploaded",
+};
 
 const MONTHS = [
   { value: 1, label: "January" },
@@ -109,6 +134,22 @@ export function InvoicesTable({ initialResult, filterOptions }: InvoicesTablePro
     });
   }
 
+  function applySort(field: PartnerInvoiceSortField) {
+    const next = nextSortState(sortBy, sortDir, field);
+    setSortBy(next.sortBy);
+    setSortDir(next.sortDir);
+    navigateWithFilters({
+      year: year ? Number(year) : undefined,
+      month: month ? Number(month) : undefined,
+      opcoId: opcoId || undefined,
+      statusCode: statusCode || undefined,
+      paymentStatus,
+      sortBy: next.sortBy,
+      sortDir: next.sortDir,
+      page: 1,
+    });
+  }
+
   function clearFilters() {
     setYear("");
     setMonth("");
@@ -166,15 +207,19 @@ export function InvoicesTable({ initialResult, filterOptions }: InvoicesTablePro
       }),
       columnHelper.accessor("statusLabel", {
         header: "Status",
-        cell: (info) => (
-          <span className="rounded-full bg-surface-muted px-2 py-1 text-xs font-medium text-foreground-muted">
-            {info.getValue()}
-          </span>
+        cell: ({ row }) => (
+          <StatusPill tone={invoiceStatusTone(row.original.statusCode)}>
+            {row.original.statusLabel}
+          </StatusPill>
         ),
       }),
       columnHelper.accessor("paymentStatusLabel", {
         header: "Payment",
-        cell: (info) => info.getValue(),
+        cell: (info) => (
+          <StatusPill tone={paymentLabelTone(info.getValue())}>
+            {info.getValue()}
+          </StatusPill>
+        ),
       }),
       columnHelper.display({
         id: "total",
@@ -193,13 +238,12 @@ export function InvoicesTable({ initialResult, filterOptions }: InvoicesTablePro
         id: "actions",
         header: "Actions",
         cell: ({ row }) => (
-          <button
-            type="button"
+          <IconButton
+            label="View"
             onClick={() => void openDetail(row.original.id)}
-            className="rounded border border-border-strong px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface-muted"
           >
-            View
-          </button>
+            <IconEye />
+          </IconButton>
         ),
       }),
     ],
@@ -226,194 +270,158 @@ export function InvoicesTable({ initialResult, filterOptions }: InvoicesTablePro
   return (
     <div className="space-y-4">
       <form
-        className="grid gap-4 rounded-lg border border-border bg-surface p-4 md:grid-cols-2 xl:grid-cols-4"
         onSubmit={(event) => {
           event.preventDefault();
           applyFilters();
         }}
       >
-        <div>
-          <label htmlFor="invoices-year" className="text-sm font-medium text-foreground-muted">
-            Year
-          </label>
-          <input
-            id="invoices-year"
-            type="number"
-            min={2000}
-            max={2100}
-            value={year}
-            onChange={(event) => setYear(event.target.value)}
-            placeholder="All years"
-            className="mt-1 block w-full rounded border border-border-strong px-3 py-2 text-sm"
-          />
-        </div>
-        <div>
-          <label htmlFor="invoices-month" className="text-sm font-medium text-foreground-muted">
-            Month
-          </label>
-          <select
-            id="invoices-month"
-            value={month}
-            onChange={(event) => setMonth(event.target.value)}
-            className="mt-1 block w-full rounded border border-border-strong px-3 py-2 text-sm"
-          >
-            <option value="">All months</option>
-            {MONTHS.map((item) => (
-              <option key={item.value} value={item.value}>
-                {item.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="invoices-opco" className="text-sm font-medium text-foreground-muted">
-            OpCo
-          </label>
-          <select
-            id="invoices-opco"
-            value={opcoId}
-            onChange={(event) => setOpcoId(event.target.value)}
-            className="mt-1 block w-full rounded border border-border-strong px-3 py-2 text-sm"
-          >
-            <option value="">All OpCos</option>
-            {filterOptions.opcos.map((opco) => (
-              <option key={opco.id} value={opco.id}>
-                {opco.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="invoices-status" className="text-sm font-medium text-foreground-muted">
-            Status
-          </label>
-          <select
-            id="invoices-status"
-            value={statusCode}
-            onChange={(event) => setStatusCode(event.target.value)}
-            className="mt-1 block w-full rounded border border-border-strong px-3 py-2 text-sm"
-          >
-            <option value="">All statuses</option>
-            {filterOptions.statuses.map((status) => (
-              <option key={status.code} value={status.code}>
-                {status.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="invoices-payment" className="text-sm font-medium text-foreground-muted">
-            Payment
-          </label>
-          <select
-            id="invoices-payment"
-            value={paymentStatus}
-            onChange={(event) =>
-              setPaymentStatus(event.target.value as PartnerInvoicePaymentFilter)
-            }
-            className="mt-1 block w-full rounded border border-border-strong px-3 py-2 text-sm"
-          >
-            <option value="all">All</option>
-            <option value="pending">Pending</option>
-            <option value="paid">Paid</option>
-          </select>
-        </div>
-        <div>
-          <label htmlFor="invoices-sort-by" className="text-sm font-medium text-foreground-muted">
-            Sort by
-          </label>
-          <select
-            id="invoices-sort-by"
-            value={sortBy}
-            onChange={(event) => setSortBy(event.target.value as PartnerInvoiceSortField)}
-            className="mt-1 block w-full rounded border border-border-strong px-3 py-2 text-sm"
-          >
-            <option value="uploaded">Upload date</option>
-            <option value="period">Period</option>
-          </select>
-        </div>
-        <div>
-          <label htmlFor="invoices-sort-dir" className="text-sm font-medium text-foreground-muted">
-            Order
-          </label>
-          <select
-            id="invoices-sort-dir"
-            value={sortDir}
-            onChange={(event) => setSortDir(event.target.value as PartnerSortDirection)}
-            className="mt-1 block w-full rounded border border-border-strong px-3 py-2 text-sm"
-          >
-            <option value="desc">Newest first</option>
-            <option value="asc">Oldest first</option>
-          </select>
-        </div>
-        <div className="flex items-end gap-2 md:col-span-2 xl:col-span-2">
-          <button
-            type="submit"
-            className="rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
-          >
-            Apply filters
-          </button>
-          <button
-            type="button"
-            onClick={clearFilters}
-            className="rounded border border-border-strong px-4 py-2 text-sm font-medium text-foreground-muted hover:bg-surface-muted"
-          >
-            Clear
-          </button>
-        </div>
+        <FilterToolbar>
+          <div className="grid w-full gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div>
+              <FieldLabel htmlFor="invoices-year">Year</FieldLabel>
+              <Input
+                id="invoices-year"
+                type="number"
+                min={2000}
+                max={2100}
+                value={year}
+                onChange={(event) => setYear(event.target.value)}
+                placeholder="All years"
+              />
+            </div>
+            <div>
+              <FieldLabel htmlFor="invoices-month">Month</FieldLabel>
+              <Select
+                id="invoices-month"
+                value={month}
+                onChange={(event) => setMonth(event.target.value)}
+              >
+                <option value="">All months</option>
+                {MONTHS.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <FieldLabel htmlFor="invoices-opco">OpCo</FieldLabel>
+              <Select
+                id="invoices-opco"
+                value={opcoId}
+                onChange={(event) => setOpcoId(event.target.value)}
+              >
+                <option value="">All OpCos</option>
+                {filterOptions.opcos.map((opco) => (
+                  <option key={opco.id} value={opco.id}>
+                    {opco.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <FieldLabel htmlFor="invoices-status">Status</FieldLabel>
+              <Select
+                id="invoices-status"
+                value={statusCode}
+                onChange={(event) => setStatusCode(event.target.value)}
+              >
+                <option value="">All statuses</option>
+                {filterOptions.statuses.map((status) => (
+                  <option key={status.code} value={status.code}>
+                    {status.label}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <FieldLabel htmlFor="invoices-payment">Payment</FieldLabel>
+              <Select
+                id="invoices-payment"
+                value={paymentStatus}
+                onChange={(event) =>
+                  setPaymentStatus(event.target.value as PartnerInvoicePaymentFilter)
+                }
+              >
+                <option value="all">All</option>
+                <option value="pending">Pending</option>
+                <option value="paid">Paid</option>
+              </Select>
+            </div>
+          </div>
+          <div className="flex w-full gap-2">
+            <Button type="submit">Apply filters</Button>
+            <Button type="button" variant="secondary" onClick={clearFilters}>
+              Clear
+            </Button>
+          </div>
+        </FilterToolbar>
       </form>
 
       {initialResult.totalCount === 0 ? (
-        <div className="rounded-lg border border-border bg-surface p-6 text-sm text-foreground-muted">
-          <p>No invoices match your filters.</p>
-          <Link
-            href="/partner/invoices/upload"
-            className="mt-2 inline-block text-foreground underline"
-          >
-            Upload an invoice
-          </Link>
-        </div>
+        <EmptyState
+          title="No invoices match your filters"
+          action={
+            <Link href="/partner/invoices/upload" className={ui.btnSecondary}>
+              Upload an invoice
+            </Link>
+          }
+        />
       ) : (
         <>
-          <div className="overflow-hidden rounded-lg border border-border bg-surface">
-            <table className="min-w-full divide-y divide-border text-sm">
-              <thead className="bg-surface-muted text-left text-foreground-muted">
+          <DataTableFrame>
+            <DataTable>
+              <DataTableHead>
                 {table.getHeaderGroups().map((headerGroup) => (
                   <tr key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                      <th key={header.id} className="px-4 py-3 font-medium">
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext(),
-                            )}
-                      </th>
-                    ))}
+                    {headerGroup.headers.map((header) => {
+                      const sortField = SORTABLE_COLUMNS[header.column.id];
+                      if (sortField) {
+                        return (
+                          <SortableDataTableTh
+                            key={header.id}
+                            label={String(header.column.columnDef.header)}
+                            active={sortBy === sortField}
+                            direction={sortDir}
+                            onSort={() => applySort(sortField)}
+                          />
+                        );
+                      }
+                      return (
+                        <DataTableTh key={header.id}>
+                          {header.isPlaceholder
+                            ? null
+                            : flexRender(
+                                header.column.columnDef.header,
+                                header.getContext(),
+                              )}
+                        </DataTableTh>
+                      );
+                    })}
                   </tr>
                 ))}
-              </thead>
-              <tbody className="divide-y divide-border">
+              </DataTableHead>
+              <tbody>
                 {table.getRowModel().rows.map((row) => (
-                  <tr key={row.id}>
+                  <DataTableRow key={row.id}>
                     {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="px-4 py-3 align-top text-foreground">
+                      <DataTableTd key={cell.id} className="align-top">
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
+                      </DataTableTd>
                     ))}
-                  </tr>
+                  </DataTableRow>
                 ))}
               </tbody>
-            </table>
-          </div>
+            </DataTable>
+          </DataTableFrame>
 
           <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-foreground-muted">
             <p>
               Showing {showingFrom}–{showingTo} of {initialResult.totalCount}
             </p>
             <div className="flex items-center gap-2">
-              <button
-                type="button"
+              <Button
+                variant="secondary"
                 disabled={initialResult.page <= 1}
                 onClick={() =>
                   navigateWithFilters({
@@ -421,15 +429,14 @@ export function InvoicesTable({ initialResult, filterOptions }: InvoicesTablePro
                     page: initialResult.page - 1,
                   })
                 }
-                className="rounded border border-border-strong px-3 py-1.5 disabled:opacity-40"
               >
                 Previous
-              </button>
+              </Button>
               <span>
                 Page {initialResult.page} of {initialResult.totalPages}
               </span>
-              <button
-                type="button"
+              <Button
+                variant="secondary"
                 disabled={initialResult.page >= initialResult.totalPages}
                 onClick={() =>
                   navigateWithFilters({
@@ -437,10 +444,9 @@ export function InvoicesTable({ initialResult, filterOptions }: InvoicesTablePro
                     page: initialResult.page + 1,
                   })
                 }
-                className="rounded border border-border-strong px-3 py-1.5 disabled:opacity-40"
               >
                 Next
-              </button>
+              </Button>
             </div>
           </div>
         </>

@@ -2,7 +2,9 @@
 
 import { useCallback, useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import type { ReconciliationToleranceView } from "@/lib/admin/reconciliation-tolerance";
+import { ui } from "@/lib/ui/classes";
 
 type ReconciliationToleranceFormProps = {
   initialSettings: ReconciliationToleranceView;
@@ -104,23 +106,12 @@ export function ReconciliationToleranceForm({
 
   return (
     <div className="space-y-6">
-      {error ? (
-        <p className="rounded-md border border-danger-border bg-danger-muted px-3 py-2 text-sm text-danger">
-          {error}
-        </p>
-      ) : null}
-      {success ? (
-        <p className="rounded-md border border-success-border bg-success-muted px-3 py-2 text-sm text-success">
-          {success}
-        </p>
-      ) : null}
+      {error ? <p className={ui.alertError}>{error}</p> : null}
+      {success ? <p className={ui.alertSuccess}>{success}</p> : null}
 
       <form onSubmit={(event) => void saveSettings(event)} className="space-y-6">
         <div className="space-y-1">
-          <label
-            htmlFor="reconciliationNegligiblePercent"
-            className="text-sm font-medium text-foreground-muted"
-          >
+          <label htmlFor="reconciliationNegligiblePercent" className={ui.label}>
             Negligible difference (%)
           </label>
           <input
@@ -136,36 +127,32 @@ export function ReconciliationToleranceForm({
                 reconciliationNegligiblePercent: event.target.value,
               }))
             }
-            className="w-full max-w-xs rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
+            className={`${ui.input} max-w-xs`}
           />
-          <p className="text-xs text-foreground-subtle">
+          <p className={ui.hint}>
             Current saved value:{" "}
             {formatPercent(savedSettings.reconciliationNegligiblePercent)}%
           </p>
         </div>
 
-        <p className="rounded-md border border-border bg-surface-muted px-3 py-2 text-sm text-foreground-muted">
+        <p className={`${ui.cardPadding} text-sm text-foreground-muted`}>
           Lines within this percentage relative difference are treated as
           matched when Dizlee runs reconciliation. Unlinked or larger variances
           remain mismatched.
         </p>
 
         <div className="flex flex-wrap gap-3">
-          <button
-            type="submit"
-            disabled={saving || reloading}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
-          >
+          <Button type="submit" disabled={saving || reloading}>
             {saving ? "Saving…" : "Save"}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="secondary"
             onClick={() => void reloadSettings()}
             disabled={saving || reloading}
-            className="rounded-md border border-border-strong px-4 py-2 text-sm font-medium text-foreground-muted hover:bg-surface-muted disabled:opacity-60"
           >
             {reloading ? "Reloading…" : "Reload"}
-          </button>
+          </Button>
         </div>
       </form>
     </div>

@@ -5,6 +5,23 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ReportDetailModal } from "@/components/dizlee/report-detail-modal";
 import { ReportsTabs } from "@/components/dizlee/reports-tabs";
 import { ReportFilenameLink } from "@/components/shared/report-filename-link";
+import { Button } from "@/components/ui/button";
+import {
+  DataTable,
+  DataTableFrame,
+  DataTableHead,
+  DataTableRow,
+  DataTableTd,
+  DataTableTh,
+  SortableDataTableTh,
+} from "@/components/ui/data-table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { IconButton } from "@/components/ui/icon-button";
+import { IconEye } from "@/components/ui/icons";
+import { LoadingBar } from "@/components/ui/loading";
+import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
+import { ui } from "@/lib/ui/classes";
+import { nextSortState } from "@/lib/ui/sort";
 import type {
   ReportDetail,
   ReportFilterOptions,
@@ -124,6 +141,21 @@ export function ReportsListView({
     });
   };
 
+  const applySort = (field: ReportSortField) => {
+    const next = nextSortState(sortBy, sortDir, field);
+    setSortBy(next.sortBy);
+    setSortDir(next.sortDir);
+    void loadReports({
+      month,
+      year,
+      opcoId: opcoId || undefined,
+      partnerId: partnerId || undefined,
+      sortBy: next.sortBy,
+      sortDir: next.sortDir,
+      page: 1,
+    });
+  };
+
   const refresh = () => {
     void loadReports({ ...result.filters, page: 1 });
   };
@@ -179,27 +211,26 @@ export function ReportsListView({
   const items: ReportListItem[] = result.items;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">Dizlee - Reports</h1>
-        {fromDashboard ? (
-          <p className="mt-1 text-sm text-foreground-muted">
-            Submitted reports for this period — OpCo, Partner, uploader, and file
-            details below.
-          </p>
-        ) : null}
-      </div>
+    <PageCard>
+      <PageHeader
+        title="Dizlee - Reports"
+        description={
+          fromDashboard
+            ? "Submitted reports for this period — OpCo, Partner, uploader, and file details below."
+            : undefined
+        }
+      />
 
       <ReportsTabs active="reports" />
 
-      <section className="rounded-lg border border-border bg-surface-muted p-4">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <FilterToolbar className="mt-4">
+        <div className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           <label className="text-sm">
-            <span className="mb-1 block text-xs text-foreground-subtle">Period (month)</span>
+            <span className={ui.label}>Period (month)</span>
             <select
               value={month}
               onChange={(event) => setMonth(Number(event.target.value))}
-              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
+              className={ui.select}
             >
               {MONTHS.map((name, index) => (
                 <option key={name} value={index + 1}>
@@ -209,11 +240,11 @@ export function ReportsListView({
             </select>
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-xs text-foreground-subtle">Year</span>
+            <span className={ui.label}>Year</span>
             <select
               value={year}
               onChange={(event) => setYear(Number(event.target.value))}
-              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
+              className={ui.select}
             >
               {yearOptions.map((value) => (
                 <option key={value} value={value}>
@@ -223,11 +254,11 @@ export function ReportsListView({
             </select>
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-xs text-foreground-subtle">OpCo</span>
+            <span className={ui.label}>OpCo</span>
             <select
               value={opcoId}
               onChange={(event) => setOpcoId(event.target.value)}
-              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
+              className={ui.select}
             >
               <option value="">All OpCos</option>
               {filterOptions.opcos.map((opco) => (
@@ -238,11 +269,11 @@ export function ReportsListView({
             </select>
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-xs text-foreground-subtle">Partner</span>
+            <span className={ui.label}>Partner</span>
             <select
               value={partnerId}
               onChange={(event) => setPartnerId(event.target.value)}
-              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
+              className={ui.select}
             >
               <option value="">All Partners</option>
               {filterOptions.partners.map((partner) => (
@@ -252,125 +283,86 @@ export function ReportsListView({
               ))}
             </select>
           </label>
-          <label className="text-sm">
-            <span className="mb-1 block text-xs text-foreground-subtle">Sort by</span>
-            <select
-              value={sortBy}
-              onChange={(event) =>
-                setSortBy(event.target.value as ReportSortField)
-              }
-              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
-            >
-              <option value="uploaded">Uploaded</option>
-              <option value="period">Period</option>
-              <option value="filename">Filename</option>
-            </select>
-          </label>
-          <label className="text-sm">
-            <span className="mb-1 block text-xs text-foreground-subtle">Direction</span>
-            <select
-              value={sortDir}
-              onChange={(event) =>
-                setSortDir(event.target.value as SortDirection)
-              }
-              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
-            >
-              <option value="desc">Desc</option>
-              <option value="asc">Asc</option>
-            </select>
-          </label>
         </div>
-        <div className="mt-4 flex gap-3">
-          <button
-            type="button"
-            onClick={applyFilters}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
-          >
-            Apply
-          </button>
-          <button
-            type="button"
-            onClick={refresh}
-            className="rounded-md border border-border-strong px-4 py-2 text-sm text-foreground-muted hover:bg-surface-muted"
-          >
+        <div className="flex w-full gap-3">
+          <Button onClick={applyFilters}>Apply</Button>
+          <Button variant="secondary" onClick={refresh}>
             Refresh
-          </button>
+          </Button>
         </div>
-      </section>
+      </FilterToolbar>
 
-      {loading ? <p className="text-sm text-foreground-subtle">Loading reports…</p> : null}
-      {error ? (
-        <div className="rounded-md border border-danger-border bg-danger-muted p-4 text-sm text-danger">
-          {error}
-        </div>
-      ) : null}
+      <div className="mt-4">
+        <LoadingBar active={loading} />
+      </div>
+      {error ? <div className={`mt-4 ${ui.alertError}`}>{error}</div> : null}
 
       {!loading && !error ? (
         items.length > 0 ? (
-          <>
-            <div className="overflow-hidden rounded-lg border border-border">
-              <table className="min-w-full divide-y divide-border text-sm">
-                <thead className="bg-surface-muted">
+          <div className="mt-6 space-y-4">
+            <DataTableFrame>
+              <DataTable>
+                <DataTableHead>
                   <tr>
-                    <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                      Period
-                    </th>
-                    <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                      OpCo
-                    </th>
-                    <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                      Partner
-                    </th>
-                    <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                      Filename
-                    </th>
-                    <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                      Uploaded
-                    </th>
-                    <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                      Uploaded by
-                    </th>
-                    <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                      Action
-                    </th>
+                    <SortableDataTableTh
+                      label="Period"
+                      active={sortBy === "period"}
+                      direction={sortDir}
+                      onSort={() => applySort("period")}
+                    />
+                    <DataTableTh>OpCo</DataTableTh>
+                    <DataTableTh>Partner</DataTableTh>
+                    <SortableDataTableTh
+                      label="Filename"
+                      active={sortBy === "filename"}
+                      direction={sortDir}
+                      onSort={() => applySort("filename")}
+                    />
+                    <SortableDataTableTh
+                      label="Uploaded"
+                      active={sortBy === "uploaded"}
+                      direction={sortDir}
+                      onSort={() => applySort("uploaded")}
+                    />
+                    <DataTableTh>Uploaded by</DataTableTh>
+                    <DataTableTh>Action</DataTableTh>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-border bg-surface">
+                </DataTableHead>
+                <tbody>
                   {items.map((row) => (
-                    <tr key={row.id}>
-                      <td className="px-4 py-3 text-foreground-muted">
+                    <DataTableRow key={row.id}>
+                      <DataTableTd className="text-foreground-muted">
                         {formatPeriod(row.period.month, row.period.year)}
-                      </td>
-                      <td className="px-4 py-3 text-foreground">{row.opcoName}</td>
-                      <td className="px-4 py-3 text-foreground">
-                        {row.partnerName}
-                      </td>
-                      <td className="px-4 py-3 text-foreground-muted">
+                      </DataTableTd>
+                      <DataTableTd>{row.opcoName}</DataTableTd>
+                      <DataTableTd>{row.partnerName}</DataTableTd>
+                      <DataTableTd className="text-foreground-muted">
                         <ReportFilenameLink
                           filename={row.filename}
                           onClick={
                             row.filename ? () => void openDetail(row.id) : undefined
                           }
                         />
-                      </td>
-                      <td className="px-4 py-3 text-foreground-muted">
+                      </DataTableTd>
+                      <DataTableTd className="text-foreground-muted">
                         {formatDateTime(row.uploadedAt)}
-                      </td>
-                      <td className="px-4 py-3 text-foreground-muted">{row.uploadedBy}</td>
-                      <td className="px-4 py-3">
-                        <button
-                          type="button"
+                      </DataTableTd>
+                      <DataTableTd className="text-foreground-muted">
+                        {row.uploadedBy}
+                      </DataTableTd>
+                      <DataTableTd>
+                        <IconButton
+                          label="View report"
                           onClick={() => void openDetail(row.id)}
-                          className="text-sm text-foreground-muted underline hover:text-foreground"
                         >
-                          View report
-                        </button>
-                      </td>
-                    </tr>
+                          <IconEye />
+                        </IconButton>
+                      </DataTableTd>
+                    </DataTableRow>
                   ))}
                 </tbody>
-              </table>
-            </div>
+              </DataTable>
+            </DataTableFrame>
 
             <div className="flex items-center justify-between text-sm text-foreground-muted">
               <p>
@@ -378,32 +370,29 @@ export function ReportsListView({
                 {result.totalCount} records
               </p>
               <div className="flex gap-2">
-                <button
-                  type="button"
+                <Button
+                  variant="secondary"
                   disabled={result.page <= 1}
                   onClick={() => goToPage(result.page - 1)}
-                  className="rounded-md border border-border-strong px-3 py-1 disabled:opacity-40"
                 >
                   Prev
-                </button>
-                <button
-                  type="button"
+                </Button>
+                <Button
+                  variant="secondary"
                   disabled={result.page >= result.totalPages}
                   onClick={() => goToPage(result.page + 1)}
-                  className="rounded-md border border-border-strong px-3 py-1 disabled:opacity-40"
                 >
                   Next
-                </button>
+                </Button>
               </div>
             </div>
-          </>
-        ) : (
-          <div className="rounded-lg border border-border bg-surface p-8 text-center">
-            <p className="font-medium text-foreground">No reports</p>
-            <p className="mt-1 text-sm text-foreground-muted">
-              Try adjusting filters or upload a report as OpCo/Partner.
-            </p>
           </div>
+        ) : (
+          <EmptyState
+            className="mt-6"
+            title="No reports"
+            description="Try adjusting filters or upload a report as OpCo/Partner."
+          />
         )
       ) : null}
 
@@ -417,6 +406,6 @@ export function ReportsListView({
           }}
         />
       ) : null}
-    </div>
+    </PageCard>
   );
 }

@@ -3,6 +3,11 @@
 import { useCallback, useMemo, useState } from "react";
 
 import { NotificationsTabs } from "@/components/dizlee/notifications-tabs";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageCard, PageHeader } from "@/components/ui/page";
+import { StatusPill } from "@/components/ui/status-pill";
+import { cn, ui } from "@/lib/ui/classes";
 import type {
   BroadcastAudience,
   BroadcastMessageSource,
@@ -53,6 +58,16 @@ function formatDateTime(value: string): string {
     dateStyle: "medium",
     timeStyle: "short",
   });
+}
+
+function priorityTone(priority: string | null): "danger" | "info" | "neutral" {
+  if (priority === "HIGH") {
+    return "danger";
+  }
+  if (priority === "LOW") {
+    return "info";
+  }
+  return "neutral";
 }
 
 function currentPeriodDefaults() {
@@ -241,30 +256,19 @@ export function IntimationsView({
   };
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">Notifications</h1>
-        <p className="mt-1 text-sm text-foreground-subtle">
-          Send in-app messages to OpCos and/or Partners.
-        </p>
-      </div>
+    <PageCard>
+      <PageHeader
+        title="Notifications"
+        description="Send in-app messages to OpCos and/or Partners."
+      />
 
       <NotificationsTabs active="intimations" />
 
-      {error ? (
-        <div className="rounded-lg border border-danger-border bg-danger-muted px-4 py-3 text-sm text-danger">
-          {error}
-        </div>
-      ) : null}
+      {error ? <div className={`mt-4 ${ui.alertError}`}>{error}</div> : null}
+      {message ? <div className={`mt-4 ${ui.alertSuccess}`}>{message}</div> : null}
 
-      {message ? (
-        <div className="rounded-lg border border-success-border bg-success-muted px-4 py-3 text-sm text-success">
-          {message}
-        </div>
-      ) : null}
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-xl border border-border bg-surface p-4">
+      <div className="mt-4 grid gap-6 lg:grid-cols-2">
+        <div className={ui.cardPaddingLg}>
           <h2 className="text-lg font-medium text-foreground">Compose intimation</h2>
           <p className="mt-1 text-sm text-foreground-subtle">
             Delivered to the selected recipients&apos; notification inboxes.
@@ -272,13 +276,13 @@ export function IntimationsView({
 
           <div className="mt-4 space-y-4">
             <label className="block text-sm">
-              <span className="text-foreground-muted">Audience</span>
+              <span className={ui.label}>Audience</span>
               <select
                 value={audience}
                 onChange={(event) =>
                   setAudience(event.target.value as BroadcastAudience)
                 }
-                className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
+                className={ui.select}
               >
                 {AUDIENCE_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -289,7 +293,7 @@ export function IntimationsView({
             </label>
 
             <label className="block text-sm">
-              <span className="text-foreground-muted">Message source</span>
+              <span className={ui.label}>Message source</span>
               <select
                 value={messageSource}
                 onChange={(event) =>
@@ -297,7 +301,7 @@ export function IntimationsView({
                     event.target.value as BroadcastMessageSource,
                   )
                 }
-                className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
+                className={ui.select}
               >
                 {MESSAGE_SOURCE_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -310,11 +314,11 @@ export function IntimationsView({
             {usingTemplate ? (
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="block text-sm">
-                  <span className="text-foreground-muted">Month</span>
+                  <span className={ui.label}>Month</span>
                   <select
                     value={month}
                     onChange={(event) => setMonth(Number(event.target.value))}
-                    className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
+                    className={ui.select}
                   >
                     {MONTHS.map((label, index) => (
                       <option key={label} value={index + 1}>
@@ -325,44 +329,44 @@ export function IntimationsView({
                 </label>
 
                 <label className="block text-sm">
-                  <span className="text-foreground-muted">Year</span>
+                  <span className={ui.label}>Year</span>
                   <input
                     type="number"
                     min={2000}
                     max={2100}
                     value={year}
                     onChange={(event) => setYear(Number(event.target.value))}
-                    className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
+                    className={ui.input}
                   />
                 </label>
               </div>
             ) : null}
 
             <label className="block text-sm">
-              <span className="text-foreground-muted">Subject</span>
+              <span className={ui.label}>Subject</span>
               <input
                 type="text"
                 value={subject}
                 onChange={(event) => setSubject(event.target.value)}
                 maxLength={255}
-                className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
+                className={ui.input}
                 placeholder="Monthly reporting reminder"
               />
             </label>
 
             <label className="block text-sm">
-              <span className="text-foreground-muted">Message</span>
+              <span className={ui.label}>Message</span>
               <textarea
                 value={body}
                 onChange={(event) => setBody(event.target.value)}
                 rows={6}
-                className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
+                className={cn(ui.input, "min-h-[9rem] resize-y py-2.5")}
                 placeholder="Please submit partner reports for the current period by end of week."
               />
             </label>
 
             {usingTemplate ? (
-              <p className="text-xs text-foreground-subtle">
+              <p className={ui.hint}>
                 Placeholder {"{{period}}"} is filled from the month and year above.
                 You can edit the text before sending.
               </p>
@@ -370,11 +374,11 @@ export function IntimationsView({
 
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block text-sm">
-                <span className="text-foreground-muted">Priority</span>
+                <span className={ui.label}>Priority</span>
                 <select
                   value={priority}
                   onChange={(event) => setPriority(event.target.value)}
-                  className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
+                  className={ui.select}
                 >
                   {PRIORITY_OPTIONS.map((option) => (
                     <option key={option.value || "normal"} value={option.value}>
@@ -385,12 +389,12 @@ export function IntimationsView({
               </label>
 
               <label className="block text-sm">
-                <span className="text-foreground-muted">Expires (optional)</span>
+                <span className={ui.label}>Expires (optional)</span>
                 <input
                   type="datetime-local"
                   value={expiresAt}
                   onChange={(event) => setExpiresAt(event.target.value)}
-                  className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
+                  className={ui.input}
                 />
               </label>
             </div>
@@ -398,32 +402,30 @@ export function IntimationsView({
             {showOpcos ? (
               <div>
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm text-foreground-muted">
-                    Recipients (OpCos)
-                  </span>
+                  <span className={ui.label}>Recipients (OpCos)</span>
                   <div className="flex gap-2 text-xs">
-                    <button
-                      type="button"
+                    <Button
+                      variant="ghost"
+                      className="h-auto px-0 py-0 text-xs underline"
                       onClick={() =>
                         setSelectedOpcoIds(
                           formOptions.opcos.map((opco) => opco.id),
                         )
                       }
-                      className="font-medium text-foreground-muted underline"
                     >
                       Select all
-                    </button>
-                    <button
-                      type="button"
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="h-auto px-0 py-0 text-xs underline"
                       onClick={() => setSelectedOpcoIds([])}
-                      className="font-medium text-foreground-muted underline"
                     >
                       Clear
-                    </button>
+                    </Button>
                   </div>
                 </div>
 
-                <div className="mt-2 max-h-48 space-y-2 overflow-y-auto rounded-lg border border-border p-3">
+                <div className="mt-2 max-h-48 space-y-2 overflow-y-auto rounded-2xl border border-border p-3">
                   {formOptions.opcos.length === 0 ? (
                     <p className="text-sm text-foreground-subtle">
                       No OpCos configured.
@@ -438,7 +440,7 @@ export function IntimationsView({
                           type="checkbox"
                           checked={selectedOpcoIds.includes(opco.id)}
                           onChange={() => toggleOpco(opco.id)}
-                          className="rounded border-border-strong"
+                          className="rounded border-border"
                         />
                         {opco.name}
                       </label>
@@ -451,32 +453,30 @@ export function IntimationsView({
             {showPartners ? (
               <div>
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm text-foreground-muted">
-                    Recipients (Partners)
-                  </span>
+                  <span className={ui.label}>Recipients (Partners)</span>
                   <div className="flex gap-2 text-xs">
-                    <button
-                      type="button"
+                    <Button
+                      variant="ghost"
+                      className="h-auto px-0 py-0 text-xs underline"
                       onClick={() =>
                         setSelectedPartnerIds(
                           formOptions.partners.map((partner) => partner.id),
                         )
                       }
-                      className="font-medium text-foreground-muted underline"
                     >
                       Select all
-                    </button>
-                    <button
-                      type="button"
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="h-auto px-0 py-0 text-xs underline"
                       onClick={() => setSelectedPartnerIds([])}
-                      className="font-medium text-foreground-muted underline"
                     >
                       Clear
-                    </button>
+                    </Button>
                   </div>
                 </div>
 
-                <div className="mt-2 max-h-48 space-y-2 overflow-y-auto rounded-lg border border-border p-3">
+                <div className="mt-2 max-h-48 space-y-2 overflow-y-auto rounded-2xl border border-border p-3">
                   {formOptions.partners.length === 0 ? (
                     <p className="text-sm text-foreground-subtle">
                       No Partners configured.
@@ -491,7 +491,7 @@ export function IntimationsView({
                           type="checkbox"
                           checked={selectedPartnerIds.includes(partner.id)}
                           onChange={() => togglePartner(partner.id)}
-                          className="rounded border-border-strong"
+                          className="rounded border-border"
                         />
                         {partner.name}
                       </label>
@@ -501,18 +501,16 @@ export function IntimationsView({
               </div>
             ) : null}
 
-            <button
-              type="button"
+            <Button
               onClick={() => void sendIntimation()}
               disabled={sending || !canSend}
-              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
             >
               {sendLabel}
-            </button>
+            </Button>
           </div>
         </div>
 
-        <div className="rounded-xl border border-border bg-surface p-4">
+        <div className={ui.cardPaddingLg}>
           <h2 className="text-lg font-medium text-foreground">Recent intimations</h2>
           <p className="mt-1 text-sm text-foreground-subtle">
             Notifications sent to OpCos and Partners from Dizlee.
@@ -520,19 +518,22 @@ export function IntimationsView({
 
           <div className="mt-4 space-y-3">
             {result.items.length === 0 ? (
-              <p className="text-sm text-foreground-subtle">No intimations sent yet.</p>
+              <EmptyState
+                title="No intimations sent yet"
+                description="Sent notifications will appear here."
+              />
             ) : (
               result.items.map((item) => (
                 <article
                   key={item.id}
-                  className="rounded-lg border border-border bg-surface-muted p-3"
+                  className={cn(ui.cardPadding, "shadow-none")}
                 >
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <h3 className="font-medium text-foreground">{item.subject}</h3>
                     {item.priority ? (
-                      <span className="rounded-full bg-primary-muted px-2 py-0.5 text-xs text-foreground-muted">
+                      <StatusPill tone={priorityTone(item.priority)}>
                         {item.priority}
-                      </span>
+                      </StatusPill>
                     ) : null}
                   </div>
                   <p className="mt-1 text-sm text-foreground-muted">{item.bodyPreview}</p>
@@ -553,27 +554,25 @@ export function IntimationsView({
                 Page {result.page} of {result.totalPages}
               </span>
               <div className="flex gap-2">
-                <button
-                  type="button"
+                <Button
+                  variant="secondary"
                   disabled={result.page <= 1 || loading}
                   onClick={() => void loadList(result.page - 1)}
-                  className="rounded-lg border border-border-strong px-3 py-1 disabled:opacity-50"
                 >
                   Previous
-                </button>
-                <button
-                  type="button"
+                </Button>
+                <Button
+                  variant="secondary"
                   disabled={result.page >= result.totalPages || loading}
                   onClick={() => void loadList(result.page + 1)}
-                  className="rounded-lg border border-border-strong px-3 py-1 disabled:opacity-50"
                 >
                   Next
-                </button>
+                </Button>
               </div>
             </div>
           ) : null}
         </div>
       </div>
-    </div>
+    </PageCard>
   );
 }

@@ -3,6 +3,11 @@
 import { useCallback, useState } from "react";
 
 import { NotificationsTabs } from "@/components/dizlee/notifications-tabs";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageCard, PageHeader } from "@/components/ui/page";
+import { StatusPill } from "@/components/ui/status-pill";
+import { cn, ui } from "@/lib/ui/classes";
 import type {
   NotificationHistoryDetail,
   NotificationHistoryResult,
@@ -13,6 +18,16 @@ function formatDateTime(value: string): string {
     dateStyle: "medium",
     timeStyle: "short",
   });
+}
+
+function priorityTone(priority: string | null): "danger" | "info" | "neutral" {
+  if (priority === "HIGH") {
+    return "danger";
+  }
+  if (priority === "LOW") {
+    return "info";
+  }
+  return "neutral";
 }
 
 type NotificationHistoryViewProps = {
@@ -76,24 +91,18 @@ export function NotificationHistoryView({
   }, []);
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">Notifications</h1>
-        <p className="mt-1 text-sm text-foreground-subtle">
-          View all notifications sent from Dizlee (UC-9A).
-        </p>
-      </div>
+    <PageCard>
+      <PageHeader
+        title="Notifications"
+        description="View all notifications sent from Dizlee (UC-9A)."
+      />
 
       <NotificationsTabs active="history" />
 
-      {error ? (
-        <div className="rounded-lg border border-danger-border bg-danger-muted px-4 py-3 text-sm text-danger">
-          {error}
-        </div>
-      ) : null}
+      {error ? <div className={`mt-4 ${ui.alertError}`}>{error}</div> : null}
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-xl border border-border bg-surface">
+      <div className="mt-4 grid gap-6 lg:grid-cols-2">
+        <div className={ui.tableWrap}>
           <div className="border-b border-border px-4 py-3">
             <h2 className="font-medium text-foreground">Sent notifications</h2>
             <p className="text-sm text-foreground-subtle">{result.totalCount} total</p>
@@ -101,25 +110,27 @@ export function NotificationHistoryView({
 
           <div className="divide-y divide-border">
             {result.items.length === 0 ? (
-              <p className="px-4 py-8 text-center text-sm text-foreground-subtle">
-                No notifications sent yet.
-              </p>
+              <EmptyState
+                className="border-0 bg-transparent shadow-none"
+                title="No notifications sent yet"
+              />
             ) : (
               result.items.map((item) => (
                 <button
                   key={item.id}
                   type="button"
                   onClick={() => void loadDetail(item.id)}
-                  className={`w-full px-4 py-3 text-left transition-colors hover:bg-surface-muted ${
-                    selectedId === item.id ? "bg-surface-muted" : ""
-                  }`}
+                  className={cn(
+                    "w-full px-4 py-3 text-left transition-colors hover:bg-surface-muted",
+                    selectedId === item.id && "bg-surface-muted",
+                  )}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <p className="font-medium text-foreground">{item.subject}</p>
                     {item.priority ? (
-                      <span className="shrink-0 rounded-full bg-primary-muted px-2 py-0.5 text-xs text-foreground-muted">
+                      <StatusPill tone={priorityTone(item.priority)} className="shrink-0">
                         {item.priority}
-                      </span>
+                      </StatusPill>
                     ) : null}
                   </div>
                   <p className="mt-1 text-sm text-foreground-muted">{item.bodyPreview}</p>
@@ -140,28 +151,26 @@ export function NotificationHistoryView({
                 Page {result.page} of {result.totalPages}
               </span>
               <div className="flex gap-2">
-                <button
-                  type="button"
+                <Button
+                  variant="secondary"
                   disabled={result.page <= 1 || loading}
                   onClick={() => void loadList(result.page - 1)}
-                  className="rounded-lg border border-border-strong px-3 py-1 disabled:opacity-50"
                 >
                   Previous
-                </button>
-                <button
-                  type="button"
+                </Button>
+                <Button
+                  variant="secondary"
                   disabled={result.page >= result.totalPages || loading}
                   onClick={() => void loadList(result.page + 1)}
-                  className="rounded-lg border border-border-strong px-3 py-1 disabled:opacity-50"
                 >
                   Next
-                </button>
+                </Button>
               </div>
             </div>
           ) : null}
         </div>
 
-        <div className="rounded-xl border border-border bg-surface p-4">
+        <div className={ui.cardPadding}>
           <h2 className="font-medium text-foreground">Detail</h2>
           {detailLoading ? (
             <p className="mt-4 text-sm text-foreground-subtle">Loading…</p>
@@ -192,6 +201,6 @@ export function NotificationHistoryView({
           )}
         </div>
       </div>
-    </div>
+    </PageCard>
   );
 }

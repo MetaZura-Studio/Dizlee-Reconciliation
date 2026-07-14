@@ -20,6 +20,8 @@ describe("parseAuditLogListFilters", () => {
       entityId: "",
       dateFrom: "",
       dateTo: "",
+      sortBy: "createdAt",
+      sortDir: "desc",
       page: 1,
       pageSize: 25,
     });
@@ -35,6 +37,8 @@ describe("parseAuditLogListFilters", () => {
         entityId: "42",
         dateFrom: "2026-07-01",
         dateTo: "2026-07-08",
+        sortBy: "action",
+        sortDir: "asc",
         page: "2",
         pageSize: "50",
       }),
@@ -48,6 +52,8 @@ describe("parseAuditLogListFilters", () => {
       entityId: "42",
       dateFrom: "2026-07-01",
       dateTo: "2026-07-08",
+      sortBy: "action",
+      sortDir: "asc",
       page: 2,
       pageSize: 50,
     });
@@ -55,12 +61,12 @@ describe("parseAuditLogListFilters", () => {
 });
 
 describe("buildAuditLogQuery", () => {
-  it("omits empty filter values", () => {
+  it("includes default sort params", () => {
     const query = buildAuditLogQuery(
       parseAuditLogListFilters(new URLSearchParams()),
     );
 
-    expect(query).toBe("page=1&pageSize=25");
+    expect(query).toBe("page=1&pageSize=25&sortBy=createdAt&sortDir=desc");
   });
 });
 
