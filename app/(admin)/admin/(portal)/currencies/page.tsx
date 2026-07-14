@@ -44,21 +44,16 @@ export default async function AdminCurrenciesPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="mx-auto max-w-6xl space-y-6">
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">
           Currencies &amp; USD rates
         </h1>
         <p className="text-sm text-foreground-muted">
-          Manage the currency master list and monthly USD exchange rates used for
-          billing and dashboard KPIs.
+          Set monthly exchange rates for billing (Monthly rates), or manage which
+          currencies exist in the system (Currencies).
         </p>
       </div>
-
-      <p className="rounded-md border border-warning-border bg-warning-muted px-3 py-2 text-sm text-warning">
-        Monthly rates are stored per reporting period. Previous months are
-        read-only. Edit or upload Excel rates only for the current calendar month.
-      </p>
 
       <CurrenciesPageClient initialData={pageData!} />
     </div>

@@ -10,7 +10,7 @@ import {
   ADMIN_MAIN_NAV_ITEMS,
 } from "@/lib/admin/navigation";
 import type { AdminSessionUser } from "@/lib/admin/auth";
-import { ui } from "@/lib/ui/classes";
+import { cn, ui } from "@/lib/ui/classes";
 
 function mapIcon(icon: string): AppShellNavItem["icon"] {
   if (icon === "users" || icon === "partners" || icon === "opcos" || icon === "opco-partners") {
@@ -25,18 +25,31 @@ function mapIcon(icon: string): AppShellNavItem["icon"] {
   return "file";
 }
 
+function mapNavItem(item: {
+  label: string;
+  href: string;
+  disabled?: boolean;
+  icon: string;
+  children?: Array<{
+    label: string;
+    href: string;
+    disabled?: boolean;
+    icon: string;
+  }>;
+}): AppShellNavItem {
+  return {
+    label: item.label,
+    href: item.href,
+    disabled: item.disabled,
+    icon: mapIcon(item.icon),
+    children: item.children?.map(mapNavItem),
+  };
+}
+
 const NAV: AppShellNavItem[] = [
-  ...ADMIN_MAIN_NAV_ITEMS.map((item) => ({
-    label: item.label,
-    href: item.href,
-    disabled: item.disabled,
-    icon: mapIcon(item.icon),
-  })),
+  ...ADMIN_MAIN_NAV_ITEMS.map(mapNavItem),
   ...ADMIN_FOOTER_NAV_ITEMS.map((item) => ({
-    label: item.label,
-    href: item.href,
-    disabled: item.disabled,
-    icon: mapIcon(item.icon),
+    ...mapNavItem(item),
     footer: true as const,
   })),
 ];
@@ -46,10 +59,17 @@ type AdminWorkspaceProps = {
   children: React.ReactNode;
 };
 
-function AdminProfileMenu({ user }: { user: AdminSessionUser }) {
+function AdminProfileMenu({
+  user,
+  collapsed,
+}: {
+  user: AdminSessionUser;
+  collapsed: boolean;
+}) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const displayName = user.name?.trim() || "Admin";
+  const initial = displayName.charAt(0).toUpperCase() || "A";
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -62,18 +82,45 @@ function AdminProfileMenu({ user }: { user: AdminSessionUser }) {
   }, []);
 
   return (
-    <div className="relative" ref={menuRef}>
+    <div className="relative w-full min-w-0" ref={menuRef}>
       <button
         type="button"
         onClick={() => setMenuOpen((open) => !open)}
-        className="flex h-10 items-center gap-2 rounded-2xl border border-border bg-surface px-3 text-sm font-medium shadow-[var(--shadow-sm)] hover:bg-surface-muted"
+        className={cn(
+          "flex w-full min-w-0 items-center gap-3 rounded-2xl px-3 py-2 text-left transition-colors hover:bg-surface-muted",
+          collapsed && "justify-center px-2",
+        )}
         aria-expanded={menuOpen}
         aria-haspopup="menu"
+        aria-label={`${displayName} menu`}
+        title={displayName}
       >
-        <span className="max-w-[10rem] truncate">{displayName}</span>
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground shadow-[var(--shadow-sm)]">
+          {initial}
+        </span>
+        {!collapsed ? (
+          <span className="min-w-0">
+            <span className="block truncate text-sm font-medium text-foreground">
+              {displayName}
+            </span>
+            <span className="block truncate text-xs text-foreground-subtle">
+              {user.email}
+            </span>
+          </span>
+        ) : null}
       </button>
       {menuOpen ? (
-        <div className={ui.dropdown} role="menu">
+        <div
+          className={cn(
+            ui.dropdown,
+            "bottom-full left-0 right-auto top-auto mb-2 mt-0 min-w-[14rem]",
+          )}
+          role="menu"
+        >
+          <div className="border-b border-border px-3 py-2">
+            <p className="truncate text-sm font-medium">{displayName}</p>
+            <p className="truncate text-xs text-foreground-subtle">{user.email}</p>
+          </div>
           <Link
             href="/admin/change-password"
             className="block px-3 py-2 text-sm text-foreground-muted hover:bg-surface-muted"
@@ -94,12 +141,13 @@ function AdminProfileMenu({ user }: { user: AdminSessionUser }) {
 export function AdminWorkspace({ user, children }: AdminWorkspaceProps) {
   return (
     <AppShell
-      brand="Reconcile"
+      brand=""
       subtitle="Admin workspace"
       storageKey="admin-sidebar-collapsed"
       navItems={NAV}
-      userLabel={user.email}
-      headerRight={<AdminProfileMenu user={user} />}
+      footerSlot={(collapsed) => (
+        <AdminProfileMenu user={user} collapsed={collapsed} />
+      )}
     >
       {children}
     </AppShell>

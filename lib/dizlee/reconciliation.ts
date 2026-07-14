@@ -23,6 +23,7 @@ export type CompareLaneFilters = {
   year: number;
   searchBy: ReconciliationSearchBy;
   entityId?: string;
+  search?: string;
 };
 
 export type CompareLaneRow = {
@@ -144,6 +145,7 @@ export function parseCompareLaneFilters(
       Number.isInteger(year) && year >= 2000 && year <= 2100 ? year : fallback.year,
     searchBy: searchBy === "partner" ? "partner" : "opco",
     entityId: searchParams.get("entityId") ?? undefined,
+    search: searchParams.get("search")?.trim() || undefined,
   };
 }
 
@@ -151,6 +153,7 @@ export function parseHistoryFilters(searchParams: URLSearchParams): {
   month?: number;
   year?: number;
   page: number;
+  search?: string;
 } {
   const month = Number(searchParams.get("month"));
   const year = Number(searchParams.get("year"));
@@ -162,6 +165,7 @@ export function parseHistoryFilters(searchParams: URLSearchParams): {
     year:
       Number.isInteger(year) && year >= 2000 && year <= 2100 ? year : undefined,
     page: Number.isInteger(page) && page >= 1 ? page : 1,
+    search: searchParams.get("search")?.trim() || undefined,
   };
 }
 
@@ -237,7 +241,18 @@ export async function listCompareLanes(
 
   const [links, reports, reconciliations] = await Promise.all([
     prisma.opcoPartnerLink.findMany({
-      where: { ...linkWhere, ...ACTIVE_OPCO_PARTNER_LINK_FILTER },
+      where: {
+        ...linkWhere,
+        ...ACTIVE_OPCO_PARTNER_LINK_FILTER,
+        ...(filters.search
+          ? {
+              OR: [
+                { opco: { name: { contains: filters.search } } },
+                { partner: { name: { contains: filters.search } } },
+              ],
+            }
+          : {}),
+      },
       orderBy: [{ opco: { name: "asc" } }, { partner: { name: "asc" } }],
       include: {
         opco: { select: { id: true, name: true } },
@@ -542,10 +557,21 @@ export async function listReconciliationHistory(filters: {
   month?: number;
   year?: number;
   page: number;
+  search?: string;
 }): Promise<ReconciliationHistoryResult> {
   const where = {
     ...(filters.month ? { month: filters.month } : {}),
     ...(filters.year ? { year: filters.year } : {}),
+    ...(filters.search
+      ? {
+          OR: [
+            { opco: { name: { contains: filters.search } } },
+            { partner: { name: { contains: filters.search } } },
+            { runBy: { name: { contains: filters.search } } },
+            { status: { code: { contains: filters.search } } },
+          ],
+        }
+      : {}),
   };
 
   const [totalCount, rows] = await Promise.all([

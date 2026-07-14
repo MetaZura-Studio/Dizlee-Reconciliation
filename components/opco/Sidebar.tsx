@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { SignOutButton } from "@/components/opco/SignOutButton";
+import { DizleeLogo } from "@/components/brand/dizlee-logo";
 
 type NavItem = {
   href: string;
@@ -40,6 +41,7 @@ export function Sidebar({ email }: SidebarProps) {
   return (
     <aside className="flex w-56 flex-col border-r border-border bg-surface-muted p-4">
       <div>
+        <DizleeLogo variant="full" className="mb-3" />
         <p className="text-sm font-semibold">OpCo Portal</p>
         <p className="mt-1 text-xs text-foreground-subtle">Dizlee Reconciliation</p>
         <p className="mt-3 text-xs text-foreground-muted">{email}</p>

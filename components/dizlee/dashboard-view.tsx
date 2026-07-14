@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { useCallback, useState } from "react";
 
@@ -20,7 +21,64 @@ import type {
   DirectionPanel,
   DonutSegment,
 } from "@/lib/dizlee/dashboard";
-import { ui } from "@/lib/ui/classes";
+import { cn, ui } from "@/lib/ui/classes";
+
+type SectionTone = "billing" | "reports" | "uploads";
+
+const sectionShell: Record<SectionTone, string> = {
+  billing: "border-primary/25 bg-gradient-to-br from-[#f5f7ff] to-white",
+  reports: "border-success-border bg-gradient-to-br from-[#f2fbf9] to-white",
+  uploads: "border-warning-border bg-gradient-to-br from-[#fffaf3] to-white",
+};
+
+const sectionAccent: Record<SectionTone, string> = {
+  billing: "bg-primary",
+  reports: "bg-success",
+  uploads: "bg-warning",
+};
+
+function DashboardSection({
+  tone,
+  title,
+  description,
+  action,
+  children,
+}: {
+  tone: SectionTone;
+  title: string;
+  description?: string;
+  action?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section
+      className={cn(
+        "relative overflow-hidden rounded-[28px] border p-5 shadow-[var(--shadow-sm)] sm:p-6",
+        sectionShell[tone],
+      )}
+    >
+      <div
+        className={cn(
+          "absolute inset-y-0 left-0 w-1.5",
+          sectionAccent[tone],
+        )}
+        aria-hidden
+      />
+      <div className="flex flex-wrap items-start justify-between gap-4 pl-2">
+        <div className="min-w-0 space-y-1">
+          <h2 className="text-lg font-semibold tracking-tight text-foreground">
+            {title}
+          </h2>
+          {description ? (
+            <p className="max-w-2xl text-sm text-foreground-muted">{description}</p>
+          ) : null}
+        </div>
+        {action ? <div className="shrink-0 pl-2">{action}</div> : null}
+      </div>
+      <div className="mt-5 space-y-4 pl-2">{children}</div>
+    </section>
+  );
+}
 
 const MONTHS = [
   "January",
@@ -36,6 +94,24 @@ const MONTHS = [
   "November",
   "December",
 ];
+
+function clampPeriod(month: number, year: number): { month: number; year: number } {
+  const now = new Date();
+  const currentMonth = now.getMonth() + 1;
+  const currentYear = now.getFullYear();
+  const nextYear = Math.min(year, currentYear);
+  let nextMonth = month;
+  if (nextYear === currentYear && nextMonth > currentMonth) {
+    nextMonth = currentMonth;
+  }
+  if (nextMonth < 1) {
+    nextMonth = 1;
+  }
+  if (nextMonth > 12) {
+    nextMonth = 12;
+  }
+  return { month: nextMonth, year: nextYear };
+}
 
 const usdFormatter = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -153,23 +229,30 @@ type DashboardViewProps = {
 };
 
 export function DashboardView({ initialData }: DashboardViewProps) {
-  const [month, setMonth] = useState(initialData.period.month);
-  const [year, setYear] = useState(initialData.period.year);
+  const initialPeriod = clampPeriod(
+    initialData.period.month,
+    initialData.period.year,
+  );
+  const [month, setMonth] = useState(initialPeriod.month);
+  const [year, setYear] = useState(initialPeriod.year);
   const [data, setData] = useState<DashboardData>(initialData);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadPeriod = useCallback(async (targetMonth: number, targetYear: number) => {
+    const next = clampPeriod(targetMonth, targetYear);
     setLoading(true);
     setError(null);
     try {
       const response = await fetch(
-        `/api/dizlee/dashboard?month=${targetMonth}&year=${targetYear}`,
+        `/api/dizlee/dashboard?month=${next.month}&year=${next.year}`,
       );
       const payload = await response.json();
       if (!response.ok) {
         throw new Error(payload.error ?? "Failed to load dashboard");
       }
+      setMonth(next.month);
+      setYear(next.year);
       setData(payload.data as DashboardData);
     } catch (loadError) {
       setError(
@@ -183,17 +266,20 @@ export function DashboardView({ initialData }: DashboardViewProps) {
   }, []);
 
   const handleMonthChange = (nextMonth: number) => {
-    setMonth(nextMonth);
     void loadPeriod(nextMonth, year);
   };
 
   const handleYearChange = (nextYear: number) => {
-    setYear(nextYear);
     void loadPeriod(month, nextYear);
   };
 
-  const yearOptions = [];
-  for (let value = year + 1; value >= year - 4; value -= 1) {
+  const now = new Date();
+  const currentMonth = now.getMonth() + 1;
+  const currentYear = now.getFullYear();
+  const maxMonthForYear = year >= currentYear ? currentMonth : 12;
+
+  const yearOptions: number[] = [];
+  for (let value = currentYear; value >= currentYear - 4; value -= 1) {
     yearOptions.push(value);
   }
 
@@ -203,8 +289,7 @@ export function DashboardView({ initialData }: DashboardViewProps) {
   return (
     <PageCard>
       <PageHeader
-        title="Dizlee Dashboard"
-        description="Role-specific dashboard with summary cards/widgets."
+        title="Dashboard"
         actions={
           <div className="flex items-end gap-3">
             <label className="w-36 text-sm">
@@ -214,7 +299,7 @@ export function DashboardView({ initialData }: DashboardViewProps) {
                 onChange={(event) => handleMonthChange(Number(event.target.value))}
                 className={ui.select}
               >
-                {MONTHS.map((name, index) => (
+                {MONTHS.slice(0, maxMonthForYear).map((name, index) => (
                   <option key={name} value={index + 1}>
                     {name}
                   </option>
@@ -253,16 +338,19 @@ export function DashboardView({ initialData }: DashboardViewProps) {
           year={year}
         />
 
-        <section className="space-y-3">
-          <div className="flex items-center justify-between gap-4">
-            <h2 className="text-lg font-medium text-foreground">Upload activity</h2>
+        <DashboardSection
+          tone="uploads"
+          title="Upload activity"
+          description="Most recent report submissions for this period."
+          action={
             <Link
               href={reportsLink(month, year)}
-              className="text-sm text-foreground-muted hover:text-foreground"
+              className="text-sm font-medium text-foreground-muted hover:text-foreground"
             >
               View all reports
             </Link>
-          </div>
+          }
+        >
           {recentUploads.length > 0 ? (
             <DataTableFrame>
               <DataTable>
@@ -311,7 +399,7 @@ export function DashboardView({ initialData }: DashboardViewProps) {
               description="Report uploads for this period will appear here."
             />
           )}
-        </section>
+        </DashboardSection>
       </div>
     </PageCard>
   );
@@ -337,39 +425,38 @@ function BillingSectionView({
   const partnerInvoiceMissingHref = invoicesMonitoringLink(month, year, "partner");
 
   return (
-    <section className="space-y-4">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-medium text-foreground">Billing & revenue</h2>
-          <p className="text-sm text-foreground-subtle">
-            Paid OpCo collections on platform; revenue in USD using admin
-            exchange rates.
-          </p>
-        </div>
+    <DashboardSection
+      tone="billing"
+      title="Billing & revenue"
+      description="Paid OpCo collections on platform; revenue in USD using admin exchange rates."
+      action={
         <Link
           href={allInvoicesHref}
-          className="text-sm text-foreground-muted hover:text-foreground"
+          className="text-sm font-medium text-foreground-muted hover:text-foreground"
         >
           View invoices
         </Link>
-      </div>
-
+      }
+    >
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard label="Invoices" value={kpis.invoices} href={allInvoicesHref} />
+        <KpiCard label="Invoices" value={kpis.invoices} href={allInvoicesHref} tone="blue" />
         <KpiCard
           label="Total revenue (paid OpCos)"
           value={usdFormatter.format(kpis.totalRevenuePaidUsd)}
           href={paidInvoicesHref}
+          tone="teal"
         />
         <KpiCard
           label="Invoices paid"
           value={kpis.invoicesPaid}
           href={paidInvoicesHref}
+          tone="teal"
         />
         <KpiCard
           label="Pending collection"
           value={usdFormatter.format(kpis.pendingCollectionUsd)}
           href={pendingInvoicesHref}
+          tone="amber"
         />
       </div>
 
@@ -422,7 +509,7 @@ function BillingSectionView({
           missingHref={partnerInvoiceMissingHref}
         />
       </div>
-    </section>
+    </DashboardSection>
   );
 }
 
@@ -442,8 +529,8 @@ function DirectionPanelView({
   missingHref: string;
 }) {
   return (
-    <div className="rounded-[28px] border border-border bg-surface p-4 shadow-[var(--shadow-md)]">
-      <p className="text-sm font-medium text-foreground-muted">{title}</p>
+    <div className="rounded-[24px] border border-border/80 bg-white/80 p-4 shadow-[var(--shadow-sm)] backdrop-blur-sm">
+      <p className="text-sm font-semibold text-foreground">{title}</p>
       <div className="mt-3 flex gap-6 text-sm">
         <div>
           <p className="text-xs text-foreground-subtle">Invoiced</p>
@@ -458,18 +545,21 @@ function DirectionPanelView({
           <p className="text-xs text-foreground-subtle">Paid</p>
           <Link
             href={paidHref}
-            className="text-lg font-semibold text-foreground underline decoration-foreground-subtle underline-offset-2 hover:decoration-foreground"
+            className="text-lg font-semibold text-success underline decoration-foreground-subtle underline-offset-2 hover:decoration-foreground"
           >
             {panel.paid}
           </Link>
         </div>
       </div>
       {panel.missingNames.length > 0 ? (
-        <div className="mt-3 text-sm">
-          <Link href={missingHref} className="text-foreground-muted hover:text-foreground">
+        <div className="mt-3 rounded-2xl border border-warning-border bg-warning-muted p-3 text-sm">
+          <Link
+            href={missingHref}
+            className="font-medium text-warning hover:underline"
+          >
             {missingLabel} ({panel.missingNames.length})
           </Link>
-          <p className="mt-1 truncate text-xs text-foreground-subtle">
+          <p className="mt-1 truncate text-xs text-warning/80">
             {panel.missingNames.join(", ")}
           </p>
         </div>
@@ -494,21 +584,15 @@ function ReportsReconSectionView({
   const partnerMissingHref = reportsMonitoringLink(month, year, "partner");
 
   return (
-    <section className="space-y-4">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-medium text-foreground">
-            Reports & reconciliation
-          </h2>
-          <p className="text-sm text-foreground-subtle">
-            OpCo and partner report uploads, reconciliation status, and recent
-            activity.
-          </p>
-        </div>
+    <DashboardSection
+      tone="reports"
+      title="Reports & reconciliation"
+      description="OpCo and partner report uploads, reconciliation status, and recent activity."
+      action={
         <div className="text-right text-sm">
           <Link
             href={reportsHref}
-            className="text-foreground-muted hover:text-foreground"
+            className="font-medium text-foreground-muted hover:text-foreground"
           >
             View reports
           </Link>
@@ -526,24 +610,27 @@ function ReportsReconSectionView({
             )}
           </p>
         </div>
-      </div>
-
+      }
+    >
       <div className="grid gap-4 sm:grid-cols-3">
         <KpiCard
           label="Reports submitted"
           value={reportsRecon.reportsSubmitted}
           href={reportsHref}
           hint="View OpCo / Partner submissions"
+          tone="purple"
         />
         <KpiCard
           label="OpCo reports missing"
           value={reportsRecon.opcoReportsMissing}
           href={opcoMissingHref}
+          tone="amber"
         />
         <KpiCard
           label="Partner reports missing"
           value={reportsRecon.partnerReportsMissing}
           href={partnerMissingHref}
+          tone="amber"
         />
       </div>
 
@@ -567,6 +654,6 @@ function ReportsReconSectionView({
           }
         />
       </div>
-    </section>
+    </DashboardSection>
   );
 }

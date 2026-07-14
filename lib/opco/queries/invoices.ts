@@ -75,7 +75,7 @@ export type OpcoInvoiceFilterOptions = {
   statuses: Array<{ code: string; label: string }>;
 };
 
-export const OPCO_INVOICES_PAGE_SIZE = 25;
+export const OPCO_INVOICES_PAGE_SIZE = 10;
 
 function toNumber(value: Prisma.Decimal | number | null | undefined): number {
   if (value === null || value === undefined) {

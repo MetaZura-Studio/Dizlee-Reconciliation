@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { SignOutButton } from "@/components/auth/sign-out-button";
+import { DizleeLogo } from "@/components/brand/dizlee-logo";
 import type { AdminSessionUser } from "@/lib/admin/auth";
 
 type AdminHeaderProps = {
@@ -30,10 +31,7 @@ export function AdminHeader({ user }: AdminHeaderProps) {
   return (
     <header className="flex h-14 items-center justify-between border-b border-border bg-surface px-4 lg:px-6">
       <div className="flex items-center gap-3">
-        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-xs font-semibold text-primary-foreground">
-          D
-        </div>
-        <span className="text-sm font-semibold">Dizlee</span>
+        <DizleeLogo variant="full" className="h-8 rounded-lg px-1.5" />
       </div>
 
       <div className="flex items-center gap-3">

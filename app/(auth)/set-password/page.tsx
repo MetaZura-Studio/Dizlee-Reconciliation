@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 
 import { SetPasswordForm } from "@/components/auth/set-password-form";
+import { DizleeLogo } from "@/components/brand/dizlee-logo";
 
 function SetPasswordContent() {
   const router = useRouter();
@@ -44,12 +45,15 @@ export default function SetPasswordPage() {
   return (
     <div className="flex min-h-screen items-center bg-canvas justify-center px-4">
       <div className="w-full max-w-md space-y-6 rounded-lg border border-border bg-surface p-8 shadow-sm">
-        <div className="space-y-1">
-          <h1 className="text-xl font-semibold">Set your password</h1>
-          <p className="text-sm text-foreground-muted">
-            Choose a password for your account. Invite links expire in 1 hour and
-            can only be used once.
-          </p>
+        <div className="space-y-4">
+          <DizleeLogo variant="full" priority className="h-10 px-2" />
+          <div className="space-y-1">
+            <h1 className="text-xl font-semibold">Set your password</h1>
+            <p className="text-sm text-foreground-muted">
+              Choose a password for your account. Invite links expire in 1 hour and
+              can only be used once.
+            </p>
+          </div>
         </div>
 
         <Suspense fallback={<p className="text-sm text-foreground-subtle">Loading…</p>}>

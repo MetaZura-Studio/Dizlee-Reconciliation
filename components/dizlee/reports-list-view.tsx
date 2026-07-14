@@ -18,10 +18,12 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { IconButton } from "@/components/ui/icon-button";
 import { IconEye } from "@/components/ui/icons";
+import { ListSearch, OrFiltersDivider } from "@/components/ui/list-search";
 import { LoadingBar } from "@/components/ui/loading";
 import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
 import { ui } from "@/lib/ui/classes";
 import { nextSortState } from "@/lib/ui/sort";
+import { useDebouncedValue } from "@/lib/ui/use-debounced-value";
 import type {
   ReportDetail,
   ReportFilterOptions,
@@ -75,6 +77,9 @@ function buildQuery(filters: ReportListFilters): string {
   if (filters.partnerId) {
     params.set("partnerId", filters.partnerId);
   }
+  if (filters.search) {
+    params.set("search", filters.search);
+  }
   return params.toString();
 }
 
@@ -95,6 +100,8 @@ export function ReportsListView({
   const [year, setYear] = useState(initialResult.filters.year);
   const [opcoId, setOpcoId] = useState(initialResult.filters.opcoId ?? "");
   const [partnerId, setPartnerId] = useState(initialResult.filters.partnerId ?? "");
+  const [search, setSearch] = useState(initialResult.filters.search ?? "");
+  const debouncedSearch = useDebouncedValue(search, 300);
   const [sortBy, setSortBy] = useState<ReportSortField>(initialResult.filters.sortBy);
   const [sortDir, setSortDir] = useState<SortDirection>(initialResult.filters.sortDir);
 
@@ -108,6 +115,7 @@ export function ReportsListView({
   const [detailLoading, setDetailLoading] = useState(false);
   const [detail, setDetail] = useState<ReportDetail | null>(null);
   const openedInitialReport = useRef(false);
+  const skipSearchEffect = useRef(true);
 
   const loadReports = useCallback(async (filters: ReportListFilters) => {
     setLoading(true);
@@ -129,12 +137,25 @@ export function ReportsListView({
     }
   }, []);
 
+  const handleSearchChange = (value: string) => {
+    setSearch(value);
+    if (value.trim()) {
+      setOpcoId("");
+      setPartnerId("");
+    }
+  };
+
   const applyFilters = () => {
+    if (search) {
+      skipSearchEffect.current = true;
+      setSearch("");
+    }
     void loadReports({
       month,
       year,
       opcoId: opcoId || undefined,
       partnerId: partnerId || undefined,
+      search: undefined,
       sortBy,
       sortDir,
       page: 1,
@@ -145,11 +166,13 @@ export function ReportsListView({
     const next = nextSortState(sortBy, sortDir, field);
     setSortBy(next.sortBy);
     setSortDir(next.sortDir);
+    const term = debouncedSearch.trim();
     void loadReports({
-      month,
-      year,
-      opcoId: opcoId || undefined,
-      partnerId: partnerId || undefined,
+      month: result.filters.month,
+      year: result.filters.year,
+      opcoId: term ? undefined : result.filters.opcoId,
+      partnerId: term ? undefined : result.filters.partnerId,
+      search: term || undefined,
       sortBy: next.sortBy,
       sortDir: next.sortDir,
       page: 1,
@@ -159,6 +182,29 @@ export function ReportsListView({
   const refresh = () => {
     void loadReports({ ...result.filters, page: 1 });
   };
+
+  useEffect(() => {
+    if (skipSearchEffect.current) {
+      skipSearchEffect.current = false;
+      return;
+    }
+    const term = debouncedSearch.trim();
+    const timer = window.setTimeout(() => {
+      void loadReports({
+        month: result.filters.month,
+        year: result.filters.year,
+        opcoId: term ? undefined : result.filters.opcoId,
+        partnerId: term ? undefined : result.filters.partnerId,
+        search: term || undefined,
+        sortBy: result.filters.sortBy,
+        sortDir: result.filters.sortDir,
+        page: 1,
+      });
+    }, 0);
+    return () => window.clearTimeout(timer);
+    // Only re-run when the debounced keyword changes — filters use Apply.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional
+  }, [debouncedSearch, loadReports]);
 
   useEffect(() => {
     const handleFocus = () => {
@@ -223,8 +269,16 @@ export function ReportsListView({
 
       <ReportsTabs active="reports" />
 
+      <ListSearch
+        value={search}
+        onChange={handleSearchChange}
+        placeholder="Filename, OpCo, or Partner"
+      />
+
+      <OrFiltersDivider />
+
       <FilterToolbar className="mt-4">
-        <div className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <div className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           <label className="text-sm">
             <span className={ui.label}>Period (month)</span>
             <select
@@ -285,7 +339,7 @@ export function ReportsListView({
           </label>
         </div>
         <div className="flex w-full gap-3">
-          <Button onClick={applyFilters}>Apply</Button>
+          <Button onClick={applyFilters}>Apply filters</Button>
           <Button variant="secondary" onClick={refresh}>
             Refresh
           </Button>

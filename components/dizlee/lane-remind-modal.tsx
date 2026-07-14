@@ -66,6 +66,32 @@ function getTemplateContent(
   };
 }
 
+function hasAnyNotice(history: LaneNotificationHistoryResult): boolean {
+  const { summary, items } = history;
+  return (
+    items.length > 0 ||
+    Boolean(
+      summary.lastOpcoReminderAt ||
+        summary.lastOpcoIntimationAt ||
+        summary.lastPartnerReminderAt ||
+        summary.lastPartnerIntimationAt,
+    )
+  );
+}
+
+function missingReasonLabel(side: "opco" | "partner", lane: CompareLaneRow): string {
+  if (side === "opco") {
+    if (lane.state === "MISSING" || lane.state === "NO_OPCO_REPORT") {
+      return "report missing";
+    }
+    return "already submitted";
+  }
+  if (lane.state === "MISSING" || lane.state === "NO_PARTNER_REPORT") {
+    return "report missing";
+  }
+  return "already submitted";
+}
+
 export function LaneRemindModal({
   lane,
   month,
@@ -152,6 +178,9 @@ export function LaneRemindModal({
   }
 
   async function sendReminder(target: "opco" | "partner" | "both") {
+    if (sending) {
+      return;
+    }
     setSending(true);
     setError(null);
     try {
@@ -198,17 +227,234 @@ export function LaneRemindModal({
     }
   }
 
+  const periodLabel = history?.periodLabel ?? `${month}/${year}`;
+  const noticesSent = history ? hasAnyNotice(history) : false;
+
+  const opcoButtonLabel = canRemindOpco
+    ? `Remind OpCo (${missingReasonLabel("opco", lane)})`
+    : "Remind OpCo";
+  const partnerButtonLabel = canRemindPartner
+    ? `Remind Partner (${missingReasonLabel("partner", lane)})`
+    : "Remind Partner";
+  const bothButtonLabel =
+    canRemindOpco && canRemindPartner
+      ? "Remind both (reports missing)"
+      : "Remind both";
+
+  function renderCompose() {
+    if (!history) {
+      return null;
+    }
+
+    return (
+      <div className="space-y-3 rounded-lg border border-border bg-surface-muted/40 p-4">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">
+            Send a new reminder
+          </h3>
+          <p className="mt-1 text-xs text-foreground-subtle">
+            Placeholders like {"{{period}}"} are filled automatically when the
+            email is sent.
+          </p>
+        </div>
+        <FilterToolbar className="flex-col items-stretch">
+          <div>
+            <FieldLabel htmlFor="lane-remind-template">Template</FieldLabel>
+            <Select
+              id="lane-remind-template"
+              value={messageSource}
+              onChange={(event) =>
+                handleTemplateChange(event.target.value as BroadcastTemplateCode)
+              }
+              disabled={sending}
+            >
+              {history.templates.map((template) => (
+                <option key={template.code} value={template.code}>
+                  {template.name}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div>
+            <FieldLabel htmlFor="lane-remind-subject">Subject</FieldLabel>
+            <Input
+              id="lane-remind-subject"
+              type="text"
+              value={subject}
+              onChange={(event) => setSubject(event.target.value)}
+              maxLength={255}
+              disabled={sending}
+            />
+          </div>
+          <div>
+            <FieldLabel htmlFor="lane-remind-body">Body</FieldLabel>
+            <textarea
+              id="lane-remind-body"
+              value={body}
+              onChange={(event) => setBody(event.target.value)}
+              rows={5}
+              disabled={sending}
+              className={`${ui.input} h-auto resize-y py-2.5 disabled:opacity-60`}
+            />
+          </div>
+        </FilterToolbar>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="secondary"
+            disabled={sending || !canRemindOpco}
+            title={
+              canRemindOpco
+                ? undefined
+                : "OpCo report is already on file for this period"
+            }
+            onClick={() => void sendReminder("opco")}
+          >
+            {opcoButtonLabel}
+          </Button>
+          <Button
+            variant="secondary"
+            disabled={sending || !canRemindPartner}
+            title={
+              canRemindPartner
+                ? undefined
+                : "Partner report is already on file for this period"
+            }
+            onClick={() => void sendReminder("partner")}
+          >
+            {partnerButtonLabel}
+          </Button>
+          <Button
+            disabled={sending || (!canRemindOpco && !canRemindPartner)}
+            onClick={() => void sendReminder("both")}
+          >
+            {sending ? "Sending…" : bothButtonLabel}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  function renderStatus() {
+    if (!history) {
+      return null;
+    }
+
+    if (!noticesSent) {
+      return (
+        <div className="rounded-lg border border-border px-4 py-3 text-sm text-foreground-muted">
+          Neither side has been reminded for{" "}
+          <span className="font-medium text-foreground">{periodLabel}</span> yet.
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-2">
+        <p className="text-xs text-foreground-subtle">
+          <span className="font-medium text-foreground-muted">Reminder</span> —
+          asks for a missing report.{" "}
+          <span className="font-medium text-foreground-muted">Intimation</span> —
+          notifies that the other side already submitted.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="rounded-lg border border-border p-3 text-sm">
+            <p className="text-xs font-medium text-foreground">{lane.opcoName}</p>
+            <p className="mt-2 text-xs text-foreground-subtle">Last reminder</p>
+            <p className="font-medium text-foreground">
+              {formatDateTime(history.summary.lastOpcoReminderAt)}
+            </p>
+            <p className="mt-2 text-xs text-foreground-subtle">Last intimation</p>
+            <p className="font-medium text-foreground">
+              {formatDateTime(history.summary.lastOpcoIntimationAt)}
+            </p>
+          </div>
+          <div className="rounded-lg border border-border p-3 text-sm">
+            <p className="text-xs font-medium text-foreground">
+              {lane.partnerName}
+            </p>
+            <p className="mt-2 text-xs text-foreground-subtle">Last reminder</p>
+            <p className="font-medium text-foreground">
+              {formatDateTime(history.summary.lastPartnerReminderAt)}
+            </p>
+            <p className="mt-2 text-xs text-foreground-subtle">Last intimation</p>
+            <p className="font-medium text-foreground">
+              {formatDateTime(history.summary.lastPartnerIntimationAt)}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  function renderHistory() {
+    if (!history || !noticesSent) {
+      return null;
+    }
+
+    return (
+      <div>
+        <h3 className="text-sm font-semibold text-foreground">
+          Previous intimations & reminders
+        </h3>
+        {history.items.length > 0 ? (
+          <div className="mt-3">
+            <DataTableFrame>
+              <DataTable>
+                <DataTableHead>
+                  <DataTableRow>
+                    <DataTableTh>Sent</DataTableTh>
+                    <DataTableTh>Type</DataTableTh>
+                    <DataTableTh>To</DataTableTh>
+                    <DataTableTh>Subject</DataTableTh>
+                    <DataTableTh>By</DataTableTh>
+                  </DataTableRow>
+                </DataTableHead>
+                <tbody>
+                  {history.items.map((item) => (
+                    <DataTableRow key={item.id}>
+                      <DataTableTd className="text-foreground-muted">
+                        {formatDateTime(item.sentAt)}
+                      </DataTableTd>
+                      <DataTableTd>{kindLabel(item.kind)}</DataTableTd>
+                      <DataTableTd className="text-foreground-muted">
+                        {item.recipientName} (
+                        {item.recipientSide === "opco" ? "OpCo" : "Partner"})
+                      </DataTableTd>
+                      <DataTableTd>
+                        <p>{item.subject}</p>
+                        <p className="text-xs text-foreground-subtle">
+                          {item.bodyPreview}
+                        </p>
+                      </DataTableTd>
+                      <DataTableTd className="text-foreground-muted">
+                        {item.sentBy}
+                      </DataTableTd>
+                    </DataTableRow>
+                  ))}
+                </tbody>
+              </DataTable>
+            </DataTableFrame>
+          </div>
+        ) : (
+          <p className="mt-2 text-sm text-foreground-subtle">
+            Summary timestamps exist, but no detailed history rows for{" "}
+            {periodLabel}.
+          </p>
+        )}
+      </div>
+    );
+  }
+
   return (
     <Modal
       open
       title="Remind to submit reports"
       onClose={onClose}
       wide
-      className="max-w-3xl"
+      className="!max-w-6xl w-[min(96vw,72rem)] !max-h-[94vh]"
     >
       <p className="mb-6 text-sm text-foreground-muted">
-        {lane.opcoName} / {lane.partnerName} ·{" "}
-        {history?.periodLabel ?? `${month}/${year}`}
+        {lane.opcoName} / {lane.partnerName} · {periodLabel}
       </p>
 
       <div className="space-y-6">
@@ -219,155 +465,18 @@ export function LaneRemindModal({
         {error ? <p className={ui.alertError}>{error}</p> : null}
 
         {history ? (
-          <>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-lg border border-border p-3 text-sm">
-                <p className="text-xs text-foreground-subtle">Last OpCo reminder</p>
-                <p className="font-medium text-foreground">
-                  {formatDateTime(history.summary.lastOpcoReminderAt)}
-                </p>
-                <p className="mt-2 text-xs text-foreground-subtle">
-                  Last OpCo intimation
-                </p>
-                <p className="font-medium text-foreground">
-                  {formatDateTime(history.summary.lastOpcoIntimationAt)}
-                </p>
-              </div>
-              <div className="rounded-lg border border-border p-3 text-sm">
-                <p className="text-xs text-foreground-subtle">
-                  Last Partner reminder
-                </p>
-                <p className="font-medium text-foreground">
-                  {formatDateTime(history.summary.lastPartnerReminderAt)}
-                </p>
-                <p className="mt-2 text-xs text-foreground-subtle">
-                  Last Partner intimation
-                </p>
-                <p className="font-medium text-foreground">
-                  {formatDateTime(history.summary.lastPartnerIntimationAt)}
-                </p>
-              </div>
-            </div>
-
-            <div>
-              <h3 className="text-sm font-semibold text-foreground">
-                Previous intimations & reminders
-              </h3>
-              {history.items.length > 0 ? (
-                <div className="mt-3">
-                  <DataTableFrame>
-                    <DataTable>
-                      <DataTableHead>
-                        <DataTableRow>
-                          <DataTableTh>Sent</DataTableTh>
-                          <DataTableTh>Type</DataTableTh>
-                          <DataTableTh>To</DataTableTh>
-                          <DataTableTh>Subject</DataTableTh>
-                          <DataTableTh>By</DataTableTh>
-                        </DataTableRow>
-                      </DataTableHead>
-                      <tbody>
-                        {history.items.map((item) => (
-                          <DataTableRow key={item.id}>
-                            <DataTableTd className="text-foreground-muted">
-                              {formatDateTime(item.sentAt)}
-                            </DataTableTd>
-                            <DataTableTd>{kindLabel(item.kind)}</DataTableTd>
-                            <DataTableTd className="text-foreground-muted">
-                              {item.recipientName} (
-                              {item.recipientSide === "opco" ? "OpCo" : "Partner"})
-                            </DataTableTd>
-                            <DataTableTd>
-                              <p>{item.subject}</p>
-                              <p className="text-xs text-foreground-subtle">
-                                {item.bodyPreview}
-                              </p>
-                            </DataTableTd>
-                            <DataTableTd className="text-foreground-muted">
-                              {item.sentBy}
-                            </DataTableTd>
-                          </DataTableRow>
-                        ))}
-                      </tbody>
-                    </DataTable>
-                  </DataTableFrame>
-                </div>
-              ) : (
-                <p className="mt-2 text-sm text-foreground-subtle">
-                  No previous intimations or reminders found for this pair in{" "}
-                  {history.periodLabel}.
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-3 rounded-lg border border-border p-4">
-              <h3 className="text-sm font-semibold text-foreground">
-                Send a new reminder
-              </h3>
-              <FilterToolbar className="flex-col items-stretch">
-                <div>
-                  <FieldLabel htmlFor="lane-remind-template">Template</FieldLabel>
-                  <Select
-                    id="lane-remind-template"
-                    value={messageSource}
-                    onChange={(event) =>
-                      handleTemplateChange(
-                        event.target.value as BroadcastTemplateCode,
-                      )
-                    }
-                  >
-                    {history.templates.map((template) => (
-                      <option key={template.code} value={template.code}>
-                        {template.name}
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-                <div>
-                  <FieldLabel htmlFor="lane-remind-subject">Subject</FieldLabel>
-                  <Input
-                    id="lane-remind-subject"
-                    type="text"
-                    value={subject}
-                    onChange={(event) => setSubject(event.target.value)}
-                    maxLength={255}
-                  />
-                </div>
-                <div>
-                  <FieldLabel htmlFor="lane-remind-body">Body</FieldLabel>
-                  <textarea
-                    id="lane-remind-body"
-                    value={body}
-                    onChange={(event) => setBody(event.target.value)}
-                    rows={5}
-                    className={`${ui.input} h-auto resize-y py-2.5`}
-                  />
-                </div>
-              </FilterToolbar>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="secondary"
-                  disabled={sending || !canRemindOpco}
-                  onClick={() => void sendReminder("opco")}
-                >
-                  Remind OpCo
-                </Button>
-                <Button
-                  variant="secondary"
-                  disabled={sending || !canRemindPartner}
-                  onClick={() => void sendReminder("partner")}
-                >
-                  Remind Partner
-                </Button>
-                <Button
-                  disabled={sending || (!canRemindOpco && !canRemindPartner)}
-                  onClick={() => void sendReminder("both")}
-                >
-                  {sending ? "Sending…" : "Remind both"}
-                </Button>
-              </div>
-            </div>
-          </>
+          noticesSent ? (
+            <>
+              {renderStatus()}
+              {renderHistory()}
+              {renderCompose()}
+            </>
+          ) : (
+            <>
+              {renderCompose()}
+              {renderStatus()}
+            </>
+          )
         ) : null}
       </div>
     </Modal>

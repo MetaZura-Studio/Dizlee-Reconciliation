@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { ReportDetailModal } from "@/components/dizlee/report-detail-modal";
 import { LaneRemindModal } from "@/components/dizlee/lane-remind-modal";
@@ -20,6 +21,7 @@ import { IconButton } from "@/components/ui/icon-button";
 import { IconBell, IconEye } from "@/components/ui/icons";
 import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
+import { ListSearch, OrFiltersDivider } from "@/components/ui/list-search";
 import type { ReportDetail, ReportFilterOptions } from "@/lib/dizlee/reports";
 import type {
   CompareLaneFilters,
@@ -28,6 +30,7 @@ import type {
   ReconciliationSearchBy,
 } from "@/lib/dizlee/reconciliation";
 import { ui } from "@/lib/ui/classes";
+import { useDebouncedValue } from "@/lib/ui/use-debounced-value";
 
 const MONTHS = [
   "January",
@@ -56,14 +59,6 @@ function formatPeriod(month: number, year: number): string {
     month: "short",
     year: "numeric",
   });
-}
-
-function openReconciliationResult(id: number | string) {
-  window.open(
-    `/dizlee/reconciliation/${id}`,
-    "_blank",
-    "noopener,noreferrer",
-  );
 }
 
 function stateTone(
@@ -116,6 +111,9 @@ function buildLaneQuery(filters: CompareLaneFilters): string {
   if (filters.entityId) {
     params.set("entityId", filters.entityId);
   }
+  if (filters.search) {
+    params.set("search", filters.search);
+  }
   return params.toString();
 }
 
@@ -136,6 +134,10 @@ export function ReconciliationView({
   initialTolerancePercent,
   initialHistory,
 }: ReconciliationViewProps) {
+  const router = useRouter();
+  const openReconciliationResult = (id: number | string) => {
+    router.push(`/dizlee/reconciliation/${id}`);
+  };
   const [activeTab, setActiveTab] = useState<"compare" | "history">(initialTab);
   const [month, setMonth] = useState(initialCompareFilters.month);
   const [year, setYear] = useState(initialCompareFilters.year);
@@ -143,6 +145,12 @@ export function ReconciliationView({
     initialCompareFilters.searchBy,
   );
   const [entityId, setEntityId] = useState(initialCompareFilters.entityId ?? "");
+  const [laneSearch, setLaneSearch] = useState(initialCompareFilters.search ?? "");
+  const debouncedLaneSearch = useDebouncedValue(laneSearch, 300);
+  const [historySearch, setHistorySearch] = useState("");
+  const debouncedHistorySearch = useDebouncedValue(historySearch, 300);
+  const skipLaneSearchEffect = useRef(true);
+  const skipHistorySearchEffect = useRef(true);
 
   const [lanes, setLanes] = useState(initialLanes);
   const [filterOptions, setFilterOptions] =
@@ -208,11 +216,16 @@ export function ReconciliationView({
     }
   }, []);
 
-  const loadHistory = useCallback(async (page = 1) => {
+  const loadHistory = useCallback(async (page = 1, search = debouncedHistorySearch) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/dizlee/reconciliation/history?page=${page}`);
+      const params = new URLSearchParams({ page: String(page) });
+      const term = search.trim();
+      if (term) {
+        params.set("search", term);
+      }
+      const response = await fetch(`/api/dizlee/reconciliation/history?${params}`);
       const payload = await response.json();
       if (!response.ok) {
         throw new Error(payload.error ?? "Failed to load history");
@@ -225,16 +238,57 @@ export function ReconciliationView({
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [debouncedHistorySearch]);
 
   const applyCompareFilters = () => {
+    if (laneSearch) {
+      skipLaneSearchEffect.current = true;
+      setLaneSearch("");
+    }
     void loadLanes({
       month,
       year,
       searchBy,
       entityId: entityId || undefined,
+      search: undefined,
     });
   };
+
+  useEffect(() => {
+    if (skipLaneSearchEffect.current) {
+      skipLaneSearchEffect.current = false;
+      return;
+    }
+    if (activeTab !== "compare") {
+      return;
+    }
+    const term = debouncedLaneSearch.trim();
+    const timer = window.setTimeout(() => {
+      void loadLanes({
+        month,
+        year,
+        searchBy,
+        entityId: term ? undefined : entityId || undefined,
+        search: term || undefined,
+      });
+    }, 0);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- live search only
+  }, [debouncedLaneSearch, loadLanes, activeTab]);
+
+  useEffect(() => {
+    if (skipHistorySearchEffect.current) {
+      skipHistorySearchEffect.current = false;
+      return;
+    }
+    if (activeTab !== "history") {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      void loadHistory(1, debouncedHistorySearch);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [debouncedHistorySearch, loadHistory, activeTab]);
 
   const runReconciliation = async (lane: CompareLaneRow) => {
     const key = `${lane.opcoId}-${lane.partnerId}`;
@@ -262,7 +316,8 @@ export function ReconciliationView({
         month,
         year,
         searchBy,
-        entityId: entityId || undefined,
+        entityId: debouncedLaneSearch.trim() ? undefined : entityId || undefined,
+        search: debouncedLaneSearch.trim() || undefined,
       });
       openReconciliationResult(payload.data.id as number);
     } catch (runError) {
@@ -278,14 +333,31 @@ export function ReconciliationView({
   useEffect(() => {
     const handleFocus = () => {
       if (activeTab === "compare") {
-        void loadLanes({ month, year, searchBy, entityId: entityId || undefined });
+        const term = debouncedLaneSearch.trim();
+        void loadLanes({
+          month,
+          year,
+          searchBy,
+          entityId: term ? undefined : entityId || undefined,
+          search: term || undefined,
+        });
       } else {
         void loadHistory(history.page);
       }
     };
     window.addEventListener("focus", handleFocus);
     return () => window.removeEventListener("focus", handleFocus);
-  }, [activeTab, entityId, history.page, loadHistory, loadLanes, month, searchBy, year]);
+  }, [
+    activeTab,
+    debouncedLaneSearch,
+    entityId,
+    history.page,
+    loadHistory,
+    loadLanes,
+    month,
+    searchBy,
+    year,
+  ]);
 
   const yearOptions = [];
   for (let value = year + 1; value >= year - 4; value -= 1) {
@@ -359,7 +431,21 @@ export function ReconciliationView({
 
         {activeTab === "compare" ? (
           <>
-            <FilterToolbar className="mt-6">
+            <ListSearch
+              className="mt-6"
+              value={laneSearch}
+              onChange={(value) => {
+                setLaneSearch(value);
+                if (value.trim()) {
+                  setEntityId("");
+                }
+              }}
+              placeholder="OpCo or Partner name"
+            />
+
+            <OrFiltersDivider />
+
+            <FilterToolbar className="mt-4">
               <div className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <label className="text-sm">
                   <FieldLabel>Period (month)</FieldLabel>
@@ -415,7 +501,7 @@ export function ReconciliationView({
                   </Select>
                 </label>
               </div>
-              <Button onClick={applyCompareFilters}>Apply</Button>
+              <Button onClick={applyCompareFilters}>Apply filters</Button>
             </FilterToolbar>
 
             {loading ? (
@@ -537,6 +623,13 @@ export function ReconciliationView({
           </>
         ) : (
           <>
+            <ListSearch
+              className="mt-6"
+              value={historySearch}
+              onChange={setHistorySearch}
+              placeholder="OpCo, Partner, status, or run by"
+            />
+
             {loading ? (
               <p className="mt-6 text-sm text-foreground-subtle">Loading history…</p>
             ) : null}
@@ -633,7 +726,10 @@ export function ReconciliationView({
               month,
               year,
               searchBy,
-              entityId: entityId || undefined,
+              entityId: debouncedLaneSearch.trim()
+                ? undefined
+                : entityId || undefined,
+              search: debouncedLaneSearch.trim() || undefined,
             });
           }}
         />

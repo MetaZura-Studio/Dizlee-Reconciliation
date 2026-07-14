@@ -17,6 +17,10 @@ const appMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Dizlee Reconciliation Platform",
   description: "Multi-portal reconciliation platform for Dizlee",
+  icons: {
+    icon: [{ url: "/dizlee-logo.png", type: "image/png" }],
+    apple: [{ url: "/dizlee-logo.png", type: "image/png" }],
+  },
 };
 
 export default function RootLayout({

@@ -14,14 +14,17 @@ import {
   DataTableTh,
   SortableDataTableTh,
 } from "@/components/ui/data-table";
+import { EmptyState } from "@/components/ui/empty-state";
 import { IconButton } from "@/components/ui/icon-button";
 import { IconPencil, IconTrash } from "@/components/ui/icons";
+import { ListPagination } from "@/components/ui/list-pagination";
 import { PageHeader } from "@/components/ui/page";
 import type { CurrencyListItem } from "@/lib/admin/currencies.shared";
-import { ui } from "@/lib/ui/classes";
+import { paginateItems } from "@/lib/ui/list-pagination";
+import { cn, ui } from "@/lib/ui/classes";
 import { nextSortState, type SortDirection } from "@/lib/ui/sort";
 
-type CurrencySortField = "iso" | "symbol" | "precision";
+type CurrencySortField = "iso" | "symbol";
 
 function compareCurrencies(
   a: CurrencyListItem,
@@ -33,8 +36,6 @@ function compareCurrencies(
   switch (sortBy) {
     case "symbol":
       return (a.symbol ?? "").localeCompare(b.symbol ?? "") * dir;
-    case "precision":
-      return (a.decimalPrecision - b.decimalPrecision) * dir;
     case "iso":
     default:
       return a.isoCode.localeCompare(b.isoCode) * dir;
@@ -53,8 +54,10 @@ export function CurrenciesView({
   onNotice,
 }: CurrenciesViewProps) {
   const [currencies, setCurrencies] = useState(initialCurrencies);
+  const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<CurrencySortField>("iso");
   const [sortDir, setSortDir] = useState<SortDirection>("asc");
+  const [page, setPage] = useState(1);
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [selectedCurrency, setSelectedCurrency] = useState<CurrencyListItem | null>(
@@ -62,16 +65,31 @@ export function CurrenciesView({
   );
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  const sortedCurrencies = useMemo(
-    () =>
-      [...currencies].sort((a, b) => compareCurrencies(a, b, sortBy, sortDir)),
-    [currencies, sortBy, sortDir],
+  const filteredCurrencies = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return currencies
+      .filter((currency) => {
+        if (!query) {
+          return true;
+        }
+        return (
+          currency.isoCode.toLowerCase().includes(query) ||
+          (currency.symbol ?? "").toLowerCase().includes(query)
+        );
+      })
+      .sort((a, b) => compareCurrencies(a, b, sortBy, sortDir));
+  }, [currencies, search, sortBy, sortDir]);
+
+  const pagedCurrencies = useMemo(
+    () => paginateItems(filteredCurrencies, page),
+    [filteredCurrencies, page],
   );
 
   const applySort = (field: CurrencySortField) => {
     const next = nextSortState(sortBy, sortDir, field);
     setSortBy(next.sortBy);
     setSortDir(next.sortDir);
+    setPage(1);
   };
 
   const applyCurrencies = useCallback(
@@ -141,73 +159,99 @@ export function CurrenciesView({
   };
 
   return (
-    <section className={ui.cardPaddingLg}>
+    <section className={cn(ui.card, "p-5 sm:p-6")}>
       <PageHeader
         title="Currencies"
-        description="Master list used by OpCos, reports, and invoices."
+        description="Master list of currencies available for OpCos and monthly rates. Decimal precision is set when you add or edit a currency."
         actions={<Button onClick={openCreate}>Add currency</Button>}
       />
 
-      <div className="mt-6">
-        <DataTableFrame>
-          <DataTable>
-            <DataTableHead>
-              <tr>
-                <SortableDataTableTh
-                  label="ISO"
-                  active={sortBy === "iso"}
-                  direction={sortDir}
-                  onSort={() => applySort("iso")}
-                />
-                <SortableDataTableTh
-                  label="Symbol"
-                  active={sortBy === "symbol"}
-                  direction={sortDir}
-                  onSort={() => applySort("symbol")}
-                />
-                <SortableDataTableTh
-                  label="Precision"
-                  active={sortBy === "precision"}
-                  direction={sortDir}
-                  onSort={() => applySort("precision")}
-                />
-                <DataTableTh align="right">Actions</DataTableTh>
-              </tr>
-            </DataTableHead>
-            <tbody>
-              {sortedCurrencies.map((currency) => (
-                <DataTableRow key={currency.id}>
-                  <DataTableTd className="font-medium text-foreground">
-                    {currency.isoCode}
-                  </DataTableTd>
-                  <DataTableTd className="text-foreground-muted">
-                    {currency.symbol ?? "—"}
-                  </DataTableTd>
-                  <DataTableTd className="text-foreground-muted">
-                    {currency.decimalPrecision}
-                  </DataTableTd>
-                  <DataTableTd align="right">
-                    <div className="flex justify-end gap-2">
-                      <IconButton
-                        label="Edit currency"
-                        onClick={() => openEdit(currency)}
-                      >
-                        <IconPencil />
-                      </IconButton>
-                      <IconButton
-                        label="Delete currency"
-                        variant="danger"
-                        onClick={() => openDelete(currency)}
-                      >
-                        <IconTrash />
-                      </IconButton>
-                    </div>
-                  </DataTableTd>
-                </DataTableRow>
-              ))}
-            </tbody>
-          </DataTable>
-        </DataTableFrame>
+      <div className="mt-6 space-y-4">
+        <label className="block max-w-md text-sm">
+          <span className={ui.label}>Search</span>
+          <input
+            type="search"
+            value={search}
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setPage(1);
+            }}
+            placeholder="Search by code or symbol"
+            className={ui.input}
+          />
+        </label>
+
+        {filteredCurrencies.length === 0 ? (
+          <EmptyState
+            title={currencies.length === 0 ? "No currencies yet" : "No currencies found"}
+            description={
+              currencies.length === 0
+                ? "Add currencies here first, then set monthly USD rates in the Monthly rates tab."
+                : "No currencies match your search."
+            }
+          />
+        ) : (
+          <>
+            <DataTableFrame>
+              <DataTable>
+                <DataTableHead>
+                  <tr>
+                    <SortableDataTableTh
+                      label="Code"
+                      active={sortBy === "iso"}
+                      direction={sortDir}
+                      onSort={() => applySort("iso")}
+                    />
+                    <SortableDataTableTh
+                      label="Symbol"
+                      active={sortBy === "symbol"}
+                      direction={sortDir}
+                      onSort={() => applySort("symbol")}
+                    />
+                    <DataTableTh align="right">Actions</DataTableTh>
+                  </tr>
+                </DataTableHead>
+                <tbody>
+                  {pagedCurrencies.items.map((currency) => (
+                    <DataTableRow key={currency.id}>
+                      <DataTableTd className="font-medium text-foreground">
+                        {currency.isoCode}
+                      </DataTableTd>
+                      <DataTableTd className="text-foreground-muted">
+                        {currency.symbol ?? "—"}
+                      </DataTableTd>
+                      <DataTableTd align="right">
+                        <div className="flex justify-end gap-2">
+                          <IconButton
+                            label="Edit currency"
+                            onClick={() => openEdit(currency)}
+                          >
+                            <IconPencil />
+                          </IconButton>
+                          <IconButton
+                            label="Delete currency"
+                            variant="danger"
+                            onClick={() => openDelete(currency)}
+                          >
+                            <IconTrash />
+                          </IconButton>
+                        </div>
+                      </DataTableTd>
+                    </DataTableRow>
+                  ))}
+                </tbody>
+              </DataTable>
+            </DataTableFrame>
+            <ListPagination
+              total={pagedCurrencies.total}
+              page={pagedCurrencies.page}
+              totalPages={pagedCurrencies.totalPages}
+              noun="currency"
+              nounPlural="currencies"
+              onPageChange={setPage}
+            />
+          </>
+        )}
       </div>
 
       <CurrencyFormModal

@@ -23,7 +23,7 @@ describe("parseAuditLogListFilters", () => {
       sortBy: "createdAt",
       sortDir: "desc",
       page: 1,
-      pageSize: 25,
+      pageSize: 10,
     });
   });
 
@@ -55,7 +55,7 @@ describe("parseAuditLogListFilters", () => {
       sortBy: "action",
       sortDir: "asc",
       page: 2,
-      pageSize: 50,
+      pageSize: 10,
     });
   });
 });
@@ -66,7 +66,7 @@ describe("buildAuditLogQuery", () => {
       parseAuditLogListFilters(new URLSearchParams()),
     );
 
-    expect(query).toBe("page=1&pageSize=25&sortBy=createdAt&sortDir=desc");
+    expect(query).toBe("page=1&pageSize=10&sortBy=createdAt&sortDir=desc");
   });
 });
 

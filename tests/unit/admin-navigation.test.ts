@@ -9,27 +9,29 @@ import {
 } from "@/lib/admin/navigation";
 
 describe("admin navigation", () => {
-  it("defines nine main navigation items in SRS order", () => {
-    expect(ADMIN_MAIN_NAV_ITEMS).toHaveLength(9);
+  it("defines main navigation items with settings children", () => {
     expect(ADMIN_MAIN_NAV_ITEMS.map((item) => item.label)).toEqual([
       "Audit logs",
       "Users",
       "OpCos",
       "Partners",
-      "Email Settings",
       "Email Templates",
-      "Reminder Settings",
       "OpCo partners",
       "Reconciliation tolerance",
+      "Currencies & USD rates",
+      "Invoice bank details",
+      "Settings",
+    ]);
+
+    const settings = ADMIN_MAIN_NAV_ITEMS.find((item) => item.label === "Settings");
+    expect(settings?.children?.map((item) => item.label)).toEqual([
+      "Email Settings",
+      "Reminder Settings",
     ]);
   });
 
-  it("defines footer navigation items with Settings disabled", () => {
-    expect(ADMIN_FOOTER_NAV_ITEMS).toHaveLength(3);
-    expect(ADMIN_FOOTER_NAV_ITEMS[0]).toMatchObject({
-      label: "Settings",
-      disabled: true,
-    });
+  it("keeps the footer navigation empty", () => {
+    expect(ADMIN_FOOTER_NAV_ITEMS).toHaveLength(0);
   });
 
   it("uses Users as the default admin landing route", () => {
@@ -45,6 +47,12 @@ describe("admin navigation", () => {
   it("resolves the nav item for the current path", () => {
     expect(getAdminNavItemForPath("/admin/currencies")?.label).toBe(
       "Currencies & USD rates",
+    );
+    expect(getAdminNavItemForPath("/admin/email-settings")?.label).toBe(
+      "Email Settings",
+    );
+    expect(getAdminNavItemForPath("/admin/reminder-settings")?.label).toBe(
+      "Reminder Settings",
     );
   });
 });

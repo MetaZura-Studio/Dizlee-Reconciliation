@@ -17,7 +17,11 @@ export default async function DizleeLayout({
   const unreadCount = await getUnreadInboxCount(user.id);
 
   return (
-    <DizleeWorkspace email={user.email} unreadCount={unreadCount}>
+    <DizleeWorkspace
+      name={user.name ?? null}
+      email={user.email}
+      unreadCount={unreadCount}
+    >
       {children}
     </DizleeWorkspace>
   );

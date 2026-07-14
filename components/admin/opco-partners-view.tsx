@@ -1,15 +1,20 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ListPagination } from "@/components/ui/list-pagination";
 import { FilterToolbar, PageCard } from "@/components/ui/page";
 import type {
   OpcoListItem,
   OpcoPartnerLinksPageData,
   OpcoPartnerLinksView,
 } from "@/lib/admin/opco-partner-links.shared";
+import { paginateItems } from "@/lib/ui/list-pagination";
 import { ui } from "@/lib/ui/classes";
+
+type LinkStatusFilter = "all" | "linked" | "unlinked";
 
 type OpcoPartnersViewProps = {
   initialData: OpcoPartnerLinksPageData;
@@ -31,6 +36,9 @@ export function OpcoPartnersView({ initialData }: OpcoPartnersViewProps) {
           .map((partner) => partner.id) ?? [],
       ),
   );
+  const [search, setSearch] = useState("");
+  const [linkStatus, setLinkStatus] = useState<LinkStatusFilter>("all");
+  const [page, setPage] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -60,6 +68,7 @@ export function OpcoPartnersView({ initialData }: OpcoPartnersViewProps) {
       }
       applyLinksView(body.data as OpcoPartnerLinksView);
       setSelectedOpcoId(opcoId);
+      setPage(1);
     } catch (loadError) {
       setError(
         loadError instanceof Error
@@ -134,8 +143,36 @@ export function OpcoPartnersView({ initialData }: OpcoPartnersViewProps) {
     }
   };
 
+  const filteredPartners = useMemo(() => {
+    const partners = linksView?.partners ?? [];
+    const query = search.trim().toLowerCase();
+    return partners.filter((partner) => {
+      const linked = selectedPartnerIds.has(partner.id);
+      if (linkStatus === "linked" && !linked) {
+        return false;
+      }
+      if (linkStatus === "unlinked" && linked) {
+        return false;
+      }
+      if (!query) {
+        return true;
+      }
+      return partner.name.toLowerCase().includes(query);
+    });
+  }, [linksView?.partners, search, linkStatus, selectedPartnerIds]);
+
+  const pagedPartners = useMemo(
+    () => paginateItems(filteredPartners, page),
+    [filteredPartners, page],
+  );
+
   if (opcos.length === 0) {
-    return <p className={ui.alertWarning}>No OpCos are available. Add OpCo master data before configuring partner links.</p>;
+    return (
+      <p className={ui.alertWarning}>
+        No OpCos are available. Add OpCo master data before configuring partner
+        links.
+      </p>
+    );
   }
 
   const linkedCount = selectedPartnerIds.size;
@@ -154,23 +191,53 @@ export function OpcoPartnersView({ initialData }: OpcoPartnersViewProps) {
 
       <form onSubmit={(event) => void save(event)} className="mt-6 space-y-6">
         <FilterToolbar>
-          <div className="w-full space-y-1">
-            <label htmlFor="opcoId" className={ui.label}>
-              OpCo
+          <div className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <label className="text-sm">
+              <span className={ui.label}>OpCo</span>
+              <select
+                id="opcoId"
+                value={selectedOpcoId}
+                onChange={(event) => handleOpcoChange(event.target.value)}
+                disabled={loading || saving}
+                className={`${ui.select} disabled:opacity-60`}
+              >
+                {opcos.map((opco: OpcoListItem) => (
+                  <option key={opco.id} value={opco.id}>
+                    {opco.name}
+                  </option>
+                ))}
+              </select>
             </label>
-            <select
-              id="opcoId"
-              value={selectedOpcoId}
-              onChange={(event) => handleOpcoChange(event.target.value)}
-              disabled={loading || saving}
-              className={`${ui.select} max-w-md disabled:opacity-60`}
-            >
-              {opcos.map((opco: OpcoListItem) => (
-                <option key={opco.id} value={opco.id}>
-                  {opco.name}
-                </option>
-              ))}
-            </select>
+            <label className="text-sm lg:col-span-2">
+              <span className={ui.label}>Search</span>
+              <input
+                type="search"
+                value={search}
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                  setPage(1);
+                }}
+                placeholder="Partner name"
+                className={ui.input}
+                disabled={loading || saving}
+              />
+            </label>
+            <label className="text-sm">
+              <span className={ui.label}>Link status</span>
+              <select
+                value={linkStatus}
+                onChange={(event) => {
+                  setLinkStatus(event.target.value as LinkStatusFilter);
+                  setPage(1);
+                }}
+                className={ui.select}
+                disabled={loading || saving}
+              >
+                <option value="all">All partners</option>
+                <option value="linked">Linked</option>
+                <option value="unlinked">Unlinked</option>
+              </select>
+            </label>
           </div>
         </FilterToolbar>
 
@@ -184,23 +251,42 @@ export function OpcoPartnersView({ initialData }: OpcoPartnersViewProps) {
             </p>
           </div>
 
-          <div className={`grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 ${ui.cardPadding}`}>
-            {(linksView?.partners ?? []).map((partner) => (
-              <label
-                key={partner.id}
-                className="flex cursor-pointer items-center gap-3 rounded-2xl px-2 py-1.5 hover:bg-surface-muted"
+          {filteredPartners.length === 0 ? (
+            <EmptyState
+              title="No partners found"
+              description="No partners match your search or link status filter."
+            />
+          ) : (
+            <>
+              <div
+                className={`grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 ${ui.cardPadding}`}
               >
-                <input
-                  type="checkbox"
-                  checked={selectedPartnerIds.has(partner.id)}
-                  onChange={() => togglePartner(partner.id)}
-                  disabled={loading || saving}
-                  className="h-4 w-4 shrink-0 rounded border-border-strong"
-                />
-                <span className="text-sm text-foreground">{partner.name}</span>
-              </label>
-            ))}
-          </div>
+                {pagedPartners.items.map((partner) => (
+                  <label
+                    key={partner.id}
+                    className="flex cursor-pointer items-center gap-3 rounded-2xl px-2 py-1.5 hover:bg-surface-muted"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedPartnerIds.has(partner.id)}
+                      onChange={() => togglePartner(partner.id)}
+                      disabled={loading || saving}
+                      className="h-4 w-4 shrink-0 rounded border-border-strong"
+                    />
+                    <span className="text-sm text-foreground">{partner.name}</span>
+                  </label>
+                ))}
+              </div>
+              <ListPagination
+                total={pagedPartners.total}
+                page={pagedPartners.page}
+                totalPages={pagedPartners.totalPages}
+                noun="partner"
+                nounPlural="partners"
+                onPageChange={setPage}
+              />
+            </>
+          )}
         </div>
 
         <div className="flex flex-wrap gap-3">

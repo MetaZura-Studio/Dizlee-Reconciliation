@@ -18,11 +18,13 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { IconButton } from "@/components/ui/icon-button";
 import { IconEye } from "@/components/ui/icons";
+import { ListSearch, OrFiltersDivider } from "@/components/ui/list-search";
 import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
 import { LoadingBar } from "@/components/ui/loading";
 import { ui } from "@/lib/ui/classes";
 import { nextSortState } from "@/lib/ui/sort";
+import { useDebouncedValue } from "@/lib/ui/use-debounced-value";
 import type {
   InvoiceDetail,
   InvoiceFilterOptions,
@@ -96,6 +98,9 @@ function buildQuery(filters: InvoiceListFilters): string {
   if (filters.partnerId) {
     params.set("partnerId", filters.partnerId);
   }
+  if (filters.search) {
+    params.set("search", filters.search);
+  }
   return params.toString();
 }
 
@@ -117,6 +122,8 @@ export function InvoicesListView({
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatusFilter>(
     initialResult.filters.paymentStatus,
   );
+  const [search, setSearch] = useState(initialResult.filters.search ?? "");
+  const debouncedSearch = useDebouncedValue(search, 300);
   const [sortBy, setSortBy] = useState<InvoiceSortField>(initialResult.filters.sortBy);
   const [sortDir, setSortDir] = useState<SortDirection>(initialResult.filters.sortDir);
 
@@ -155,12 +162,16 @@ export function InvoicesListView({
     }
   }, []);
 
+  const searchTerm = debouncedSearch.trim();
+  const usingSearch = Boolean(searchTerm);
+
   const currentFilters = (): InvoiceListFilters => ({
     month,
     year,
-    opcoId: opcoId || undefined,
-    partnerId: partnerId || undefined,
-    paymentStatus,
+    opcoId: usingSearch ? undefined : opcoId || undefined,
+    partnerId: usingSearch ? undefined : partnerId || undefined,
+    paymentStatus: usingSearch ? "all" : paymentStatus,
+    search: searchTerm || undefined,
     sortBy,
     sortDir,
     page: result.page,
@@ -176,22 +187,46 @@ export function InvoicesListView({
     setSortDir(next.sortDir);
   };
 
+  const handleSearchChange = (value: string) => {
+    setSearch(value);
+    if (value.trim()) {
+      setOpcoId("");
+      setPartnerId("");
+      setPaymentStatus("all");
+    }
+  };
+
   useEffect(() => {
     if (skipAutoReload.current) {
       skipAutoReload.current = false;
       return;
     }
-    void loadInvoices({
-      month,
-      year,
-      opcoId: opcoId || undefined,
-      partnerId: partnerId || undefined,
-      paymentStatus,
-      sortBy,
-      sortDir,
-      page: 1,
-    });
-  }, [month, year, opcoId, partnerId, paymentStatus, sortBy, sortDir, loadInvoices]);
+    const timer = window.setTimeout(() => {
+      void loadInvoices({
+        month,
+        year,
+        opcoId: usingSearch ? undefined : opcoId || undefined,
+        partnerId: usingSearch ? undefined : partnerId || undefined,
+        paymentStatus: usingSearch ? "all" : paymentStatus,
+        search: searchTerm || undefined,
+        sortBy,
+        sortDir,
+        page: 1,
+      });
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [
+    month,
+    year,
+    opcoId,
+    partnerId,
+    paymentStatus,
+    searchTerm,
+    usingSearch,
+    sortBy,
+    sortDir,
+    loadInvoices,
+  ]);
 
   useEffect(() => {
     const handleFocus = () => {
@@ -304,13 +339,24 @@ export function InvoicesListView({
 
       <InvoicesTabs active="all" />
 
+      <ListSearch
+        value={search}
+        onChange={handleSearchChange}
+        placeholder="Invoice #, OpCo, or Partner"
+      />
+
+      <OrFiltersDivider />
+
       <FilterToolbar className="mt-4">
-        <div className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-8">
+        <div className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6">
           <label className="text-sm">
             <span className={ui.label}>Period (month)</span>
             <select
               value={month}
-              onChange={(event) => setMonth(Number(event.target.value))}
+              onChange={(event) => {
+                setSearch("");
+                setMonth(Number(event.target.value));
+              }}
               className={ui.select}
             >
               {MONTHS.map((name, index) => (
@@ -324,7 +370,10 @@ export function InvoicesListView({
             <span className={ui.label}>Year</span>
             <select
               value={year}
-              onChange={(event) => setYear(Number(event.target.value))}
+              onChange={(event) => {
+                setSearch("");
+                setYear(Number(event.target.value));
+              }}
               className={ui.select}
             >
               {yearOptions.map((value) => (
@@ -338,7 +387,10 @@ export function InvoicesListView({
             <span className={ui.label}>OpCo</span>
             <select
               value={opcoId}
-              onChange={(event) => setOpcoId(event.target.value)}
+              onChange={(event) => {
+                setSearch("");
+                setOpcoId(event.target.value);
+              }}
               className={ui.select}
             >
               <option value="">All OpCos</option>
@@ -353,7 +405,10 @@ export function InvoicesListView({
             <span className={ui.label}>Partner</span>
             <select
               value={partnerId}
-              onChange={(event) => setPartnerId(event.target.value)}
+              onChange={(event) => {
+                setSearch("");
+                setPartnerId(event.target.value);
+              }}
               className={ui.select}
             >
               <option value="">All Partners</option>
@@ -368,9 +423,10 @@ export function InvoicesListView({
             <span className={ui.label}>Payment status</span>
             <select
               value={paymentStatus}
-              onChange={(event) =>
-                setPaymentStatus(event.target.value as PaymentStatusFilter)
-              }
+              onChange={(event) => {
+                setSearch("");
+                setPaymentStatus(event.target.value as PaymentStatusFilter);
+              }}
               className={ui.select}
             >
               <option value="all">All</option>
