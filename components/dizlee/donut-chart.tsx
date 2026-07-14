@@ -30,7 +30,7 @@ export function DonutChart({
   const format = formatValue ?? ((value: number) => value.toLocaleString());
 
   return (
-    <div className="rounded-lg border border-border bg-surface p-4 shadow-sm">
+    <div className="rounded-[28px] border border-border bg-surface p-4 shadow-[var(--shadow-md)]">
       <p className="text-sm font-medium text-foreground-muted">{title}</p>
       {total <= 0 ? (
         <p className="mt-6 text-sm text-foreground-subtle">No data yet.</p>

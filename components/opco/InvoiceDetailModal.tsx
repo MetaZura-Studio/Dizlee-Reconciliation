@@ -36,9 +36,9 @@ export function InvoiceDetailModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]">
       <div
-        className="flex max-h-[90vh] w-full max-w-3xl flex-col rounded-lg bg-surface shadow-xl"
+        className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-[28px] border border-border bg-surface shadow-[var(--shadow-md)]"
         role="dialog"
         aria-modal="true"
         aria-labelledby="invoice-detail-title"

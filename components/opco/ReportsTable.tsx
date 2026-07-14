@@ -14,7 +14,26 @@ import { ReportDetailModal } from "@/components/opco/ReportDetailModal";
 import { ReportReuploadDialog } from "@/components/opco/ReportReuploadDialog";
 import { RequestChangeDialog } from "@/components/opco/RequestChangeDialog";
 import { ReportFilenameLink } from "@/components/shared/report-filename-link";
+import { Button } from "@/components/ui/button";
+import {
+  DataTable,
+  DataTableFrame,
+  DataTableHead,
+  DataTableRow,
+  DataTableTd,
+  DataTableTh,
+  SortableDataTableTh,
+} from "@/components/ui/data-table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { FieldLabel, Input, Select } from "@/components/ui/field";
+import { IconButton } from "@/components/ui/icon-button";
+import { IconEye, IconPencil, IconUpload } from "@/components/ui/icons";
+import { FilterToolbar } from "@/components/ui/page";
+import { StatusPill } from "@/components/ui/status-pill";
 import { formatPeriodLabel } from "@/lib/opco/period";
+import { ui } from "@/lib/ui/classes";
+import { nextSortState } from "@/lib/ui/sort";
+import { reportStatusTone } from "@/lib/ui/status-tones";
 import type {
   OpcoReportDetail,
   OpcoReportFilterOptions,
@@ -26,6 +45,12 @@ import type {
 } from "@/lib/opco/queries/reports";
 
 const REQUESTABLE_STATUSES = new Set(["SUBMITTED", "APPROVED", "RESUBMITTED"]);
+
+const SORTABLE_COLUMNS: Record<string, OpcoReportSortField> = {
+  partnerName: "partner",
+  period: "period",
+  uploadedAt: "uploaded",
+};
 
 const MONTHS = [
   { value: 1, label: "January" },
@@ -114,6 +139,21 @@ export function ReportsTable({ initialResult, filterOptions }: ReportsTableProps
     });
   }
 
+  function applySort(field: OpcoReportSortField) {
+    const next = nextSortState(sortBy, sortDir, field);
+    setSortBy(next.sortBy);
+    setSortDir(next.sortDir);
+    navigateWithFilters({
+      year: year ? Number(year) : undefined,
+      month: month ? Number(month) : undefined,
+      partnerId: partnerId || undefined,
+      statusCode: statusCode || undefined,
+      sortBy: next.sortBy,
+      sortDir: next.sortDir,
+      page: 1,
+    });
+  }
+
   function clearFilters() {
     setYear("");
     setMonth("");
@@ -178,9 +218,9 @@ export function ReportsTable({ initialResult, filterOptions }: ReportsTableProps
         header: "Status",
         cell: ({ row }) => (
           <div>
-            <span className="rounded-full bg-surface-muted px-2 py-1 text-xs font-medium text-foreground-muted">
+            <StatusPill tone={reportStatusTone(row.original.statusCode)}>
               {row.original.statusLabel}
-            </span>
+            </StatusPill>
             {row.original.hasPendingChangeRequest ? (
               <p className="mt-1 text-xs text-warning">Reupload pending review</p>
             ) : null}
@@ -215,31 +255,29 @@ export function ReportsTable({ initialResult, filterOptions }: ReportsTableProps
         id: "actions",
         header: "Actions",
         cell: ({ row }) => (
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
+          <div className="flex gap-2">
+            <IconButton
+              label="View"
               onClick={() => void openDetail(row.original.id)}
-              className="rounded border border-border-strong px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface-muted"
             >
-              View
-            </button>
+              <IconEye />
+            </IconButton>
             {canRequestChange(row.original) ? (
-              <button
-                type="button"
+              <IconButton
+                label="Request reupload"
                 onClick={() => setChangeRequestReport(row.original)}
-                className="rounded border border-border-strong px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface-muted"
               >
-                Request reupload
-              </button>
+                <IconPencil />
+              </IconButton>
             ) : null}
             {row.original.canReupload ? (
-              <button
-                type="button"
+              <IconButton
+                label="Reupload corrected file"
+                variant="primary"
                 onClick={() => setReuploadReport(row.original)}
-                className="rounded border border-success-border bg-success-muted px-3 py-1.5 text-xs font-medium text-success hover:bg-success-muted"
               >
-                Reupload corrected file
-              </button>
+                <IconUpload />
+              </IconButton>
             ) : null}
           </div>
         ),
@@ -268,181 +306,148 @@ export function ReportsTable({ initialResult, filterOptions }: ReportsTableProps
   return (
     <div className="space-y-4">
       <form
-        className="grid gap-4 rounded-lg border border-border bg-surface p-4 md:grid-cols-2 xl:grid-cols-4"
         onSubmit={(event) => {
           event.preventDefault();
           applyFilters();
         }}
       >
-        <div>
-          <label htmlFor="reports-year" className="text-sm font-medium text-foreground-muted">
-            Year
-          </label>
-          <input
-            id="reports-year"
-            type="number"
-            min={2000}
-            max={2100}
-            value={year}
-            onChange={(event) => setYear(event.target.value)}
-            placeholder="All years"
-            className="mt-1 block w-full rounded border border-border-strong px-3 py-2 text-sm"
-          />
-        </div>
-        <div>
-          <label htmlFor="reports-month" className="text-sm font-medium text-foreground-muted">
-            Month
-          </label>
-          <select
-            id="reports-month"
-            value={month}
-            onChange={(event) => setMonth(event.target.value)}
-            className="mt-1 block w-full rounded border border-border-strong px-3 py-2 text-sm"
-          >
-            <option value="">All months</option>
-            {MONTHS.map((item) => (
-              <option key={item.value} value={item.value}>
-                {item.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="reports-partner" className="text-sm font-medium text-foreground-muted">
-            Partner
-          </label>
-          <select
-            id="reports-partner"
-            value={partnerId}
-            onChange={(event) => setPartnerId(event.target.value)}
-            className="mt-1 block w-full rounded border border-border-strong px-3 py-2 text-sm"
-          >
-            <option value="">All partners</option>
-            {filterOptions.partners.map((partner) => (
-              <option key={partner.id} value={partner.id}>
-                {partner.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="reports-status" className="text-sm font-medium text-foreground-muted">
-            Status
-          </label>
-          <select
-            id="reports-status"
-            value={statusCode}
-            onChange={(event) => setStatusCode(event.target.value)}
-            className="mt-1 block w-full rounded border border-border-strong px-3 py-2 text-sm"
-          >
-            <option value="">All statuses</option>
-            {filterOptions.statuses.map((status) => (
-              <option key={status.code} value={status.code}>
-                {status.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="reports-sort-by" className="text-sm font-medium text-foreground-muted">
-            Sort by
-          </label>
-          <select
-            id="reports-sort-by"
-            value={sortBy}
-            onChange={(event) => setSortBy(event.target.value as OpcoReportSortField)}
-            className="mt-1 block w-full rounded border border-border-strong px-3 py-2 text-sm"
-          >
-            <option value="uploaded">Upload date</option>
-            <option value="period">Period</option>
-            <option value="partner">Partner</option>
-          </select>
-        </div>
-        <div>
-          <label htmlFor="reports-sort-dir" className="text-sm font-medium text-foreground-muted">
-            Order
-          </label>
-          <select
-            id="reports-sort-dir"
-            value={sortDir}
-            onChange={(event) => setSortDir(event.target.value as OpcoSortDirection)}
-            className="mt-1 block w-full rounded border border-border-strong px-3 py-2 text-sm"
-          >
-            <option value="desc">Newest first</option>
-            <option value="asc">Oldest first</option>
-          </select>
-        </div>
-        <div className="flex items-end gap-2 md:col-span-2 xl:col-span-2">
-          <button
-            type="submit"
-            className="rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
-          >
-            Apply filters
-          </button>
-          <button
-            type="button"
-            onClick={clearFilters}
-            className="rounded border border-border-strong px-4 py-2 text-sm font-medium text-foreground-muted hover:bg-surface-muted"
-          >
-            Clear
-          </button>
-        </div>
+        <FilterToolbar>
+          <div className="grid w-full gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div>
+              <FieldLabel htmlFor="reports-year">Year</FieldLabel>
+              <Input
+                id="reports-year"
+                type="number"
+                min={2000}
+                max={2100}
+                value={year}
+                onChange={(event) => setYear(event.target.value)}
+                placeholder="All years"
+              />
+            </div>
+            <div>
+              <FieldLabel htmlFor="reports-month">Month</FieldLabel>
+              <Select
+                id="reports-month"
+                value={month}
+                onChange={(event) => setMonth(event.target.value)}
+              >
+                <option value="">All months</option>
+                {MONTHS.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <FieldLabel htmlFor="reports-partner">Partner</FieldLabel>
+              <Select
+                id="reports-partner"
+                value={partnerId}
+                onChange={(event) => setPartnerId(event.target.value)}
+              >
+                <option value="">All partners</option>
+                {filterOptions.partners.map((partner) => (
+                  <option key={partner.id} value={partner.id}>
+                    {partner.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <FieldLabel htmlFor="reports-status">Status</FieldLabel>
+              <Select
+                id="reports-status"
+                value={statusCode}
+                onChange={(event) => setStatusCode(event.target.value)}
+              >
+                <option value="">All statuses</option>
+                {filterOptions.statuses.map((status) => (
+                  <option key={status.code} value={status.code}>
+                    {status.label}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          </div>
+          <div className="flex w-full gap-2">
+            <Button type="submit">Apply filters</Button>
+            <Button type="button" variant="secondary" onClick={clearFilters}>
+              Clear
+            </Button>
+          </div>
+        </FilterToolbar>
       </form>
 
       {successMessage ? (
-        <p className="rounded border border-success-border bg-success-muted px-4 py-3 text-sm text-success">
-          {successMessage}
-        </p>
+        <p className={ui.alertSuccess}>{successMessage}</p>
       ) : null}
 
       {initialResult.totalCount === 0 ? (
-        <div className="rounded-lg border border-border bg-surface p-6 text-sm text-foreground-muted">
-          <p>No reports match your filters.</p>
-          <Link href="/opco/upload" className="mt-2 inline-block text-foreground underline">
-            Upload a report
-          </Link>
-        </div>
+        <EmptyState
+          title="No reports match your filters"
+          action={
+            <Link href="/opco/upload" className={ui.btnSecondary}>
+              Upload a report
+            </Link>
+          }
+        />
       ) : (
         <>
-          <div className="overflow-hidden rounded-lg border border-border bg-surface">
-            <table className="min-w-full divide-y divide-border text-sm">
-              <thead className="bg-surface-muted text-left text-foreground-muted">
+          <DataTableFrame>
+            <DataTable>
+              <DataTableHead>
                 {table.getHeaderGroups().map((headerGroup) => (
                   <tr key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                      <th key={header.id} className="px-4 py-3 font-medium">
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext(),
-                            )}
-                      </th>
-                    ))}
+                    {headerGroup.headers.map((header) => {
+                      const sortField = SORTABLE_COLUMNS[header.column.id];
+                      if (sortField) {
+                        return (
+                          <SortableDataTableTh
+                            key={header.id}
+                            label={String(header.column.columnDef.header)}
+                            active={sortBy === sortField}
+                            direction={sortDir}
+                            onSort={() => applySort(sortField)}
+                          />
+                        );
+                      }
+                      return (
+                        <DataTableTh key={header.id}>
+                          {header.isPlaceholder
+                            ? null
+                            : flexRender(
+                                header.column.columnDef.header,
+                                header.getContext(),
+                              )}
+                        </DataTableTh>
+                      );
+                    })}
                   </tr>
                 ))}
-              </thead>
-              <tbody className="divide-y divide-border">
+              </DataTableHead>
+              <tbody>
                 {table.getRowModel().rows.map((row) => (
-                  <tr key={row.id}>
+                  <DataTableRow key={row.id}>
                     {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="px-4 py-3 align-top text-foreground">
+                      <DataTableTd key={cell.id} className="align-top">
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
+                      </DataTableTd>
                     ))}
-                  </tr>
+                  </DataTableRow>
                 ))}
               </tbody>
-            </table>
-          </div>
+            </DataTable>
+          </DataTableFrame>
 
           <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-foreground-muted">
             <p>
               Showing {showingFrom}–{showingTo} of {initialResult.totalCount}
             </p>
             <div className="flex items-center gap-2">
-              <button
-                type="button"
+              <Button
+                variant="secondary"
                 disabled={initialResult.page <= 1}
                 onClick={() =>
                   navigateWithFilters({
@@ -450,15 +455,14 @@ export function ReportsTable({ initialResult, filterOptions }: ReportsTableProps
                     page: initialResult.page - 1,
                   })
                 }
-                className="rounded border border-border-strong px-3 py-1.5 disabled:opacity-40"
               >
                 Previous
-              </button>
+              </Button>
               <span>
                 Page {initialResult.page} of {initialResult.totalPages}
               </span>
-              <button
-                type="button"
+              <Button
+                variant="secondary"
                 disabled={initialResult.page >= initialResult.totalPages}
                 onClick={() =>
                   navigateWithFilters({
@@ -466,10 +470,9 @@ export function ReportsTable({ initialResult, filterOptions }: ReportsTableProps
                     page: initialResult.page + 1,
                   })
                 }
-                className="rounded border border-border-strong px-3 py-1.5 disabled:opacity-40"
               >
                 Next
-              </button>
+              </Button>
             </div>
           </div>
         </>

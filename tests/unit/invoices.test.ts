@@ -44,6 +44,15 @@ describe("parseOpcoInvoiceListFilters", () => {
       page: 2,
     });
   });
+
+  it("parses partner sort field", () => {
+    const result = parseOpcoInvoiceListFilters(
+      new URLSearchParams({ sortBy: "partner", sortDir: "asc" }),
+    );
+
+    expect(result.sortBy).toBe("partner");
+    expect(result.sortDir).toBe("asc");
+  });
 });
 
 describe("shouldAutoAcknowledgeOpcoInvoice", () => {

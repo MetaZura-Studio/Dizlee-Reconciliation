@@ -2,7 +2,9 @@
 
 import { useCallback, useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import type { InvoiceBankDetailsListView } from "@/lib/admin/invoice-bank-details.shared";
+import { ui } from "@/lib/ui/classes";
 
 type InvoiceBankDetailsFormProps = {
   initialSettings: InvoiceBankDetailsListView;
@@ -152,16 +154,8 @@ export function InvoiceBankDetailsForm({
 
   return (
     <div className="space-y-6">
-      {error ? (
-        <p className="rounded-md border border-danger-border bg-danger-muted px-3 py-2 text-sm text-danger">
-          {error}
-        </p>
-      ) : null}
-      {success ? (
-        <p className="rounded-md border border-success-border bg-success-muted px-3 py-2 text-sm text-success">
-          {success}
-        </p>
-      ) : null}
+      {error ? <p className={ui.alertError}>{error}</p> : null}
+      {success ? <p className={ui.alertSuccess}>{success}</p> : null}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -172,47 +166,45 @@ export function InvoiceBankDetailsForm({
                 ? "1 account — used automatically on invoices."
                 : `${accounts.length} accounts — invoice create will ask which to use.`}
           </p>
-          <button
+          <Button
             type="button"
+            variant="secondary"
             onClick={() => setAccounts((current) => [...current, emptyAccount()])}
             disabled={saving || reloading}
-            className="rounded-md border border-border-strong px-3 py-1.5 text-sm text-foreground-muted hover:bg-surface-muted disabled:opacity-60"
           >
             Add bank account
-          </button>
+          </Button>
         </div>
 
         {accounts.length === 0 ? (
-          <p className="rounded-md border border-border bg-surface-muted px-3 py-4 text-sm text-foreground-subtle">
+          <p className={`${ui.emptyState} text-sm text-foreground-subtle`}>
             Add at least one bank account for Dizlee → OpCo digital invoices.
           </p>
         ) : (
           <div className="space-y-4">
             {accounts.map((account, index) => (
-              <section
-                key={account.id}
-                className="space-y-4 rounded-lg border border-border p-4"
-              >
+              <section key={account.id} className={`space-y-4 ${ui.cardPaddingLg}`}>
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <h2 className="text-sm font-semibold text-foreground">
                     Account {index + 1}
                   </h2>
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
                     onClick={() =>
                       setAccounts((current) =>
                         current.filter((item) => item.id !== account.id),
                       )
                     }
                     disabled={saving || reloading}
-                    className="text-xs text-danger hover:underline disabled:opacity-60"
+                    className="text-danger hover:text-danger"
                   >
                     Remove
-                  </button>
+                  </Button>
                 </div>
 
-                <label className="block space-y-1 text-sm sm:max-w-md">
-                  <span className="font-medium text-foreground-muted">Label</span>
+                <label className="block text-sm sm:max-w-md">
+                  <span className={ui.label}>Label</span>
                   <input
                     type="text"
                     value={account.label}
@@ -221,23 +213,21 @@ export function InvoiceBankDetailsForm({
                     }
                     placeholder="e.g. Primary USD"
                     required
-                    className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
+                    className={ui.input}
                   />
                 </label>
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   {FIELDS.map((field) => (
-                    <label key={field.key} className="block space-y-1 text-sm">
-                      <span className="font-medium text-foreground-muted">
-                        {field.label}
-                      </span>
+                    <label key={field.key} className="block text-sm">
+                      <span className={ui.label}>{field.label}</span>
                       <input
                         type="text"
                         value={account[field.key]}
                         onChange={(event) =>
                           updateAccount(account.id, field.key, event.target.value)
                         }
-                        className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
+                        className={ui.input}
                       />
                     </label>
                   ))}
@@ -247,38 +237,34 @@ export function InvoiceBankDetailsForm({
           </div>
         )}
 
-        <p className="rounded-md border border-border bg-surface-muted px-3 py-2 text-sm text-foreground-muted">
+        <p className={`${ui.cardPadding} text-sm text-foreground-muted`}>
           Selected bank details are saved onto each new Dizlee → OpCo invoice when
           it is created.
         </p>
 
         <div className="flex flex-wrap gap-3">
-          <button
-            type="submit"
-            disabled={saving || reloading}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
-          >
+          <Button type="submit" disabled={saving || reloading}>
             {saving ? "Saving…" : "Save"}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="secondary"
             onClick={() => void reloadSettings()}
             disabled={saving || reloading}
-            className="rounded-md border border-border-strong px-4 py-2 text-sm font-medium text-foreground-muted hover:bg-surface-muted disabled:opacity-60"
           >
             {reloading ? "Reloading…" : "Reload"}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="danger"
             onClick={() => {
               setAccounts([]);
               void saveSettings([]);
             }}
             disabled={saving || reloading}
-            className="rounded-md border border-danger-border px-4 py-2 text-sm font-medium text-danger hover:bg-danger-muted disabled:opacity-60"
           >
             Clear all
-          </button>
+          </Button>
         </div>
       </form>
     </div>

@@ -1,4 +1,5 @@
 import { NotificationsInbox } from "@/components/opco/NotificationsInbox";
+import { PageCard, PageHeader } from "@/components/ui/page";
 import { requireOpcoSession } from "@/lib/opco/auth";
 import {
   listOpcoInboxNotifications,
@@ -38,15 +39,12 @@ export default async function OpcoNotificationsPage({
   });
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Notifications</h1>
-        <p className="mt-1 text-foreground-muted">
-          Your OpCo inbox — messages from Dizlee and the reconciliation system.
-        </p>
-      </div>
-
+    <PageCard>
+      <PageHeader
+        title="Notifications"
+        description="Your OpCo inbox — messages from Dizlee and the reconciliation system."
+      />
       <NotificationsInbox initialResult={result} />
-    </div>
+    </PageCard>
   );
 }

@@ -5,6 +5,24 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { CreateOpcoInvoiceModal } from "@/components/dizlee/create-opco-invoice-modal";
 import { InvoiceDetailModal } from "@/components/dizlee/invoice-detail-modal";
 import { InvoicesTabs } from "@/components/dizlee/invoices-tabs";
+import { Button } from "@/components/ui/button";
+import {
+  DataTable,
+  DataTableFrame,
+  DataTableHead,
+  DataTableRow,
+  DataTableTd,
+  DataTableTh,
+  SortableDataTableTh,
+} from "@/components/ui/data-table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { IconButton } from "@/components/ui/icon-button";
+import { IconEye } from "@/components/ui/icons";
+import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
+import { StatusPill } from "@/components/ui/status-pill";
+import { LoadingBar } from "@/components/ui/loading";
+import { ui } from "@/lib/ui/classes";
+import { nextSortState } from "@/lib/ui/sort";
 import type {
   InvoiceDetail,
   InvoiceFilterOptions,
@@ -51,6 +69,16 @@ function formatMoney(amount: number, currencyCode: string): string {
     currency: currencyCode,
     maximumFractionDigits: 2,
   }).format(amount);
+}
+
+function paymentTone(status: string): "success" | "warning" | "neutral" {
+  if (status === "PAID") {
+    return "success";
+  }
+  if (status === "PENDING") {
+    return "warning";
+  }
+  return "neutral";
 }
 
 function buildQuery(filters: InvoiceListFilters): string {
@@ -140,6 +168,12 @@ export function InvoicesListView({
 
   const refresh = () => {
     void loadInvoices({ ...currentFilters(), page: 1 });
+  };
+
+  const applySort = (field: InvoiceSortField) => {
+    const next = nextSortState(sortBy, sortDir, field);
+    setSortBy(next.sortBy);
+    setSortDir(next.sortDir);
   };
 
   useEffect(() => {
@@ -255,36 +289,29 @@ export function InvoicesListView({
   const items: InvoiceListItem[] = result.items;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">Dizlee - Invoices</h1>
-          <p className="mt-1 text-sm text-foreground-muted">
-            Partner → Dizlee and Dizlee → OpCo invoices for the selected period.
-          </p>
-          {fromDashboard ? (
-            <p className="mt-1 text-xs text-foreground-subtle">From dashboard</p>
-          ) : null}
-        </div>
-        <button
-          type="button"
-          onClick={() => setCreateOpen(true)}
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
-        >
-          Create invoice to OpCo
-        </button>
-      </div>
+    <PageCard>
+      <PageHeader
+        title="Dizlee - Invoices"
+        description={
+          fromDashboard
+            ? "Partner → Dizlee and Dizlee → OpCo invoices for the selected period. From dashboard."
+            : "Partner → Dizlee and Dizlee → OpCo invoices for the selected period."
+        }
+        actions={
+          <Button onClick={() => setCreateOpen(true)}>Create invoice to OpCo</Button>
+        }
+      />
 
       <InvoicesTabs active="all" />
 
-      <section className="rounded-lg border border-border bg-surface-muted p-4">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-8">
+      <FilterToolbar className="mt-4">
+        <div className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-8">
           <label className="text-sm">
-            <span className="mb-1 block text-xs text-foreground-subtle">Period (month)</span>
+            <span className={ui.label}>Period (month)</span>
             <select
               value={month}
               onChange={(event) => setMonth(Number(event.target.value))}
-              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
+              className={ui.select}
             >
               {MONTHS.map((name, index) => (
                 <option key={name} value={index + 1}>
@@ -294,11 +321,11 @@ export function InvoicesListView({
             </select>
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-xs text-foreground-subtle">Year</span>
+            <span className={ui.label}>Year</span>
             <select
               value={year}
               onChange={(event) => setYear(Number(event.target.value))}
-              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
+              className={ui.select}
             >
               {yearOptions.map((value) => (
                 <option key={value} value={value}>
@@ -308,11 +335,11 @@ export function InvoicesListView({
             </select>
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-xs text-foreground-subtle">OpCo</span>
+            <span className={ui.label}>OpCo</span>
             <select
               value={opcoId}
               onChange={(event) => setOpcoId(event.target.value)}
-              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
+              className={ui.select}
             >
               <option value="">All OpCos</option>
               {filterOptions.opcos.map((opco) => (
@@ -323,11 +350,11 @@ export function InvoicesListView({
             </select>
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-xs text-foreground-subtle">Partner</span>
+            <span className={ui.label}>Partner</span>
             <select
               value={partnerId}
               onChange={(event) => setPartnerId(event.target.value)}
-              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
+              className={ui.select}
             >
               <option value="">All Partners</option>
               {filterOptions.partners.map((partner) => (
@@ -338,139 +365,114 @@ export function InvoicesListView({
             </select>
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-xs text-foreground-subtle">Payment status</span>
+            <span className={ui.label}>Payment status</span>
             <select
               value={paymentStatus}
               onChange={(event) =>
                 setPaymentStatus(event.target.value as PaymentStatusFilter)
               }
-              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
+              className={ui.select}
             >
               <option value="all">All</option>
               <option value="paid">Paid</option>
               <option value="pending">Pending</option>
             </select>
           </label>
-          <label className="text-sm">
-            <span className="mb-1 block text-xs text-foreground-subtle">Sort by</span>
-            <select
-              value={sortBy}
-              onChange={(event) =>
-                setSortBy(event.target.value as InvoiceSortField)
-              }
-              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
-            >
-              <option value="uploaded">Uploaded</option>
-              <option value="period">Period</option>
-            </select>
-          </label>
-          <label className="text-sm">
-            <span className="mb-1 block text-xs text-foreground-subtle">Direction</span>
-            <select
-              value={sortDir}
-              onChange={(event) =>
-                setSortDir(event.target.value as SortDirection)
-              }
-              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
-            >
-              <option value="desc">Desc</option>
-              <option value="asc">Asc</option>
-            </select>
-          </label>
           <div className="flex items-end">
-            <button
-              type="button"
-              onClick={refresh}
-              className="w-full rounded-md border border-border-strong px-4 py-1.5 text-sm text-foreground-muted hover:bg-surface-muted"
-            >
+            <Button variant="secondary" onClick={refresh} className="w-full">
               Refresh
-            </button>
+            </Button>
           </div>
         </div>
-      </section>
+      </FilterToolbar>
 
-      {loading ? <p className="text-sm text-foreground-subtle">Loading invoices…</p> : null}
-      {error ? (
-        <div className="rounded-md border border-danger-border bg-danger-muted p-4 text-sm text-danger">
-          {error}
+      {loading ? (
+        <div className="mt-4">
+          <LoadingBar active />
         </div>
       ) : null}
+      {error ? <div className={`mt-4 ${ui.alertError}`}>{error}</div> : null}
 
       {!loading && !error ? (
         items.length > 0 ? (
-          <>
-            <div className="overflow-hidden rounded-lg border border-border">
-              <table className="min-w-full divide-y divide-border text-sm">
-                <thead className="bg-surface-muted">
+          <div className="mt-6 space-y-4">
+            <DataTableFrame>
+              <DataTable>
+                <DataTableHead>
                   <tr>
-                    <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                      Period
-                    </th>
-                    <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                      OpCo
-                    </th>
-                    <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                      Partner
-                    </th>
-                    <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                      Direction
-                    </th>
-                    <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                      Invoice #
-                    </th>
-                    <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                      Invoice status
-                    </th>
-                    <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                      Payment
-                    </th>
-                    <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                      Uploaded
-                    </th>
-                    <th className="px-4 py-3 text-right font-medium text-foreground-muted">
-                      Total
-                    </th>
-                    <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                      Action
-                    </th>
+                    <SortableDataTableTh
+                      label="Period"
+                      active={sortBy === "period"}
+                      direction={sortDir}
+                      onSort={() => applySort("period")}
+                    />
+                    <SortableDataTableTh
+                      label="OpCo"
+                      active={sortBy === "opco"}
+                      direction={sortDir}
+                      onSort={() => applySort("opco")}
+                    />
+                    <SortableDataTableTh
+                      label="Partner"
+                      active={sortBy === "partner"}
+                      direction={sortDir}
+                      onSort={() => applySort("partner")}
+                    />
+                    <DataTableTh>Direction</DataTableTh>
+                    <DataTableTh>Invoice #</DataTableTh>
+                    <DataTableTh>Invoice status</DataTableTh>
+                    <DataTableTh>Payment</DataTableTh>
+                    <SortableDataTableTh
+                      label="Uploaded"
+                      active={sortBy === "uploaded"}
+                      direction={sortDir}
+                      onSort={() => applySort("uploaded")}
+                    />
+                    <DataTableTh align="right">Total</DataTableTh>
+                    <DataTableTh>Action</DataTableTh>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-border bg-surface">
+                </DataTableHead>
+                <tbody>
                   {items.map((row) => (
-                    <tr key={row.id}>
-                      <td className="px-4 py-3 text-foreground-muted">
+                    <DataTableRow key={row.id}>
+                      <DataTableTd className="text-foreground-muted">
                         {formatPeriod(row.period.month, row.period.year)}
-                      </td>
-                      <td className="px-4 py-3 text-foreground">{row.opcoName}</td>
-                      <td className="px-4 py-3 text-foreground">
-                        {row.partnerName ?? "—"}
-                      </td>
-                      <td className="px-4 py-3 text-foreground-muted">{row.direction}</td>
-                      <td className="px-4 py-3 text-foreground-muted">
+                      </DataTableTd>
+                      <DataTableTd>{row.opcoName}</DataTableTd>
+                      <DataTableTd>{row.partnerName ?? "—"}</DataTableTd>
+                      <DataTableTd className="text-foreground-muted">
+                        {row.direction}
+                      </DataTableTd>
+                      <DataTableTd className="text-foreground-muted">
                         {row.invoiceNumber ?? "—"}
-                      </td>
-                      <td className="px-4 py-3 text-foreground-muted">{row.invoiceStatus}</td>
-                      <td className="px-4 py-3 text-foreground-muted">{row.paymentStatus}</td>
-                      <td className="px-4 py-3 text-foreground-muted">
+                      </DataTableTd>
+                      <DataTableTd>
+                        <StatusPill tone="neutral">{row.invoiceStatus}</StatusPill>
+                      </DataTableTd>
+                      <DataTableTd>
+                        <StatusPill tone={paymentTone(row.paymentStatus)}>
+                          {row.paymentStatus}
+                        </StatusPill>
+                      </DataTableTd>
+                      <DataTableTd className="text-foreground-muted">
                         {formatDateTime(row.uploadedAt)}
-                      </td>
-                      <td className="px-4 py-3 text-right text-foreground">
+                      </DataTableTd>
+                      <DataTableTd align="right">
                         {formatMoney(row.totalAmount, row.currencyCode)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <button
-                          type="button"
+                      </DataTableTd>
+                      <DataTableTd>
+                        <IconButton
+                          label="View invoice"
                           onClick={() => void openDetail(row.id)}
-                          className="text-sm text-foreground-muted underline hover:text-foreground"
                         >
-                          View invoice
-                        </button>
-                      </td>
-                    </tr>
+                          <IconEye />
+                        </IconButton>
+                      </DataTableTd>
+                    </DataTableRow>
                   ))}
                 </tbody>
-              </table>
-            </div>
+              </DataTable>
+            </DataTableFrame>
 
             <div className="flex items-center justify-between text-sm text-foreground-muted">
               <p>
@@ -478,32 +480,29 @@ export function InvoicesListView({
                 {result.totalCount} records
               </p>
               <div className="flex gap-2">
-                <button
-                  type="button"
+                <Button
+                  variant="secondary"
                   disabled={result.page <= 1}
                   onClick={() => goToPage(result.page - 1)}
-                  className="rounded-md border border-border-strong px-3 py-1 disabled:opacity-40"
                 >
                   Prev
-                </button>
-                <button
-                  type="button"
+                </Button>
+                <Button
+                  variant="secondary"
                   disabled={result.page >= result.totalPages}
                   onClick={() => goToPage(result.page + 1)}
-                  className="rounded-md border border-border-strong px-3 py-1 disabled:opacity-40"
                 >
                   Next
-                </button>
+                </Button>
               </div>
             </div>
-          </>
-        ) : (
-          <div className="rounded-lg border border-border bg-surface p-8 text-center">
-            <p className="font-medium text-foreground">No invoices</p>
-            <p className="mt-1 text-sm text-foreground-muted">
-              Try adjusting filters or upload an invoice as OpCo/Partner.
-            </p>
           </div>
+        ) : (
+          <EmptyState
+            className="mt-6"
+            title="No invoices"
+            description="Try adjusting filters or upload an invoice as OpCo/Partner."
+          />
         )
       ) : null}
 
@@ -532,6 +531,6 @@ export function InvoicesListView({
           void loadInvoices({ ...currentFilters(), page: 1 });
         }}
       />
-    </div>
+    </PageCard>
   );
 }

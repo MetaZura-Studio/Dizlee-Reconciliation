@@ -2,12 +2,23 @@
 
 import { useCallback, useState } from "react";
 
+import { Button } from "@/components/ui/button";
+import {
+  DataTable,
+  DataTableFrame,
+  DataTableHead,
+  DataTableRow,
+  DataTableTd,
+  DataTableTh,
+} from "@/components/ui/data-table";
+import { FilterToolbar, PageCard } from "@/components/ui/page";
 import {
   formatPlaceholderTokens,
   type EmailTemplateDetail,
   type EmailTemplateListItem,
   type EmailTemplatesPageData,
 } from "@/lib/admin/email-templates.shared";
+import { ui } from "@/lib/ui/classes";
 
 function formatDateTime(value: string): string {
   return new Date(value).toLocaleString("en-US", {
@@ -187,32 +198,20 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
   };
 
   if (!detail || templates.length === 0) {
-    return (
-      <p className="rounded-md border border-warning-border bg-warning-muted px-3 py-2 text-sm text-warning">
-        No email templates are available.
-      </p>
-    );
+    return <p className={ui.alertWarning}>No email templates are available.</p>;
   }
 
   const selectedTemplate = templates.find((item) => item.code === selectedCode);
 
   return (
     <div className="space-y-6">
-      {error ? (
-        <p className="rounded-md border border-danger-border bg-danger-muted px-3 py-2 text-sm text-danger">
-          {error}
-        </p>
-      ) : null}
-      {success ? (
-        <p className="rounded-md border border-success-border bg-success-muted px-3 py-2 text-sm text-success">
-          {success}
-        </p>
-      ) : null}
+      {error ? <p className={ui.alertError}>{error}</p> : null}
+      {success ? <p className={ui.alertSuccess}>{success}</p> : null}
 
-      <section className="rounded-lg border border-border bg-surface p-5">
-        <div className="space-y-4">
-          <div className="space-y-1">
-            <label htmlFor="templateSelect" className="text-sm font-medium text-foreground-muted">
+      <PageCard>
+        <FilterToolbar>
+          <div className="w-full space-y-1">
+            <label htmlFor="templateSelect" className={ui.label}>
               Template
             </label>
             <select
@@ -220,7 +219,7 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
               value={selectedCode}
               onChange={(event) => handleSelect(event.target.value)}
               disabled={loading || saving || revertingVersion !== null}
-              className="w-full max-w-xl rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
+              className={`${ui.select} max-w-xl disabled:opacity-60`}
             >
               {templates.map((template: EmailTemplateListItem) => (
                 <option key={template.code} value={template.code}>
@@ -229,22 +228,22 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
               ))}
             </select>
           </div>
+        </FilterToolbar>
 
-          <div className="rounded-md border border-border bg-surface-muted px-3 py-2 text-sm text-foreground-muted">
-            <p>
-              <span className="font-medium text-foreground">Code:</span>{" "}
-              <span className="font-mono">{detail.code}</span>
-            </p>
-            <p className="mt-1">
-              <span className="font-medium text-foreground">Current version:</span>{" "}
-              v{detail.currentVersion}
-              {selectedTemplate ? ` · ${selectedTemplate.subject}` : null}
-            </p>
-          </div>
+        <div className={`mt-4 ${ui.cardPadding} text-sm text-foreground-muted`}>
+          <p>
+            <span className="font-medium text-foreground">Code:</span>{" "}
+            <span className="font-mono">{detail.code}</span>
+          </p>
+          <p className="mt-1">
+            <span className="font-medium text-foreground">Current version:</span>{" "}
+            v{detail.currentVersion}
+            {selectedTemplate ? ` · ${selectedTemplate.subject}` : null}
+          </p>
         </div>
-      </section>
+      </PageCard>
 
-      <section className="rounded-lg border border-border bg-surface p-5">
+      <PageCard>
         <div className="space-y-1">
           <h2 className="text-lg font-semibold text-foreground">Format</h2>
           <p className="text-sm text-foreground-muted">
@@ -253,13 +252,13 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
           </p>
         </div>
 
-        <p className="mt-4 rounded-md border border-border bg-surface-muted px-3 py-2 text-sm text-foreground-muted">
+        <p className={`mt-4 ${ui.cardPadding} text-sm text-foreground-muted`}>
           Placeholders: {formatPlaceholderTokens(detail.placeholders)}
         </p>
 
         <form onSubmit={(event) => void saveTemplate(event)} className="mt-4 space-y-4">
           <div className="space-y-1">
-            <label htmlFor="templateSubject" className="text-sm font-medium text-foreground-muted">
+            <label htmlFor="templateSubject" className={ui.label}>
               Subject
             </label>
             <input
@@ -268,12 +267,12 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
               onChange={(event) =>
                 setForm((current) => ({ ...current, subject: event.target.value }))
               }
-              className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
+              className={ui.input}
             />
           </div>
 
           <div className="space-y-1">
-            <label htmlFor="templateBody" className="text-sm font-medium text-foreground-muted">
+            <label htmlFor="templateBody" className={ui.label}>
               Body
             </label>
             <textarea
@@ -283,12 +282,12 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
               onChange={(event) =>
                 setForm((current) => ({ ...current, body: event.target.value }))
               }
-              className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
+              className={`${ui.input} min-h-[10rem] py-3`}
             />
           </div>
 
           <div className="space-y-1">
-            <label htmlFor="changeNote" className="text-sm font-medium text-foreground-muted">
+            <label htmlFor="changeNote" className={ui.label}>
               Change note
             </label>
             <input
@@ -298,82 +297,82 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
                 setForm((current) => ({ ...current, changeNote: event.target.value }))
               }
               placeholder="Optional note for this version"
-              className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
+              className={ui.input}
             />
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <button
-              type="submit"
-              disabled={saving || loading || revertingVersion !== null}
-              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
-            >
+            <Button type="submit" disabled={saving || loading || revertingVersion !== null}>
               {saving ? "Saving…" : "Save"}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="secondary"
               onClick={() => void reloadTemplate()}
               disabled={saving || loading || revertingVersion !== null}
-              className="rounded-md border border-border-strong px-4 py-2 text-sm font-medium text-foreground-muted hover:bg-surface-muted disabled:opacity-60"
             >
               {loading ? "Reloading…" : "Reload"}
-            </button>
+            </Button>
           </div>
         </form>
-      </section>
+      </PageCard>
 
-      <section className="rounded-lg border border-border bg-surface p-5">
+      <PageCard>
         <h3 className="text-lg font-semibold text-foreground">Version history</h3>
         <p className="mt-1 text-sm text-foreground-muted">
           Each save creates a new version. Revert copies an older version forward
           without deleting history.
         </p>
-        <div className="mt-4 overflow-x-auto">
-          <table className="min-w-full text-left text-sm">
-            <thead className="border-b border-border text-foreground-subtle">
-              <tr>
-                <th className="px-3 py-2 font-medium">Version</th>
-                <th className="px-3 py-2 font-medium">Subject</th>
-                <th className="px-3 py-2 font-medium">Saved</th>
-                <th className="px-3 py-2 font-medium">Note</th>
-                <th className="px-3 py-2 font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {detail.versions.map((version) => (
-                <tr key={version.version} className="border-b border-border">
-                  <td className="px-3 py-2 font-medium text-foreground">
-                    v{version.version}
-                  </td>
-                  <td className="px-3 py-2 text-foreground-muted">{version.subject}</td>
-                  <td className="px-3 py-2 text-foreground-muted">
-                    {formatDateTime(version.createdAt)}
-                  </td>
-                  <td className="px-3 py-2 text-foreground-muted">
-                    {version.changeNote ?? "—"}
-                  </td>
-                  <td className="px-3 py-2">
-                    <button
-                      type="button"
-                      onClick={() => void revertToVersion(version.version)}
-                      disabled={
-                        saving ||
-                        loading ||
-                        revertingVersion === version.version
-                      }
-                      className="text-sm font-medium text-foreground-muted hover:text-foreground disabled:opacity-60"
-                    >
-                      {revertingVersion === version.version
-                        ? "Reverting…"
-                        : "Revert"}
-                    </button>
-                  </td>
+        <div className="mt-4">
+          <DataTableFrame>
+            <DataTable>
+              <DataTableHead>
+                <tr>
+                  <DataTableTh>Version</DataTableTh>
+                  <DataTableTh>Subject</DataTableTh>
+                  <DataTableTh>Saved</DataTableTh>
+                  <DataTableTh>Note</DataTableTh>
+                  <DataTableTh>Actions</DataTableTh>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </DataTableHead>
+              <tbody>
+                {detail.versions.map((version) => (
+                  <DataTableRow key={version.version}>
+                    <DataTableTd className="font-medium text-foreground">
+                      v{version.version}
+                    </DataTableTd>
+                    <DataTableTd className="text-foreground-muted">
+                      {version.subject}
+                    </DataTableTd>
+                    <DataTableTd className="text-foreground-muted">
+                      {formatDateTime(version.createdAt)}
+                    </DataTableTd>
+                    <DataTableTd className="text-foreground-muted">
+                      {version.changeNote ?? "—"}
+                    </DataTableTd>
+                    <DataTableTd>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => void revertToVersion(version.version)}
+                        disabled={
+                          saving ||
+                          loading ||
+                          revertingVersion === version.version
+                        }
+                      >
+                        {revertingVersion === version.version
+                          ? "Reverting…"
+                          : "Revert"}
+                      </Button>
+                    </DataTableTd>
+                  </DataTableRow>
+                ))}
+              </tbody>
+            </DataTable>
+          </DataTableFrame>
         </div>
-      </section>
+      </PageCard>
     </div>
   );
 }

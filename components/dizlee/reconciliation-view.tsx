@@ -5,6 +5,21 @@ import { useCallback, useEffect, useState } from "react";
 import { ReportDetailModal } from "@/components/dizlee/report-detail-modal";
 import { LaneRemindModal } from "@/components/dizlee/lane-remind-modal";
 import { ReportFilenameLink } from "@/components/shared/report-filename-link";
+import { Button } from "@/components/ui/button";
+import {
+  DataTable,
+  DataTableFrame,
+  DataTableHead,
+  DataTableRow,
+  DataTableTd,
+  DataTableTh,
+} from "@/components/ui/data-table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { FieldLabel, Select } from "@/components/ui/field";
+import { IconButton } from "@/components/ui/icon-button";
+import { IconBell, IconEye } from "@/components/ui/icons";
+import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
+import { StatusPill } from "@/components/ui/status-pill";
 import type { ReportDetail, ReportFilterOptions } from "@/lib/dizlee/reports";
 import type {
   CompareLaneFilters,
@@ -12,6 +27,7 @@ import type {
   ReconciliationHistoryResult,
   ReconciliationSearchBy,
 } from "@/lib/dizlee/reconciliation";
+import { ui } from "@/lib/ui/classes";
 
 const MONTHS = [
   "January",
@@ -50,18 +66,20 @@ function openReconciliationResult(id: number | string) {
   );
 }
 
-function stateClass(state: CompareLaneRow["state"]): string {
+function stateTone(
+  state: CompareLaneRow["state"],
+): "success" | "info" | "warning" | "neutral" {
   switch (state) {
     case "READY":
-      return "text-success";
+      return "success";
     case "RECONCILED":
-      return "text-accent";
+      return "info";
     case "NO_OPCO_REPORT":
     case "NO_PARTNER_REPORT":
     case "MISSING":
-      return "text-warning";
+      return "warning";
     default:
-      return "text-foreground-muted";
+      return "neutral";
   }
 }
 
@@ -278,7 +296,7 @@ export function ReconciliationView({
     searchBy === "opco" ? filterOptions.opcos : filterOptions.partners;
 
   return (
-    <div className={`mx-auto max-w-6xl space-y-6 ${reconcilingLabel ? "cursor-wait" : ""}`}>
+    <div className={reconcilingLabel ? "cursor-wait" : undefined}>
       {reconcilingLabel ? (
         <div
           className="fixed inset-0 z-[60] flex cursor-wait items-center justify-center bg-black/50 p-4"
@@ -286,7 +304,7 @@ export function ReconciliationView({
           aria-live="polite"
           aria-busy="true"
         >
-          <div className="w-full max-w-md rounded-lg border border-border bg-surface p-6 text-center shadow-xl">
+          <div className="w-full max-w-md rounded-[28px] border border-border bg-surface p-6 shadow-[var(--shadow-md)] text-center shadow-xl">
             <div
               className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-border-strong border-t-primary"
               aria-hidden="true"
@@ -303,362 +321,305 @@ export function ReconciliationView({
         </div>
       ) : null}
 
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">Reconciliation</h1>
-        <p className="mt-1 text-sm text-foreground-subtle">
-          Compare OpCo and Partner reports for each pair. Tolerance: {tolerancePercent}%
-        </p>
-      </div>
+      <PageCard>
+        <PageHeader
+          title="Reconciliation"
+          description={`Compare OpCo and Partner reports for each pair. Tolerance: ${tolerancePercent}%`}
+        />
 
-      <div className="border-b border-border">
-        <nav className="-mb-px flex gap-6">
-          {[
-            { id: "compare" as const, label: "Compare Reports" },
-            { id: "history" as const, label: "History" },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => {
-                setActiveTab(tab.id);
-                if (tab.id === "history") {
-                  void loadHistory(1);
-                }
-              }}
-              className={`border-b-2 px-1 pb-3 text-sm font-medium ${
-                activeTab === tab.id
-                  ? "border-primary text-foreground"
-                  : "border-transparent text-foreground-subtle hover:text-foreground-muted"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </nav>
-      </div>
-
-      {message ? (
-        <div className="rounded-md border border-success-border bg-success-muted p-4 text-sm text-success">
-          {message}
-        </div>
-      ) : null}
-      {error ? (
-        <div className="rounded-md border border-danger-border bg-danger-muted p-4 text-sm text-danger">
-          {error}
-        </div>
-      ) : null}
-
-      {activeTab === "compare" ? (
-        <>
-          <section className="rounded-lg border border-border bg-surface-muted p-4">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <label className="text-sm">
-                <span className="mb-1 block text-xs text-foreground-subtle">Period (month)</span>
-                <select
-                  value={month}
-                  onChange={(event) => setMonth(Number(event.target.value))}
-                  className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
-                >
-                  {MONTHS.map((name, index) => (
-                    <option key={name} value={index + 1}>
-                      {name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="text-sm">
-                <span className="mb-1 block text-xs text-foreground-subtle">Year</span>
-                <select
-                  value={year}
-                  onChange={(event) => setYear(Number(event.target.value))}
-                  className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
-                >
-                  {yearOptions.map((value) => (
-                    <option key={value} value={value}>
-                      {value}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="text-sm">
-                <span className="mb-1 block text-xs text-foreground-subtle">Search by</span>
-                <select
-                  value={searchBy}
-                  onChange={(event) => {
-                    setSearchBy(event.target.value as ReconciliationSearchBy);
-                    setEntityId("");
-                  }}
-                  className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
-                >
-                  <option value="opco">OpCo reports</option>
-                  <option value="partner">Partner reports</option>
-                </select>
-              </label>
-              <label className="text-sm">
-                <span className="mb-1 block text-xs text-foreground-subtle">
-                  {searchBy === "opco" ? "OpCo" : "Partner"}
-                </span>
-                <select
-                  value={entityId}
-                  onChange={(event) => setEntityId(event.target.value)}
-                  className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
-                >
-                  <option value="">All</option>
-                  {entityOptions.map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {option.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            <div className="mt-4">
+        <div className="border-b border-border">
+          <nav className="-mb-px flex gap-6">
+            {[
+              { id: "compare" as const, label: "Compare Reports" },
+              { id: "history" as const, label: "History" },
+            ].map((tab) => (
               <button
+                key={tab.id}
                 type="button"
-                onClick={applyCompareFilters}
-                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  if (tab.id === "history") {
+                    void loadHistory(1);
+                  }
+                }}
+                className={`border-b-2 px-1 pb-3 text-sm font-medium ${
+                  activeTab === tab.id
+                    ? "border-primary text-foreground"
+                    : "border-transparent text-foreground-subtle hover:text-foreground-muted"
+                }`}
               >
-                Apply
+                {tab.label}
               </button>
-            </div>
-          </section>
+            ))}
+          </nav>
+        </div>
 
-          {loading ? <p className="text-sm text-foreground-subtle">Loading pairs…</p> : null}
+        {message ? <p className={`mt-6 ${ui.alertSuccess}`}>{message}</p> : null}
+        {error ? <p className={`mt-6 ${ui.alertError}`}>{error}</p> : null}
 
-          {!loading ? (
-            lanes.length > 0 ? (
-              <div className="overflow-hidden rounded-lg border border-border">
-                <table className="min-w-full divide-y divide-border text-sm">
-                  <thead className="bg-surface-muted">
-                    <tr>
-                      <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                        Period
-                      </th>
-                      <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                        OpCo
-                      </th>
-                      <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                        Partner
-                      </th>
-                      <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                        OpCo report
-                      </th>
-                      <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                        Partner report
-                      </th>
-                      <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                        State
-                      </th>
-                      <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                        Outcome
-                      </th>
-                      <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                        Last reminder
-                      </th>
-                      <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border bg-surface">
-                    {lanes.map((lane) => {
-                      const key = `${lane.opcoId}-${lane.partnerId}`;
-                      const busy = actionId === key || Boolean(reconcilingLabel);
-                      return (
-                        <tr key={key}>
-                          <td className="px-4 py-3 text-foreground-muted">
-                            {formatPeriod(lane.period.month, lane.period.year)}
-                          </td>
-                          <td className="px-4 py-3 text-foreground">{lane.opcoName}</td>
-                          <td className="px-4 py-3 text-foreground">
-                            {lane.partnerName}
-                          </td>
-                          <td className="px-4 py-3 text-foreground-muted">
-                            <ReportFilenameLink
-                              filename={lane.opcoReportFilename}
-                              onClick={
-                                lane.opcoReportId
-                                  ? () => void openReportDetail(lane.opcoReportId as string)
-                                  : undefined
-                              }
-                            />
-                          </td>
-                          <td className="px-4 py-3 text-foreground-muted">
-                            <ReportFilenameLink
-                              filename={lane.partnerReportFilename}
-                              onClick={
-                                lane.partnerReportId
-                                  ? () =>
-                                      void openReportDetail(
-                                        lane.partnerReportId as string,
-                                      )
-                                  : undefined
-                              }
-                            />
-                          </td>
-                          <td className={`px-4 py-3 ${stateClass(lane.state)}`}>
-                            {lane.state.replaceAll("_", " ")}
-                          </td>
-                          <td className="px-4 py-3 text-foreground-muted">
-                            {lane.outcome ?? "—"}
-                          </td>
-                          <td className="px-4 py-3 text-xs text-foreground-muted">
-                            <p>{lastReminderLabel(lane)}</p>
-                            {lane.notificationCount > 0 ? (
-                              <p className="mt-1 text-foreground-subtle">
-                                {lane.notificationCount} prior notice
-                                {lane.notificationCount === 1 ? "" : "s"}
-                              </p>
-                            ) : null}
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex flex-wrap gap-2">
-                              {lane.canRun ? (
-                                <button
-                                  type="button"
-                                  disabled={busy}
-                                  onClick={() => void runReconciliation(lane)}
-                                  className="rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-40"
-                                >
-                                  Run reconciliation
-                                </button>
-                              ) : null}
-                              {needsReportReminder(lane.state) ? (
-                                <button
-                                  type="button"
-                                  onClick={() => setRemindLane(lane)}
-                                  className="rounded-md border border-warning-border bg-warning-muted px-3 py-1 text-xs font-medium text-warning hover:bg-warning-muted"
-                                >
-                                  Remind…
-                                </button>
-                              ) : null}
-                              {lane.reconciliationId ? (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    openReconciliationResult(lane.reconciliationId as string)
-                                  }
-                                  className="rounded-md border border-border-strong px-3 py-1 text-xs text-foreground-muted hover:bg-surface-muted"
-                                >
-                                  View result
-                                </button>
-                              ) : null}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="rounded-lg border border-border bg-surface p-8 text-center">
-                <p className="font-medium text-foreground">No pairs found</p>
-                <p className="mt-1 text-sm text-foreground-muted">
-                  Adjust period or search filters to see linked OpCo–Partner pairs.
-                </p>
-              </div>
-            )
-          ) : null}
-        </>
-      ) : (
-        <>
-          {loading ? <p className="text-sm text-foreground-subtle">Loading history…</p> : null}
-          {!loading && history.items.length > 0 ? (
-            <>
-              <div className="overflow-hidden rounded-lg border border-border">
-                <table className="min-w-full divide-y divide-border text-sm">
-                  <thead className="bg-surface-muted">
-                    <tr>
-                      <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                        Period
-                      </th>
-                      <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                        OpCo / Partner
-                      </th>
-                      <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                        Status
-                      </th>
-                      <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                        Matched
-                      </th>
-                      <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                        Unmatched
-                      </th>
-                      <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                        Run at
-                      </th>
-                      <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                        Action
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border bg-surface">
-                    {history.items.map((row) => (
-                      <tr key={row.id}>
-                        <td className="px-4 py-3 text-foreground-muted">
-                          {formatPeriod(row.period.month, row.period.year)}
-                        </td>
-                        <td className="px-4 py-3 text-foreground">{row.lane}</td>
-                        <td className="px-4 py-3 text-foreground-muted">{row.status}</td>
-                        <td className="px-4 py-3 text-foreground-muted">
-                          {row.matchedCount}
-                        </td>
-                        <td className="px-4 py-3 text-foreground-muted">
-                          {row.unmatchedCount}
-                        </td>
-                        <td className="px-4 py-3 text-foreground-muted">
-                          {formatDateTime(row.runAt)}
-                        </td>
-                        <td className="px-4 py-3">
-                        <button
-                          type="button"
-                          onClick={() => openReconciliationResult(row.id)}
-                          className="text-sm text-foreground-muted underline hover:text-foreground"
-                        >
-                          View result
-                        </button>
-                        </td>
-                      </tr>
+        {activeTab === "compare" ? (
+          <>
+            <FilterToolbar className="mt-6">
+              <div className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <label className="text-sm">
+                  <FieldLabel>Period (month)</FieldLabel>
+                  <Select
+                    value={month}
+                    onChange={(event) => setMonth(Number(event.target.value))}
+                  >
+                    {MONTHS.map((name, index) => (
+                      <option key={name} value={index + 1}>
+                        {name}
+                      </option>
                     ))}
-                  </tbody>
-                </table>
+                  </Select>
+                </label>
+                <label className="text-sm">
+                  <FieldLabel>Year</FieldLabel>
+                  <Select
+                    value={year}
+                    onChange={(event) => setYear(Number(event.target.value))}
+                  >
+                    {yearOptions.map((value) => (
+                      <option key={value} value={value}>
+                        {value}
+                      </option>
+                    ))}
+                  </Select>
+                </label>
+                <label className="text-sm">
+                  <FieldLabel>Search by</FieldLabel>
+                  <Select
+                    value={searchBy}
+                    onChange={(event) => {
+                      setSearchBy(event.target.value as ReconciliationSearchBy);
+                      setEntityId("");
+                    }}
+                  >
+                    <option value="opco">OpCo reports</option>
+                    <option value="partner">Partner reports</option>
+                  </Select>
+                </label>
+                <label className="text-sm">
+                  <FieldLabel>{searchBy === "opco" ? "OpCo" : "Partner"}</FieldLabel>
+                  <Select
+                    value={entityId}
+                    onChange={(event) => setEntityId(event.target.value)}
+                  >
+                    <option value="">All</option>
+                    {entityOptions.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.name}
+                      </option>
+                    ))}
+                  </Select>
+                </label>
               </div>
-              <div className="flex items-center justify-between text-sm text-foreground-muted">
-                <p>
-                  Page {history.page} / {history.totalPages} · Total{" "}
-                  {history.totalCount} records
-                </p>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    disabled={history.page <= 1}
-                    onClick={() => void loadHistory(history.page - 1)}
-                    className="rounded-md border border-border-strong px-3 py-1 disabled:opacity-40"
-                  >
-                    Prev
-                  </button>
-                  <button
-                    type="button"
-                    disabled={history.page >= history.totalPages}
-                    onClick={() => void loadHistory(history.page + 1)}
-                    className="rounded-md border border-border-strong px-3 py-1 disabled:opacity-40"
-                  >
-                    Next
-                  </button>
+              <Button onClick={applyCompareFilters}>Apply</Button>
+            </FilterToolbar>
+
+            {loading ? (
+              <p className="mt-4 text-sm text-foreground-subtle">Loading pairs…</p>
+            ) : null}
+
+            {!loading ? (
+              lanes.length > 0 ? (
+                <div className="mt-6">
+                  <DataTableFrame>
+                    <DataTable>
+                      <DataTableHead>
+                        <tr>
+                          <DataTableTh>Period</DataTableTh>
+                          <DataTableTh>OpCo</DataTableTh>
+                          <DataTableTh>Partner</DataTableTh>
+                          <DataTableTh>OpCo report</DataTableTh>
+                          <DataTableTh>Partner report</DataTableTh>
+                          <DataTableTh>State</DataTableTh>
+                          <DataTableTh>Outcome</DataTableTh>
+                          <DataTableTh>Actions</DataTableTh>
+                        </tr>
+                      </DataTableHead>
+                      <tbody>
+                        {lanes.map((lane) => {
+                          const key = `${lane.opcoId}-${lane.partnerId}`;
+                          const busy = actionId === key || Boolean(reconcilingLabel);
+                          return (
+                            <DataTableRow key={key}>
+                              <DataTableTd className="text-foreground-muted">
+                                {formatPeriod(lane.period.month, lane.period.year)}
+                              </DataTableTd>
+                              <DataTableTd>{lane.opcoName}</DataTableTd>
+                              <DataTableTd>{lane.partnerName}</DataTableTd>
+                              <DataTableTd className="text-foreground-muted">
+                                <ReportFilenameLink
+                                  filename={lane.opcoReportFilename}
+                                  onClick={
+                                    lane.opcoReportId
+                                      ? () =>
+                                          void openReportDetail(lane.opcoReportId as string)
+                                      : undefined
+                                  }
+                                />
+                              </DataTableTd>
+                              <DataTableTd className="text-foreground-muted">
+                                <ReportFilenameLink
+                                  filename={lane.partnerReportFilename}
+                                  onClick={
+                                    lane.partnerReportId
+                                      ? () =>
+                                          void openReportDetail(
+                                            lane.partnerReportId as string,
+                                          )
+                                      : undefined
+                                  }
+                                />
+                              </DataTableTd>
+                              <DataTableTd>
+                                <StatusPill tone={stateTone(lane.state)}>
+                                  {lane.state.replaceAll("_", " ")}
+                                </StatusPill>
+                              </DataTableTd>
+                              <DataTableTd className="text-foreground-muted">
+                                {lane.outcome ?? "—"}
+                              </DataTableTd>
+                              <DataTableTd>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  {lane.canRun ? (
+                                    <Button
+                                      disabled={busy}
+                                      onClick={() => void runReconciliation(lane)}
+                                      className="h-8 px-3 text-xs"
+                                    >
+                                      Run reconciliation
+                                    </Button>
+                                  ) : null}
+                                  {needsReportReminder(lane.state) ? (
+                                    <IconButton
+                                      label={
+                                        lane.notificationCount > 0
+                                          ? `Remind… · ${lastReminderLabel(lane)} · ${lane.notificationCount} prior notice${lane.notificationCount === 1 ? "" : "s"}`
+                                          : `Remind… · ${lastReminderLabel(lane)}`
+                                      }
+                                      onClick={() => setRemindLane(lane)}
+                                    >
+                                      <IconBell />
+                                    </IconButton>
+                                  ) : null}
+                                  {lane.reconciliationId ? (
+                                    <IconButton
+                                      label="View result"
+                                      onClick={() =>
+                                        openReconciliationResult(
+                                          lane.reconciliationId as string,
+                                        )
+                                      }
+                                    >
+                                      <IconEye />
+                                    </IconButton>
+                                  ) : null}
+                                </div>
+                              </DataTableTd>
+                            </DataTableRow>
+                          );
+                        })}
+                      </tbody>
+                    </DataTable>
+                  </DataTableFrame>
+                </div>
+              ) : (
+                <EmptyState
+                  className="mt-6"
+                  title="No pairs found"
+                  description="Adjust period or search filters to see linked OpCo–Partner pairs."
+                />
+              )
+            ) : null}
+          </>
+        ) : (
+          <>
+            {loading ? (
+              <p className="mt-6 text-sm text-foreground-subtle">Loading history…</p>
+            ) : null}
+            {!loading && history.items.length > 0 ? (
+              <div className="mt-6 space-y-4">
+                <DataTableFrame>
+                  <DataTable>
+                    <DataTableHead>
+                      <tr>
+                        <DataTableTh>Period</DataTableTh>
+                        <DataTableTh>OpCo / Partner</DataTableTh>
+                        <DataTableTh>Status</DataTableTh>
+                        <DataTableTh>Matched</DataTableTh>
+                        <DataTableTh>Unmatched</DataTableTh>
+                        <DataTableTh>Run at</DataTableTh>
+                        <DataTableTh>Action</DataTableTh>
+                      </tr>
+                    </DataTableHead>
+                    <tbody>
+                      {history.items.map((row) => (
+                        <DataTableRow key={row.id}>
+                          <DataTableTd className="text-foreground-muted">
+                            {formatPeriod(row.period.month, row.period.year)}
+                          </DataTableTd>
+                          <DataTableTd>{row.lane}</DataTableTd>
+                          <DataTableTd className="text-foreground-muted">
+                            {row.status}
+                          </DataTableTd>
+                          <DataTableTd className="text-foreground-muted">
+                            {row.matchedCount}
+                          </DataTableTd>
+                          <DataTableTd className="text-foreground-muted">
+                            {row.unmatchedCount}
+                          </DataTableTd>
+                          <DataTableTd className="text-foreground-muted">
+                            {formatDateTime(row.runAt)}
+                          </DataTableTd>
+                          <DataTableTd>
+                            <IconButton
+                              label="View result"
+                              onClick={() => openReconciliationResult(row.id)}
+                            >
+                              <IconEye />
+                            </IconButton>
+                          </DataTableTd>
+                        </DataTableRow>
+                      ))}
+                    </tbody>
+                  </DataTable>
+                </DataTableFrame>
+                <div className="flex items-center justify-between text-sm text-foreground-muted">
+                  <p>
+                    Page {history.page} / {history.totalPages} · Total{" "}
+                    {history.totalCount} records
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="secondary"
+                      disabled={history.page <= 1}
+                      onClick={() => void loadHistory(history.page - 1)}
+                    >
+                      Prev
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      disabled={history.page >= history.totalPages}
+                      onClick={() => void loadHistory(history.page + 1)}
+                    >
+                      Next
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </>
-          ) : !loading ? (
-            <div className="rounded-lg border border-border bg-surface p-8 text-center">
-              <p className="font-medium text-foreground">No reconciliation history</p>
-              <p className="mt-1 text-sm text-foreground-muted">
-                Run reconciliation on a ready pair to see results here.
-              </p>
-            </div>
-          ) : null}
-        </>
-      )}
+            ) : !loading ? (
+              <EmptyState
+                className="mt-6"
+                title="No reconciliation history"
+                description="Run reconciliation on a ready pair to see results here."
+              />
+            ) : null}
+          </>
+        )}
+      </PageCard>
 
       {remindLane ? (
         <LaneRemindModal

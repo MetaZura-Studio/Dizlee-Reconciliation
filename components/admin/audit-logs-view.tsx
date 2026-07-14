@@ -2,13 +2,28 @@
 
 import { useCallback, useState } from "react";
 
+import { Button } from "@/components/ui/button";
+import {
+  DataTable,
+  DataTableFrame,
+  DataTableHead,
+  DataTableRow,
+  DataTableTd,
+  DataTableTh,
+  SortableDataTableTh,
+} from "@/components/ui/data-table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { FilterToolbar, PageCard } from "@/components/ui/page";
 import {
   buildAuditLogQuery,
   type AuditLogFilterOptions,
   type AuditLogListFilters,
   type AuditLogListItem,
   type AuditLogListResult,
+  type AuditLogSortField,
 } from "@/lib/admin/audit-logs.shared";
+import { ui } from "@/lib/ui/classes";
+import { nextSortState } from "@/lib/ui/sort";
 
 function formatDateTime(value: string): string {
   return new Date(value).toLocaleString("en-US", {
@@ -61,22 +76,23 @@ export function AuditLogsView({
     void loadLogs(next);
   };
 
+  const applySort = (field: AuditLogSortField) => {
+    const next = nextSortState(filters.sortBy, filters.sortDir, field);
+    applyFilters({ sortBy: next.sortBy, sortDir: next.sortDir });
+  };
+
   const exportCsv = () => {
     window.open(`/api/admin/audit-logs/export?${buildAuditLogQuery(filters)}`, "_blank");
   };
 
   return (
-    <div className="space-y-6">
-      {error ? (
-        <p className="rounded-md border border-danger-border bg-danger-muted px-3 py-2 text-sm text-danger">
-          {error}
-        </p>
-      ) : null}
+    <PageCard>
+      {error ? <p className={ui.alertError}>{error}</p> : null}
 
-      <div className="rounded-lg border border-border bg-surface p-4">
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <FilterToolbar className="mt-6">
+        <div className="grid w-full gap-4 md:grid-cols-2 xl:grid-cols-3">
           <div className="space-y-1">
-            <label htmlFor="audit-search" className="text-sm font-medium text-foreground-muted">
+            <label htmlFor="audit-search" className={ui.label}>
               Search message
             </label>
             <input
@@ -86,12 +102,12 @@ export function AuditLogsView({
               onChange={(event) =>
                 setFilters((current) => ({ ...current, search: event.target.value }))
               }
-              className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
+              className={ui.input}
             />
           </div>
 
           <div className="space-y-1">
-            <label htmlFor="audit-entity-type" className="text-sm font-medium text-foreground-muted">
+            <label htmlFor="audit-entity-type" className={ui.label}>
               Category (entity type)
             </label>
             <select
@@ -103,7 +119,7 @@ export function AuditLogsView({
                   entityType: event.target.value,
                 }))
               }
-              className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
+              className={ui.select}
             >
               <option value="all">All categories</option>
               {filterOptions.entityTypes.map((item) => (
@@ -115,7 +131,7 @@ export function AuditLogsView({
           </div>
 
           <div className="space-y-1">
-            <label htmlFor="audit-actor-role" className="text-sm font-medium text-foreground-muted">
+            <label htmlFor="audit-actor-role" className={ui.label}>
               Actor role
             </label>
             <select
@@ -127,7 +143,7 @@ export function AuditLogsView({
                   actorRole: event.target.value as AuditLogListFilters["actorRole"],
                 }))
               }
-              className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
+              className={ui.select}
             >
               <option value="all">All roles</option>
               {filterOptions.actorRoles.map((item) => (
@@ -139,7 +155,7 @@ export function AuditLogsView({
           </div>
 
           <div className="space-y-1">
-            <label htmlFor="audit-action" className="text-sm font-medium text-foreground-muted">
+            <label htmlFor="audit-action" className={ui.label}>
               Action
             </label>
             <select
@@ -148,7 +164,7 @@ export function AuditLogsView({
               onChange={(event) =>
                 setFilters((current) => ({ ...current, action: event.target.value }))
               }
-              className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
+              className={ui.select}
             >
               <option value="all">All actions</option>
               {filterOptions.actions.map((item) => (
@@ -160,7 +176,7 @@ export function AuditLogsView({
           </div>
 
           <div className="space-y-1">
-            <label htmlFor="audit-entity-id" className="text-sm font-medium text-foreground-muted">
+            <label htmlFor="audit-entity-id" className={ui.label}>
               Entity ID
             </label>
             <input
@@ -170,12 +186,12 @@ export function AuditLogsView({
               onChange={(event) =>
                 setFilters((current) => ({ ...current, entityId: event.target.value }))
               }
-              className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
+              className={ui.input}
             />
           </div>
 
           <div className="space-y-1">
-            <label htmlFor="audit-date-from" className="text-sm font-medium text-foreground-muted">
+            <label htmlFor="audit-date-from" className={ui.label}>
               Date from
             </label>
             <input
@@ -185,12 +201,12 @@ export function AuditLogsView({
               onChange={(event) =>
                 setFilters((current) => ({ ...current, dateFrom: event.target.value }))
               }
-              className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
+              className={ui.input}
             />
           </div>
 
           <div className="space-y-1">
-            <label htmlFor="audit-date-to" className="text-sm font-medium text-foreground-muted">
+            <label htmlFor="audit-date-to" className={ui.label}>
               Date to
             </label>
             <input
@@ -200,108 +216,117 @@ export function AuditLogsView({
               onChange={(event) =>
                 setFilters((current) => ({ ...current, dateTo: event.target.value }))
               }
-              className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
+              className={ui.input}
             />
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={() => applyFilters({})}
-            disabled={loading}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
-          >
+        <div className="flex w-full flex-wrap gap-3">
+          <Button onClick={() => applyFilters({})} disabled={loading}>
             {loading ? "Loading…" : "Apply filters"}
-          </button>
-          <button
-            type="button"
-            onClick={exportCsv}
-            disabled={loading}
-            className="rounded-md border border-border-strong px-4 py-2 text-sm font-medium text-foreground-muted hover:bg-surface-muted disabled:opacity-60"
-          >
+          </Button>
+          <Button variant="secondary" onClick={exportCsv} disabled={loading}>
             Export CSV
-          </button>
+          </Button>
         </div>
-      </div>
+      </FilterToolbar>
 
-      <div className="overflow-hidden rounded-lg border border-border bg-surface">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-border text-sm">
-            <thead className="bg-surface-muted">
-              <tr>
-                <th className="px-4 py-3 text-left font-medium text-foreground-muted">When</th>
-                <th className="px-4 py-3 text-left font-medium text-foreground-muted">Actor</th>
-                <th className="px-4 py-3 text-left font-medium text-foreground-muted">Role</th>
-                <th className="px-4 py-3 text-left font-medium text-foreground-muted">Action</th>
-                <th className="px-4 py-3 text-left font-medium text-foreground-muted">Entity</th>
-                <th className="px-4 py-3 text-left font-medium text-foreground-muted">Message</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {result.items.length === 0 ? (
+      <div className="mt-6 space-y-4">
+        {loading ? (
+          <p className="text-sm text-foreground-subtle">Loading audit logs…</p>
+        ) : result.items.length === 0 ? (
+          <EmptyState
+            title="No audit entries"
+            description="No audit log entries match the current filters."
+          />
+        ) : (
+          <DataTableFrame>
+            <DataTable>
+              <DataTableHead>
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-foreground-subtle">
-                    No audit log entries match the current filters.
-                  </td>
+                  <SortableDataTableTh
+                    label="When"
+                    active={filters.sortBy === "createdAt"}
+                    direction={filters.sortDir}
+                    onSort={() => applySort("createdAt")}
+                  />
+                  <SortableDataTableTh
+                    label="Actor"
+                    active={filters.sortBy === "actor"}
+                    direction={filters.sortDir}
+                    onSort={() => applySort("actor")}
+                  />
+                  <DataTableTh>Role</DataTableTh>
+                  <SortableDataTableTh
+                    label="Action"
+                    active={filters.sortBy === "action"}
+                    direction={filters.sortDir}
+                    onSort={() => applySort("action")}
+                  />
+                  <SortableDataTableTh
+                    label="Entity"
+                    active={filters.sortBy === "entityType"}
+                    direction={filters.sortDir}
+                    onSort={() => applySort("entityType")}
+                  />
+                  <DataTableTh>Message</DataTableTh>
                 </tr>
-              ) : (
-                result.items.map((item: AuditLogListItem) => (
-                  <tr key={item.id} className="align-top">
-                    <td className="px-4 py-3 whitespace-nowrap text-foreground-muted">
+              </DataTableHead>
+              <tbody>
+                {result.items.map((item: AuditLogListItem) => (
+                  <DataTableRow key={item.id} className="align-top">
+                    <DataTableTd className="whitespace-nowrap text-foreground-muted">
                       {formatDateTime(item.createdAt)}
-                    </td>
-                    <td className="px-4 py-3 text-foreground-muted">
+                    </DataTableTd>
+                    <DataTableTd className="text-foreground-muted">
                       <div className="font-medium">{item.actorName}</div>
                       <div className="text-xs text-foreground-subtle">{item.actorEmail}</div>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-foreground-muted">
+                    </DataTableTd>
+                    <DataTableTd className="whitespace-nowrap text-foreground-muted">
                       {item.actorRole}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-foreground-muted">
+                    </DataTableTd>
+                    <DataTableTd className="whitespace-nowrap text-foreground-muted">
                       {item.actionLabel}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-foreground-muted">
+                    </DataTableTd>
+                    <DataTableTd className="whitespace-nowrap text-foreground-muted">
                       <div>{item.entityTypeLabel}</div>
                       <div className="text-xs text-foreground-subtle">#{item.entityId}</div>
-                    </td>
-                    <td className="px-4 py-3 text-foreground-muted">
+                    </DataTableTd>
+                    <DataTableTd className="text-foreground-muted">
                       {item.message ?? "—"}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                    </DataTableTd>
+                  </DataTableRow>
+                ))}
+              </tbody>
+            </DataTable>
+          </DataTableFrame>
+        )}
 
-      <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-foreground-muted">
-        <p>
-          Showing {result.items.length} of {result.total} entries
-        </p>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            disabled={loading || result.page <= 1}
-            onClick={() => applyFilters({ page: result.page - 1 })}
-            className="rounded-md border border-border-strong px-3 py-1.5 hover:bg-surface-muted disabled:opacity-50"
-          >
-            Previous
-          </button>
-          <span>
-            Page {result.page} of {result.totalPages}
-          </span>
-          <button
-            type="button"
-            disabled={loading || result.page >= result.totalPages}
-            onClick={() => applyFilters({ page: result.page + 1 })}
-            className="rounded-md border border-border-strong px-3 py-1.5 hover:bg-surface-muted disabled:opacity-50"
-          >
-            Next
-          </button>
+        <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-foreground-muted">
+          <p>
+            Showing {result.items.length} of {result.total} entries
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="secondary"
+              disabled={loading || result.page <= 1}
+              onClick={() => applyFilters({ page: result.page - 1 })}
+            >
+              Previous
+            </Button>
+            <span>
+              Page {result.page} of {result.totalPages}
+            </span>
+            <Button
+              variant="secondary"
+              disabled={loading || result.page >= result.totalPages}
+              onClick={() => applyFilters({ page: result.page + 1 })}
+            >
+              Next
+            </Button>
+          </div>
         </div>
       </div>
-    </div>
+    </PageCard>
   );
 }

@@ -9,8 +9,7 @@ type ReportsTabsProps = {
 const TABS: Array<{
   id: ReportsTabsProps["active"];
   label: string;
-  href?: string;
-  disabled?: boolean;
+  href: string;
 }> = [
   { id: "reports", label: "Reports", href: "/dizlee/reports" },
   { id: "reupload", label: "Reupload requests", href: "/dizlee/reports/reupload" },
@@ -23,42 +22,23 @@ const TABS: Array<{
 
 export function ReportsTabs({ active }: ReportsTabsProps) {
   return (
-    <div className="border-b border-border">
-      <nav className="-mb-px flex gap-6">
-        {TABS.map((tab) => {
-          const isActive = tab.id === active;
-
-          if (tab.disabled || !tab.href) {
-            return (
-              <span
-                key={tab.id}
-                className={`border-b-2 px-1 pb-3 text-sm font-medium ${
-                  isActive
-                    ? "border-primary text-foreground"
-                    : "cursor-not-allowed border-transparent text-foreground-subtle"
-                }`}
-                title="Coming in a later feature"
-              >
-                {tab.label}
-              </span>
-            );
-          }
-
-          return (
-            <Link
-              key={tab.id}
-              href={tab.href}
-              className={`border-b-2 px-1 pb-3 text-sm font-medium ${
-                isActive
-                  ? "border-primary text-foreground"
-                  : "border-transparent text-foreground-subtle hover:text-foreground-muted"
-              }`}
-            >
-              {tab.label}
-            </Link>
-          );
-        })}
-      </nav>
+    <div className="mb-5 flex flex-wrap gap-2 border-b border-border pb-3">
+      {TABS.map((tab) => {
+        const isActive = tab.id === active;
+        return (
+          <Link
+            key={tab.id}
+            href={tab.href}
+            className={
+              isActive
+                ? "rounded-full bg-primary-muted px-3.5 py-1.5 text-sm font-semibold text-primary"
+                : "rounded-full px-3.5 py-1.5 text-sm font-medium text-foreground-muted hover:bg-surface-muted hover:text-foreground"
+            }
+          >
+            {tab.label}
+          </Link>
+        );
+      })}
     </div>
   );
 }

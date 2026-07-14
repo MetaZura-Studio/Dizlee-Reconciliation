@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import {
   eventLabel,
   templateForEventStep,
@@ -11,6 +12,7 @@ import {
   type ScheduleStep,
 } from "@/lib/admin/notification-schedules.shared";
 import type { ReminderSettingsView } from "@/lib/admin/reminder-settings";
+import { ui } from "@/lib/ui/classes";
 
 type ReminderSettingsFormProps = {
   initialSettings: ReminderSettingsView;
@@ -119,32 +121,17 @@ export function ReminderSettingsForm({
   };
 
   if (!activeSchedule) {
-    return (
-      <p className="rounded-md border border-danger-border bg-danger-muted px-3 py-2 text-sm text-danger">
-        No event schedules configured.
-      </p>
-    );
+    return <p className={ui.alertError}>No event schedules configured.</p>;
   }
 
   return (
     <div className="space-y-6">
-      {error ? (
-        <p className="rounded-md border border-danger-border bg-danger-muted px-3 py-2 text-sm text-danger">
-          {error}
-        </p>
-      ) : null}
-      {success ? (
-        <p className="rounded-md border border-success-border bg-success-muted px-3 py-2 text-sm text-success">
-          {success}
-        </p>
-      ) : null}
+      {error ? <p className={ui.alertError}>{error}</p> : null}
+      {success ? <p className={ui.alertSuccess}>{success}</p> : null}
 
       <form onSubmit={(event) => void saveSettings(event)} className="space-y-6">
         <div className="space-y-1">
-          <label
-            htmlFor="remindersEnabled"
-            className="text-sm font-medium text-foreground-muted"
-          >
+          <label htmlFor="remindersEnabled" className={ui.label}>
             Automatic sending
           </label>
           <select
@@ -153,29 +140,29 @@ export function ReminderSettingsForm({
             onChange={(event) =>
               setRemindersEnabled(event.target.value === "enabled")
             }
-            className="w-full max-w-xs rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
+            className={`${ui.select} max-w-xs`}
           >
             <option value="disabled">Disabled</option>
             <option value="enabled">Enabled</option>
           </select>
-          <p className="text-xs text-foreground-subtle">
+          <p className={ui.hint}>
             Master switch for the daily cron. Each event below can still be
             enabled or disabled on its own.
           </p>
         </div>
 
         <div className="space-y-2">
-          <p className="text-sm font-medium text-foreground-muted">Event</p>
+          <p className={ui.label}>Event</p>
           <div className="flex flex-wrap gap-2">
             {schedules.map((schedule) => (
               <button
                 key={schedule.eventCode}
                 type="button"
                 onClick={() => setSelectedEvent(schedule.eventCode)}
-                className={`rounded-md border px-3 py-2 text-sm ${
+                className={`rounded-2xl border px-3 py-2 text-sm transition-colors ${
                   selectedEvent === schedule.eventCode
                     ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border-strong text-foreground-muted hover:bg-surface-muted"
+                    : "border-border bg-surface text-foreground-muted hover:bg-surface-muted"
                 }`}
               >
                 {eventLabel(schedule.eventCode)}
@@ -185,7 +172,7 @@ export function ReminderSettingsForm({
           </div>
         </div>
 
-        <section className="space-y-4 rounded-lg border border-border bg-surface p-4">
+        <section className={`space-y-4 ${ui.cardPaddingLg}`}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-medium text-foreground">
@@ -219,10 +206,8 @@ export function ReminderSettingsForm({
             </label>
           </div>
 
-          <label className="block max-w-xs space-y-1 text-sm">
-            <span className="font-medium text-foreground-muted">
-              Due day of month
-            </span>
+          <label className="block max-w-xs text-sm">
+            <span className={ui.label}>Due day of month</span>
             <input
               type="number"
               min={1}
@@ -234,9 +219,9 @@ export function ReminderSettingsForm({
                   dueDayOfMonth: Number.parseInt(event.target.value, 10) || 1,
                 }))
               }
-              className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
+              className={ui.input}
             />
-            <span className="text-xs text-foreground-subtle">
+            <span className={`mt-1 block ${ui.hint}`}>
               Example: due day 10 → intimations fire before the 10th; reminders
               fire after the 10th.
             </span>
@@ -261,21 +246,19 @@ export function ReminderSettingsForm({
                     ]),
                   }))
                 }
-                className="rounded-md border border-border-strong px-2.5 py-1 text-xs text-foreground-muted hover:bg-surface-muted"
+                className="rounded-2xl border border-border px-2.5 py-1 text-xs text-foreground-muted hover:bg-surface-muted"
               >
                 Add intimation
               </button>
             </div>
             {activeSchedule.intimations.length === 0 ? (
-              <p className="text-sm text-foreground-subtle">
-                No intimations configured.
-              </p>
+              <p className={ui.hint}>No intimations configured.</p>
             ) : (
               <ul className="space-y-2">
                 {activeSchedule.intimations.map((step, index) => (
                   <li
                     key={step.id}
-                    className="flex flex-wrap items-center gap-3 rounded-md border border-border bg-surface-muted px-3 py-2"
+                    className={`flex flex-wrap items-center gap-3 ${ui.cardPadding} py-2`}
                   >
                     <span className="text-sm text-foreground-muted">
                       #{index + 1} — send
@@ -298,7 +281,7 @@ export function ReminderSettingsForm({
                           ),
                         }));
                       }}
-                      className="w-20 rounded-md border border-border-strong px-2 py-1 text-sm"
+                      className={`${ui.input} w-20 px-2 py-1`}
                     />
                     <span className="text-sm text-foreground-muted">
                       day(s) before due date
@@ -342,21 +325,19 @@ export function ReminderSettingsForm({
                     ]),
                   }))
                 }
-                className="rounded-md border border-border-strong px-2.5 py-1 text-xs text-foreground-muted hover:bg-surface-muted"
+                className="rounded-2xl border border-border px-2.5 py-1 text-xs text-foreground-muted hover:bg-surface-muted"
               >
                 Add reminder
               </button>
             </div>
             {activeSchedule.reminders.length === 0 ? (
-              <p className="text-sm text-foreground-subtle">
-                No post-due reminders configured.
-              </p>
+              <p className={ui.hint}>No post-due reminders configured.</p>
             ) : (
               <ul className="space-y-2">
                 {activeSchedule.reminders.map((step, index) => (
                   <li
                     key={step.id}
-                    className="flex flex-wrap items-center gap-3 rounded-md border border-border bg-surface-muted px-3 py-2"
+                    className={`flex flex-wrap items-center gap-3 ${ui.cardPadding} py-2`}
                   >
                     <span className="text-sm text-foreground-muted">
                       #{index + 1} — send
@@ -379,7 +360,7 @@ export function ReminderSettingsForm({
                           ),
                         }));
                       }}
-                      className="w-20 rounded-md border border-border-strong px-2 py-1 text-sm"
+                      className={`${ui.input} w-20 px-2 py-1`}
                     />
                     <span className="text-sm text-foreground-muted">
                       day(s) after due date
@@ -405,28 +386,24 @@ export function ReminderSettingsForm({
           </div>
         </section>
 
-        <p className="rounded-md border border-border bg-surface-muted px-3 py-2 text-sm text-foreground-muted">
+        <p className={`${ui.cardPadding} text-sm text-foreground-muted`}>
           The daily cron checks today against each step. Intimations go to all
           OpCos/Partners. Post-due reminders go only to parties still missing a
           report or invoice for the current month.
         </p>
 
         <div className="flex flex-wrap gap-3">
-          <button
-            type="submit"
-            disabled={saving || reloading}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
-          >
+          <Button type="submit" disabled={saving || reloading}>
             {saving ? "Saving…" : "Save"}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="secondary"
             onClick={() => void reloadSettings()}
             disabled={saving || reloading}
-            className="rounded-md border border-border-strong px-4 py-2 text-sm font-medium text-foreground-muted hover:bg-surface-muted disabled:opacity-60"
           >
             {reloading ? "Reloading…" : "Reload"}
-          </button>
+          </Button>
         </div>
       </form>
     </div>

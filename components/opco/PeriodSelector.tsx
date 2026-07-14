@@ -2,7 +2,11 @@
 
 import { useRouter } from "next/navigation";
 
+import { Button } from "@/components/ui/button";
+import { FieldLabel, Input, Select } from "@/components/ui/field";
+import { FilterToolbar } from "@/components/ui/page";
 import { formatPeriodLabel } from "@/lib/opco/period";
+import { ui } from "@/lib/ui/classes";
 
 type PeriodSelectorProps = {
   year: number;
@@ -29,7 +33,7 @@ export function PeriodSelector({ year, month }: PeriodSelectorProps) {
 
   return (
     <form
-      className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-surface p-4"
+      className="mt-6"
       onSubmit={(event) => {
         event.preventDefault();
         const formData = new FormData(event.currentTarget);
@@ -38,46 +42,37 @@ export function PeriodSelector({ year, month }: PeriodSelectorProps) {
         router.push(`/opco?year=${nextYear}&month=${nextMonth}`);
       }}
     >
-      <div>
-        <label htmlFor="dashboard-year" className="text-sm font-medium text-foreground-muted">
-          Year
-        </label>
-        <input
-          id="dashboard-year"
-          name="year"
-          type="number"
-          min={2000}
-          max={2100}
-          defaultValue={year}
-          className="mt-1 block w-28 rounded border border-border-strong px-3 py-2 text-sm"
-        />
-      </div>
-      <div>
-        <label htmlFor="dashboard-month" className="text-sm font-medium text-foreground-muted">
-          Month
-        </label>
-        <select
-          id="dashboard-month"
-          name="month"
-          defaultValue={month}
-          className="mt-1 block w-40 rounded border border-border-strong px-3 py-2 text-sm"
-        >
-          {MONTHS.map((item) => (
-            <option key={item.value} value={item.value}>
-              {item.label}
-            </option>
-          ))}
-        </select>
-      </div>
-      <button
-        type="submit"
-        className="rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
-      >
-        Apply
-      </button>
-      <p className="text-sm text-foreground-subtle">
-        Viewing {formatPeriodLabel(year, month)}
-      </p>
+      <FilterToolbar>
+        <div>
+          <FieldLabel htmlFor="dashboard-year">Year</FieldLabel>
+          <Input
+            id="dashboard-year"
+            name="year"
+            type="number"
+            min={2000}
+            max={2100}
+            defaultValue={year}
+            className="w-28"
+          />
+        </div>
+        <div>
+          <FieldLabel htmlFor="dashboard-month">Month</FieldLabel>
+          <Select
+            id="dashboard-month"
+            name="month"
+            defaultValue={month}
+            className="w-40"
+          >
+            {MONTHS.map((item) => (
+              <option key={item.value} value={item.value}>
+                {item.label}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <Button type="submit">Apply</Button>
+        <p className={ui.hint}>Viewing {formatPeriodLabel(year, month)}</p>
+      </FilterToolbar>
     </form>
   );
 }

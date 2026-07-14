@@ -2,6 +2,21 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { Button } from "@/components/ui/button";
+import {
+  DataTable,
+  DataTableFrame,
+  DataTableHead,
+  DataTableRow,
+  DataTableTd,
+  DataTableTh,
+} from "@/components/ui/data-table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { IconButton } from "@/components/ui/icon-button";
+import { IconEye } from "@/components/ui/icons";
+import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
+import { StatusPill } from "@/components/ui/status-pill";
+import { cn, ui } from "@/lib/ui/classes";
 import type {
   ConsolidationDetail,
   ConsolidationHistoryResult,
@@ -254,14 +269,11 @@ export function ConsolidationView({
   const isRegenerate = Boolean(readiness?.existingConsolidationId);
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">Consolidation</h1>
-        <p className="mt-1 text-sm text-foreground-subtle">
-          Generate OpCo monthly consolidations from uploaded OpCo reports and export
-          Excel.
-        </p>
-      </div>
+    <PageCard>
+      <PageHeader
+        title="Consolidation"
+        description="Generate OpCo monthly consolidations from uploaded OpCo reports and export Excel."
+      />
 
       <div className="border-b border-border">
         <nav className="-mb-px flex gap-6">
@@ -290,28 +302,20 @@ export function ConsolidationView({
         </nav>
       </div>
 
-      {error ? (
-        <div className="rounded-lg border border-danger-border bg-danger-muted px-4 py-3 text-sm text-danger">
-          {error}
-        </div>
-      ) : null}
+      {error ? <div className={cn("mt-4", ui.alertError)}>{error}</div> : null}
 
-      {message ? (
-        <div className="rounded-lg border border-success-border bg-success-muted px-4 py-3 text-sm text-success">
-          {message}
-        </div>
-      ) : null}
+      {message ? <div className={cn("mt-4", ui.alertSuccess)}>{message}</div> : null}
 
       {activeTab === "generate" ? (
-        <div className="space-y-6">
-          <div className="rounded-xl border border-border bg-surface p-4">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <label className="block text-sm">
-                <span className="text-foreground-muted">Month</span>
+        <div className="mt-6 space-y-6">
+          <FilterToolbar>
+            <div className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <label className="text-sm">
+                <span className={ui.label}>Month</span>
                 <select
                   value={month}
                   onChange={(event) => setMonth(Number(event.target.value))}
-                  className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
+                  className={ui.select}
                 >
                   {MONTHS.map((label, index) => (
                     <option key={label} value={index + 1}>
@@ -321,12 +325,12 @@ export function ConsolidationView({
                 </select>
               </label>
 
-              <label className="block text-sm">
-                <span className="text-foreground-muted">Year</span>
+              <label className="text-sm">
+                <span className={ui.label}>Year</span>
                 <select
                   value={year}
                   onChange={(event) => setYear(Number(event.target.value))}
-                  className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
+                  className={ui.select}
                 >
                   {yearOptions.map((value) => (
                     <option key={value} value={value}>
@@ -336,12 +340,12 @@ export function ConsolidationView({
                 </select>
               </label>
 
-              <label className="block text-sm sm:col-span-2">
-                <span className="text-foreground-muted">OpCo</span>
+              <label className="text-sm sm:col-span-2">
+                <span className={ui.label}>OpCo</span>
                 <select
                   value={opcoId}
                   onChange={(event) => setOpcoId(event.target.value)}
-                  className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
+                  className={ui.select}
                 >
                   <option value="">Select OpCo</option>
                   {filterOptions.opcos.map((opco) => (
@@ -353,32 +357,26 @@ export function ConsolidationView({
               </label>
             </div>
 
-            <div className="mt-4 flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={applyGenerateFilters}
-                disabled={!opcoId || loading}
-                className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
-              >
+            <div className="flex w-full flex-wrap gap-3">
+              <Button onClick={applyGenerateFilters} disabled={!opcoId || loading}>
                 Check readiness
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
+                variant="secondary"
                 onClick={() => void runGenerate()}
                 disabled={!canGenerate || generating}
-                className="rounded-lg border border-border-strong px-4 py-2 text-sm font-medium text-foreground disabled:opacity-50"
               >
                 {generating
                   ? "Working…"
                   : isRegenerate
                     ? "Regenerate consolidation"
                     : "Generate consolidation"}
-              </button>
+              </Button>
             </div>
-          </div>
+          </FilterToolbar>
 
           {readiness ? (
-            <div className="rounded-xl border border-border bg-surface p-4">
+            <div className={ui.cardPaddingLg}>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <h2 className="text-lg font-medium text-foreground">
@@ -392,57 +390,49 @@ export function ConsolidationView({
                       : ""}
                   </p>
                 </div>
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-medium ${
-                    readiness.ready
-                      ? "bg-success-muted text-success"
-                      : "bg-warning-muted text-warning"
-                  }`}
-                >
+                <StatusPill tone={readiness.ready ? "success" : "warning"}>
                   {readiness.ready ? "Ready to generate" : "Not ready"}
-                </span>
+                </StatusPill>
               </div>
 
               {readiness.missingPartners.length > 0 ? (
-                <p className="mt-3 text-sm text-warning">
+                <div className={cn("mt-3", ui.alertWarning)}>
                   Missing OpCo reports or line items for:{" "}
                   {readiness.missingPartners.join(", ")}
-                </p>
+                </div>
               ) : null}
 
-              <div className="mt-4 overflow-x-auto">
-                <table className="min-w-full text-left text-sm">
-                  <thead className="border-b border-border text-foreground-subtle">
+              <DataTableFrame className="mt-4">
+                <DataTable>
+                  <DataTableHead>
                     <tr>
-                      <th className="px-3 py-2 font-medium">Partner</th>
-                      <th className="px-3 py-2 font-medium">OpCo report</th>
-                      <th className="px-3 py-2 font-medium">Line items</th>
+                      <DataTableTh>Partner</DataTableTh>
+                      <DataTableTh>OpCo report</DataTableTh>
+                      <DataTableTh>Line items</DataTableTh>
                     </tr>
-                  </thead>
+                  </DataTableHead>
                   <tbody>
                     {readiness.partners.map((partner) => (
-                      <tr key={partner.partnerId} className="border-b border-border">
-                        <td className="px-3 py-2 text-foreground">{partner.partnerName}</td>
-                        <td className="px-3 py-2">
-                          {partner.hasReport ? (
-                            <span className="text-success">Uploaded</span>
-                          ) : (
-                            <span className="text-warning">Missing</span>
-                          )}
-                        </td>
-                        <td className="px-3 py-2 text-foreground-muted">
+                      <DataTableRow key={partner.partnerId}>
+                        <DataTableTd>{partner.partnerName}</DataTableTd>
+                        <DataTableTd>
+                          <StatusPill tone={partner.hasReport ? "success" : "warning"}>
+                            {partner.hasReport ? "Uploaded" : "Missing"}
+                          </StatusPill>
+                        </DataTableTd>
+                        <DataTableTd className="text-foreground-muted">
                           {partner.lineItemCount}
-                        </td>
-                      </tr>
+                        </DataTableTd>
+                      </DataTableRow>
                     ))}
                   </tbody>
-                </table>
-              </div>
+                </DataTable>
+              </DataTableFrame>
             </div>
           ) : null}
 
           {detail ? (
-            <div className="rounded-xl border border-border bg-surface p-4">
+            <div className={ui.cardPaddingLg}>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <h2 className="text-lg font-medium text-foreground">
@@ -452,66 +442,63 @@ export function ConsolidationView({
                     Generated {formatDateTime(detail.generatedAt)} by {detail.runBy}
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => downloadExcel(detail.id)}
-                  className="rounded-lg border border-border-strong px-3 py-1.5 text-sm font-medium text-foreground"
-                >
+                <Button variant="secondary" onClick={() => downloadExcel(detail.id)}>
                   Download Excel
-                </button>
+                </Button>
               </div>
 
               <p className="mt-3 text-sm text-foreground-muted">
                 Total USD: {formatUsd(detail.totalAmountUsd)}
               </p>
 
-              <div className="mt-4 max-h-80 overflow-auto">
-                <table className="min-w-full text-left text-sm">
-                  <thead className="sticky top-0 border-b border-border bg-surface text-foreground-subtle">
+              <DataTableFrame className="mt-4 max-h-80 overflow-auto">
+                <DataTable>
+                  <DataTableHead className="sticky top-0 z-10">
                     <tr>
-                      <th className="px-3 py-2 font-medium">Partner</th>
-                      <th className="px-3 py-2 font-medium">Service</th>
-                      <th className="px-3 py-2 font-medium">Description</th>
-                      <th className="px-3 py-2 font-medium text-right">Usage</th>
-                      <th className="px-3 py-2 font-medium text-right">USD</th>
+                      <DataTableTh>Partner</DataTableTh>
+                      <DataTableTh>Service</DataTableTh>
+                      <DataTableTh>Description</DataTableTh>
+                      <DataTableTh align="right">Usage</DataTableTh>
+                      <DataTableTh align="right">USD</DataTableTh>
                     </tr>
-                  </thead>
+                  </DataTableHead>
                   <tbody>
                     {detail.items.map((item, index) => (
-                      <tr
+                      <DataTableRow
                         key={`${item.partnerName}-${item.serviceCode}-${index}`}
-                        className="border-b border-border"
                       >
-                        <td className="px-3 py-2 text-foreground">{item.partnerName}</td>
-                        <td className="px-3 py-2 text-foreground-muted">
+                        <DataTableTd>{item.partnerName}</DataTableTd>
+                        <DataTableTd className="text-foreground-muted">
                           {item.serviceCode ?? "—"}
-                        </td>
-                        <td className="px-3 py-2 text-foreground-muted">{item.description}</td>
-                        <td className="px-3 py-2 text-right text-foreground-muted">
+                        </DataTableTd>
+                        <DataTableTd className="text-foreground-muted">
+                          {item.description}
+                        </DataTableTd>
+                        <DataTableTd align="right" className="text-foreground-muted">
                           {formatNumber(item.usageAmount)}
                           {item.usageUnit ? ` ${item.usageUnit}` : ""}
-                        </td>
-                        <td className="px-3 py-2 text-right text-foreground-muted">
+                        </DataTableTd>
+                        <DataTableTd align="right" className="text-foreground-muted">
                           {formatUsd(item.usageUsd)}
-                        </td>
-                      </tr>
+                        </DataTableTd>
+                      </DataTableRow>
                     ))}
                   </tbody>
-                </table>
-              </div>
+                </DataTable>
+              </DataTableFrame>
             </div>
           ) : null}
         </div>
       ) : (
-        <div className="space-y-4">
-          <div className="rounded-xl border border-border bg-surface p-4">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <label className="block text-sm">
-                <span className="text-foreground-muted">Month</span>
+        <div className="mt-6 space-y-4">
+          <FilterToolbar>
+            <div className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <label className="text-sm">
+                <span className={ui.label}>Month</span>
                 <select
                   value={month}
                   onChange={(event) => setMonth(Number(event.target.value))}
-                  className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
+                  className={ui.select}
                 >
                   {MONTHS.map((label, index) => (
                     <option key={label} value={index + 1}>
@@ -521,12 +508,12 @@ export function ConsolidationView({
                 </select>
               </label>
 
-              <label className="block text-sm">
-                <span className="text-foreground-muted">Year</span>
+              <label className="text-sm">
+                <span className={ui.label}>Year</span>
                 <select
                   value={year}
                   onChange={(event) => setYear(Number(event.target.value))}
-                  className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
+                  className={ui.select}
                 >
                   {yearOptions.map((value) => (
                     <option key={value} value={value}>
@@ -536,12 +523,12 @@ export function ConsolidationView({
                 </select>
               </label>
 
-              <label className="block text-sm sm:col-span-2">
-                <span className="text-foreground-muted">OpCo</span>
+              <label className="text-sm sm:col-span-2">
+                <span className={ui.label}>OpCo</span>
                 <select
                   value={opcoId}
                   onChange={(event) => setOpcoId(event.target.value)}
-                  className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
+                  className={ui.select}
                 >
                   <option value="">All OpCos</option>
                   {filterOptions.opcos.map((opco) => (
@@ -553,107 +540,97 @@ export function ConsolidationView({
               </label>
             </div>
 
-            <button
-              type="button"
-              onClick={() => void loadHistory(1)}
-              disabled={loading}
-              className="mt-4 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
-            >
+            <Button onClick={() => void loadHistory(1)} disabled={loading}>
               Apply filters
-            </button>
-          </div>
+            </Button>
+          </FilterToolbar>
 
-          <div className="overflow-hidden rounded-xl border border-border bg-surface">
-            <table className="min-w-full text-left text-sm">
-              <thead className="border-b border-border bg-surface-muted text-foreground-subtle">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Period</th>
-                  <th className="px-4 py-3 font-medium">OpCo</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium text-right">Total USD</th>
-                  <th className="px-4 py-3 font-medium text-right">Items</th>
-                  <th className="px-4 py-3 font-medium">Generated</th>
-                  <th className="px-4 py-3 font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {history.items.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="px-4 py-8 text-center text-foreground-subtle">
-                      No consolidations found for the selected filters.
-                    </td>
-                  </tr>
-                ) : (
-                  history.items.map((item) => (
-                    <tr key={item.id} className="border-b border-border">
-                      <td className="px-4 py-3 text-foreground">
-                        {formatPeriod(item.period.month, item.period.year)}
-                      </td>
-                      <td className="px-4 py-3 text-foreground">{item.opcoName}</td>
-                      <td className="px-4 py-3 text-foreground-muted">{item.status}</td>
-                      <td className="px-4 py-3 text-right text-foreground-muted">
-                        {formatUsd(item.totalAmountUsd)}
-                      </td>
-                      <td className="px-4 py-3 text-right text-foreground-muted">
-                        {item.itemCount}
-                      </td>
-                      <td className="px-4 py-3 text-foreground-muted">
-                        <div>{formatDateTime(item.generatedAt)}</div>
-                        <div className="text-xs text-foreground-subtle">by {item.runBy}</div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            onClick={() => void loadDetail(item.id)}
-                            className="text-sm font-medium text-foreground underline"
-                          >
-                            View
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => downloadExcel(item.id)}
-                            className="text-sm font-medium text-foreground underline"
-                          >
-                            Excel
-                          </button>
-                        </div>
-                      </td>
+          {history.items.length === 0 ? (
+            <EmptyState
+              title="No consolidations found"
+              description="No consolidations found for the selected filters."
+            />
+          ) : (
+            <>
+              <DataTableFrame>
+                <DataTable>
+                  <DataTableHead>
+                    <tr>
+                      <DataTableTh>Period</DataTableTh>
+                      <DataTableTh>OpCo</DataTableTh>
+                      <DataTableTh>Status</DataTableTh>
+                      <DataTableTh align="right">Total USD</DataTableTh>
+                      <DataTableTh align="right">Items</DataTableTh>
+                      <DataTableTh>Generated</DataTableTh>
+                      <DataTableTh>Actions</DataTableTh>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  </DataTableHead>
+                  <tbody>
+                    {history.items.map((item) => (
+                      <DataTableRow key={item.id}>
+                        <DataTableTd>{formatPeriod(item.period.month, item.period.year)}</DataTableTd>
+                        <DataTableTd>{item.opcoName}</DataTableTd>
+                        <DataTableTd className="text-foreground-muted">{item.status}</DataTableTd>
+                        <DataTableTd align="right" className="text-foreground-muted">
+                          {formatUsd(item.totalAmountUsd)}
+                        </DataTableTd>
+                        <DataTableTd align="right" className="text-foreground-muted">
+                          {item.itemCount}
+                        </DataTableTd>
+                        <DataTableTd className="text-foreground-muted">
+                          <div>{formatDateTime(item.generatedAt)}</div>
+                          <div className="text-xs text-foreground-subtle">by {item.runBy}</div>
+                        </DataTableTd>
+                        <DataTableTd>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <IconButton
+                              label="View consolidation"
+                              onClick={() => void loadDetail(item.id)}
+                            >
+                              <IconEye />
+                            </IconButton>
+                            <Button
+                              variant="secondary"
+                              onClick={() => downloadExcel(item.id)}
+                            >
+                              Excel
+                            </Button>
+                          </div>
+                        </DataTableTd>
+                      </DataTableRow>
+                    ))}
+                  </tbody>
+                </DataTable>
+              </DataTableFrame>
 
-          {history.totalPages > 1 ? (
-            <div className="flex items-center justify-between text-sm text-foreground-muted">
-              <span>
-                Page {history.page} of {history.totalPages}
-              </span>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  disabled={history.page <= 1 || loading}
-                  onClick={() => void loadHistory(history.page - 1)}
-                  className="rounded-lg border border-border-strong px-3 py-1 disabled:opacity-50"
-                >
-                  Previous
-                </button>
-                <button
-                  type="button"
-                  disabled={history.page >= history.totalPages || loading}
-                  onClick={() => void loadHistory(history.page + 1)}
-                  className="rounded-lg border border-border-strong px-3 py-1 disabled:opacity-50"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          ) : null}
+              {history.totalPages > 1 ? (
+                <div className="flex items-center justify-between text-sm text-foreground-muted">
+                  <span>
+                    Page {history.page} of {history.totalPages}
+                  </span>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="secondary"
+                      disabled={history.page <= 1 || loading}
+                      onClick={() => void loadHistory(history.page - 1)}
+                    >
+                      Previous
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      disabled={history.page >= history.totalPages || loading}
+                      onClick={() => void loadHistory(history.page + 1)}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+            </>
+          )}
 
           {detail ? (
-            <div className="rounded-xl border border-border bg-surface p-4">
+            <div className={ui.cardPaddingLg}>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <h2 className="text-lg font-medium text-foreground">
@@ -663,57 +640,54 @@ export function ConsolidationView({
                     {detail.status} · Generated {formatDateTime(detail.generatedAt)}
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => downloadExcel(detail.id)}
-                  className="rounded-lg border border-border-strong px-3 py-1.5 text-sm font-medium text-foreground"
-                >
+                <Button variant="secondary" onClick={() => downloadExcel(detail.id)}>
                   Download Excel
-                </button>
+                </Button>
               </div>
 
               <p className="mt-3 text-sm text-foreground-muted">
                 Total USD: {formatUsd(detail.totalAmountUsd)}
               </p>
 
-              <div className="mt-4 max-h-96 overflow-auto">
-                <table className="min-w-full text-left text-sm">
-                  <thead className="sticky top-0 border-b border-border bg-surface text-foreground-subtle">
+              <DataTableFrame className="mt-4 max-h-96 overflow-auto">
+                <DataTable>
+                  <DataTableHead className="sticky top-0 z-10">
                     <tr>
-                      <th className="px-3 py-2 font-medium">Partner</th>
-                      <th className="px-3 py-2 font-medium">Service</th>
-                      <th className="px-3 py-2 font-medium">Description</th>
-                      <th className="px-3 py-2 font-medium text-right">Usage</th>
-                      <th className="px-3 py-2 font-medium text-right">USD</th>
+                      <DataTableTh>Partner</DataTableTh>
+                      <DataTableTh>Service</DataTableTh>
+                      <DataTableTh>Description</DataTableTh>
+                      <DataTableTh align="right">Usage</DataTableTh>
+                      <DataTableTh align="right">USD</DataTableTh>
                     </tr>
-                  </thead>
+                  </DataTableHead>
                   <tbody>
                     {detail.items.map((item, index) => (
-                      <tr
+                      <DataTableRow
                         key={`${item.partnerName}-${item.serviceCode}-${index}`}
-                        className="border-b border-border"
                       >
-                        <td className="px-3 py-2 text-foreground">{item.partnerName}</td>
-                        <td className="px-3 py-2 text-foreground-muted">
+                        <DataTableTd>{item.partnerName}</DataTableTd>
+                        <DataTableTd className="text-foreground-muted">
                           {item.serviceCode ?? "—"}
-                        </td>
-                        <td className="px-3 py-2 text-foreground-muted">{item.description}</td>
-                        <td className="px-3 py-2 text-right text-foreground-muted">
+                        </DataTableTd>
+                        <DataTableTd className="text-foreground-muted">
+                          {item.description}
+                        </DataTableTd>
+                        <DataTableTd align="right" className="text-foreground-muted">
                           {formatNumber(item.usageAmount)}
                           {item.usageUnit ? ` ${item.usageUnit}` : ""}
-                        </td>
-                        <td className="px-3 py-2 text-right text-foreground-muted">
+                        </DataTableTd>
+                        <DataTableTd align="right" className="text-foreground-muted">
                           {formatUsd(item.usageUsd)}
-                        </td>
-                      </tr>
+                        </DataTableTd>
+                      </DataTableRow>
                     ))}
                   </tbody>
-                </table>
-              </div>
+                </DataTable>
+              </DataTableFrame>
             </div>
           ) : null}
         </div>
       )}
-    </div>
+    </PageCard>
   );
 }

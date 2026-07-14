@@ -2,7 +2,9 @@
 
 import { useCallback, useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import type { EmailSettingsView } from "@/lib/admin/email-settings";
+import { ui } from "@/lib/ui/classes";
 
 type EmailSettingsFormProps = {
   initialSettings: EmailSettingsView;
@@ -141,16 +143,8 @@ export function EmailSettingsForm({ initialSettings }: EmailSettingsFormProps) {
 
   return (
     <div className="space-y-8">
-      {error ? (
-        <p className="rounded-md border border-danger-border bg-danger-muted px-3 py-2 text-sm text-danger">
-          {error}
-        </p>
-      ) : null}
-      {success ? (
-        <p className="rounded-md border border-success-border bg-success-muted px-3 py-2 text-sm text-success">
-          {success}
-        </p>
-      ) : null}
+      {error ? <p className={ui.alertError}>{error}</p> : null}
+      {success ? <p className={ui.alertSuccess}>{success}</p> : null}
 
       <form onSubmit={(event) => void saveSettings(event)} className="space-y-4">
         <div className="space-y-1">
@@ -180,8 +174,8 @@ export function EmailSettingsForm({ initialSettings }: EmailSettingsFormProps) {
           </span>
         </label>
 
-        <label className="block space-y-1 text-sm">
-          <span className="font-medium text-foreground-muted">SMTP host</span>
+        <label className="block text-sm">
+          <span className={ui.label}>SMTP host</span>
           <input
             type="text"
             value={form.smtpHost}
@@ -189,12 +183,12 @@ export function EmailSettingsForm({ initialSettings }: EmailSettingsFormProps) {
               setForm((current) => ({ ...current, smtpHost: event.target.value }))
             }
             placeholder="smtp.titan.email"
-            className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
+            className={ui.input}
           />
         </label>
 
-        <label className="block space-y-1 text-sm">
-          <span className="font-medium text-foreground-muted">SMTP port</span>
+        <label className="block text-sm">
+          <span className={ui.label}>SMTP port</span>
           <input
             type="number"
             min={1}
@@ -204,12 +198,12 @@ export function EmailSettingsForm({ initialSettings }: EmailSettingsFormProps) {
               setForm((current) => ({ ...current, smtpPort: event.target.value }))
             }
             placeholder="465"
-            className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
+            className={ui.input}
           />
         </label>
 
-        <label className="block space-y-1 text-sm">
-          <span className="font-medium text-foreground-muted">Sender address</span>
+        <label className="block text-sm">
+          <span className={ui.label}>Sender address</span>
           <input
             type="email"
             value={form.senderAddress}
@@ -220,11 +214,11 @@ export function EmailSettingsForm({ initialSettings }: EmailSettingsFormProps) {
               }))
             }
             placeholder="noreply@dizlee.com"
-            className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
+            className={ui.input}
           />
         </label>
 
-        <dl className="grid gap-3 rounded-lg border border-border bg-surface-muted p-4 text-sm">
+        <dl className={`grid gap-3 ${ui.filterToolbar} text-sm`}>
           <div className="grid gap-1 sm:grid-cols-[180px_1fr]">
             <dt className="font-medium text-foreground-muted">SMTP_USER</dt>
             <dd>
@@ -244,21 +238,17 @@ export function EmailSettingsForm({ initialSettings }: EmailSettingsFormProps) {
         </dl>
 
         <div className="flex flex-wrap gap-3">
-          <button
-            type="submit"
-            disabled={saving}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
-          >
+          <Button type="submit" disabled={saving}>
             {saving ? "Saving…" : "Save settings"}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="secondary"
             onClick={() => void reloadSettings()}
             disabled={reloading || saving}
-            className="rounded-md border border-border-strong px-4 py-2 text-sm font-medium text-foreground-muted hover:bg-surface-muted disabled:opacity-60"
           >
             {reloading ? "Reloading…" : "Reload"}
-          </button>
+          </Button>
         </div>
       </form>
 
@@ -272,17 +262,14 @@ export function EmailSettingsForm({ initialSettings }: EmailSettingsFormProps) {
         </div>
 
         {!credentialsReady ? (
-          <p className="rounded-md border border-warning-border bg-warning-muted px-3 py-2 text-sm text-warning">
+          <p className={ui.alertWarning}>
             Set <code>SMTP_USER</code> and <code>SMTP_PASSWORD</code> in{" "}
             <code>.env</code>, then restart the server before sending a test.
           </p>
         ) : null}
 
         <div className="space-y-1">
-          <label
-            htmlFor="testRecipient"
-            className="text-sm font-medium text-foreground-muted"
-          >
+          <label htmlFor="testRecipient" className={ui.label}>
             Send test email to
           </label>
           <input
@@ -291,18 +278,13 @@ export function EmailSettingsForm({ initialSettings }: EmailSettingsFormProps) {
             value={testRecipient}
             onChange={(event) => setTestRecipient(event.target.value)}
             placeholder="you@example.com"
-            className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
+            className={ui.input}
           />
         </div>
 
-        <button
-          type="button"
-          onClick={() => void sendTest()}
-          disabled={testDisabled}
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
-        >
+        <Button type="button" onClick={() => void sendTest()} disabled={testDisabled}>
           {sendingTest ? "Sending…" : "Send test email"}
-        </button>
+        </Button>
       </section>
     </div>
   );

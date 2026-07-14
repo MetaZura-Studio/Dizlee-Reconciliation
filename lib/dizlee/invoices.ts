@@ -12,7 +12,7 @@ import {
 import { getLookupId } from "@/lib/dizlee/lookups";
 import { prisma } from "@/lib/prisma";
 
-export type InvoiceSortField = "uploaded" | "period";
+export type InvoiceSortField = "uploaded" | "period" | "opco" | "partner";
 export type SortDirection = "asc" | "desc";
 export type PaymentStatusFilter = "all" | "paid" | "pending";
 
@@ -160,6 +160,10 @@ function buildOrderBy(
   switch (sortBy) {
     case "period":
       return [{ year: sortDir }, { month: sortDir }];
+    case "opco":
+      return { opco: { name: sortDir } };
+    case "partner":
+      return { partner: { name: sortDir } };
     case "uploaded":
     default:
       return { createdAt: sortDir };
@@ -188,7 +192,13 @@ export function parseInvoiceListFilters(
       paymentStatus === "paid" || paymentStatus === "pending"
         ? paymentStatus
         : "all",
-    sortBy: sortBy === "period" || sortBy === "uploaded" ? sortBy : "uploaded",
+    sortBy:
+      sortBy === "period" ||
+      sortBy === "uploaded" ||
+      sortBy === "opco" ||
+      sortBy === "partner"
+        ? sortBy
+        : "uploaded",
     sortDir: sortDir === "asc" ? "asc" : "desc",
     page: Number.isInteger(page) && page >= 1 ? page : 1,
   };

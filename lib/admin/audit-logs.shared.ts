@@ -14,6 +14,9 @@ export type AuditLogListItem = {
   message: string | null;
 };
 
+export type AuditLogSortField = "createdAt" | "action" | "actor" | "entityType";
+export type AuditLogSortDirection = "asc" | "desc";
+
 export type AuditLogListFilters = {
   search: string;
   entityType: string;
@@ -22,6 +25,8 @@ export type AuditLogListFilters = {
   entityId: string;
   dateFrom: string;
   dateTo: string;
+  sortBy: AuditLogSortField;
+  sortDir: AuditLogSortDirection;
   page: number;
   pageSize: number;
 };
@@ -61,6 +66,17 @@ export function parseAuditLogListFilters(
       ? roleParam
       : "all";
 
+  const sortByParam = searchParams.get("sortBy");
+  const sortBy: AuditLogSortField =
+    sortByParam === "action" ||
+    sortByParam === "actor" ||
+    sortByParam === "entityType" ||
+    sortByParam === "createdAt"
+      ? sortByParam
+      : "createdAt";
+  const sortDir: AuditLogSortDirection =
+    searchParams.get("sortDir") === "asc" ? "asc" : "desc";
+
   return {
     search: searchParams.get("search") ?? "",
     entityType: searchParams.get("entityType") ?? "all",
@@ -69,6 +85,8 @@ export function parseAuditLogListFilters(
     entityId: searchParams.get("entityId") ?? "",
     dateFrom: searchParams.get("dateFrom") ?? "",
     dateTo: searchParams.get("dateTo") ?? "",
+    sortBy,
+    sortDir,
     page: Number.isFinite(pageParam) && pageParam > 0 ? Math.floor(pageParam) : 1,
     pageSize:
       Number.isFinite(pageSizeParam) && pageSizeParam > 0
@@ -81,6 +99,8 @@ export function buildAuditLogQuery(filters: AuditLogListFilters): string {
   const params = new URLSearchParams({
     page: String(filters.page),
     pageSize: String(filters.pageSize),
+    sortBy: filters.sortBy,
+    sortDir: filters.sortDir,
   });
 
   if (filters.search.trim()) {

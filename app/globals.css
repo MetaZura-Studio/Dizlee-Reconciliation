@@ -1,29 +1,41 @@
 @import "tailwindcss";
 
 :root {
-  --canvas: #f7f4ef;
-  --surface: #ffffff;
-  --surface-muted: #f0ebe3;
-  --border: #e4ddd3;
-  --border-strong: #cfc5b8;
-  --foreground: #2c2825;
-  --foreground-muted: #5c5650;
-  --foreground-subtle: #8a837a;
-  --primary: #3d6b5e;
-  --primary-hover: #325a4f;
-  --primary-foreground: #ffffff;
-  --primary-muted: #e3ede9;
-  --accent: #a65d3f;
-  --accent-muted: #f6ebe4;
-  --success: #2f6b4f;
-  --success-muted: #e8f3ec;
-  --success-border: #b8d4c4;
-  --warning: #8a5b14;
-  --warning-muted: #faf0e0;
-  --warning-border: #e8d4a8;
-  --danger: #9b3d3d;
-  --danger-muted: #fceaea;
-  --danger-border: #e8b4b4;
+  color-scheme: light;
+
+  --background: #f3f4ff;
+  --foreground: #0b1220;
+  --card: #ffffff;
+  --muted: #eef0ff;
+  --muted-foreground: #5b6476;
+  --border: rgba(16, 24, 40, 0.08);
+  --accent: #3b5bfd;
+  --accent-foreground: #ffffff;
+  --ring: rgba(99, 102, 241, 0.35);
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.06);
+  --shadow-md: 0 10px 30px rgba(16, 24, 40, 0.1);
+
+  /* Mapped to existing semantic class names used across the app */
+  --canvas: var(--background);
+  --surface: var(--card);
+  --surface-muted: var(--muted);
+  --border-strong: rgba(16, 24, 40, 0.14);
+  --foreground-muted: var(--muted-foreground);
+  --foreground-subtle: #8b93a7;
+  --primary: var(--accent);
+  --primary-hover: #2f4de6;
+  --primary-foreground: var(--accent-foreground);
+  --primary-muted: #e8ecff;
+  --accent-muted: #e8ecff;
+  --success: #0f766e;
+  --success-muted: #e6f7f5;
+  --success-border: #9fd8d2;
+  --warning: #b45309;
+  --warning-muted: #fff7ed;
+  --warning-border: #f5d0a9;
+  --danger: #b91c1c;
+  --danger-muted: #fef2f2;
+  --danger-border: #fecaca;
 }
 
 @theme inline {
@@ -51,10 +63,15 @@
   --color-danger-muted: var(--danger-muted);
   --color-danger-border: var(--danger-border);
   --font-sans: var(--font-app-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-app-mono), ui-monospace, monospace;
 }
 
 body {
   background: var(--canvas);
   color: var(--foreground);
   font-family: var(--font-sans);
+}
+
+* {
+  border-color: var(--border);
 }

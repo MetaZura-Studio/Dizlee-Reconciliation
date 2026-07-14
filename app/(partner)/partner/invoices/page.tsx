@@ -1,6 +1,8 @@
 import Link from "next/link";
 
 import { InvoicesTable } from "@/components/partner/InvoicesTable";
+import { PageCard, PageHeader } from "@/components/ui/page";
+import { ui } from "@/lib/ui/classes";
 import { requirePartnerSession } from "@/lib/partner/auth";
 import {
   getPartnerInvoiceFilterOptions,
@@ -43,23 +45,17 @@ export default async function PartnerInvoicesPage({
   ]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Invoices</h1>
-          <p className="mt-1 text-foreground-muted">
-            View partner-to-client invoices and track lifecycle status with Dizlee.
-          </p>
-        </div>
-        <Link
-          href="/partner/invoices/upload"
-          className="rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
-        >
-          Upload invoice
-        </Link>
-      </div>
-
+    <PageCard>
+      <PageHeader
+        title="Invoices"
+        description="View partner-to-client invoices and track lifecycle status with Dizlee."
+        actions={
+          <Link href="/partner/invoices/upload" className={ui.btnPrimary}>
+            Upload invoice
+          </Link>
+        }
+      />
       <InvoicesTable initialResult={result} filterOptions={filterOptions} />
-    </div>
+    </PageCard>
   );
 }

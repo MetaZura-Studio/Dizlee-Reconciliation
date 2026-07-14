@@ -3,6 +3,20 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { InvoicesTabs } from "@/components/dizlee/invoices-tabs";
+import { Button } from "@/components/ui/button";
+import {
+  DataTable,
+  DataTableFrame,
+  DataTableHead,
+  DataTableTd,
+  DataTableTh,
+} from "@/components/ui/data-table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
+import { StatusPill } from "@/components/ui/status-pill";
+import { LoadingBar } from "@/components/ui/loading";
+import { cn, ui } from "@/lib/ui/classes";
+import { invoiceStatusTone } from "@/lib/ui/status-tones";
 import type { InvoiceFilterOptions } from "@/lib/dizlee/invoices";
 import type {
   InvoiceLifecycleDetail,
@@ -184,24 +198,22 @@ export function InvoicesLifecycleView({
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">Dizlee - Invoices</h1>
-        <p className="mt-1 text-sm text-foreground-muted">
-          Invoice lifecycle stepper and activity log per invoice.
-        </p>
-      </div>
+    <PageCard>
+      <PageHeader
+        title="Dizlee - Invoices"
+        description="Invoice lifecycle stepper and activity log per invoice."
+      />
 
       <InvoicesTabs active="lifecycle" />
 
-      <section className="rounded-lg border border-border bg-surface-muted p-4">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <FilterToolbar className="mt-4">
+        <div className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <label className="text-sm">
-            <span className="mb-1 block text-xs text-foreground-subtle">Period (month)</span>
+            <span className={ui.label}>Period (month)</span>
             <select
               value={month}
               onChange={(event) => setMonth(Number(event.target.value))}
-              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
+              className={ui.select}
             >
               {MONTHS.map((name, index) => (
                 <option key={name} value={index + 1}>
@@ -211,11 +223,11 @@ export function InvoicesLifecycleView({
             </select>
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-xs text-foreground-subtle">Year</span>
+            <span className={ui.label}>Year</span>
             <select
               value={year}
               onChange={(event) => setYear(Number(event.target.value))}
-              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
+              className={ui.select}
             >
               {yearOptions.map((value) => (
                 <option key={value} value={value}>
@@ -225,11 +237,11 @@ export function InvoicesLifecycleView({
             </select>
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-xs text-foreground-subtle">OpCo</span>
+            <span className={ui.label}>OpCo</span>
             <select
               value={opcoId}
               onChange={(event) => setOpcoId(event.target.value)}
-              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
+              className={ui.select}
             >
               <option value="">All OpCos</option>
               {filterOptions.opcos.map((opco) => (
@@ -240,11 +252,11 @@ export function InvoicesLifecycleView({
             </select>
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-xs text-foreground-subtle">Partner</span>
+            <span className={ui.label}>Partner</span>
             <select
               value={partnerId}
               onChange={(event) => setPartnerId(event.target.value)}
-              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
+              className={ui.select}
             >
               <option value="">All Partners</option>
               {filterOptions.partners.map((partner) => (
@@ -255,41 +267,39 @@ export function InvoicesLifecycleView({
             </select>
           </label>
         </div>
-      </section>
+      </FilterToolbar>
 
-      {loading ? <p className="text-sm text-foreground-subtle">Loading invoices…</p> : null}
-      {error ? (
-        <div className="rounded-md border border-danger-border bg-danger-muted p-4 text-sm text-danger">
-          {error}
+      {loading ? (
+        <div className="mt-4">
+          <LoadingBar active />
         </div>
       ) : null}
+      {error ? <div className={`mt-4 ${ui.alertError}`}>{error}</div> : null}
 
       {!loading && !error ? (
         result.items.length > 0 ? (
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="mt-6 grid gap-6 lg:grid-cols-2">
             <div className="space-y-3">
-              <div className="overflow-hidden rounded-lg border border-border">
-                <table className="min-w-full divide-y divide-border text-sm">
-                  <thead className="bg-surface-muted">
+              <DataTableFrame>
+                <DataTable>
+                  <DataTableHead>
                     <tr>
-                      <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                        Invoice
-                      </th>
-                      <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                        Status
-                      </th>
+                      <DataTableTh>Invoice</DataTableTh>
+                      <DataTableTh>Status</DataTableTh>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border bg-surface">
+                  </DataTableHead>
+                  <tbody>
                     {result.items.map((row: LifecycleListItem) => (
                       <tr
                         key={row.id}
-                        className={
-                          row.id === selectedId ? "bg-surface-muted" : "cursor-pointer"
-                        }
+                        className={cn(
+                          ui.tableRowHover,
+                          row.id === selectedId && "bg-surface-muted",
+                          row.id !== selectedId && "cursor-pointer",
+                        )}
                         onClick={() => handleSelect(row.id)}
                       >
-                        <td className="px-4 py-3">
+                        <DataTableTd>
                           <p className="font-medium text-foreground">
                             {row.invoiceNumber ?? row.id}
                           </p>
@@ -297,41 +307,42 @@ export function InvoicesLifecycleView({
                             {row.direction} · {row.opcoName}
                             {row.partnerName ? ` / ${row.partnerName}` : ""}
                           </p>
-                        </td>
-                        <td className="px-4 py-3 text-foreground-muted">
-                          {row.invoiceStatus}
-                        </td>
+                        </DataTableTd>
+                        <DataTableTd>
+                          <StatusPill tone={invoiceStatusTone(row.invoiceStatus)}>
+                            {row.invoiceStatus}
+                          </StatusPill>
+                        </DataTableTd>
                       </tr>
                     ))}
                   </tbody>
-                </table>
-              </div>
+                </DataTable>
+              </DataTableFrame>
+
               <div className="flex items-center justify-between text-sm text-foreground-muted">
                 <p>
                   Page {result.page} / {result.totalPages}
                 </p>
                 <div className="flex gap-2">
-                  <button
-                    type="button"
+                  <Button
+                    variant="secondary"
                     disabled={result.page <= 1}
                     onClick={() => goToPage(result.page - 1)}
-                    className="rounded-md border border-border-strong px-3 py-1 disabled:opacity-40"
                   >
                     Prev
-                  </button>
-                  <button
-                    type="button"
+                  </Button>
+                  <Button
+                    variant="secondary"
                     disabled={result.page >= result.totalPages}
                     onClick={() => goToPage(result.page + 1)}
-                    className="rounded-md border border-border-strong px-3 py-1 disabled:opacity-40"
                   >
                     Next
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>
 
-            <div className="rounded-lg border border-border bg-surface p-4">
+            <div className={ui.cardPadding}>
               {detailLoading ? (
                 <p className="text-sm text-foreground-subtle">Loading lifecycle…</p>
               ) : detail ? (
@@ -381,7 +392,7 @@ export function InvoicesLifecycleView({
                         {detail.activities.map((entry) => (
                           <li
                             key={entry.id}
-                            className="rounded-md border border-border p-3 text-sm"
+                            className="rounded-2xl border border-border p-3 text-sm"
                           >
                             <p className="font-medium text-foreground">
                               {entry.action}
@@ -412,14 +423,13 @@ export function InvoicesLifecycleView({
             </div>
           </div>
         ) : (
-          <div className="rounded-lg border border-border bg-surface p-8 text-center">
-            <p className="font-medium text-foreground">No invoices</p>
-            <p className="mt-1 text-sm text-foreground-muted">
-              Try adjusting filters or create an invoice for this period.
-            </p>
-          </div>
+          <EmptyState
+            className="mt-6"
+            title="No invoices"
+            description="Try adjusting filters or create an invoice for this period."
+          />
         )
       ) : null}
-    </div>
+    </PageCard>
   );
 }

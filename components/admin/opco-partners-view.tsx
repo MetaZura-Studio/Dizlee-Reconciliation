@@ -2,11 +2,14 @@
 
 import { useCallback, useState } from "react";
 
+import { Button } from "@/components/ui/button";
+import { FilterToolbar, PageCard } from "@/components/ui/page";
 import type {
   OpcoListItem,
   OpcoPartnerLinksPageData,
   OpcoPartnerLinksView,
 } from "@/lib/admin/opco-partner-links.shared";
+import { ui } from "@/lib/ui/classes";
 
 type OpcoPartnersViewProps = {
   initialData: OpcoPartnerLinksPageData;
@@ -132,59 +135,48 @@ export function OpcoPartnersView({ initialData }: OpcoPartnersViewProps) {
   };
 
   if (opcos.length === 0) {
-    return (
-      <p className="rounded-md border border-warning-border bg-warning-muted px-3 py-2 text-sm text-warning">
-        No OpCos are available. Add OpCo master data before configuring partner
-        links.
-      </p>
-    );
+    return <p className={ui.alertWarning}>No OpCos are available. Add OpCo master data before configuring partner links.</p>;
   }
 
   const linkedCount = selectedPartnerIds.size;
   const totalPartners = linksView?.totalPartners ?? linksView?.partners.length ?? 0;
 
   return (
-    <div className="space-y-6">
-      {error ? (
-        <p className="rounded-md border border-danger-border bg-danger-muted px-3 py-2 text-sm text-danger">
-          {error}
-        </p>
-      ) : null}
-      {success ? (
-        <p className="rounded-md border border-success-border bg-success-muted px-3 py-2 text-sm text-success">
-          {success}
-        </p>
-      ) : null}
+    <PageCard>
+      {error ? <p className={ui.alertError}>{error}</p> : null}
+      {success ? <p className={ui.alertSuccess}>{success}</p> : null}
 
-      <p className="rounded-md border border-border bg-surface-muted px-3 py-2 text-sm text-foreground-muted">
+      <p className={`mt-4 ${ui.cardPadding} text-sm text-foreground-muted`}>
         Linked partners control upload dropdowns, monitoring pairs, consolidation
         readiness, and report validation. Unlinked OpCo–Partner uploads are
         rejected.
       </p>
 
-      <form onSubmit={(event) => void save(event)} className="space-y-6">
-        <div className="space-y-1">
-          <label htmlFor="opcoId" className="text-sm font-medium text-foreground-muted">
-            OpCo
-          </label>
-          <select
-            id="opcoId"
-            value={selectedOpcoId}
-            onChange={(event) => handleOpcoChange(event.target.value)}
-            disabled={loading || saving}
-            className="w-full max-w-md rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary disabled:opacity-60"
-          >
-            {opcos.map((opco: OpcoListItem) => (
-              <option key={opco.id} value={opco.id}>
-                {opco.name}
-              </option>
-            ))}
-          </select>
-        </div>
+      <form onSubmit={(event) => void save(event)} className="mt-6 space-y-6">
+        <FilterToolbar>
+          <div className="w-full space-y-1">
+            <label htmlFor="opcoId" className={ui.label}>
+              OpCo
+            </label>
+            <select
+              id="opcoId"
+              value={selectedOpcoId}
+              onChange={(event) => handleOpcoChange(event.target.value)}
+              disabled={loading || saving}
+              className={`${ui.select} max-w-md disabled:opacity-60`}
+            >
+              {opcos.map((opco: OpcoListItem) => (
+                <option key={opco.id} value={opco.id}>
+                  {opco.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </FilterToolbar>
 
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-4">
-            <h2 className="text-sm font-medium text-foreground">Partners</h2>
+            <h2 className="text-sm font-semibold text-foreground">Partners</h2>
             <p className="text-sm text-foreground-subtle">
               {loading
                 ? "Loading…"
@@ -192,11 +184,11 @@ export function OpcoPartnersView({ initialData }: OpcoPartnersViewProps) {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-2 rounded-md border border-border p-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className={`grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 ${ui.cardPadding}`}>
             {(linksView?.partners ?? []).map((partner) => (
               <label
                 key={partner.id}
-                className="flex cursor-pointer items-center gap-3 rounded-md px-2 py-1.5 hover:bg-surface-muted"
+                className="flex cursor-pointer items-center gap-3 rounded-2xl px-2 py-1.5 hover:bg-surface-muted"
               >
                 <input
                   type="checkbox"
@@ -212,23 +204,19 @@ export function OpcoPartnersView({ initialData }: OpcoPartnersViewProps) {
         </div>
 
         <div className="flex flex-wrap gap-3">
-          <button
-            type="submit"
-            disabled={loading || saving || !selectedOpcoId}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
-          >
+          <Button type="submit" disabled={loading || saving || !selectedOpcoId}>
             {saving ? "Saving…" : "Save"}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="secondary"
             onClick={() => void reload()}
             disabled={loading || saving || !selectedOpcoId}
-            className="rounded-md border border-border-strong px-4 py-2 text-sm font-medium text-foreground-muted hover:bg-surface-muted disabled:opacity-60"
           >
             {loading ? "Reloading…" : "Reload"}
-          </button>
+          </Button>
         </div>
       </form>
-    </div>
+    </PageCard>
   );
 }

@@ -1,4 +1,5 @@
 import { InvoicesTable } from "@/components/opco/InvoicesTable";
+import { PageCard, PageHeader } from "@/components/ui/page";
 import { requireOpcoSession } from "@/lib/opco/auth";
 import {
   getOpcoInvoiceFilterOptions,
@@ -41,15 +42,12 @@ export default async function OpcoInvoicesPage({
   ]);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Invoices</h1>
-        <p className="mt-1 text-foreground-muted">
-          View Dizlee → OpCo invoices. Opening an invoice acknowledges receipt automatically.
-        </p>
-      </div>
-
+    <PageCard>
+      <PageHeader
+        title="Invoices"
+        description="View Dizlee → OpCo invoices. Opening an invoice acknowledges receipt automatically."
+      />
       <InvoicesTable initialResult={result} filterOptions={filterOptions} />
-    </div>
+    </PageCard>
   );
 }

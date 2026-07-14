@@ -17,7 +17,7 @@ export async function getMonthlyRatesForPeriod(
   year: number,
 ): Promise<MonthlyRateRecord[]> {
   const rates = await prisma.currencyMonthlyRate.findMany({
-    where: { month, year },
+    where: { month, year, isDeleted: false },
     select: { currencyId: true, rateToUsd: true },
   });
 
@@ -32,6 +32,42 @@ export function formatCurrencyPeriodLabel(month: number, year: number): string {
     month: "long",
     year: "numeric",
   });
+}
+
+export function currentCalendarPeriodFromDate(now = new Date()): {
+  month: number;
+  year: number;
+} {
+  return { month: now.getMonth() + 1, year: now.getFullYear() };
+}
+
+export function isSameCalendarPeriod(
+  month: number,
+  year: number,
+  current: { month: number; year: number } = currentCalendarPeriodFromDate(),
+): boolean {
+  return month === current.month && year === current.year;
+}
+
+/** Walk back `count` months from a given period (including that period). */
+export function buildRollingPeriods(
+  from: { month: number; year: number },
+  count: number,
+): Array<{ month: number; year: number }> {
+  const periods: Array<{ month: number; year: number }> = [];
+  let month = from.month;
+  let year = from.year;
+
+  for (let i = 0; i < count; i += 1) {
+    periods.push({ month, year });
+    month -= 1;
+    if (month < 1) {
+      month = 12;
+      year -= 1;
+    }
+  }
+
+  return periods;
 }
 
 export const USD_ISO_CODE = "USD" as const;

@@ -1,27 +1,23 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
+import { Button } from "@/components/ui/button";
+import {
+  DataTable,
+  DataTableFrame,
+  DataTableHead,
+  DataTableRow,
+  DataTableTd,
+  DataTableTh,
+} from "@/components/ui/data-table";
+import { FilterToolbar } from "@/components/ui/page";
 import type {
+  CurrencyRatePeriodOption,
   CurrencyRatesPeriodView,
   MonthlyRateRow,
 } from "@/lib/admin/currencies.shared";
-
-const MONTH_OPTIONS = Array.from({ length: 12 }, (_, index) => {
-  const month = index + 1;
-  return {
-    value: month,
-    label: new Date(2026, index, 1).toLocaleString("en-US", { month: "long" }),
-  };
-});
-
-function buildYearOptions(centerYear: number): number[] {
-  const years: number[] = [];
-  for (let year = centerYear - 3; year <= centerYear + 2; year += 1) {
-    years.push(year);
-  }
-  return years;
-}
+import { ui } from "@/lib/ui/classes";
 
 type RateFormRow = {
   currencyId: string;
@@ -46,37 +42,63 @@ function toFormRows(rates: MonthlyRateRow[]): RateFormRow[] {
   }));
 }
 
+function periodKey(month: number, year: number): string {
+  return `${year}-${month}`;
+}
+
 type CurrencyRatesSectionProps = {
   initialRates: CurrencyRatesPeriodView;
+  initialPeriods: CurrencyRatePeriodOption[];
   onRatesChange?: (rates: CurrencyRatesPeriodView) => void;
   onNotice?: (message: string | null, error?: string | null) => void;
 };
 
 export function CurrencyRatesSection({
   initialRates,
+  initialPeriods,
   onRatesChange,
   onNotice,
 }: CurrencyRatesSectionProps) {
   const [periodView, setPeriodView] = useState(initialRates);
-  const [month, setMonth] = useState(initialRates.month);
-  const [year, setYear] = useState(initialRates.year);
+  const [periods, setPeriods] = useState<CurrencyRatePeriodOption[]>(initialPeriods);
+  const [selectedKey, setSelectedKey] = useState(
+    periodKey(initialRates.month, initialRates.year),
+  );
   const [rows, setRows] = useState(() => toFormRows(initialRates.rates));
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [reloading, setReloading] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const isCurrent = periodView.isCurrent;
+  const month = periodView.month;
+  const year = periodView.year;
 
   const applyPeriodView = useCallback(
     (view: CurrencyRatesPeriodView) => {
       setPeriodView(view);
-      setMonth(view.month);
-      setYear(view.year);
+      setSelectedKey(periodKey(view.month, view.year));
       setRows(toFormRows(view.rates));
       onRatesChange?.(view);
     },
     [onRatesChange],
   );
+
+  const refreshPeriods = async () => {
+    try {
+      const response = await fetch("/api/admin/currency-rates/periods");
+      const body = await response.json();
+      if (!response.ok) {
+        throw new Error(body.error ?? "Failed to load periods");
+      }
+      setPeriods((body.data?.periods ?? []) as CurrencyRatePeriodOption[]);
+    } catch {
+      // Keep the last known period list on refresh failure.
+    }
+  };
 
   const loadPeriod = async (targetMonth: number, targetYear: number) => {
     setError(null);
@@ -104,8 +126,21 @@ export function CurrencyRatesSection({
     }
   };
 
+  const onPeriodChange = (value: string) => {
+    setSelectedKey(value);
+    const [yearPart, monthPart] = value.split("-");
+    const nextYear = Number(yearPart);
+    const nextMonth = Number(monthPart);
+    if (Number.isInteger(nextMonth) && Number.isInteger(nextYear)) {
+      void loadPeriod(nextMonth, nextYear);
+    }
+  };
+
   const saveRates = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (!isCurrent) {
+      return;
+    }
     setError(null);
     setSuccess(null);
     setSaving(true);
@@ -143,6 +178,7 @@ export function CurrencyRatesSection({
       const message = "Monthly rates saved.";
       setSuccess(message);
       onNotice?.(message, null);
+      void refreshPeriods();
     } catch (saveError) {
       const message =
         saveError instanceof Error
@@ -167,102 +203,158 @@ export function CurrencyRatesSection({
     }
   };
 
-  const yearOptions = buildYearOptions(year);
+  const importExcel = async (file: File) => {
+    if (!isCurrent) {
+      return;
+    }
+    setError(null);
+    setSuccess(null);
+    setImporting(true);
+
+    try {
+      const formData = new FormData();
+      formData.set("file", file);
+      const response = await fetch("/api/admin/currency-rates/import", {
+        method: "POST",
+        body: formData,
+      });
+      const body = await response.json();
+      if (!response.ok) {
+        throw new Error(body.error ?? "Failed to import Excel file");
+      }
+
+      const data = body.data as CurrencyRatesPeriodView & {
+        applied: number;
+        skippedUnknown: string[];
+        issues: Array<{ rowNumber: number; message: string }>;
+      };
+
+      applyPeriodView({
+        month: data.month,
+        year: data.year,
+        periodLabel: data.periodLabel,
+        rates: data.rates,
+        setCount: data.setCount,
+        totalCurrencies: data.totalCurrencies,
+        isCurrent: true,
+      });
+
+      const parts = [
+        `Applied ${data.applied} rate${data.applied === 1 ? "" : "s"} from Excel.`,
+        "Review and click Save rates to store them.",
+      ];
+      if (data.skippedUnknown.length > 0) {
+        parts.push(`Skipped unknown ISO: ${data.skippedUnknown.join(", ")}.`);
+      }
+      if (data.issues.length > 0) {
+        parts.push(`${data.issues.length} row warning(s).`);
+      }
+      const message = parts.join(" ");
+      setSuccess(message);
+      onNotice?.(message, null);
+    } catch (importError) {
+      const message =
+        importError instanceof Error
+          ? importError.message
+          : "Failed to import Excel file";
+      setError(message);
+      onNotice?.(null, message);
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  const busy = loading || saving || reloading || importing;
+  const periodOptions =
+    periods.length > 0
+      ? periods
+      : [
+          {
+            month: periodView.month,
+            year: periodView.year,
+            label: periodView.periodLabel,
+            isCurrent: periodView.isCurrent,
+          },
+        ];
 
   return (
-    <section className="space-y-4 rounded-lg border border-border bg-surface p-5">
+    <section className={ui.cardPaddingLg}>
       <div className="space-y-1">
         <h2 className="text-lg font-semibold text-foreground">Monthly USD rates</h2>
         <p className="text-sm text-foreground-muted">
-          Select a past month to view or correct historical rates.
+          Previous months are read-only. Only the current calendar month can be
+          edited or filled from Excel.
         </p>
       </div>
 
-      {error ? (
-        <p className="rounded-md border border-danger-border bg-danger-muted px-3 py-2 text-sm text-danger">
-          {error}
-        </p>
-      ) : null}
-      {success ? (
-        <p className="rounded-md border border-success-border bg-success-muted px-3 py-2 text-sm text-success">
-          {success}
-        </p>
-      ) : null}
+      {error ? <p className={`mt-4 ${ui.alertError}`}>{error}</p> : null}
+      {success ? <p className={`mt-4 ${ui.alertSuccess}`}>{success}</p> : null}
 
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="space-y-1">
-          <label htmlFor="rateMonth" className="text-sm font-medium text-foreground-muted">
-            Month
+      <FilterToolbar className="mt-4">
+        <div className="min-w-[16rem] space-y-1">
+          <label htmlFor="ratePeriod" className={ui.label}>
+            Period
           </label>
           <select
-            id="rateMonth"
-            value={month}
-            onChange={(event) => setMonth(Number(event.target.value))}
-            className="rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
+            id="ratePeriod"
+            value={selectedKey}
+            onChange={(event) => onPeriodChange(event.target.value)}
+            className={ui.select}
+            disabled={busy}
           >
-            {MONTH_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
+            {periodOptions.map((period) => (
+              <option
+                key={periodKey(period.month, period.year)}
+                value={periodKey(period.month, period.year)}
+              >
+                {period.label}
+                {period.isCurrent ? " (current)" : ""}
               </option>
             ))}
           </select>
         </div>
 
-        <div className="space-y-1">
-          <label htmlFor="rateYear" className="text-sm font-medium text-foreground-muted">
-            Year
-          </label>
-          <select
-            id="rateYear"
-            value={year}
-            onChange={(event) => setYear(Number(event.target.value))}
-            className="rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
-          >
-            {yearOptions.map((optionYear) => (
-              <option key={optionYear} value={optionYear}>
-                {optionYear}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <button
+        <Button
           type="button"
-          onClick={() => void loadPeriod(month, year)}
-          disabled={loading || saving || reloading}
-          className="rounded-md border border-border-strong px-4 py-2 text-sm font-medium text-foreground-muted hover:bg-surface-muted disabled:opacity-60"
+          variant="secondary"
+          onClick={() => void reloadRates()}
+          disabled={busy}
         >
-          {loading ? "Loading…" : "Load"}
-        </button>
-      </div>
+          {reloading || loading ? "Loading…" : "Reload"}
+        </Button>
+      </FilterToolbar>
 
-      <p className="text-sm text-foreground-muted">
+      <p className="mt-4 text-sm text-foreground-muted">
         {periodView.setCount} of {periodView.totalCurrencies} currencies have rates
-        for {periodView.periodLabel}.
+        for {periodView.periodLabel}
+        {isCurrent ? "" : " (read-only)"}.
       </p>
 
-      <form onSubmit={(event) => void saveRates(event)} className="space-y-4">
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-left text-sm">
-            <thead className="border-b border-border text-foreground-subtle">
+      <form onSubmit={(event) => void saveRates(event)} className="mt-4 space-y-4">
+        <DataTableFrame>
+          <DataTable>
+            <DataTableHead>
               <tr>
-                <th className="px-3 py-2 font-medium">Currency</th>
-                <th className="px-3 py-2 font-medium">Rate to USD</th>
+                <DataTableTh>Currency</DataTableTh>
+                <DataTableTh>Rate to USD</DataTableTh>
               </tr>
-            </thead>
+            </DataTableHead>
             <tbody>
               {rows.map((row) => (
-                <tr key={row.currencyId} className="border-b border-border">
-                  <td className="px-3 py-2 text-foreground">
+                <DataTableRow key={row.currencyId}>
+                  <DataTableTd className="text-foreground">
                     <span className="font-medium">{row.isoCode}</span>
                     {row.symbol ? (
                       <span className="ml-2 text-foreground-subtle">{row.symbol}</span>
                     ) : null}
-                  </td>
-                  <td className="px-3 py-2">
+                  </DataTableTd>
+                  <DataTableTd>
                     {row.isUsd ? (
                       <span className="text-foreground-muted">1.00000000 (locked)</span>
-                    ) : (
+                    ) : isCurrent ? (
                       <input
                         type="number"
                         min={0}
@@ -278,33 +370,54 @@ export function CurrencyRatesSection({
                           )
                         }
                         placeholder="Not set"
-                        className="w-full max-w-xs rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
+                        className={`${ui.input} max-w-xs`}
                       />
+                    ) : (
+                      <span className="tabular-nums text-foreground-muted">
+                        {row.rateInput === "" ? "—" : row.rateInput}
+                      </span>
                     )}
-                  </td>
-                </tr>
+                  </DataTableTd>
+                </DataTableRow>
               ))}
             </tbody>
-          </table>
-        </div>
+          </DataTable>
+        </DataTableFrame>
 
-        <div className="flex flex-wrap gap-3">
-          <button
-            type="submit"
-            disabled={saving || loading || reloading}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
-          >
-            {saving ? "Saving…" : "Save rates"}
-          </button>
-          <button
-            type="button"
-            onClick={() => void reloadRates()}
-            disabled={saving || loading || reloading}
-            className="rounded-md border border-border-strong px-4 py-2 text-sm font-medium text-foreground-muted hover:bg-surface-muted disabled:opacity-60"
-          >
-            {reloading ? "Reloading…" : "Reload"}
-          </button>
-        </div>
+        {isCurrent ? (
+          <div className="flex flex-wrap items-center gap-3">
+            <Button type="submit" disabled={busy}>
+              {saving ? "Saving…" : "Save rates"}
+            </Button>
+            <a href="/api/admin/currency-rates/template" className={ui.btnSecondary}>
+              Download template
+            </a>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              className="hidden"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) {
+                  void importExcel(file);
+                }
+              }}
+            />
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={busy}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {importing ? "Importing…" : "Upload Excel"}
+            </Button>
+          </div>
+        ) : (
+          <p className="text-sm text-foreground-subtle">
+            Switch to the current month to edit rates or upload an Excel file.
+          </p>
+        )}
       </form>
     </section>
   );

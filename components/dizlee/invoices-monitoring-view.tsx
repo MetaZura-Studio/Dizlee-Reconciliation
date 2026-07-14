@@ -5,6 +5,21 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { KpiCard } from "@/components/dizlee/kpi-card";
 import { InvoicesTabs } from "@/components/dizlee/invoices-tabs";
+import { Button } from "@/components/ui/button";
+import {
+  DataTable,
+  DataTableFrame,
+  DataTableHead,
+  DataTableRow,
+  DataTableTd,
+  DataTableTh,
+} from "@/components/ui/data-table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { IconEye } from "@/components/ui/icons";
+import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
+import { StatusPill } from "@/components/ui/status-pill";
+import { LoadingBar } from "@/components/ui/loading";
+import { ui } from "@/lib/ui/classes";
 import type { InvoiceFilterOptions } from "@/lib/dizlee/invoices";
 import type {
   InvoiceMissingSideFilter,
@@ -44,8 +59,8 @@ function formatPeriod(month: number, year: number): string {
   });
 }
 
-function statusClass(status: "Invoiced" | "Missing"): string {
-  return status === "Invoiced" ? "text-success" : "text-warning";
+function invoiceStatusTone(status: "Invoiced" | "Missing"): "success" | "warning" {
+  return status === "Invoiced" ? "success" : "warning";
 }
 
 function buildQuery(filters: InvoiceMonitoringFilters): string {
@@ -150,34 +165,33 @@ export function InvoicesMonitoringView({
   const { summary } = result;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">Dizlee - Invoices</h1>
-        <p className="mt-1 text-sm text-foreground-muted">
-          Missing Dizlee → OpCo and Partner → Dizlee invoices for each OpCo–Partner pair.
-        </p>
-        {fromDashboard ? (
-          <p className="mt-1 text-xs text-foreground-subtle">From dashboard</p>
-        ) : null}
-      </div>
+    <PageCard>
+      <PageHeader
+        title="Dizlee - Invoices"
+        description={
+          fromDashboard
+            ? "Missing Dizlee → OpCo and Partner → Dizlee invoices for each OpCo–Partner pair. From dashboard."
+            : "Missing Dizlee → OpCo and Partner → Dizlee invoices for each OpCo–Partner pair."
+        }
+      />
 
       <InvoicesTabs active="monitoring" />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard label="OpCo–Partner pairs" value={summary.linkedLanes} />
         <KpiCard label="OpCo invoices missing" value={summary.opcoMissing} />
         <KpiCard label="Partner invoices missing" value={summary.partnerMissing} />
         <KpiCard label="Invoices submitted" value={summary.invoicesSubmitted} />
       </div>
 
-      <section className="rounded-lg border border-border bg-surface-muted p-4">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <FilterToolbar className="mt-4">
+        <div className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <label className="text-sm">
-            <span className="mb-1 block text-xs text-foreground-subtle">Period (month)</span>
+            <span className={ui.label}>Period (month)</span>
             <select
               value={month}
               onChange={(event) => setMonth(Number(event.target.value))}
-              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
+              className={ui.select}
             >
               {MONTHS.map((name, index) => (
                 <option key={name} value={index + 1}>
@@ -187,12 +201,8 @@ export function InvoicesMonitoringView({
             </select>
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-xs text-foreground-subtle">Year</span>
-            <select
-              value={year}
-              onChange={(event) => setYear(Number(event.target.value))}
-              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
-            >
+            <span className={ui.label}>Year</span>
+            <select value={year} onChange={(event) => setYear(Number(event.target.value))} className={ui.select}>
               {yearOptions.map((value) => (
                 <option key={value} value={value}>
                   {value}
@@ -201,12 +211,8 @@ export function InvoicesMonitoringView({
             </select>
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-xs text-foreground-subtle">OpCo</span>
-            <select
-              value={opcoId}
-              onChange={(event) => setOpcoId(event.target.value)}
-              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
-            >
+            <span className={ui.label}>OpCo</span>
+            <select value={opcoId} onChange={(event) => setOpcoId(event.target.value)} className={ui.select}>
               <option value="">All OpCos</option>
               {filterOptions.opcos.map((opco) => (
                 <option key={opco.id} value={opco.id}>
@@ -216,12 +222,8 @@ export function InvoicesMonitoringView({
             </select>
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-xs text-foreground-subtle">Partner</span>
-            <select
-              value={partnerId}
-              onChange={(event) => setPartnerId(event.target.value)}
-              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
-            >
+            <span className={ui.label}>Partner</span>
+            <select value={partnerId} onChange={(event) => setPartnerId(event.target.value)} className={ui.select}>
               <option value="">All Partners</option>
               {filterOptions.partners.map((partner) => (
                 <option key={partner.id} value={partner.id}>
@@ -231,13 +233,13 @@ export function InvoicesMonitoringView({
             </select>
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-xs text-foreground-subtle">Show</span>
+            <span className={ui.label}>Show</span>
             <select
               value={missing}
               onChange={(event) =>
                 setMissing(event.target.value as InvoiceMissingSideFilter | "")
               }
-              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
+              className={ui.select}
             >
               <option value="">All pairs</option>
               <option value="opco">Missing OpCo invoices</option>
@@ -246,78 +248,68 @@ export function InvoicesMonitoringView({
             </select>
           </label>
         </div>
-      </section>
+      </FilterToolbar>
 
       {loading ? (
-        <p className="text-sm text-foreground-subtle">Loading invoice monitoring…</p>
-      ) : null}
-      {error ? (
-        <div className="rounded-md border border-danger-border bg-danger-muted p-4 text-sm text-danger">
-          {error}
+        <div className="mt-4">
+          <LoadingBar active />
         </div>
       ) : null}
+      {error ? <div className={`mt-4 ${ui.alertError}`}>{error}</div> : null}
 
       {!loading && !error ? (
         result.items.length > 0 ? (
-          <>
-            <div className="overflow-hidden rounded-lg border border-border">
-              <table className="min-w-full divide-y divide-border text-sm">
-                <thead className="bg-surface-muted">
+          <div className="mt-6 space-y-4">
+            <DataTableFrame>
+              <DataTable>
+                <DataTableHead>
                   <tr>
-                    <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                      Period
-                    </th>
-                    <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                      OpCo
-                    </th>
-                    <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                      Partner
-                    </th>
-                    <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                      Dizlee → OpCo
-                    </th>
-                    <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                      Partner → Dizlee
-                    </th>
+                    <DataTableTh>Period</DataTableTh>
+                    <DataTableTh>OpCo</DataTableTh>
+                    <DataTableTh>Partner</DataTableTh>
+                    <DataTableTh>Dizlee → OpCo</DataTableTh>
+                    <DataTableTh>Partner → Dizlee</DataTableTh>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-border bg-surface">
+                </DataTableHead>
+                <tbody>
                   {result.items.map((row) => (
-                    <tr key={row.laneKey}>
-                      <td className="px-4 py-3 text-foreground-muted">
+                    <DataTableRow key={row.laneKey}>
+                      <DataTableTd className="text-foreground-muted">
                         {formatPeriod(row.period.month, row.period.year)}
-                      </td>
-                      <td className="px-4 py-3 text-foreground">{row.opcoName}</td>
-                      <td className="px-4 py-3 text-foreground">{row.partnerName}</td>
-                      <td className="px-4 py-3">
-                        <p className={statusClass(row.opcoInvoice.status)}>
+                      </DataTableTd>
+                      <DataTableTd>{row.opcoName}</DataTableTd>
+                      <DataTableTd>{row.partnerName}</DataTableTd>
+                      <DataTableTd>
+                        <StatusPill tone={invoiceStatusTone(row.opcoInvoice.status)}>
                           {row.opcoInvoice.status}
-                        </p>
-                        <p className="text-xs text-foreground-subtle">
+                        </StatusPill>
+                        <p className="mt-1 text-xs text-foreground-subtle">
                           {formatDateTime(row.opcoInvoice.invoicedAt)}
                         </p>
-                      </td>
-                      <td className="px-4 py-3">
-                        <p className={statusClass(row.partnerInvoice.status)}>
+                      </DataTableTd>
+                      <DataTableTd>
+                        <StatusPill tone={invoiceStatusTone(row.partnerInvoice.status)}>
                           {row.partnerInvoice.status}
-                        </p>
-                        <p className="text-xs text-foreground-subtle">
+                        </StatusPill>
+                        <p className="mt-1 text-xs text-foreground-subtle">
                           {formatDateTime(row.partnerInvoice.invoicedAt)}
                         </p>
                         {row.partnerInvoice.invoiceId ? (
                           <Link
                             href={`/dizlee/invoices?month=${row.period.month}&year=${row.period.year}&opcoId=${row.opcoId}&partnerId=${row.partnerId}`}
-                            className="text-xs text-foreground-muted underline hover:text-foreground"
+                            className={`mt-1 inline-flex ${ui.iconButton}`}
+                            aria-label="View invoice"
+                            title="View invoice"
                           >
-                            View invoice
+                            <IconEye />
                           </Link>
                         ) : null}
-                      </td>
-                    </tr>
+                      </DataTableTd>
+                    </DataTableRow>
                   ))}
                 </tbody>
-              </table>
-            </div>
+              </DataTable>
+            </DataTableFrame>
 
             <div className="flex items-center justify-between text-sm text-foreground-muted">
               <p>
@@ -325,36 +317,35 @@ export function InvoicesMonitoringView({
                 {result.totalCount} records
               </p>
               <div className="flex gap-2">
-                <button
-                  type="button"
+                <Button
+                  variant="secondary"
                   disabled={result.page <= 1}
                   onClick={() => goToPage(result.page - 1)}
-                  className="rounded-md border border-border-strong px-3 py-1 disabled:opacity-40"
                 >
                   Prev
-                </button>
-                <button
-                  type="button"
+                </Button>
+                <Button
+                  variant="secondary"
                   disabled={result.page >= result.totalPages}
                   onClick={() => goToPage(result.page + 1)}
-                  className="rounded-md border border-border-strong px-3 py-1 disabled:opacity-40"
                 >
                   Next
-                </button>
+                </Button>
               </div>
             </div>
-          </>
-        ) : (
-          <div className="rounded-lg border border-border bg-surface p-8 text-center">
-            <p className="font-medium text-foreground">No pairs match filters</p>
-            <p className="mt-1 text-sm text-foreground-muted">
-              {summary.linkedLanes === 0
-                ? "No OpCo–Partner links are configured for this scope."
-                : "Try adjusting filters or select a different period."}
-            </p>
           </div>
+        ) : (
+          <EmptyState
+            className="mt-6"
+            title="No pairs match filters"
+            description={
+              summary.linkedLanes === 0
+                ? "No OpCo–Partner links are configured for this scope."
+                : "Try adjusting filters or select a different period."
+            }
+          />
         )
       ) : null}
-    </div>
+    </PageCard>
   );
 }

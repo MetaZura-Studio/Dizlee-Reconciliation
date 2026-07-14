@@ -2,21 +2,29 @@ import type { Prisma } from "@prisma/client";
 
 import { writeCurrencyAuditLog } from "@/lib/admin/audit";
 import { listCurrencies } from "@/lib/admin/currencies";
-import type { CurrencyRatesPeriodView } from "@/lib/admin/currencies.shared";
+import type {
+  CurrencyRatePeriodOption,
+  CurrencyRatesPeriodView,
+} from "@/lib/admin/currencies.shared";
 import {
   saveCurrencyRatesSchema,
   type SaveCurrencyRatesInput,
 } from "@/lib/admin/validation/currency-rates";
 import {
+  buildRollingPeriods,
   computeRateSavePlan,
+  currentCalendarPeriodFromDate,
   formatCurrencyPeriodLabel,
   getMonthlyRatesForPeriod,
+  isSameCalendarPeriod,
   USD_ISO_CODE,
   USD_RATE,
 } from "@/lib/platform/currency-rates";
 import { prisma } from "@/lib/prisma";
 
-export type { CurrencyRatesPeriodView } from "@/lib/admin/currencies.shared";
+export type { CurrencyRatesPeriodView, CurrencyRatePeriodOption } from "@/lib/admin/currencies.shared";
+
+const ROLLING_PERIOD_COUNT = 24;
 
 export class CurrencyRatesError extends Error {
   status: number;
@@ -39,11 +47,16 @@ function parsePeriod(monthRaw: number, yearRaw: number): { month: number; year: 
   return { month: monthRaw, year: yearRaw };
 }
 
+export function currentCalendarPeriod(): { month: number; year: number } {
+  return currentCalendarPeriodFromDate();
+}
+
 export async function getRatesForPeriod(
   monthRaw: number,
   yearRaw: number,
 ): Promise<CurrencyRatesPeriodView> {
   const { month, year } = parsePeriod(monthRaw, yearRaw);
+  const current = currentCalendarPeriod();
   const [currencies, monthlyRates] = await Promise.all([
     listCurrencies(),
     getMonthlyRatesForPeriod(month, year),
@@ -77,7 +90,55 @@ export async function getRatesForPeriod(
     rates,
     setCount,
     totalCurrencies: currencies.length,
+    isCurrent: isSameCalendarPeriod(month, year, current),
   };
+}
+
+export async function listRatePeriods(): Promise<CurrencyRatePeriodOption[]> {
+  const current = currentCalendarPeriod();
+  const rolling = buildRollingPeriods(current, ROLLING_PERIOD_COUNT);
+
+  const stored = await prisma.currencyMonthlyRate.findMany({
+    where: { isDeleted: false },
+    distinct: ["year", "month"],
+    select: { year: true, month: true },
+    orderBy: [{ year: "desc" }, { month: "desc" }],
+  });
+
+  const key = (month: number, year: number) => `${year}-${month}`;
+  const seen = new Set<string>();
+  const periods: CurrencyRatePeriodOption[] = [];
+
+  function add(month: number, year: number) {
+    const id = key(month, year);
+    if (seen.has(id)) {
+      return;
+    }
+    seen.add(id);
+    periods.push({
+      month,
+      year,
+      label: formatCurrencyPeriodLabel(month, year),
+      isCurrent: isSameCalendarPeriod(month, year, current),
+    });
+  }
+
+  add(current.month, current.year);
+  for (const period of rolling) {
+    add(period.month, period.year);
+  }
+  for (const period of stored) {
+    add(period.month, period.year);
+  }
+
+  periods.sort((a, b) => {
+    if (a.year !== b.year) {
+      return b.year - a.year;
+    }
+    return b.month - a.month;
+  });
+
+  return periods;
 }
 
 export async function saveRatesForPeriod(
@@ -92,6 +153,13 @@ export async function saveRatesForPeriod(
   }
 
   const { month, year } = parsePeriod(parsed.data.month, parsed.data.year);
+  const current = currentCalendarPeriod();
+  if (!isSameCalendarPeriod(month, year, current)) {
+    throw new CurrencyRatesError(
+      "Only the current calendar month can be edited. Past months are read-only.",
+    );
+  }
+
   const currencies = await listCurrencies();
   const currencyIdSet = new Set(currencies.map((currency) => currency.id));
 
@@ -186,9 +254,4 @@ export async function saveRatesForPeriod(
   });
 
   return getRatesForPeriod(month, year);
-}
-
-export function currentCalendarPeriod(): { month: number; year: number } {
-  const now = new Date();
-  return { month: now.getMonth() + 1, year: now.getFullYear() };
 }

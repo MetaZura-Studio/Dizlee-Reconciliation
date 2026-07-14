@@ -21,9 +21,18 @@ export type CurrencyRatesPeriodView = {
   rates: MonthlyRateRow[];
   setCount: number;
   totalCurrencies: number;
+  isCurrent: boolean;
+};
+
+export type CurrencyRatePeriodOption = {
+  month: number;
+  year: number;
+  label: string;
+  isCurrent: boolean;
 };
 
 export type CurrenciesPageData = {
   currencies: CurrencyListItem[];
   rates: CurrencyRatesPeriodView;
+  periods: CurrencyRatePeriodOption[];
 };

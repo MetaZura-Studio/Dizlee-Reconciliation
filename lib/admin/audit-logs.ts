@@ -6,6 +6,8 @@ import {
   type AuditLogListFilters,
   type AuditLogListItem,
   type AuditLogListResult,
+  type AuditLogSortDirection,
+  type AuditLogSortField,
 } from "@/lib/admin/audit-logs.shared";
 import { prisma } from "@/lib/prisma";
 
@@ -24,6 +26,23 @@ export {
 } from "@/lib/admin/audit-logs.shared";
 
 export const AUDIT_LOG_EXPORT_LIMIT = 10_000;
+
+function buildAuditLogOrderBy(
+  sortBy: AuditLogSortField,
+  sortDir: AuditLogSortDirection,
+): Prisma.AuditLogOrderByWithRelationInput {
+  switch (sortBy) {
+    case "action":
+      return { action: { label: sortDir } };
+    case "actor":
+      return { actorUser: { name: sortDir } };
+    case "entityType":
+      return { entityType: { label: sortDir } };
+    case "createdAt":
+    default:
+      return { createdAt: sortDir };
+  }
+}
 
 function mapAuditLogRow(row: {
   id: bigint;
@@ -159,7 +178,7 @@ export async function listAuditLogs(
     prisma.auditLog.findMany({
       where,
       include: auditLogInclude,
-      orderBy: { createdAt: "desc" },
+      orderBy: buildAuditLogOrderBy(filters.sortBy, filters.sortDir),
       skip,
       take: filters.pageSize,
     }),
@@ -185,7 +204,7 @@ export async function listAuditLogsForExport(
   const rows = await prisma.auditLog.findMany({
     where,
     include: auditLogInclude,
-    orderBy: { createdAt: "desc" },
+    orderBy: buildAuditLogOrderBy(filters.sortBy, filters.sortDir),
     take: limit,
   });
 

@@ -195,7 +195,7 @@ export function ReconciliationResultView({
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-sm text-foreground-muted">
@@ -206,7 +206,7 @@ export function ReconciliationResultView({
               ← Back to reconciliation history
             </Link>
           </p>
-          <h1 className="mt-2 text-2xl font-semibold text-foreground">
+          <h1 className="mt-2 text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
             {detail.opcoName} / {detail.partnerName}
           </h1>
           <p className="mt-1 text-sm text-foreground-subtle">
@@ -229,7 +229,7 @@ export function ReconciliationResultView({
         <button
           type="button"
           onClick={openAlertModal}
-          className="rounded-md border border-border-strong bg-surface px-4 py-2 text-sm font-medium text-foreground hover:bg-surface-muted"
+          className="rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium text-foreground hover:bg-surface-muted"
         >
           Alert OpCo / Partner
         </button>
@@ -278,7 +278,7 @@ export function ReconciliationResultView({
         </button>
       ) : null}
 
-      <div className="overflow-hidden rounded-lg border border-border">
+      <div className="overflow-hidden rounded-[28px] border border-border bg-surface shadow-[var(--shadow-md)]">
         <table className="min-w-full divide-y divide-border text-sm">
           <thead className="bg-surface-muted">
             <tr>
@@ -328,9 +328,9 @@ export function ReconciliationResultView({
       </p>
 
       {alertOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]">
           <div
-            className="w-full max-w-xl rounded-lg bg-surface p-6 shadow-xl"
+            className="w-full max-w-xl rounded-[28px] border border-border bg-surface p-6 shadow-[var(--shadow-md)]"
             role="dialog"
             aria-modal="true"
             aria-labelledby="recon-alert-title"

@@ -2,11 +2,15 @@
 
 import { useEffect, useState } from "react";
 
+import { Button } from "@/components/ui/button";
+import { FieldLabel, Input, Select } from "@/components/ui/field";
+import { Modal } from "@/components/ui/modal";
 import type {
   CreateOpcoInvoiceFormOptions,
   CreateOpcoInvoiceInput,
   CreateOpcoInvoiceLineInput,
 } from "@/lib/dizlee/invoices";
+import { ui } from "@/lib/ui/classes";
 
 const MONTHS = [
   "January",
@@ -170,261 +174,239 @@ export function CreateOpcoInvoiceModal({
     null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-surface p-6 shadow-xl">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-semibold text-foreground">
-              Create invoice to OpCo
-            </h2>
-            <p className="mt-1 text-sm text-foreground-muted">
-              Digital Dizlee → OpCo invoice for the selected period.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-sm text-foreground-subtle hover:text-foreground"
-          >
-            Close
-          </button>
-        </div>
+    <Modal
+      open={open}
+      title="Create invoice to OpCo"
+      onClose={onClose}
+      wide
+      className="max-w-2xl"
+    >
+      <p className="mb-4 text-sm text-foreground-muted">
+        Digital Dizlee → OpCo invoice for the selected period.
+      </p>
 
-        {loadingOptions ? (
-          <p className="mt-4 text-sm text-foreground-subtle">Loading form…</p>
-        ) : (
-          <div className="mt-4 space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="text-sm">
-                <span className="mb-1 block text-xs text-foreground-subtle">Month</span>
-                <select
-                  value={month}
-                  onChange={(event) => setMonth(Number(event.target.value))}
-                  className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
-                >
-                  {MONTHS.map((name, index) => (
-                    <option key={name} value={index + 1}>
-                      {name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="text-sm">
-                <span className="mb-1 block text-xs text-foreground-subtle">Year</span>
-                <select
-                  value={year}
-                  onChange={(event) => setYear(Number(event.target.value))}
-                  className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
-                >
-                  {yearOptions.map((value) => (
-                    <option key={value} value={value}>
-                      {value}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="text-sm sm:col-span-2">
-                <span className="mb-1 block text-xs text-foreground-subtle">OpCo</span>
-                <select
-                  value={opcoId}
-                  onChange={(event) => handleOpcoChange(event.target.value)}
-                  className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
-                >
-                  {formOptions?.opcos.map((opco) => (
-                    <option key={opco.id} value={opco.id}>
-                      {opco.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="text-sm sm:col-span-2">
-                <span className="mb-1 block text-xs text-foreground-subtle">Currency</span>
-                <select
-                  value={currencyId}
-                  onChange={(event) => setCurrencyId(event.target.value)}
-                  className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
-                >
-                  {formOptions?.currencies.map((currency) => (
-                    <option key={currency.id} value={currency.id}>
-                      {currency.isoCode}
-                      {currency.symbol ? ` (${currency.symbol})` : ""}
-                    </option>
-                  ))}
-                </select>
-              </label>
+      {loadingOptions ? (
+        <p className="text-sm text-foreground-subtle">Loading form…</p>
+      ) : (
+        <div className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <FieldLabel htmlFor="create-invoice-month">Month</FieldLabel>
+              <Select
+                id="create-invoice-month"
+                value={month}
+                onChange={(event) => setMonth(Number(event.target.value))}
+              >
+                {MONTHS.map((name, index) => (
+                  <option key={name} value={index + 1}>
+                    {name}
+                  </option>
+                ))}
+              </Select>
             </div>
+            <div>
+              <FieldLabel htmlFor="create-invoice-year">Year</FieldLabel>
+              <Select
+                id="create-invoice-year"
+                value={year}
+                onChange={(event) => setYear(Number(event.target.value))}
+              >
+                {yearOptions.map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div className="sm:col-span-2">
+              <FieldLabel htmlFor="create-invoice-opco">OpCo</FieldLabel>
+              <Select
+                id="create-invoice-opco"
+                value={opcoId}
+                onChange={(event) => handleOpcoChange(event.target.value)}
+              >
+                {formOptions?.opcos.map((opco) => (
+                  <option key={opco.id} value={opco.id}>
+                    {opco.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div className="sm:col-span-2">
+              <FieldLabel htmlFor="create-invoice-currency">Currency</FieldLabel>
+              <Select
+                id="create-invoice-currency"
+                value={currencyId}
+                onChange={(event) => setCurrencyId(event.target.value)}
+              >
+                {formOptions?.currencies.map((currency) => (
+                  <option key={currency.id} value={currency.id}>
+                    {currency.isoCode}
+                    {currency.symbol ? ` (${currency.symbol})` : ""}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          </div>
 
-            {formOptions && formOptions.bankAccounts.length === 0 ? (
-              <p className="text-sm text-warning">
-                Bank details are not configured in admin settings yet.
+          {formOptions && formOptions.bankAccounts.length === 0 ? (
+            <p className={ui.alertWarning}>
+              Bank details are not configured in admin settings yet.
+            </p>
+          ) : null}
+
+          {formOptions && formOptions.bankAccounts.length === 1 ? (
+            <div className="rounded-md border border-border bg-surface-muted p-3 text-sm text-foreground-muted">
+              <p className="font-medium text-foreground">
+                Bank details ({formOptions.bankAccounts[0].label})
               </p>
-            ) : null}
-
-            {formOptions && formOptions.bankAccounts.length === 1 ? (
-              <div className="rounded-md border border-border bg-surface-muted p-3 text-sm text-foreground-muted">
-                <p className="font-medium text-foreground">
-                  Bank details ({formOptions.bankAccounts[0].label})
-                </p>
-                <dl className="mt-2 grid gap-1 sm:grid-cols-2">
-                  {formOptions.bankAccounts[0].bankName ? (
-                    <div>
-                      <dt className="text-xs text-foreground-subtle">Bank</dt>
-                      <dd>{formOptions.bankAccounts[0].bankName}</dd>
-                    </div>
-                  ) : null}
-                  {formOptions.bankAccounts[0].accountName ? (
-                    <div>
-                      <dt className="text-xs text-foreground-subtle">Account name</dt>
-                      <dd>{formOptions.bankAccounts[0].accountName}</dd>
-                    </div>
-                  ) : null}
-                  {formOptions.bankAccounts[0].accountNumber ? (
-                    <div>
-                      <dt className="text-xs text-foreground-subtle">Account number</dt>
-                      <dd>{formOptions.bankAccounts[0].accountNumber}</dd>
-                    </div>
-                  ) : null}
-                  {formOptions.bankAccounts[0].iban ? (
-                    <div>
-                      <dt className="text-xs text-foreground-subtle">IBAN</dt>
-                      <dd>{formOptions.bankAccounts[0].iban}</dd>
-                    </div>
-                  ) : null}
-                </dl>
-              </div>
-            ) : null}
-
-            {formOptions && formOptions.bankAccounts.length > 1 ? (
-              <div className="space-y-3">
-                <label className="block text-sm">
-                  <span className="mb-1 block text-xs text-foreground-subtle">
-                    Bank account
-                  </span>
-                  <select
-                    value={bankAccountId}
-                    onChange={(event) => setBankAccountId(event.target.value)}
-                    className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
-                  >
-                    <option value="">Select bank account</option>
-                    {formOptions.bankAccounts.map((account) => (
-                      <option key={account.id} value={account.id}>
-                        {account.label}
-                        {account.bankName ? ` — ${account.bankName}` : ""}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                {selectedBankPreview ? (
-                  <div className="rounded-md border border-border bg-surface-muted p-3 text-sm text-foreground-muted">
-                    <dl className="grid gap-1 sm:grid-cols-2">
-                      {selectedBankPreview.bankName ? (
-                        <div>
-                          <dt className="text-xs text-foreground-subtle">Bank</dt>
-                          <dd>{selectedBankPreview.bankName}</dd>
-                        </div>
-                      ) : null}
-                      {selectedBankPreview.accountName ? (
-                        <div>
-                          <dt className="text-xs text-foreground-subtle">
-                            Account name
-                          </dt>
-                          <dd>{selectedBankPreview.accountName}</dd>
-                        </div>
-                      ) : null}
-                      {selectedBankPreview.iban ? (
-                        <div>
-                          <dt className="text-xs text-foreground-subtle">IBAN</dt>
-                          <dd>{selectedBankPreview.iban}</dd>
-                        </div>
-                      ) : null}
-                      {selectedBankPreview.swift ? (
-                        <div>
-                          <dt className="text-xs text-foreground-subtle">SWIFT</dt>
-                          <dd>{selectedBankPreview.swift}</dd>
-                        </div>
-                      ) : null}
-                    </dl>
+              <dl className="mt-2 grid gap-1 sm:grid-cols-2">
+                {formOptions.bankAccounts[0].bankName ? (
+                  <div>
+                    <dt className="text-xs text-foreground-subtle">Bank</dt>
+                    <dd>{formOptions.bankAccounts[0].bankName}</dd>
                   </div>
                 ) : null}
-              </div>
-            ) : null}
+                {formOptions.bankAccounts[0].accountName ? (
+                  <div>
+                    <dt className="text-xs text-foreground-subtle">Account name</dt>
+                    <dd>{formOptions.bankAccounts[0].accountName}</dd>
+                  </div>
+                ) : null}
+                {formOptions.bankAccounts[0].accountNumber ? (
+                  <div>
+                    <dt className="text-xs text-foreground-subtle">Account number</dt>
+                    <dd>{formOptions.bankAccounts[0].accountNumber}</dd>
+                  </div>
+                ) : null}
+                {formOptions.bankAccounts[0].iban ? (
+                  <div>
+                    <dt className="text-xs text-foreground-subtle">IBAN</dt>
+                    <dd>{formOptions.bankAccounts[0].iban}</dd>
+                  </div>
+                ) : null}
+              </dl>
+            </div>
+          ) : null}
 
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium text-foreground-muted">Line items</h3>
-                <button
-                  type="button"
-                  onClick={() => setLineItems((current) => [...current, emptyLine()])}
-                  className="text-sm text-foreground-muted underline hover:text-foreground"
+          {formOptions && formOptions.bankAccounts.length > 1 ? (
+            <div className="space-y-3">
+              <div>
+                <FieldLabel htmlFor="create-invoice-bank">Bank account</FieldLabel>
+                <Select
+                  id="create-invoice-bank"
+                  value={bankAccountId}
+                  onChange={(event) => setBankAccountId(event.target.value)}
                 >
-                  Add line
-                </button>
+                  <option value="">Select bank account</option>
+                  {formOptions.bankAccounts.map((account) => (
+                    <option key={account.id} value={account.id}>
+                      {account.label}
+                      {account.bankName ? ` — ${account.bankName}` : ""}
+                    </option>
+                  ))}
+                </Select>
               </div>
-              {lineItems.map((line, index) => (
-                <div
-                  key={`line-${index}`}
-                  className="grid gap-2 rounded-md border border-border p-3 sm:grid-cols-4"
-                >
-                  <input
-                    value={line.description}
-                    onChange={(event) =>
-                      updateLine(index, "description", event.target.value)
-                    }
-                    placeholder="Description"
-                    className="rounded-md border border-border-strong px-3 py-1.5 text-sm sm:col-span-2"
-                  />
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={line.quantity}
-                    onChange={(event) =>
-                      updateLine(index, "quantity", event.target.value)
-                    }
-                    placeholder="Qty"
-                    className="rounded-md border border-border-strong px-3 py-1.5 text-sm"
-                  />
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={line.unitPrice}
-                    onChange={(event) =>
-                      updateLine(index, "unitPrice", event.target.value)
-                    }
-                    placeholder="Unit price"
-                    className="rounded-md border border-border-strong px-3 py-1.5 text-sm"
-                  />
+              {selectedBankPreview ? (
+                <div className="rounded-md border border-border bg-surface-muted p-3 text-sm text-foreground-muted">
+                  <dl className="grid gap-1 sm:grid-cols-2">
+                    {selectedBankPreview.bankName ? (
+                      <div>
+                        <dt className="text-xs text-foreground-subtle">Bank</dt>
+                        <dd>{selectedBankPreview.bankName}</dd>
+                      </div>
+                    ) : null}
+                    {selectedBankPreview.accountName ? (
+                      <div>
+                        <dt className="text-xs text-foreground-subtle">
+                          Account name
+                        </dt>
+                        <dd>{selectedBankPreview.accountName}</dd>
+                      </div>
+                    ) : null}
+                    {selectedBankPreview.iban ? (
+                      <div>
+                        <dt className="text-xs text-foreground-subtle">IBAN</dt>
+                        <dd>{selectedBankPreview.iban}</dd>
+                      </div>
+                    ) : null}
+                    {selectedBankPreview.swift ? (
+                      <div>
+                        <dt className="text-xs text-foreground-subtle">SWIFT</dt>
+                        <dd>{selectedBankPreview.swift}</dd>
+                      </div>
+                    ) : null}
+                  </dl>
                 </div>
-              ))}
+              ) : null}
             </div>
+          ) : null}
 
-            {error ? (
-              <div className="rounded-md border border-danger-border bg-danger-muted p-3 text-sm text-danger">
-                {error}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-medium text-foreground-muted">Line items</h3>
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-auto px-0 text-sm underline"
+                onClick={() => setLineItems((current) => [...current, emptyLine()])}
+              >
+                Add line
+              </Button>
+            </div>
+            {lineItems.map((line, index) => (
+              <div
+                key={`line-${index}`}
+                className="grid gap-2 rounded-md border border-border p-3 sm:grid-cols-4"
+              >
+                <Input
+                  value={line.description}
+                  onChange={(event) =>
+                    updateLine(index, "description", event.target.value)
+                  }
+                  placeholder="Description"
+                  className="sm:col-span-2"
+                />
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={line.quantity}
+                  onChange={(event) =>
+                    updateLine(index, "quantity", event.target.value)
+                  }
+                  placeholder="Qty"
+                />
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={line.unitPrice}
+                  onChange={(event) =>
+                    updateLine(index, "unitPrice", event.target.value)
+                  }
+                  placeholder="Unit price"
+                />
               </div>
-            ) : null}
-
-            <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-md border border-border-strong px-4 py-2 text-sm text-foreground-muted"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={submitting || !opcoId}
-                onClick={() => void submit()}
-                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
-              >
-                {submitting ? "Creating…" : "Create invoice"}
-              </button>
-            </div>
+            ))}
           </div>
-        )}
-      </div>
-    </div>
+
+          {error ? <p className={ui.alertError}>{error}</p> : null}
+
+          <div className="flex justify-end gap-3">
+            <Button type="button" variant="secondary" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={submitting || !opcoId}
+              onClick={() => void submit()}
+            >
+              {submitting ? "Creating…" : "Create invoice"}
+            </Button>
+          </div>
+        </div>
+      )}
+    </Modal>
   );
 }

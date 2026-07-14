@@ -1,4 +1,5 @@
 import { ReportsTable } from "@/components/opco/ReportsTable";
+import { PageCard, PageHeader } from "@/components/ui/page";
 import { requireOpcoSession } from "@/lib/opco/auth";
 import {
   getOpcoReportFilterOptions,
@@ -39,15 +40,12 @@ export default async function OpcoReportsPage({ searchParams }: OpcoReportsPageP
   ]);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Reports history</h1>
-        <p className="mt-1 text-foreground-muted">
-          Find and review submitted reports. Filter by period, partner, or status.
-        </p>
-      </div>
-
+    <PageCard>
+      <PageHeader
+        title="Reports history"
+        description="Find and review submitted reports. Filter by period, partner, or status."
+      />
       <ReportsTable initialResult={result} filterOptions={filterOptions} />
-    </div>
+    </PageCard>
   );
 }

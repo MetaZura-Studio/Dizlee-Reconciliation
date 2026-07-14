@@ -3,8 +3,11 @@
 import Link from "next/link";
 import { useState } from "react";
 
+import { Button } from "@/components/ui/button";
+import { FieldLabel, Input, Select } from "@/components/ui/field";
 import type { LinkedOpco } from "@/lib/partner/queries/opcos";
 import { getDefaultPeriod } from "@/lib/partner/period";
+import { ui } from "@/lib/ui/classes";
 
 type InvoiceLineItem = {
   description: string;
@@ -107,7 +110,7 @@ export function InvoiceUploadForm({ opcos }: InvoiceUploadFormProps) {
 
   if (opcos.length === 0) {
     return (
-      <div className="rounded-lg border border-warning-border bg-warning-muted p-4 text-sm text-warning">
+      <div className={ui.alertWarning}>
         No OpCos are linked to your partner account yet. Ask an admin to configure
         OpCo–Partner links before uploading invoices.
       </div>
@@ -118,15 +121,12 @@ export function InvoiceUploadForm({ opcos }: InvoiceUploadFormProps) {
     <form onSubmit={handleSubmit} className="max-w-3xl space-y-6">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2">
-          <label htmlFor="invoice-opco" className="text-sm font-medium text-foreground-muted">
-            OpCo
-          </label>
-          <select
+          <FieldLabel htmlFor="invoice-opco">OpCo</FieldLabel>
+          <Select
             id="invoice-opco"
             name="opcoId"
             value={opcoId}
             onChange={(event) => setOpcoId(event.target.value)}
-            className="mt-1 block w-full rounded border border-border-strong px-3 py-2 text-sm"
             required
           >
             {opcos.map((opco) => (
@@ -134,14 +134,12 @@ export function InvoiceUploadForm({ opcos }: InvoiceUploadFormProps) {
                 {opco.name}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
 
         <div>
-          <label htmlFor="invoice-year" className="text-sm font-medium text-foreground-muted">
-            Year
-          </label>
-          <input
+          <FieldLabel htmlFor="invoice-year">Year</FieldLabel>
+          <Input
             id="invoice-year"
             name="year"
             type="number"
@@ -149,16 +147,13 @@ export function InvoiceUploadForm({ opcos }: InvoiceUploadFormProps) {
             max={2100}
             value={year}
             onChange={(event) => setYear(Number(event.target.value))}
-            className="mt-1 block w-full rounded border border-border-strong px-3 py-2 text-sm"
             required
           />
         </div>
 
         <div>
-          <label htmlFor="invoice-month" className="text-sm font-medium text-foreground-muted">
-            Month
-          </label>
-          <input
+          <FieldLabel htmlFor="invoice-month">Month</FieldLabel>
+          <Input
             id="invoice-month"
             name="month"
             type="number"
@@ -166,19 +161,13 @@ export function InvoiceUploadForm({ opcos }: InvoiceUploadFormProps) {
             max={12}
             value={month}
             onChange={(event) => setMonth(Number(event.target.value))}
-            className="mt-1 block w-full rounded border border-border-strong px-3 py-2 text-sm"
             required
           />
         </div>
 
         <div className="sm:col-span-2">
-          <label
-            htmlFor="invoice-number"
-            className="text-sm font-medium text-foreground-muted"
-          >
-            Invoice number (optional)
-          </label>
-          <input
+          <FieldLabel htmlFor="invoice-number">Invoice number (optional)</FieldLabel>
+          <Input
             id="invoice-number"
             name="invoiceNumber"
             type="text"
@@ -186,14 +175,11 @@ export function InvoiceUploadForm({ opcos }: InvoiceUploadFormProps) {
             value={invoiceNumber}
             onChange={(event) => setInvoiceNumber(event.target.value)}
             placeholder="Auto-generated if left blank"
-            className="mt-1 block w-full rounded border border-border-strong px-3 py-2 text-sm"
           />
         </div>
 
         <div className="sm:col-span-2">
-          <label htmlFor="invoice-file" className="text-sm font-medium text-foreground-muted">
-            Invoice PDF
-          </label>
+          <FieldLabel htmlFor="invoice-file">Invoice PDF</FieldLabel>
           <input
             id="invoice-file"
             name="file"
@@ -209,68 +195,62 @@ export function InvoiceUploadForm({ opcos }: InvoiceUploadFormProps) {
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-foreground">Line items</h2>
-          <button
-            type="button"
-            onClick={() => setLineItems((current) => [...current, emptyLine()])}
-            className="text-sm text-foreground-muted underline hover:text-foreground"
-          >
+          <Button type="button" variant="ghost" onClick={() => setLineItems((current) => [...current, emptyLine()])}>
             Add line
-          </button>
+          </Button>
         </div>
 
         <div className="space-y-3">
           {lineItems.map((line, index) => (
             <div
               key={index}
-              className="grid gap-3 rounded-lg border border-border p-4 sm:grid-cols-4"
+              className={`grid gap-3 sm:grid-cols-4 ${ui.cardPadding}`}
             >
               <div className="sm:col-span-2">
-                <label className="text-xs font-medium text-foreground-muted">Description</label>
-                <input
+                <FieldLabel>Description</FieldLabel>
+                <Input
                   type="text"
                   value={line.description}
                   onChange={(event) => updateLine(index, "description", event.target.value)}
-                  className="mt-1 block w-full rounded border border-border-strong px-3 py-2 text-sm"
                   required
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-foreground-muted">Quantity</label>
-                <input
+                <FieldLabel>Quantity</FieldLabel>
+                <Input
                   type="number"
                   min={0.0001}
                   step="any"
                   value={line.quantity}
                   onChange={(event) => updateLine(index, "quantity", event.target.value)}
-                  className="mt-1 block w-full rounded border border-border-strong px-3 py-2 text-sm"
                   required
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-foreground-muted">Unit price</label>
-                <input
+                <FieldLabel>Unit price</FieldLabel>
+                <Input
                   type="number"
                   min={0}
                   step="any"
                   value={line.unitPrice}
                   onChange={(event) => updateLine(index, "unitPrice", event.target.value)}
-                  className="mt-1 block w-full rounded border border-border-strong px-3 py-2 text-sm"
                   required
                 />
               </div>
               {lineItems.length > 1 ? (
                 <div className="sm:col-span-4">
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
+                    className="text-danger"
                     onClick={() =>
                       setLineItems((current) =>
                         current.filter((_, lineIndex) => lineIndex !== index),
                       )
                     }
-                    className="text-xs text-rose-700 underline"
                   >
                     Remove line
-                  </button>
+                  </Button>
                 </div>
               ) : null}
             </div>
@@ -278,14 +258,10 @@ export function InvoiceUploadForm({ opcos }: InvoiceUploadFormProps) {
         </div>
       </div>
 
-      {error ? (
-        <p className="rounded border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-          {error}
-        </p>
-      ) : null}
+      {error ? <p className={ui.alertError}>{error}</p> : null}
 
       {successInvoiceId ? (
-        <div className="rounded border border-success-border bg-success-muted px-3 py-2 text-sm text-success">
+        <div className={ui.alertSuccess}>
           <p>Invoice uploaded successfully.</p>
           <p className="mt-1">
             <Link href="/partner/invoices/upload" className="underline">
@@ -299,13 +275,9 @@ export function InvoiceUploadForm({ opcos }: InvoiceUploadFormProps) {
         </div>
       ) : null}
 
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        className="rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
-      >
+      <Button type="submit" disabled={isSubmitting}>
         {isSubmitting ? "Uploading..." : "Upload invoice"}
-      </button>
+      </Button>
     </form>
   );
 }

@@ -5,6 +5,22 @@ import { useCallback, useEffect, useState } from "react";
 import { KpiCard } from "@/components/dizlee/kpi-card";
 import { ReportDetailModal } from "@/components/dizlee/report-detail-modal";
 import { ReportsTabs } from "@/components/dizlee/reports-tabs";
+import { Button } from "@/components/ui/button";
+import {
+  DataTable,
+  DataTableFrame,
+  DataTableHead,
+  DataTableRow,
+  DataTableTd,
+  DataTableTh,
+} from "@/components/ui/data-table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { IconButton } from "@/components/ui/icon-button";
+import { IconEye } from "@/components/ui/icons";
+import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
+import { StatusPill } from "@/components/ui/status-pill";
+import { LoadingBar } from "@/components/ui/loading";
+import { ui } from "@/lib/ui/classes";
 import type { ReportDetail, ReportFilterOptions } from "@/lib/dizlee/reports";
 import type {
   MissingSideFilter,
@@ -44,10 +60,10 @@ function formatPeriod(month: number, year: number): string {
   });
 }
 
-function statusClass(status: "Submitted" | "Missing"): string {
-  return status === "Submitted"
-    ? "text-success"
-    : "text-warning";
+function reportMonitoringStatusTone(
+  status: "Submitted" | "Missing",
+): "success" | "warning" {
+  return status === "Submitted" ? "success" : "warning";
 }
 
 function buildQuery(filters: ReportMonitoringFilters): string {
@@ -181,34 +197,33 @@ export function ReportsMonitoringView({
   const { summary } = result;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">Dizlee - Reports</h1>
-        <p className="mt-1 text-sm text-foreground-subtle">
-          Track OpCo and Partner report uploads for each linked pair in the selected period.
-        </p>
-        {fromDashboard ? (
-          <p className="mt-1 text-xs text-foreground-subtle">From dashboard</p>
-        ) : null}
-      </div>
+    <PageCard>
+      <PageHeader
+        title="Dizlee - Reports"
+        description={
+          fromDashboard
+            ? "Track OpCo and Partner report uploads for each linked pair in the selected period. From dashboard."
+            : "Track OpCo and Partner report uploads for each linked pair in the selected period."
+        }
+      />
 
       <ReportsTabs active="monitoring" />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard label="OpCo–Partner pairs" value={summary.linkedLanes} />
         <KpiCard label="OpCo reports missing" value={summary.opcoMissing} />
         <KpiCard label="Partner reports missing" value={summary.partnerMissing} />
         <KpiCard label="Reports submitted" value={summary.reportsSubmitted} />
       </div>
 
-      <section className="rounded-lg border border-border bg-surface-muted p-4">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <FilterToolbar className="mt-4">
+        <div className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <label className="text-sm">
-            <span className="mb-1 block text-xs text-foreground-subtle">Period (month)</span>
+            <span className={ui.label}>Period (month)</span>
             <select
               value={month}
               onChange={(event) => setMonth(Number(event.target.value))}
-              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
+              className={ui.select}
             >
               {MONTHS.map((name, index) => (
                 <option key={name} value={index + 1}>
@@ -218,11 +233,11 @@ export function ReportsMonitoringView({
             </select>
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-xs text-foreground-subtle">Year</span>
+            <span className={ui.label}>Year</span>
             <select
               value={year}
               onChange={(event) => setYear(Number(event.target.value))}
-              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
+              className={ui.select}
             >
               {yearOptions.map((value) => (
                 <option key={value} value={value}>
@@ -232,11 +247,11 @@ export function ReportsMonitoringView({
             </select>
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-xs text-foreground-subtle">OpCo</span>
+            <span className={ui.label}>OpCo</span>
             <select
               value={opcoId}
               onChange={(event) => setOpcoId(event.target.value)}
-              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
+              className={ui.select}
             >
               <option value="">All OpCos</option>
               {filterOptions.opcos.map((opco) => (
@@ -247,11 +262,11 @@ export function ReportsMonitoringView({
             </select>
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-xs text-foreground-subtle">Partner</span>
+            <span className={ui.label}>Partner</span>
             <select
               value={partnerId}
               onChange={(event) => setPartnerId(event.target.value)}
-              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
+              className={ui.select}
             >
               <option value="">All Partners</option>
               {filterOptions.partners.map((partner) => (
@@ -262,13 +277,13 @@ export function ReportsMonitoringView({
             </select>
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-xs text-foreground-subtle">Show</span>
+            <span className={ui.label}>Show</span>
             <select
               value={missing}
               onChange={(event) =>
                 setMissing(event.target.value as MissingSideFilter | "")
               }
-              className="w-full rounded-md border border-border-strong px-3 py-1.5 text-sm"
+              className={ui.select}
             >
               <option value="">All pairs</option>
               <option value="opco">Missing OpCo reports</option>
@@ -277,110 +292,88 @@ export function ReportsMonitoringView({
             </select>
           </label>
         </div>
-        <div className="mt-4 flex gap-3">
-          <button
-            type="button"
-            onClick={applyFilters}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
-          >
-            Apply
-          </button>
-          <button
-            type="button"
-            onClick={refresh}
-            className="rounded-md border border-border-strong px-4 py-2 text-sm text-foreground-muted hover:bg-surface-muted"
-          >
+        <div className="flex w-full gap-3">
+          <Button onClick={applyFilters}>Apply</Button>
+          <Button variant="secondary" onClick={refresh}>
             Refresh
-          </button>
+          </Button>
         </div>
-      </section>
+      </FilterToolbar>
 
       {loading ? (
-        <p className="text-sm text-foreground-subtle">Loading reports monitoring…</p>
-      ) : null}
-      {error ? (
-        <div className="rounded-md border border-danger-border bg-danger-muted p-4 text-sm text-danger">
-          {error}
+        <div className="mt-4">
+          <LoadingBar active />
         </div>
       ) : null}
+      {error ? <div className={`mt-4 ${ui.alertError}`}>{error}</div> : null}
 
       {!loading && !error ? (
         items.length > 0 ? (
-          <>
-            <div className="overflow-hidden rounded-lg border border-border">
-              <table className="min-w-full divide-y divide-border text-sm">
-                <thead className="bg-surface-muted">
+          <div className="mt-6 space-y-4">
+            <DataTableFrame>
+              <DataTable>
+                <DataTableHead>
                   <tr>
-                    <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                      Period
-                    </th>
-                    <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                      OpCo
-                    </th>
-                    <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                      Partner
-                    </th>
-                    <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                      OpCo report
-                    </th>
-                    <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                      Partner report
-                    </th>
+                    <DataTableTh>Period</DataTableTh>
+                    <DataTableTh>OpCo</DataTableTh>
+                    <DataTableTh>Partner</DataTableTh>
+                    <DataTableTh>OpCo report</DataTableTh>
+                    <DataTableTh>Partner report</DataTableTh>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-border bg-surface">
+                </DataTableHead>
+                <tbody>
                   {items.map((row) => (
-                    <tr key={row.laneKey}>
-                      <td className="px-4 py-3 text-foreground-muted">
+                    <DataTableRow key={row.laneKey}>
+                      <DataTableTd className="text-foreground-muted">
                         {formatPeriod(row.period.month, row.period.year)}
-                      </td>
-                      <td className="px-4 py-3 text-foreground">{row.opcoName}</td>
-                      <td className="px-4 py-3 text-foreground">
-                        {row.partnerName}
-                      </td>
-                      <td className="px-4 py-3">
-                        <p className={statusClass(row.opcoReport.status)}>
+                      </DataTableTd>
+                      <DataTableTd>{row.opcoName}</DataTableTd>
+                      <DataTableTd>{row.partnerName}</DataTableTd>
+                      <DataTableTd>
+                        <StatusPill
+                          tone={reportMonitoringStatusTone(row.opcoReport.status)}
+                        >
                           {row.opcoReport.status}
-                        </p>
-                        <p className="text-xs text-foreground-subtle">
+                        </StatusPill>
+                        <p className="mt-1 text-xs text-foreground-subtle">
                           {formatDateTime(row.opcoReport.uploadedAt)}
                         </p>
                         {row.opcoReport.reportId ? (
-                          <button
-                            type="button"
+                          <IconButton
+                            label="View report data"
                             onClick={() =>
                               void openDetail(row.opcoReport.reportId as string)
                             }
-                            className="text-xs text-foreground-muted underline hover:text-foreground"
                           >
-                            View report data
-                          </button>
+                            <IconEye />
+                          </IconButton>
                         ) : null}
-                      </td>
-                      <td className="px-4 py-3">
-                        <p className={statusClass(row.partnerReport.status)}>
+                      </DataTableTd>
+                      <DataTableTd>
+                        <StatusPill
+                          tone={reportMonitoringStatusTone(row.partnerReport.status)}
+                        >
                           {row.partnerReport.status}
-                        </p>
-                        <p className="text-xs text-foreground-subtle">
+                        </StatusPill>
+                        <p className="mt-1 text-xs text-foreground-subtle">
                           {formatDateTime(row.partnerReport.uploadedAt)}
                         </p>
                         {row.partnerReport.reportId ? (
-                          <button
-                            type="button"
+                          <IconButton
+                            label="View report data"
                             onClick={() =>
                               void openDetail(row.partnerReport.reportId as string)
                             }
-                            className="text-xs text-foreground-muted underline hover:text-foreground"
                           >
-                            View report data
-                          </button>
+                            <IconEye />
+                          </IconButton>
                         ) : null}
-                      </td>
-                    </tr>
+                      </DataTableTd>
+                    </DataTableRow>
                   ))}
                 </tbody>
-              </table>
-            </div>
+              </DataTable>
+            </DataTableFrame>
 
             <div className="flex items-center justify-between text-sm text-foreground-muted">
               <p>
@@ -388,34 +381,33 @@ export function ReportsMonitoringView({
                 {result.totalCount} records
               </p>
               <div className="flex gap-2">
-                <button
-                  type="button"
+                <Button
+                  variant="secondary"
                   disabled={result.page <= 1}
                   onClick={() => goToPage(result.page - 1)}
-                  className="rounded-md border border-border-strong px-3 py-1 disabled:opacity-40"
                 >
                   Prev
-                </button>
-                <button
-                  type="button"
+                </Button>
+                <Button
+                  variant="secondary"
                   disabled={result.page >= result.totalPages}
                   onClick={() => goToPage(result.page + 1)}
-                  className="rounded-md border border-border-strong px-3 py-1 disabled:opacity-40"
                 >
                   Next
-                </button>
+                </Button>
               </div>
             </div>
-          </>
-        ) : (
-          <div className="rounded-lg border border-border bg-surface p-8 text-center">
-            <p className="font-medium text-foreground">No pairs match filters</p>
-            <p className="mt-1 text-sm text-foreground-muted">
-              {summary.linkedLanes === 0
-                ? "No OpCo–Partner links are configured for this scope."
-                : "Try adjusting filters or select a different period."}
-            </p>
           </div>
+        ) : (
+          <EmptyState
+            className="mt-6"
+            title="No pairs match filters"
+            description={
+              summary.linkedLanes === 0
+                ? "No OpCo–Partner links are configured for this scope."
+                : "Try adjusting filters or select a different period."
+            }
+          />
         )
       ) : null}
 
@@ -429,6 +421,6 @@ export function ReportsMonitoringView({
           }}
         />
       ) : null}
-    </div>
+    </PageCard>
   );
 }

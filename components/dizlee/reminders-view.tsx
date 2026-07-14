@@ -2,7 +2,21 @@
 
 import { useCallback, useState } from "react";
 
+import { KpiCard } from "@/components/dizlee/kpi-card";
 import { NotificationsTabs } from "@/components/dizlee/notifications-tabs";
+import { Button } from "@/components/ui/button";
+import {
+  DataTable,
+  DataTableFrame,
+  DataTableHead,
+  DataTableRow,
+  DataTableTd,
+  DataTableTh,
+} from "@/components/ui/data-table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
+import { StatusPill } from "@/components/ui/status-pill";
+import { cn, ui } from "@/lib/ui/classes";
 import {
   DEFAULT_REMINDER_MESSAGE_SOURCE,
   type BroadcastTemplateCode,
@@ -59,6 +73,12 @@ function formatDateTime(value: string | null): string {
     dateStyle: "medium",
     timeStyle: "short",
   });
+}
+
+function reportMonitoringStatusTone(
+  status: "Submitted" | "Missing",
+): "success" | "warning" {
+  return status === "Submitted" ? "success" : "warning";
 }
 
 function buildQuery(filters: {
@@ -235,29 +255,18 @@ export function RemindersView({
       : "Not configured";
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">Notifications</h1>
-        <p className="mt-1 text-sm text-foreground-subtle">
-          Send report submission reminders for missing uploads (UC-09).
-        </p>
-      </div>
+    <PageCard>
+      <PageHeader
+        title="Notifications"
+        description="Send report submission reminders for missing uploads (UC-09)."
+      />
 
       <NotificationsTabs active="reminders" />
 
-      {error ? (
-        <div className="rounded-lg border border-danger-border bg-danger-muted px-4 py-3 text-sm text-danger">
-          {error}
-        </div>
-      ) : null}
+      {error ? <div className={`mt-4 ${ui.alertError}`}>{error}</div> : null}
+      {message ? <div className={`mt-4 ${ui.alertSuccess}`}>{message}</div> : null}
 
-      {message ? (
-        <div className="rounded-lg border border-success-border bg-success-muted px-4 py-3 text-sm text-success">
-          {message}
-        </div>
-      ) : null}
-
-      <div className="rounded-xl border border-border bg-surface-muted p-4 text-sm text-foreground-muted">
+      <div className={cn(ui.cardPadding, "mt-4 text-sm text-foreground-muted")}>
         <p>
           <span className="font-medium">Automatic reminders (admin):</span>{" "}
           {settings.remindersEnabled ? "Enabled" : "Disabled"}
@@ -270,14 +279,14 @@ export function RemindersView({
         </p>
       </div>
 
-      <div className="rounded-xl border border-border bg-surface p-4">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          <label className="block text-sm">
-            <span className="text-foreground-muted">Month</span>
+      <FilterToolbar className="mt-4">
+        <div className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <label className="text-sm">
+            <span className={ui.label}>Month</span>
             <select
               value={month}
               onChange={(event) => setMonth(Number(event.target.value))}
-              className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
+              className={ui.select}
             >
               {MONTHS.map((label, index) => (
                 <option key={label} value={index + 1}>
@@ -287,12 +296,12 @@ export function RemindersView({
             </select>
           </label>
 
-          <label className="block text-sm">
-            <span className="text-foreground-muted">Year</span>
+          <label className="text-sm">
+            <span className={ui.label}>Year</span>
             <select
               value={year}
               onChange={(event) => setYear(Number(event.target.value))}
-              className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
+              className={ui.select}
             >
               {yearOptions.map((value) => (
                 <option key={value} value={value}>
@@ -302,12 +311,12 @@ export function RemindersView({
             </select>
           </label>
 
-          <label className="block text-sm">
-            <span className="text-foreground-muted">OpCo</span>
+          <label className="text-sm">
+            <span className={ui.label}>OpCo</span>
             <select
               value={opcoId}
               onChange={(event) => setOpcoId(event.target.value)}
-              className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
+              className={ui.select}
             >
               <option value="">All</option>
               {filterOptions.opcos.map((opco) => (
@@ -318,12 +327,12 @@ export function RemindersView({
             </select>
           </label>
 
-          <label className="block text-sm">
-            <span className="text-foreground-muted">Partner</span>
+          <label className="text-sm">
+            <span className={ui.label}>Partner</span>
             <select
               value={partnerId}
               onChange={(event) => setPartnerId(event.target.value)}
-              className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
+              className={ui.select}
             >
               <option value="">All</option>
               {filterOptions.partners.map((partner) => (
@@ -334,14 +343,14 @@ export function RemindersView({
             </select>
           </label>
 
-          <label className="block text-sm">
-            <span className="text-foreground-muted">Missing</span>
+          <label className="text-sm">
+            <span className={ui.label}>Missing</span>
             <select
               value={missing}
               onChange={(event) =>
                 setMissing(event.target.value as MissingSideFilter | "")
               }
-              className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
+              className={ui.select}
             >
               <option value="any">Any side</option>
               <option value="opco">OpCo report</option>
@@ -349,160 +358,130 @@ export function RemindersView({
             </select>
           </label>
         </div>
+        <div className="flex w-full gap-3">
+          <Button onClick={() => void loadData(1)} disabled={loading}>
+            Apply
+          </Button>
+          <Button variant="secondary" onClick={() => void loadData(result.page)} disabled={loading}>
+            Refresh
+          </Button>
+        </div>
+      </FilterToolbar>
 
-        <button
-          type="button"
-          onClick={() => void loadData(1)}
-          disabled={loading}
-          className="mt-4 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
-        >
-          Apply filters
-        </button>
+      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <KpiCard label="OpCo–Partner pairs" value={result.summary.linkedLanes} />
+        <KpiCard label="OpCo missing" value={result.summary.opcoMissing} />
+        <KpiCard label="Partner missing" value={result.summary.partnerMissing} />
+        <KpiCard
+          label="Selected pairs"
+          value={selectedLaneKeys.length || "All"}
+        />
       </div>
+      <p className="mt-1 text-xs text-foreground-subtle">
+        {selectedLaneKeys.length === 0
+          ? "Empty selection sends to all pairs with missing reports"
+          : "Only selected pairs"}
+      </p>
 
-      <div className="grid gap-4 sm:grid-cols-4">
-        <div className="rounded-xl border border-border bg-surface p-4">
-          <p className="text-xs text-foreground-subtle">OpCo–Partner pairs</p>
-          <p className="mt-1 text-2xl font-semibold text-foreground">
-            {result.summary.linkedLanes}
-          </p>
-        </div>
-        <div className="rounded-xl border border-border bg-surface p-4">
-          <p className="text-xs text-foreground-subtle">OpCo missing</p>
-          <p className="mt-1 text-2xl font-semibold text-warning">
-            {result.summary.opcoMissing}
-          </p>
-        </div>
-        <div className="rounded-xl border border-border bg-surface p-4">
-          <p className="text-xs text-foreground-subtle">Partner missing</p>
-          <p className="mt-1 text-2xl font-semibold text-warning">
-            {result.summary.partnerMissing}
-          </p>
-        </div>
-        <div className="rounded-xl border border-border bg-surface p-4">
-          <p className="text-xs text-foreground-subtle">Selected pairs</p>
-          <p className="mt-1 text-2xl font-semibold text-foreground">
-            {selectedLaneKeys.length || "All"}
-          </p>
-          <p className="mt-1 text-xs text-foreground-subtle">
-            {selectedLaneKeys.length === 0
-              ? "Empty selection sends to all pairs with missing reports"
-              : "Only selected pairs"}
-          </p>
-        </div>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="rounded-xl border border-border bg-surface p-4 lg:col-span-2">
+      <div className="mt-6 grid gap-6 lg:grid-cols-3">
+        <div className={cn(ui.cardPaddingLg, "lg:col-span-2")}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-lg font-medium text-foreground">OpCo–Partner pairs</h2>
-            <button
-              type="button"
-              onClick={selectMissingOnPage}
-              className="text-sm font-medium text-foreground-muted underline"
-            >
+            <Button variant="ghost" onClick={selectMissingOnPage}>
               Select missing on page
-            </button>
+            </Button>
           </div>
 
-          <div className="mt-4 overflow-x-auto">
-            <table className="min-w-full text-left text-sm">
-              <thead className="border-b border-border text-foreground-subtle">
-                <tr>
-                  <th className="px-3 py-2 font-medium" />
-                  <th className="px-3 py-2 font-medium">OpCo / Partner</th>
-                  <th className="px-3 py-2 font-medium">OpCo report</th>
-                  <th className="px-3 py-2 font-medium">Partner report</th>
-                </tr>
-              </thead>
-              <tbody>
-                {result.items.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="px-3 py-8 text-center text-foreground-subtle">
-                      No OpCo–Partner pairs match the selected filters.
-                    </td>
-                  </tr>
-                ) : (
-                  result.items.map((lane) => (
-                    <tr key={lane.laneKey} className="border-b border-border">
-                      <td className="px-3 py-2">
-                        <input
-                          type="checkbox"
-                          checked={selectedLaneKeys.includes(lane.laneKey)}
-                          onChange={() => toggleLane(lane.laneKey)}
-                          className="rounded border-border-strong"
-                        />
-                      </td>
-                      <td className="px-3 py-2 text-foreground">
-                        {lane.opcoName} / {lane.partnerName}
-                      </td>
-                      <td className="px-3 py-2">
-                        <span
-                          className={
-                            lane.opcoReport.status === "Missing"
-                              ? "text-warning"
-                              : "text-success"
-                          }
-                        >
-                          {lane.opcoReport.status}
-                        </span>
-                        {lane.opcoReport.uploadedAt ? (
-                          <div className="text-xs text-foreground-subtle">
-                            {formatDateTime(lane.opcoReport.uploadedAt)}
-                          </div>
-                        ) : null}
-                      </td>
-                      <td className="px-3 py-2">
-                        <span
-                          className={
-                            lane.partnerReport.status === "Missing"
-                              ? "text-warning"
-                              : "text-success"
-                          }
-                        >
-                          {lane.partnerReport.status}
-                        </span>
-                        {lane.partnerReport.uploadedAt ? (
-                          <div className="text-xs text-foreground-subtle">
-                            {formatDateTime(lane.partnerReport.uploadedAt)}
-                          </div>
-                        ) : null}
-                      </td>
+          {result.items.length === 0 ? (
+            <EmptyState
+              className="mt-4"
+              title="No pairs match filters"
+              description="No OpCo–Partner pairs match the selected filters."
+            />
+          ) : (
+            <>
+              <DataTableFrame className="mt-4">
+                <DataTable>
+                  <DataTableHead>
+                    <tr>
+                      <DataTableTh className="w-10">{" "}</DataTableTh>
+                      <DataTableTh>OpCo / Partner</DataTableTh>
+                      <DataTableTh>OpCo report</DataTableTh>
+                      <DataTableTh>Partner report</DataTableTh>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  </DataTableHead>
+                  <tbody>
+                    {result.items.map((lane) => (
+                      <DataTableRow key={lane.laneKey}>
+                        <DataTableTd>
+                          <input
+                            type="checkbox"
+                            checked={selectedLaneKeys.includes(lane.laneKey)}
+                            onChange={() => toggleLane(lane.laneKey)}
+                            className="rounded border-border"
+                          />
+                        </DataTableTd>
+                        <DataTableTd>
+                          {lane.opcoName} / {lane.partnerName}
+                        </DataTableTd>
+                        <DataTableTd>
+                          <StatusPill
+                            tone={reportMonitoringStatusTone(lane.opcoReport.status)}
+                          >
+                            {lane.opcoReport.status}
+                          </StatusPill>
+                          {lane.opcoReport.uploadedAt ? (
+                            <p className="mt-1 text-xs text-foreground-subtle">
+                              {formatDateTime(lane.opcoReport.uploadedAt)}
+                            </p>
+                          ) : null}
+                        </DataTableTd>
+                        <DataTableTd>
+                          <StatusPill
+                            tone={reportMonitoringStatusTone(lane.partnerReport.status)}
+                          >
+                            {lane.partnerReport.status}
+                          </StatusPill>
+                          {lane.partnerReport.uploadedAt ? (
+                            <p className="mt-1 text-xs text-foreground-subtle">
+                              {formatDateTime(lane.partnerReport.uploadedAt)}
+                            </p>
+                          ) : null}
+                        </DataTableTd>
+                      </DataTableRow>
+                    ))}
+                  </tbody>
+                </DataTable>
+              </DataTableFrame>
 
-          {result.totalPages > 1 ? (
-            <div className="mt-4 flex items-center justify-between text-sm text-foreground-muted">
-              <span>
-                Page {result.page} of {result.totalPages}
-              </span>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  disabled={result.page <= 1 || loading}
-                  onClick={() => void loadData(result.page - 1)}
-                  className="rounded-lg border border-border-strong px-3 py-1 disabled:opacity-50"
-                >
-                  Previous
-                </button>
-                <button
-                  type="button"
-                  disabled={result.page >= result.totalPages || loading}
-                  onClick={() => void loadData(result.page + 1)}
-                  className="rounded-lg border border-border-strong px-3 py-1 disabled:opacity-50"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          ) : null}
+              {result.totalPages > 1 ? (
+                <div className="mt-4 flex items-center justify-between text-sm text-foreground-muted">
+                  <span>
+                    Page {result.page} of {result.totalPages}
+                  </span>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="secondary"
+                      disabled={result.page <= 1 || loading}
+                      onClick={() => void loadData(result.page - 1)}
+                    >
+                      Previous
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      disabled={result.page >= result.totalPages || loading}
+                      onClick={() => void loadData(result.page + 1)}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+            </>
+          )}
         </div>
 
-        <div className="rounded-xl border border-border bg-surface p-4">
+        <div className={ui.cardPaddingLg}>
           <h2 className="text-lg font-medium text-foreground">Reminder message</h2>
           <p className="mt-1 text-sm text-foreground-subtle">
             Choose an admin template and edit before sending.
@@ -510,7 +489,7 @@ export function RemindersView({
 
           <div className="mt-4 space-y-4">
             <label className="block text-sm">
-              <span className="text-foreground-muted">Template</span>
+              <span className={ui.label}>Template</span>
               <select
                 value={messageSource}
                 onChange={(event) =>
@@ -518,7 +497,7 @@ export function RemindersView({
                     event.target.value as BroadcastTemplateCode,
                   )
                 }
-                className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
+                className={ui.select}
               >
                 {MESSAGE_SOURCE_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -529,59 +508,58 @@ export function RemindersView({
             </label>
 
             <label className="block text-sm">
-              <span className="text-foreground-muted">Subject</span>
+              <span className={ui.label}>Subject</span>
               <input
                 type="text"
                 value={subject}
                 onChange={(event) => setSubject(event.target.value)}
                 maxLength={255}
-                className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
+                className={ui.input}
               />
             </label>
 
             <label className="block text-sm">
-              <span className="text-foreground-muted">Body</span>
+              <span className={ui.label}>Body</span>
               <textarea
                 value={body}
                 onChange={(event) => setBody(event.target.value)}
                 rows={8}
-                className="mt-1 w-full rounded-lg border border-border-strong px-3 py-2"
+                className={cn(ui.input, "min-h-[12rem] resize-y py-2.5")}
               />
             </label>
 
-            <p className="text-xs text-foreground-subtle">
+            <p className={ui.hint}>
               Placeholder {"{{period}}"} uses the month and year filters above.
             </p>
 
             <div className="space-y-2">
-              <button
-                type="button"
+              <Button
+                variant="secondary"
+                className="w-full"
                 onClick={() => void sendReminders("opco")}
                 disabled={sending}
-                className="w-full rounded-lg border border-border-strong px-4 py-2 text-sm font-medium text-foreground disabled:opacity-50"
               >
                 {sending ? "Sending…" : "Send OpCo reminders"}
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
+                variant="secondary"
+                className="w-full"
                 onClick={() => void sendReminders("partner")}
                 disabled={sending}
-                className="w-full rounded-lg border border-border-strong px-4 py-2 text-sm font-medium text-foreground disabled:opacity-50"
               >
                 {sending ? "Sending…" : "Send Partner reminders"}
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
+                className="w-full"
                 onClick={() => void sendReminders("both")}
                 disabled={sending}
-                className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
               >
                 {sending ? "Sending…" : "Send both"}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </PageCard>
   );
 }

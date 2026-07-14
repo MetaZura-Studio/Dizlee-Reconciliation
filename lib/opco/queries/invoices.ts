@@ -6,7 +6,7 @@ import { formatPeriodLabel } from "@/lib/opco/period";
 import { getLinkedPartnersForOpco } from "@/lib/opco/queries/partners";
 import prisma from "@/lib/prisma";
 
-export type OpcoInvoiceSortField = "uploaded" | "period";
+export type OpcoInvoiceSortField = "uploaded" | "period" | "partner";
 export type OpcoSortDirection = "asc" | "desc";
 export type OpcoInvoicePaymentFilter = "all" | "paid" | "pending";
 
@@ -92,6 +92,8 @@ function buildOrderBy(
   switch (sortBy) {
     case "period":
       return [{ year: sortDir }, { month: sortDir }, { createdAt: "desc" }];
+    case "partner":
+      return { partner: { name: sortDir } };
     case "uploaded":
     default:
       return { createdAt: sortDir };
@@ -213,7 +215,10 @@ export function parseOpcoInvoiceListFilters(
     statusCode: statusCode || undefined,
     paymentStatus:
       paymentStatus === "paid" || paymentStatus === "pending" ? paymentStatus : "all",
-    sortBy: sortBy === "period" || sortBy === "uploaded" ? sortBy : "uploaded",
+    sortBy:
+      sortBy === "period" || sortBy === "uploaded" || sortBy === "partner"
+        ? sortBy
+        : "uploaded",
     sortDir: sortDir === "asc" ? "asc" : "desc",
     page: Number.isInteger(page) && page >= 1 ? page : 1,
   };

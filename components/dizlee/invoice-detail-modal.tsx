@@ -1,7 +1,20 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
+import {
+  DataTable,
+  DataTableFrame,
+  DataTableHead,
+  DataTableRow,
+  DataTableTd,
+  DataTableTh,
+} from "@/components/ui/data-table";
+import { Modal } from "@/components/ui/modal";
+import { StatusPill } from "@/components/ui/status-pill";
 import type { InvoiceDetail } from "@/lib/dizlee/invoices";
 import type { InvoiceBankDetails } from "@/lib/dizlee/invoice-bank-details";
+import { ui } from "@/lib/ui/classes";
+import { invoiceStatusTone, paymentLabelTone } from "@/lib/ui/status-tones";
 
 function formatBytes(size: number | null): string {
   if (size === null) {
@@ -96,199 +109,185 @@ export function InvoiceDetailModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div
-        className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-surface p-6 shadow-xl"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="invoice-detail-title"
-      >
-        <div className="flex items-start justify-between gap-4">
-          <h2 id="invoice-detail-title" className="text-lg font-semibold text-foreground">
-            Invoice details
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-sm text-foreground-subtle hover:text-foreground"
-          >
-            Close
-          </button>
-        </div>
-
-        {loading ? (
-          <p className="mt-4 text-sm text-foreground-subtle">Loading invoice details…</p>
-        ) : detail ? (
-          <div className="mt-4 space-y-6">
-            <dl className="grid gap-3 text-sm sm:grid-cols-2">
-              <div>
-                <dt className="text-foreground-subtle">Invoice number</dt>
-                <dd className="font-medium text-foreground">
-                  {detail.invoiceNumber ?? "—"}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-foreground-subtle">Period</dt>
-                <dd className="font-medium text-foreground">{detail.period.label}</dd>
-              </div>
-              <div>
-                <dt className="text-foreground-subtle">Direction</dt>
-                <dd className="font-medium text-foreground">{detail.direction}</dd>
-              </div>
-              <div>
-                <dt className="text-foreground-subtle">OpCo</dt>
-                <dd className="font-medium text-foreground">{detail.opcoName}</dd>
-              </div>
-              <div>
-                <dt className="text-foreground-subtle">Partner</dt>
-                <dd className="font-medium text-foreground">
-                  {detail.partnerName ?? "—"}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-foreground-subtle">Uploaded</dt>
-                <dd className="font-medium text-foreground">
-                  {formatDateTime(detail.uploadedAt)}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-foreground-subtle">Invoice status</dt>
-                <dd className="font-medium text-foreground">{detail.invoiceStatus}</dd>
-              </div>
-              <div>
-                <dt className="text-foreground-subtle">Payment status</dt>
-                <dd className="font-medium text-foreground">{detail.paymentStatus}</dd>
-              </div>
-              {detail.acknowledgedAt ? (
-                <div>
-                  <dt className="text-foreground-subtle">Acknowledged</dt>
-                  <dd className="font-medium text-foreground">
-                    {formatDateTime(detail.acknowledgedAt)}
-                  </dd>
-                </div>
-              ) : null}
-              {detail.paidAt ? (
-                <div>
-                  <dt className="text-foreground-subtle">Paid</dt>
-                  <dd className="font-medium text-foreground">
-                    {formatDateTime(detail.paidAt)}
-                  </dd>
-                </div>
-              ) : null}
-              <div className="sm:col-span-2">
-                <dt className="text-foreground-subtle">Total</dt>
-                <dd className="font-medium text-foreground">
-                  {formatMoney(detail.totalAmount, detail.currencyCode)}
-                </dd>
-              </div>
-            </dl>
-
+    <Modal
+      open={!!detail || loading}
+      title="Invoice details"
+      onClose={onClose}
+      wide
+      className="max-w-2xl"
+    >
+      {loading ? (
+        <p className="text-sm text-foreground-subtle">Loading invoice details…</p>
+      ) : detail ? (
+        <div className="space-y-6">
+          <dl className="grid gap-3 text-sm sm:grid-cols-2">
             <div>
-              <h3 className="text-sm font-medium text-foreground-muted">Preview</h3>
-              {detail.previewUrl ? (
-                <p className="mt-2 text-sm text-foreground-muted">
-                  {detail.filename ?? "Uploaded file"}{" "}
-                  <span className="text-foreground-subtle">
-                    ({formatBytes(detail.fileSizeBytes)})
-                  </span>{" "}
-                  <a
-                    href={detail.previewUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-foreground-muted underline hover:text-foreground"
-                  >
-                    Open file
-                  </a>
-                </p>
-              ) : detail.isDigital ? (
-                detail.bankDetails ? (
-                  <div className="mt-2 rounded-md border border-border bg-surface-muted p-3">
-                    <p className="text-sm font-medium text-foreground">
-                      Digital invoice — payment details
-                    </p>
-                    <BankDetailsBlock details={detail.bankDetails} />
-                  </div>
-                ) : (
-                  <p className="mt-2 text-sm text-foreground-subtle">
-                    Digital invoice created. Bank details will appear when configured
-                    in admin settings.
-                  </p>
-                )
-              ) : (
-                <p className="mt-2 text-sm text-foreground-subtle">No file attached.</p>
-              )}
+              <dt className="text-foreground-subtle">Invoice number</dt>
+              <dd className="font-medium text-foreground">
+                {detail.invoiceNumber ?? "—"}
+              </dd>
             </div>
-
-            {detail.lineItems.length > 0 ? (
+            <div>
+              <dt className="text-foreground-subtle">Period</dt>
+              <dd className="font-medium text-foreground">{detail.period.label}</dd>
+            </div>
+            <div>
+              <dt className="text-foreground-subtle">Direction</dt>
+              <dd className="font-medium text-foreground">{detail.direction}</dd>
+            </div>
+            <div>
+              <dt className="text-foreground-subtle">OpCo</dt>
+              <dd className="font-medium text-foreground">{detail.opcoName}</dd>
+            </div>
+            <div>
+              <dt className="text-foreground-subtle">Partner</dt>
+              <dd className="font-medium text-foreground">
+                {detail.partnerName ?? "—"}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-foreground-subtle">Uploaded</dt>
+              <dd className="font-medium text-foreground">
+                {formatDateTime(detail.uploadedAt)}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-foreground-subtle">Invoice status</dt>
+              <dd>
+                <StatusPill
+                  tone={invoiceStatusTone(detail.invoiceStatus.replaceAll(" ", "_"))}
+                >
+                  {detail.invoiceStatus}
+                </StatusPill>
+              </dd>
+            </div>
+            <div>
+              <dt className="text-foreground-subtle">Payment status</dt>
+              <dd>
+                <StatusPill tone={paymentLabelTone(detail.paymentStatus)}>
+                  {detail.paymentStatus}
+                </StatusPill>
+              </dd>
+            </div>
+            {detail.acknowledgedAt ? (
               <div>
-                <h3 className="text-sm font-medium text-foreground-muted">Line items</h3>
-                <div className="mt-2 overflow-hidden rounded-lg border border-border">
-                  <table className="min-w-full divide-y divide-border text-sm">
-                    <thead className="bg-surface-muted">
-                      <tr>
-                        <th className="px-3 py-2 text-left font-medium text-foreground-muted">
-                          Description
-                        </th>
-                        <th className="px-3 py-2 text-right font-medium text-foreground-muted">
-                          Qty
-                        </th>
-                        <th className="px-3 py-2 text-right font-medium text-foreground-muted">
-                          Unit price
-                        </th>
-                        <th className="px-3 py-2 text-right font-medium text-foreground-muted">
-                          Total
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border bg-surface">
+                <dt className="text-foreground-subtle">Acknowledged</dt>
+                <dd className="font-medium text-foreground">
+                  {formatDateTime(detail.acknowledgedAt)}
+                </dd>
+              </div>
+            ) : null}
+            {detail.paidAt ? (
+              <div>
+                <dt className="text-foreground-subtle">Paid</dt>
+                <dd className="font-medium text-foreground">
+                  {formatDateTime(detail.paidAt)}
+                </dd>
+              </div>
+            ) : null}
+            <div className="sm:col-span-2">
+              <dt className="text-foreground-subtle">Total</dt>
+              <dd className="font-medium text-foreground">
+                {formatMoney(detail.totalAmount, detail.currencyCode)}
+              </dd>
+            </div>
+          </dl>
+
+          <div>
+            <h3 className="text-sm font-medium text-foreground-muted">Preview</h3>
+            {detail.previewUrl ? (
+              <p className="mt-2 text-sm text-foreground-muted">
+                {detail.filename ?? "Uploaded file"}{" "}
+                <span className="text-foreground-subtle">
+                  ({formatBytes(detail.fileSizeBytes)})
+                </span>{" "}
+                <a
+                  href={detail.previewUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-foreground-muted underline hover:text-foreground"
+                >
+                  Open file
+                </a>
+              </p>
+            ) : detail.isDigital ? (
+              detail.bankDetails ? (
+                <div className="mt-2 rounded-md border border-border bg-surface-muted p-3">
+                  <p className="text-sm font-medium text-foreground">
+                    Digital invoice — payment details
+                  </p>
+                  <BankDetailsBlock details={detail.bankDetails} />
+                </div>
+              ) : (
+                <p className="mt-2 text-sm text-foreground-subtle">
+                  Digital invoice created. Bank details will appear when configured
+                  in admin settings.
+                </p>
+              )
+            ) : (
+              <p className="mt-2 text-sm text-foreground-subtle">No file attached.</p>
+            )}
+          </div>
+
+          {detail.lineItems.length > 0 ? (
+            <div>
+              <h3 className="text-sm font-medium text-foreground-muted">Line items</h3>
+              <div className="mt-2">
+                <DataTableFrame>
+                  <DataTable>
+                    <DataTableHead>
+                      <DataTableRow>
+                        <DataTableTh>Description</DataTableTh>
+                        <DataTableTh align="right">Qty</DataTableTh>
+                        <DataTableTh align="right">Unit price</DataTableTh>
+                        <DataTableTh align="right">Total</DataTableTh>
+                      </DataTableRow>
+                    </DataTableHead>
+                    <tbody>
                       {detail.lineItems.map((item) => (
-                        <tr key={`${item.description}-${item.lineTotal}`}>
-                          <td className="px-3 py-2 text-foreground">
-                            {item.description}
-                          </td>
-                          <td className="px-3 py-2 text-right text-foreground-muted">
+                        <DataTableRow key={`${item.description}-${item.lineTotal}`}>
+                          <DataTableTd>{item.description}</DataTableTd>
+                          <DataTableTd align="right" className="text-foreground-muted">
                             {item.quantity}
-                          </td>
-                          <td className="px-3 py-2 text-right text-foreground-muted">
+                          </DataTableTd>
+                          <DataTableTd align="right" className="text-foreground-muted">
                             {formatMoney(item.unitPrice, detail.currencyCode)}
-                          </td>
-                          <td className="px-3 py-2 text-right text-foreground-muted">
+                          </DataTableTd>
+                          <DataTableTd align="right" className="text-foreground-muted">
                             {formatMoney(item.lineTotal, detail.currencyCode)}
-                          </td>
-                        </tr>
+                          </DataTableTd>
+                        </DataTableRow>
                       ))}
                     </tbody>
-                  </table>
-                </div>
+                  </DataTable>
+                </DataTableFrame>
               </div>
-            ) : null}
+            </div>
+          ) : null}
 
-            {detail.canMarkPayment && onMarkPayment ? (
-              <div className="border-t border-border pt-4">
-                {actionError ? (
-                  <p className="mb-3 text-sm text-danger">{actionError}</p>
-                ) : null}
-                <button
-                  type="button"
-                  disabled={actionLoading}
-                  onClick={() => {
-                    if (
-                      window.confirm(
-                        "Mark this invoice as paid? This records payment collection from the OpCo.",
-                      )
-                    ) {
-                      onMarkPayment(detail.id);
-                    }
-                  }}
-                  className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
-                >
-                  {actionLoading ? "Saving…" : "Mark payment done"}
-                </button>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
-    </div>
+          {detail.canMarkPayment && onMarkPayment ? (
+            <div className="border-t border-border pt-4">
+              {actionError ? (
+                <p className={`mb-3 ${ui.alertError}`}>{actionError}</p>
+              ) : null}
+              <Button
+                disabled={actionLoading}
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      "Mark this invoice as paid? This records payment collection from the OpCo.",
+                    )
+                  ) {
+                    onMarkPayment(detail.id);
+                  }
+                }}
+              >
+                {actionLoading ? "Saving…" : "Mark payment done"}
+              </Button>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </Modal>
   );
 }

@@ -1,5 +1,4 @@
-import { NotificationsBell } from "@/components/partner/NotificationsBell";
-import { Sidebar } from "@/components/partner/Sidebar";
+import { PartnerWorkspace } from "@/components/partner/partner-workspace";
 import { requirePartnerSession } from "@/lib/partner/auth";
 import { getPartnerUnreadInboxCount } from "@/lib/partner/queries/notifications";
 
@@ -15,14 +14,8 @@ export default async function PartnerLayout({
   );
 
   return (
-    <div className="flex min-h-screen bg-canvas">
-      <Sidebar email={session.email} />
-      <div className="flex flex-1 flex-col">
-        <header className="flex justify-end border-b border-border bg-surface px-8 py-3">
-          <NotificationsBell initialUnreadCount={unreadCount} />
-        </header>
-        <main className="flex-1 p-8">{children}</main>
-      </div>
-    </div>
+    <PartnerWorkspace email={session.email} unreadCount={unreadCount}>
+      {children}
+    </PartnerWorkspace>
   );
 }
