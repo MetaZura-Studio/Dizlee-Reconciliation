@@ -35,7 +35,8 @@ export type UserListResult = {
   filters: UserListFilters;
 };
 
-const DEFAULT_PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 10;
+const MAX_PAGE_SIZE = 10;
 
 export function parseUserListFilters(
   searchParams: URLSearchParams,
@@ -79,7 +80,7 @@ export function parseUserListFilters(
     page: Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1,
     pageSize:
       Number.isFinite(pageSizeParam) && pageSizeParam > 0
-        ? Math.min(pageSizeParam, 100)
+        ? Math.min(Math.floor(pageSizeParam), MAX_PAGE_SIZE)
         : DEFAULT_PAGE_SIZE,
   };
 }

@@ -2,25 +2,48 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useSyncExternalStore, type ReactNode } from "react";
+import {
+  useEffect,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 
 import {
+  IconBell,
+  IconChart,
   IconChevronLeft,
   IconChevronRight,
+  IconCompare,
   IconFile,
   IconHome,
-  IconSearch,
+  IconInvoice,
+  IconLayers,
   IconSettings,
   IconUsers,
 } from "@/components/ui/icons";
+import { DizleeLogo } from "@/components/brand/dizlee-logo";
 import { cn, ui } from "@/lib/ui/classes";
+
+export type AppShellNavIcon =
+  | "home"
+  | "file"
+  | "users"
+  | "settings"
+  | "bell"
+  | "invoice"
+  | "layers"
+  | "chart"
+  | "compare";
 
 export type AppShellNavItem = {
   label: string;
   href: string;
-  icon?: "home" | "file" | "users" | "settings";
+  icon?: AppShellNavIcon;
   disabled?: boolean;
   footer?: boolean;
+  badge?: number;
+  children?: AppShellNavItem[];
 };
 
 type AppShellProps = {
@@ -31,7 +54,7 @@ type AppShellProps = {
   userLabel?: string;
   headerLeft?: ReactNode;
   headerRight?: ReactNode;
-  footerSlot?: ReactNode;
+  footerSlot?: ReactNode | ((collapsed: boolean) => ReactNode);
   children: ReactNode;
 };
 
@@ -43,6 +66,16 @@ function iconFor(name: AppShellNavItem["icon"]) {
       return IconUsers;
     case "settings":
       return IconSettings;
+    case "bell":
+      return IconBell;
+    case "invoice":
+      return IconInvoice;
+    case "layers":
+      return IconLayers;
+    case "chart":
+      return IconChart;
+    case "compare":
+      return IconCompare;
     case "home":
     default:
       return IconHome;
@@ -100,10 +133,192 @@ function getStore(storageKey: string) {
 }
 
 function isNavActive(pathname: string, href: string, rootHref: string) {
-  if (href === rootHref) {
-    return pathname === href;
+  const pathOnly = href.split("?")[0] ?? href;
+  const rootPathOnly = rootHref.split("?")[0] ?? rootHref;
+  if (pathOnly === rootPathOnly) {
+    return pathname === pathOnly;
   }
-  return pathname === href || pathname.startsWith(`${href}/`);
+  return pathname === pathOnly || pathname.startsWith(`${pathOnly}/`);
+}
+
+function NavLinkItem({
+  item,
+  pathname,
+  rootHref,
+  collapsed,
+  nested = false,
+}: {
+  item: AppShellNavItem;
+  pathname: string;
+  rootHref: string;
+  collapsed: boolean;
+  nested?: boolean;
+}) {
+  const active = isNavActive(pathname, item.href, rootHref);
+  const Icon = iconFor(item.icon);
+  const badgeCount = item.badge && item.badge > 0 ? item.badge : 0;
+  const className = cn(
+    active ? ui.navItemActive : ui.navItem,
+    item.disabled && "cursor-not-allowed opacity-40",
+    collapsed && "justify-center px-2",
+    nested && !collapsed && "pl-10",
+  );
+  const badge = badgeCount > 0 ? (
+    <span
+      className={cn(
+        "flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1.5 text-[10px] font-semibold text-primary-foreground",
+        collapsed && "absolute -right-1 -top-1 h-4 min-w-4 px-1",
+      )}
+    >
+      {badgeCount > 9 ? "9+" : badgeCount}
+    </span>
+  ) : null;
+
+  const content = collapsed ? (
+    <span className="relative inline-flex">
+      <Icon className="h-[18px] w-[18px] shrink-0" />
+      {badge}
+    </span>
+  ) : (
+    <>
+      <Icon className="h-[18px] w-[18px] shrink-0" />
+      <span className="min-w-0 flex-1 truncate">{item.label}</span>
+      {badge}
+    </>
+  );
+
+  if (item.disabled) {
+    return (
+      <span title={item.label} className={className}>
+        {content}
+      </span>
+    );
+  }
+
+  return (
+    <Link
+      href={item.href}
+      title={
+        collapsed
+          ? badgeCount > 0
+            ? `${item.label}, ${badgeCount} unread`
+            : item.label
+          : undefined
+      }
+      className={className}
+      aria-current={active ? "page" : undefined}
+      aria-label={
+        badgeCount > 0 ? `${item.label}, ${badgeCount} unread` : undefined
+      }
+    >
+      {content}
+    </Link>
+  );
+}
+
+function NavGroupItem({
+  item,
+  pathname,
+  rootHref,
+  collapsed,
+}: {
+  item: AppShellNavItem;
+  pathname: string;
+  rootHref: string;
+  collapsed: boolean;
+}) {
+  const children = item.children ?? [];
+  const childActive = children.some((child) =>
+    isNavActive(pathname, child.href, rootHref),
+  );
+  const [open, setOpen] = useState(childActive);
+  const Icon = iconFor(item.icon);
+
+  useEffect(() => {
+    if (childActive) {
+      setOpen(true);
+    }
+  }, [childActive]);
+
+  if (collapsed) {
+    return (
+      <Link
+        href={item.href}
+        title={item.label}
+        className={cn(
+          childActive ? ui.navItemActive : ui.navItem,
+          "justify-center px-2",
+        )}
+        aria-current={childActive ? "page" : undefined}
+      >
+        <Icon className="h-[18px] w-[18px] shrink-0" />
+      </Link>
+    );
+  }
+
+  return (
+    <div className="space-y-1">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className={cn(
+          childActive ? ui.navItemActive : ui.navItem,
+          "w-full",
+        )}
+        aria-expanded={open}
+      >
+        <Icon className="h-[18px] w-[18px] shrink-0" />
+        <span className="min-w-0 flex-1 truncate text-left">{item.label}</span>
+        <IconChevronRight
+          className={cn(
+            "h-4 w-4 shrink-0 transition-transform",
+            open && "rotate-90",
+          )}
+        />
+      </button>
+      {open
+        ? children.map((child) => (
+            <NavLinkItem
+              key={`${child.label}-${child.href}`}
+              item={child}
+              pathname={pathname}
+              rootHref={rootHref}
+              collapsed={collapsed}
+              nested
+            />
+          ))
+        : null}
+    </div>
+  );
+}
+
+function renderNavItem(
+  item: AppShellNavItem,
+  pathname: string,
+  rootHref: string,
+  collapsed: boolean,
+) {
+  if (item.children?.length) {
+    return (
+      <NavGroupItem
+        key={`${item.label}-${item.href}`}
+        item={item}
+        pathname={pathname}
+        rootHref={rootHref}
+        collapsed={collapsed}
+      />
+    );
+  }
+
+  return (
+    <NavLinkItem
+      key={`${item.label}-${item.href}`}
+      item={item}
+      pathname={pathname}
+      rootHref={rootHref}
+      collapsed={collapsed}
+    />
+  );
 }
 
 export function AppShell({
@@ -125,97 +340,70 @@ export function AppShell({
     store.getServerSnapshot,
   );
 
-  const rootHref = navItems.find((item) => !item.footer)?.href ?? "/";
+  const rootHref =
+    navItems.find((item) => !item.footer && !item.children?.length)?.href ??
+    "/";
   const mainItems = navItems.filter((item) => !item.footer);
   const footerItems = navItems.filter((item) => item.footer);
+  const showHeader = headerLeft != null || headerRight != null;
 
   return (
-    <div className="min-h-screen bg-canvas p-3 sm:p-4">
-      <div className="mx-auto flex min-h-[calc(100vh-1.5rem)] max-w-[1600px] gap-3 sm:min-h-[calc(100vh-2rem)] sm:gap-4">
+    <div className="h-dvh overflow-hidden bg-canvas p-3 sm:p-4">
+      <div className="mx-auto flex h-full max-w-[1600px] gap-3 sm:gap-4">
         <aside
           className={cn(
             ui.sidebar,
-            "hidden min-h-full transition-[width] duration-200 lg:flex",
+            "hidden h-full min-h-0 shrink-0 transition-[width] duration-200 lg:flex",
             collapsed ? "w-20" : "w-72",
           )}
         >
-          <div className={cn("border-b border-border p-4", collapsed && "px-3")}>
-            <div className="flex items-center gap-3">
-              <div className={ui.logoChip}>D</div>
-              {!collapsed ? (
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-foreground">
-                    {brand}
-                  </p>
-                  <p className="truncate text-xs text-foreground-subtle">
-                    {subtitle}
-                  </p>
+          <div className={cn("shrink-0 border-b border-border p-4", collapsed && "px-3")}>
+            <div className={cn("flex items-center gap-3", collapsed && "justify-center")}>
+              {collapsed ? (
+                <DizleeLogo variant="mark" className="h-10 w-10 rounded-2xl" />
+              ) : (
+                <div className="min-w-0 space-y-1">
+                  <DizleeLogo variant="full" />
+                  {subtitle ? (
+                    <p className="truncate text-xs text-foreground-subtle">
+                      {subtitle}
+                    </p>
+                  ) : null}
+                  {brand ? (
+                    <p className="truncate text-xs font-medium text-foreground-muted">
+                      {brand}
+                    </p>
+                  ) : null}
                 </div>
-              ) : null}
+              )}
             </div>
             {userLabel && !collapsed ? (
               <p className="mt-3 truncate text-xs text-foreground-muted">{userLabel}</p>
             ) : null}
           </div>
 
-          <nav className="flex flex-1 flex-col gap-1 p-3">
-            {mainItems.map((item) => {
-              const active = isNavActive(pathname, item.href, rootHref);
-              const Icon = iconFor(item.icon);
-              const className = cn(
-                active ? ui.navItemActive : ui.navItem,
-                item.disabled && "cursor-not-allowed opacity-40",
-                collapsed && "justify-center px-2",
-              );
-              const content = (
-                <>
-                  <Icon className="h-[18px] w-[18px] shrink-0" />
-                  {!collapsed ? <span className="truncate">{item.label}</span> : null}
-                </>
-              );
-
-              if (item.disabled) {
-                return (
-                  <span key={item.href} title={item.label} className={className}>
-                    {content}
-                  </span>
-                );
-              }
-
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  title={collapsed ? item.label : undefined}
-                  className={className}
-                  aria-current={active ? "page" : undefined}
-                >
-                  {content}
-                </Link>
-              );
-            })}
+          <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-3">
+            {mainItems.map((item) =>
+              renderNavItem(item, pathname, rootHref, collapsed),
+            )}
           </nav>
 
-          <div className="space-y-2 border-t border-border p-3">
-            {footerItems.map((item) => {
-              const active = isNavActive(pathname, item.href, rootHref);
-              const Icon = iconFor(item.icon ?? "settings");
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  title={collapsed ? item.label : undefined}
-                  className={cn(
-                    active ? ui.navItemActive : ui.navItem,
-                    collapsed && "justify-center px-2",
-                  )}
-                >
-                  <Icon className="h-[18px] w-[18px] shrink-0" />
-                  {!collapsed ? <span className="truncate">{item.label}</span> : null}
-                </Link>
-              );
-            })}
-            {footerSlot}
+          <div className="shrink-0 space-y-2 border-t border-border p-3">
+            {footerItems.map((item) =>
+              renderNavItem(item, pathname, rootHref, collapsed),
+            )}
+            {footerSlot ? (
+              <div
+                className={cn(
+                  "flex min-w-0 items-center",
+                  collapsed && "justify-center",
+                )}
+              >
+                {typeof footerSlot === "function"
+                  ? footerSlot(collapsed)
+                  : footerSlot}
+              </div>
+            ) : null}
             <button
               type="button"
               onClick={() => store.setCollapsed(!collapsed)}
@@ -224,28 +412,28 @@ export function AppShell({
               aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
               {collapsed ? <IconChevronRight /> : <IconChevronLeft />}
-              {!collapsed ? <span>Collapse</span> : null}
             </button>
           </div>
         </aside>
 
-        <div className="flex min-w-0 flex-1 flex-col gap-3 sm:gap-4">
-          <header
-            className={cn(
-              ui.header,
-              "relative z-40 flex items-center justify-between gap-4 px-4 py-3 sm:px-5",
-            )}
-          >
-            <div className="flex min-w-0 items-center gap-3">
-              {headerLeft ?? (
-                <div className="flex h-10 items-center gap-2 rounded-2xl border border-border bg-surface px-3 text-sm text-foreground-subtle">
-                  <IconSearch className="h-4 w-4" />
-                  <span className="hidden sm:inline">Search workspace</span>
-                </div>
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 sm:gap-4">
+          {showHeader ? (
+            <header
+              className={cn(
+                ui.header,
+                "relative z-40 flex shrink-0 items-center gap-4 px-4 py-3 sm:px-5",
               )}
-            </div>
-            <div className="flex items-center gap-2 sm:gap-3">{headerRight}</div>
-          </header>
+            >
+              {headerLeft ? (
+                <div className="min-w-0 flex-1">{headerLeft}</div>
+              ) : null}
+              {headerRight ? (
+                <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
+                  {headerRight}
+                </div>
+              ) : null}
+            </header>
+          ) : null}
           <main className="min-h-0 flex-1 overflow-auto rounded-[28px] border border-border bg-white/50 p-4 shadow-[var(--shadow-sm)] backdrop-blur-sm sm:p-6">
             {children}
           </main>

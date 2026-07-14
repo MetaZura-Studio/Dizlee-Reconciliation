@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { KpiCard } from "@/components/dizlee/kpi-card";
 import { Button } from "@/components/ui/button";
@@ -14,12 +14,17 @@ import {
   DataTableTh,
 } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ListSearch } from "@/components/ui/list-search";
+import { ListPagination } from "@/components/ui/list-pagination";
 import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
 import { LoadingBar } from "@/components/ui/loading";
-import { ui } from "@/lib/ui/classes";
+import { cn, ui } from "@/lib/ui/classes";
+import { paginateItems } from "@/lib/ui/list-pagination";
+import { useDebouncedValue } from "@/lib/ui/use-debounced-value";
 import type { ReportFilterOptions } from "@/lib/dizlee/reports";
 import type {
+  ReportingLaneRow,
   ReportingLaneStatus,
   ReportingOverview,
 } from "@/lib/dizlee/reporting";
@@ -44,6 +49,8 @@ const usdFormatter = new Intl.NumberFormat("en-US", {
   currency: "USD",
   maximumFractionDigits: 0,
 });
+
+type StatusFilter = "all" | ReportingLaneStatus;
 
 function formatDateTime(value: string | null): string {
   if (!value) {
@@ -70,8 +77,31 @@ function overallStatusTone(
   }
 }
 
-function yesNoTone(value: boolean): "success" | "warning" {
-  return value ? "success" : "warning";
+function presentTone(value: boolean): "success" | "neutral" {
+  return value ? "success" : "neutral";
+}
+
+function presentLabel(value: boolean): string {
+  return value ? "Yes" : "No";
+}
+
+function reconciliationTone(
+  status: string | null,
+): "success" | "info" | "warning" | "neutral" {
+  if (!status) {
+    return "neutral";
+  }
+  const normalized = status.toUpperCase();
+  if (normalized.includes("COMPLETE") || normalized.includes("MATCHED")) {
+    return "success";
+  }
+  if (normalized.includes("PROGRESS")) {
+    return "info";
+  }
+  if (normalized.includes("MISMATCH") || normalized.includes("FAIL")) {
+    return "warning";
+  }
+  return "neutral";
 }
 
 function buildQuery(month: number, year: number, opcoId: string, partnerId: string) {
@@ -86,6 +116,78 @@ function buildQuery(month: number, year: number, opcoId: string, partnerId: stri
     params.set("partnerId", partnerId);
   }
   return params.toString();
+}
+
+function ProgressHint({ done, total }: { done: number; total: number }) {
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  return (
+    <div className="mt-2 space-y-1">
+      <div className="h-1.5 overflow-hidden rounded-full bg-white/70">
+        <div
+          className="h-full rounded-full bg-primary/80 transition-[width]"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <p className="text-xs text-foreground-subtle">{pct}% of pairs</p>
+    </div>
+  );
+}
+
+function QuickLink({
+  href,
+  label,
+  description,
+}: {
+  href: string;
+  label: string;
+  description: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="group rounded-2xl border border-border bg-surface px-4 py-3 shadow-[var(--shadow-sm)] transition-colors hover:border-primary/40 hover:bg-primary-muted/40"
+    >
+      <p className="text-sm font-semibold text-foreground group-hover:text-primary">
+        {label}
+      </p>
+      <p className="mt-0.5 text-xs text-foreground-subtle">{description}</p>
+    </Link>
+  );
+}
+
+function StatusFilterChip({
+  active,
+  label,
+  count,
+  onClick,
+}: {
+  active: boolean;
+  label: string;
+  count: number;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "inline-flex items-center gap-2 rounded-2xl border px-3 py-1.5 text-sm transition-colors",
+        active
+          ? "border-primary bg-primary-muted font-semibold text-primary"
+          : "border-border bg-surface text-foreground-muted hover:bg-surface-muted",
+      )}
+    >
+      {label}
+      <span
+        className={cn(
+          "rounded-full px-1.5 py-0.5 text-xs tabular-nums",
+          active ? "bg-primary/15 text-primary" : "bg-surface-muted text-foreground-subtle",
+        )}
+      >
+        {count}
+      </span>
+    </button>
+  );
 }
 
 type ReportingViewProps = {
@@ -106,6 +208,12 @@ export function ReportingView({
   const [opcoId, setOpcoId] = useState(initialOverview.filters.opcoId ?? "");
   const [partnerId, setPartnerId] = useState(initialOverview.filters.partnerId ?? "");
 
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search, 300);
+  const [lanePage, setLanePage] = useState(1);
+  const [consolPage, setConsolPage] = useState(1);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -122,6 +230,10 @@ export function ReportingView({
       }
       setOverview(payload.data as ReportingOverview);
       setFilterOptions(payload.filterOptions as ReportFilterOptions);
+      setLanePage(1);
+      setConsolPage(1);
+      setStatusFilter("all");
+      setSearch("");
     } catch (loadError) {
       setError(
         loadError instanceof Error ? loadError.message : "Failed to load reporting",
@@ -137,6 +249,51 @@ export function ReportingView({
   }
 
   const { summary } = overview;
+  const periodQuery = `month=${overview.filters.month}&year=${overview.filters.year}`;
+
+  const statusCounts = useMemo(() => {
+    const counts = { all: overview.lanes.length, Complete: 0, Partial: 0, Missing: 0 };
+    for (const lane of overview.lanes) {
+      counts[lane.overallStatus] += 1;
+    }
+    return counts;
+  }, [overview.lanes]);
+
+  const filteredLanes = useMemo(() => {
+    const term = debouncedSearch.trim().toLowerCase();
+    return overview.lanes.filter((lane) => {
+      if (statusFilter !== "all" && lane.overallStatus !== statusFilter) {
+        return false;
+      }
+      if (!term) {
+        return true;
+      }
+      return (
+        lane.opcoName.toLowerCase().includes(term) ||
+        lane.partnerName.toLowerCase().includes(term)
+      );
+    });
+  }, [debouncedSearch, overview.lanes, statusFilter]);
+
+  const pagedLanes = useMemo(
+    () => paginateItems(filteredLanes, lanePage),
+    [filteredLanes, lanePage],
+  );
+
+  const pagedConsolidations = useMemo(
+    () => paginateItems(overview.consolidations, consolPage),
+    [overview.consolidations, consolPage],
+  );
+
+  const setStatusAndResetPage = (next: StatusFilter) => {
+    setStatusFilter(next);
+    setLanePage(1);
+  };
+
+  const onSearchChange = (value: string) => {
+    setSearch(value);
+    setLanePage(1);
+  };
 
   return (
     <PageCard>
@@ -186,7 +343,7 @@ export function ReportingView({
               onChange={(event) => setOpcoId(event.target.value)}
               className={ui.select}
             >
-              <option value="">All</option>
+              <option value="">All OpCos</option>
               {filterOptions.opcos.map((opco) => (
                 <option key={opco.id} value={opco.id}>
                   {opco.name}
@@ -202,7 +359,7 @@ export function ReportingView({
               onChange={(event) => setPartnerId(event.target.value)}
               className={ui.select}
             >
-              <option value="">All</option>
+              <option value="">All Partners</option>
               {filterOptions.partners.map((partner) => (
                 <option key={partner.id} value={partner.id}>
                   {partner.name}
@@ -215,7 +372,11 @@ export function ReportingView({
           <Button onClick={() => void loadOverview()} disabled={loading}>
             Apply
           </Button>
-          <Button variant="secondary" onClick={() => void loadOverview()} disabled={loading}>
+          <Button
+            variant="secondary"
+            onClick={() => void loadOverview()}
+            disabled={loading}
+          >
             Refresh
           </Button>
         </div>
@@ -227,168 +388,305 @@ export function ReportingView({
         </div>
       ) : null}
 
-      <p className="mt-4 text-sm text-foreground-muted">
-        Showing <span className="font-medium">{overview.period.label}</span>
+      <p className="mt-5 text-sm text-foreground-muted">
+        Showing <span className="font-semibold text-foreground">{overview.period.label}</span>
+        {" · "}
+        {summary.linkedLanes} linked pair{summary.linkedLanes === 1 ? "" : "s"}
       </p>
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard label="OpCo–Partner pairs" value={String(summary.linkedLanes)} />
-        <KpiCard
-          label="Reports complete"
-          value={`${summary.reportsComplete} / ${summary.linkedLanes}`}
-        />
-        <KpiCard
-          label="Invoices complete"
-          value={`${summary.invoicesComplete} / ${summary.linkedLanes}`}
-        />
-        <KpiCard
-          label="Reconciliations run"
-          value={String(summary.reconciliationsRun)}
-        />
-        <KpiCard
-          label="Consolidations"
-          value={String(summary.consolidationsGenerated)}
-        />
-        <KpiCard label="Invoices" value={String(summary.invoiceCount)} />
-        <KpiCard label="Invoices paid" value={String(summary.invoicesPaid)} />
-        <KpiCard
-          label="Revenue paid (USD)"
-          value={usdFormatter.format(summary.totalRevenuePaidUsd)}
-        />
-      </div>
+      <section className="mt-5 space-y-3">
+        <h2 className="text-sm font-semibold text-foreground">Coverage</h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <KpiCard
+            label="Linked pairs"
+            value={String(summary.linkedLanes)}
+            tone="blue"
+          />
+          <div className="rounded-[28px] border border-border bg-surface p-2 shadow-[var(--shadow-md)]">
+            <div className="rounded-[22px] bg-gradient-to-br from-[#e8f7f5] to-[#d7f0ec] p-4">
+              <p className="text-xs font-semibold tracking-wide text-foreground-muted">
+                Reports complete
+              </p>
+              <p className="mt-2 text-2xl font-semibold tracking-tight text-foreground">
+                {summary.reportsComplete}
+                <span className="text-base font-medium text-foreground-subtle">
+                  {" "}
+                  / {summary.linkedLanes}
+                </span>
+              </p>
+              <ProgressHint
+                done={summary.reportsComplete}
+                total={summary.linkedLanes}
+              />
+            </div>
+          </div>
+          <div className="rounded-[28px] border border-border bg-surface p-2 shadow-[var(--shadow-md)]">
+            <div className="rounded-[22px] bg-gradient-to-br from-[#fff7ed] to-[#ffedd5] p-4">
+              <p className="text-xs font-semibold tracking-wide text-foreground-muted">
+                Invoices complete
+              </p>
+              <p className="mt-2 text-2xl font-semibold tracking-tight text-foreground">
+                {summary.invoicesComplete}
+                <span className="text-base font-medium text-foreground-subtle">
+                  {" "}
+                  / {summary.linkedLanes}
+                </span>
+              </p>
+              <ProgressHint
+                done={summary.invoicesComplete}
+                total={summary.linkedLanes}
+              />
+            </div>
+          </div>
+          <KpiCard
+            label="Reconciliations run"
+            value={String(summary.reconciliationsRun)}
+            tone="purple"
+          />
+        </div>
+      </section>
 
-      <div className="mt-4 flex flex-wrap gap-3 text-sm">
-        <Link
-          href={`/dizlee/reports?month=${month}&year=${year}`}
-          className="font-medium text-foreground-muted underline"
-        >
-          Reports
-        </Link>
-        <Link
-          href={`/dizlee/invoices?month=${month}&year=${year}`}
-          className="font-medium text-foreground-muted underline"
-        >
-          Invoices
-        </Link>
-        <Link
-          href={`/dizlee/reconciliation?month=${month}&year=${year}`}
-          className="font-medium text-foreground-muted underline"
-        >
-          Reconciliation
-        </Link>
-        <Link
-          href={`/dizlee/consolidation?month=${month}&year=${year}`}
-          className="font-medium text-foreground-muted underline"
-        >
-          Consolidation
-        </Link>
-      </div>
+      <section className="mt-6 space-y-3">
+        <h2 className="text-sm font-semibold text-foreground">Billing snapshot</h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <KpiCard
+            label="Consolidations"
+            value={String(summary.consolidationsGenerated)}
+            tone="teal"
+          />
+          <KpiCard label="Invoices" value={String(summary.invoiceCount)} tone="blue" />
+          <KpiCard
+            label="Invoices paid"
+            value={String(summary.invoicesPaid)}
+            tone="teal"
+          />
+          <KpiCard
+            label="Revenue paid (USD)"
+            value={usdFormatter.format(summary.totalRevenuePaidUsd)}
+            tone="amber"
+          />
+        </div>
+      </section>
 
-      <div className="mt-6 space-y-4">
-        <h2 className="font-medium text-foreground">OpCo–Partner overview</h2>
-        {overview.lanes.length === 0 ? (
+      <section className="mt-6 space-y-3">
+        <h2 className="text-sm font-semibold text-foreground">Open in detail</h2>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <QuickLink
+            href={`/dizlee/reports?${periodQuery}`}
+            label="Reports"
+            description="Submitted files for this period"
+          />
+          <QuickLink
+            href={`/dizlee/invoices?${periodQuery}`}
+            label="Invoices"
+            description="Billing status and totals"
+          />
+          <QuickLink
+            href={`/dizlee/reconciliation?${periodQuery}`}
+            label="Reconciliation"
+            description="Compare and resolve pairs"
+          />
+          <QuickLink
+            href={`/dizlee/consolidation?${periodQuery}`}
+            label="Consolidation"
+            description="OpCo rollups and history"
+          />
+        </div>
+      </section>
+
+      <section className="mt-8 space-y-4">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-base font-semibold text-foreground">
+              OpCo–Partner overview
+            </h2>
+            <p className="mt-1 text-sm text-foreground-muted">
+              Lane-level checklist for the selected period.
+            </p>
+          </div>
+        </div>
+
+        <ListSearch
+          className="mt-0"
+          value={search}
+          onChange={onSearchChange}
+          placeholder="Search OpCo or Partner"
+        />
+
+        <div className="flex flex-wrap gap-2">
+          <StatusFilterChip
+            active={statusFilter === "all"}
+            label="All"
+            count={statusCounts.all}
+            onClick={() => setStatusAndResetPage("all")}
+          />
+          <StatusFilterChip
+            active={statusFilter === "Complete"}
+            label="Complete"
+            count={statusCounts.Complete}
+            onClick={() => setStatusAndResetPage("Complete")}
+          />
+          <StatusFilterChip
+            active={statusFilter === "Partial"}
+            label="Partial"
+            count={statusCounts.Partial}
+            onClick={() => setStatusAndResetPage("Partial")}
+          />
+          <StatusFilterChip
+            active={statusFilter === "Missing"}
+            label="Missing"
+            count={statusCounts.Missing}
+            onClick={() => setStatusAndResetPage("Missing")}
+          />
+        </div>
+
+        {pagedLanes.total === 0 ? (
           <EmptyState
-            title="No pairs match filters"
-            description="No OpCo–Partner pairs match the selected filters."
+            title="No pairs match"
+            description="Try another status filter or search term."
           />
         ) : (
-          <DataTableFrame>
-            <DataTable>
-              <DataTableHead>
-                <tr>
-                  <DataTableTh>OpCo / Partner</DataTableTh>
-                  <DataTableTh>OpCo report</DataTableTh>
-                  <DataTableTh>Partner report</DataTableTh>
-                  <DataTableTh>OpCo invoice</DataTableTh>
-                  <DataTableTh>Partner invoice</DataTableTh>
-                  <DataTableTh>Reconciliation</DataTableTh>
-                  <DataTableTh>Overall</DataTableTh>
-                </tr>
-              </DataTableHead>
-              <tbody>
-                {overview.lanes.map((lane) => (
-                  <DataTableRow key={lane.laneKey}>
-                    <DataTableTd>
-                      {lane.opcoName} / {lane.partnerName}
-                    </DataTableTd>
-                    <DataTableTd>
-                      <StatusPill tone={yesNoTone(lane.opcoReport)}>
-                        {lane.opcoReport ? "Yes" : "No"}
-                      </StatusPill>
-                    </DataTableTd>
-                    <DataTableTd>
-                      <StatusPill tone={yesNoTone(lane.partnerReport)}>
-                        {lane.partnerReport ? "Yes" : "No"}
-                      </StatusPill>
-                    </DataTableTd>
-                    <DataTableTd>
-                      <StatusPill tone={yesNoTone(lane.opcoInvoice)}>
-                        {lane.opcoInvoice ? "Yes" : "No"}
-                      </StatusPill>
-                    </DataTableTd>
-                    <DataTableTd>
-                      <StatusPill tone={yesNoTone(lane.partnerInvoice)}>
-                        {lane.partnerInvoice ? "Yes" : "No"}
-                      </StatusPill>
-                    </DataTableTd>
-                    <DataTableTd className="text-foreground-muted">
-                      {lane.reconciliationStatus ?? "—"}
-                    </DataTableTd>
-                    <DataTableTd>
-                      <StatusPill tone={overallStatusTone(lane.overallStatus)}>
-                        {lane.overallStatus}
-                      </StatusPill>
-                    </DataTableTd>
-                  </DataTableRow>
-                ))}
-              </tbody>
-            </DataTable>
-          </DataTableFrame>
-        )}
-      </div>
+          <div className="space-y-4">
+            <DataTableFrame>
+              <DataTable>
+                <DataTableHead>
+                  <tr>
+                    <DataTableTh>OpCo / Partner</DataTableTh>
+                    <DataTableTh>OpCo report</DataTableTh>
+                    <DataTableTh>Partner report</DataTableTh>
+                    <DataTableTh>OpCo invoice</DataTableTh>
+                    <DataTableTh>Partner invoice</DataTableTh>
+                    <DataTableTh>Reconciliation</DataTableTh>
+                    <DataTableTh>Overall</DataTableTh>
+                  </tr>
+                </DataTableHead>
+                <tbody>
+                  {pagedLanes.items.map((lane: ReportingLaneRow) => (
+                    <DataTableRow key={lane.laneKey}>
+                      <DataTableTd>
+                        <p className="font-medium text-foreground">{lane.opcoName}</p>
+                        <p className="text-xs text-foreground-subtle">
+                          {lane.partnerName}
+                        </p>
+                      </DataTableTd>
+                      <DataTableTd>
+                        <StatusPill tone={presentTone(lane.opcoReport)}>
+                          {presentLabel(lane.opcoReport)}
+                        </StatusPill>
+                      </DataTableTd>
+                      <DataTableTd>
+                        <StatusPill tone={presentTone(lane.partnerReport)}>
+                          {presentLabel(lane.partnerReport)}
+                        </StatusPill>
+                      </DataTableTd>
+                      <DataTableTd>
+                        <StatusPill tone={presentTone(lane.opcoInvoice)}>
+                          {presentLabel(lane.opcoInvoice)}
+                        </StatusPill>
+                      </DataTableTd>
+                      <DataTableTd>
+                        <StatusPill tone={presentTone(lane.partnerInvoice)}>
+                          {presentLabel(lane.partnerInvoice)}
+                        </StatusPill>
+                      </DataTableTd>
+                      <DataTableTd>
+                        {lane.reconciliationStatus ? (
+                          <StatusPill
+                            tone={reconciliationTone(lane.reconciliationStatus)}
+                          >
+                            {lane.reconciliationStatus}
+                          </StatusPill>
+                        ) : (
+                          <span className="text-sm text-foreground-subtle">Not run</span>
+                        )}
+                      </DataTableTd>
+                      <DataTableTd>
+                        <StatusPill tone={overallStatusTone(lane.overallStatus)}>
+                          {lane.overallStatus}
+                        </StatusPill>
+                      </DataTableTd>
+                    </DataTableRow>
+                  ))}
+                </tbody>
+              </DataTable>
+            </DataTableFrame>
 
-      <div className="mt-8 space-y-4">
-        <h2 className="font-medium text-foreground">Consolidation by OpCo</h2>
-        {overview.consolidations.length === 0 ? (
+            <ListPagination
+              total={pagedLanes.total}
+              page={pagedLanes.page}
+              totalPages={pagedLanes.totalPages}
+              noun="pair"
+              onPageChange={setLanePage}
+              loading={loading}
+            />
+          </div>
+        )}
+      </section>
+
+      <section className="mt-8 space-y-4">
+        <div>
+          <h2 className="text-base font-semibold text-foreground">
+            Consolidation by OpCo
+          </h2>
+          <p className="mt-1 text-sm text-foreground-muted">
+            Generation status for OpCos in this period’s scope.
+          </p>
+        </div>
+
+        {pagedConsolidations.total === 0 ? (
           <EmptyState
             title="No OpCos in scope"
             description="No OpCos in scope for this period."
           />
         ) : (
-          <DataTableFrame>
-            <DataTable>
-              <DataTableHead>
-                <tr>
-                  <DataTableTh>OpCo</DataTableTh>
-                  <DataTableTh>Generated</DataTableTh>
-                  <DataTableTh>Generated at</DataTableTh>
-                  <DataTableTh className="text-right">Total USD</DataTableTh>
-                </tr>
-              </DataTableHead>
-              <tbody>
-                {overview.consolidations.map((row) => (
-                  <DataTableRow key={row.opcoId}>
-                    <DataTableTd>{row.opcoName}</DataTableTd>
-                    <DataTableTd>
-                      <StatusPill tone={yesNoTone(row.generated)}>
-                        {row.generated ? "Yes" : "No"}
-                      </StatusPill>
-                    </DataTableTd>
-                    <DataTableTd className="text-foreground-muted">
-                      {formatDateTime(row.generatedAt)}
-                    </DataTableTd>
-                    <DataTableTd className="text-right text-foreground-muted">
-                      {row.totalAmountUsd !== null
-                        ? usdFormatter.format(row.totalAmountUsd)
-                        : "—"}
-                    </DataTableTd>
-                  </DataTableRow>
-                ))}
-              </tbody>
-            </DataTable>
-          </DataTableFrame>
+          <div className="space-y-4">
+            <DataTableFrame>
+              <DataTable>
+                <DataTableHead>
+                  <tr>
+                    <DataTableTh>OpCo</DataTableTh>
+                    <DataTableTh>Status</DataTableTh>
+                    <DataTableTh>Generated at</DataTableTh>
+                    <DataTableTh className="text-right">Total USD</DataTableTh>
+                  </tr>
+                </DataTableHead>
+                <tbody>
+                  {pagedConsolidations.items.map((row) => (
+                    <DataTableRow key={row.opcoId}>
+                      <DataTableTd className="font-medium text-foreground">
+                        {row.opcoName}
+                      </DataTableTd>
+                      <DataTableTd>
+                        <StatusPill tone={presentTone(row.generated)}>
+                          {row.generated ? "Generated" : "Not generated"}
+                        </StatusPill>
+                      </DataTableTd>
+                      <DataTableTd className="text-foreground-muted">
+                        {formatDateTime(row.generatedAt)}
+                      </DataTableTd>
+                      <DataTableTd className="text-right text-foreground-muted">
+                        {row.totalAmountUsd !== null
+                          ? usdFormatter.format(row.totalAmountUsd)
+                          : "—"}
+                      </DataTableTd>
+                    </DataTableRow>
+                  ))}
+                </tbody>
+              </DataTable>
+            </DataTableFrame>
+
+            <ListPagination
+              total={pagedConsolidations.total}
+              page={pagedConsolidations.page}
+              totalPages={pagedConsolidations.totalPages}
+              noun="OpCo"
+              nounPlural="OpCos"
+              onPageChange={setConsolPage}
+              loading={loading}
+            />
+          </div>
         )}
-      </div>
+      </section>
     </PageCard>
   );
 }

@@ -106,6 +106,49 @@ export function IconFile(props: IconProps) {
   );
 }
 
+export function IconInvoice(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 2h16v20l-2-1.5L16 22l-2-1.5L12 22l-2-1.5L8 22l-2-1.5L4 22V2Z" />
+      <path d="M8 7h8" />
+      <path d="M8 11h8" />
+      <path d="M8 15h5" />
+    </svg>
+  );
+}
+
+export function IconLayers(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="m12 2 9 5-9 5-9-5 9-5Z" />
+      <path d="m3 12 9 5 9-5" />
+      <path d="m3 17 9 5 9-5" />
+    </svg>
+  );
+}
+
+export function IconChart(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 20h16" />
+      <path d="M7 16V10" />
+      <path d="M12 16V6" />
+      <path d="M17 16v-8" />
+    </svg>
+  );
+}
+
+export function IconCompare(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M8 3v18" />
+      <path d="M16 3v18" />
+      <path d="m4 8 4-4 4 4" />
+      <path d="m20 16-4 4-4-4" />
+    </svg>
+  );
+}
+
 export function IconUsers(props: IconProps) {
   return (
     <svg {...base(props)}>

@@ -1,24 +1,44 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import {
-  DataTable,
-  DataTableFrame,
-  DataTableHead,
-  DataTableRow,
-  DataTableTd,
-  DataTableTh,
-} from "@/components/ui/data-table";
-import { FilterToolbar, PageCard } from "@/components/ui/page";
+import { Modal } from "@/components/ui/modal";
+import { StatusPill } from "@/components/ui/status-pill";
 import {
   formatPlaceholderTokens,
   type EmailTemplateDetail,
   type EmailTemplateListItem,
+  type EmailTemplateVersionItem,
   type EmailTemplatesPageData,
 } from "@/lib/admin/email-templates.shared";
-import { ui } from "@/lib/ui/classes";
+import { cn, ui } from "@/lib/ui/classes";
+
+type WorkTab = "edit" | "preview" | "versions";
+type TemplateCategory = "all" | "Reports" | "Invoices" | "Other";
+
+type EditorFormState = {
+  subject: string;
+  body: string;
+  changeNote: string;
+};
+
+const SAMPLE_PLACEHOLDERS: Record<string, string> = {
+  period: "July 2026",
+};
+
+const TEMPLATE_CATEGORIES: Array<{ value: TemplateCategory; label: string }> = [
+  { value: "all", label: "All categories" },
+  { value: "Reports", label: "Reports" },
+  { value: "Invoices", label: "Invoices" },
+  { value: "Other", label: "Other" },
+];
+
+const TEMPLATE_GROUP_ORDER: Array<Exclude<TemplateCategory, "all">> = [
+  "Reports",
+  "Invoices",
+  "Other",
+];
 
 function formatDateTime(value: string): string {
   return new Date(value).toLocaleString("en-US", {
@@ -27,16 +47,6 @@ function formatDateTime(value: string): string {
   });
 }
 
-type EmailTemplatesViewProps = {
-  initialData: EmailTemplatesPageData;
-};
-
-type EditorFormState = {
-  subject: string;
-  body: string;
-  changeNote: string;
-};
-
 function toFormState(template: EmailTemplateDetail): EditorFormState {
   return {
     subject: template.subject,
@@ -44,6 +54,29 @@ function toFormState(template: EmailTemplateDetail): EditorFormState {
     changeNote: "",
   };
 }
+
+function applySamplePlaceholders(text: string, placeholders: string[]): string {
+  return text.replace(/\{\{(\w+)\}\}/g, (match, key: string) => {
+    if (!placeholders.includes(key)) {
+      return match;
+    }
+    return SAMPLE_PLACEHOLDERS[key] ?? match;
+  });
+}
+
+function groupLabelForCode(code: string): Exclude<TemplateCategory, "all"> {
+  if (code.startsWith("REPORT_")) {
+    return "Reports";
+  }
+  if (code.startsWith("INVOICE_")) {
+    return "Invoices";
+  }
+  return "Other";
+}
+
+type EmailTemplatesViewProps = {
+  initialData: EmailTemplatesPageData;
+};
 
 export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
   const [templates, setTemplates] = useState(initialData.templates);
@@ -58,11 +91,69 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
       ? toFormState(initialData.selected)
       : { subject: "", body: "", changeNote: "" },
   );
+  const [tab, setTab] = useState<WorkTab>("edit");
+  const [templateSearch, setTemplateSearch] = useState("");
+  const [templateCategory, setTemplateCategory] = useState<TemplateCategory>("all");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [revertingVersion, setRevertingVersion] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [previewVersion, setPreviewVersion] =
+    useState<EmailTemplateVersionItem | null>(null);
+  const [confirmRevertVersion, setConfirmRevertVersion] = useState<number | null>(
+    null,
+  );
+  const lastFieldRef = useRef<"subject" | "body">("body");
+  const subjectRef = useRef<HTMLInputElement>(null);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+
+  const isDirty = Boolean(
+    detail &&
+      (form.subject !== detail.subject ||
+        form.body !== detail.body ||
+        form.changeNote.trim() !== ""),
+  );
+
+  const filteredTemplates = useMemo(() => {
+    const query = templateSearch.trim().toLowerCase();
+    return templates.filter((template) => {
+      if (
+        templateCategory !== "all" &&
+        groupLabelForCode(template.code) !== templateCategory
+      ) {
+        return false;
+      }
+      if (!query) {
+        return true;
+      }
+      return (
+        template.name.toLowerCase().includes(query) ||
+        template.subject.toLowerCase().includes(query)
+      );
+    });
+  }, [templates, templateSearch, templateCategory]);
+
+  const groupedTemplates = useMemo(() => {
+    if (templateCategory !== "all") {
+      return filteredTemplates.length > 0
+        ? ([[templateCategory, filteredTemplates]] as Array<
+            [Exclude<TemplateCategory, "all">, EmailTemplateListItem[]]
+          >)
+        : [];
+    }
+
+    return TEMPLATE_GROUP_ORDER.flatMap((label) => {
+      const items = filteredTemplates.filter(
+        (template) => groupLabelForCode(template.code) === label,
+      );
+      return items.length > 0
+        ? ([[label, items]] as Array<
+            [Exclude<TemplateCategory, "all">, EmailTemplateListItem[]]
+          >)
+        : [];
+    });
+  }, [filteredTemplates, templateCategory]);
 
   const applyDetail = useCallback((next: EmailTemplateDetail) => {
     setDetail(next);
@@ -95,6 +186,7 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
         throw new Error(body.error ?? "Failed to load email template");
       }
       applyDetail(body.data as EmailTemplateDetail);
+      setTab("edit");
     } catch (loadError) {
       setError(
         loadError instanceof Error
@@ -107,17 +199,54 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
   };
 
   const handleSelect = (code: string) => {
-    setSelectedCode(code);
-    if (code) {
-      void loadTemplate(code);
-    }
-  };
-
-  const reloadTemplate = async () => {
-    if (!selectedCode) {
+    if (code === selectedCode) {
       return;
     }
-    await loadTemplate(selectedCode);
+    if (isDirty) {
+      const ok = window.confirm(
+        "You have unsaved changes. Discard them and switch templates?",
+      );
+      if (!ok) {
+        return;
+      }
+    }
+    setSelectedCode(code);
+    void loadTemplate(code);
+  };
+
+  const insertPlaceholder = (token: string) => {
+    const snippet = `{{${token}}}`;
+    const field = lastFieldRef.current;
+    const target =
+      field === "subject" ? subjectRef.current : bodyRef.current;
+    if (!target) {
+      setForm((current) => ({
+        ...current,
+        [field]: `${current[field]}${snippet}`,
+      }));
+      return;
+    }
+
+    const start = target.selectionStart ?? target.value.length;
+    const end = target.selectionEnd ?? target.value.length;
+    const nextValue =
+      target.value.slice(0, start) + snippet + target.value.slice(end);
+
+    setForm((current) => ({ ...current, [field]: nextValue }));
+    requestAnimationFrame(() => {
+      target.focus();
+      const cursor = start + snippet.length;
+      target.setSelectionRange(cursor, cursor);
+    });
+  };
+
+  const discardChanges = () => {
+    if (!detail) {
+      return;
+    }
+    setForm(toFormState(detail));
+    setSuccess(null);
+    setError(null);
   };
 
   const saveTemplate = async (event: React.FormEvent) => {
@@ -149,7 +278,7 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
       }
 
       applyDetail(body.data as EmailTemplateDetail);
-      setSuccess("Email template saved.");
+      setSuccess("Saved as a new version.");
     } catch (saveError) {
       setError(
         saveError instanceof Error
@@ -169,6 +298,8 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
     setError(null);
     setSuccess(null);
     setRevertingVersion(version);
+    setConfirmRevertVersion(null);
+    setPreviewVersion(null);
 
     try {
       const response = await fetch(
@@ -181,16 +312,17 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
       );
       const body = await response.json();
       if (!response.ok) {
-        throw new Error(body.error ?? "Failed to revert email template");
+        throw new Error(body.error ?? "Failed to restore email template");
       }
 
       applyDetail(body.data as EmailTemplateDetail);
-      setSuccess(`Template reverted to version ${version}.`);
+      setTab("edit");
+      setSuccess(`Restored version ${version} as the new live version.`);
     } catch (revertError) {
       setError(
         revertError instanceof Error
           ? revertError.message
-          : "Failed to revert email template",
+          : "Failed to restore email template",
       );
     } finally {
       setRevertingVersion(null);
@@ -201,178 +333,452 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
     return <p className={ui.alertWarning}>No email templates are available.</p>;
   }
 
-  const selectedTemplate = templates.find((item) => item.code === selectedCode);
+  const busy = loading || saving || revertingVersion !== null;
+  const previewSubject = applySamplePlaceholders(form.subject, detail.placeholders);
+  const previewBody = applySamplePlaceholders(form.body, detail.placeholders);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {error ? <p className={ui.alertError}>{error}</p> : null}
       {success ? <p className={ui.alertSuccess}>{success}</p> : null}
 
-      <PageCard>
-        <FilterToolbar>
-          <div className="w-full space-y-1">
-            <label htmlFor="templateSelect" className={ui.label}>
-              Template
-            </label>
-            <select
-              id="templateSelect"
-              value={selectedCode}
-              onChange={(event) => handleSelect(event.target.value)}
-              disabled={loading || saving || revertingVersion !== null}
-              className={`${ui.select} max-w-xl disabled:opacity-60`}
-            >
-              {templates.map((template: EmailTemplateListItem) => (
-                <option key={template.code} value={template.code}>
-                  {template.name} (v{template.currentVersion})
-                </option>
-              ))}
-            </select>
-          </div>
-        </FilterToolbar>
-
-        <div className={`mt-4 ${ui.cardPadding} text-sm text-foreground-muted`}>
-          <p>
-            <span className="font-medium text-foreground">Code:</span>{" "}
-            <span className="font-mono">{detail.code}</span>
-          </p>
-          <p className="mt-1">
-            <span className="font-medium text-foreground">Current version:</span>{" "}
-            v{detail.currentVersion}
-            {selectedTemplate ? ` · ${selectedTemplate.subject}` : null}
-          </p>
-        </div>
-      </PageCard>
-
-      <PageCard>
-        <div className="space-y-1">
-          <h2 className="text-lg font-semibold text-foreground">Format</h2>
-          <p className="text-sm text-foreground-muted">
-            Edit the subject and body for the selected template. Use placeholders
-            where shown — they are replaced with real values when the email is sent.
-          </p>
-        </div>
-
-        <p className={`mt-4 ${ui.cardPadding} text-sm text-foreground-muted`}>
-          Placeholders: {formatPlaceholderTokens(detail.placeholders)}
-        </p>
-
-        <form onSubmit={(event) => void saveTemplate(event)} className="mt-4 space-y-4">
-          <div className="space-y-1">
-            <label htmlFor="templateSubject" className={ui.label}>
-              Subject
-            </label>
-            <input
-              id="templateSubject"
-              value={form.subject}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, subject: event.target.value }))
-              }
-              className={ui.input}
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label htmlFor="templateBody" className={ui.label}>
-              Body
-            </label>
-            <textarea
-              id="templateBody"
-              rows={10}
-              value={form.body}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, body: event.target.value }))
-              }
-              className={`${ui.input} min-h-[10rem] py-3`}
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label htmlFor="changeNote" className={ui.label}>
-              Change note
-            </label>
-            <input
-              id="changeNote"
-              value={form.changeNote}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, changeNote: event.target.value }))
-              }
-              placeholder="Optional note for this version"
-              className={ui.input}
-            />
-          </div>
-
-          <div className="flex flex-wrap gap-3">
-            <Button type="submit" disabled={saving || loading || revertingVersion !== null}>
-              {saving ? "Saving…" : "Save"}
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => void reloadTemplate()}
-              disabled={saving || loading || revertingVersion !== null}
-            >
-              {loading ? "Reloading…" : "Reload"}
-            </Button>
-          </div>
-        </form>
-      </PageCard>
-
-      <PageCard>
-        <h3 className="text-lg font-semibold text-foreground">Version history</h3>
-        <p className="mt-1 text-sm text-foreground-muted">
-          Each save creates a new version. Revert copies an older version forward
-          without deleting history.
-        </p>
-        <div className="mt-4">
-          <DataTableFrame>
-            <DataTable>
-              <DataTableHead>
-                <tr>
-                  <DataTableTh>Version</DataTableTh>
-                  <DataTableTh>Subject</DataTableTh>
-                  <DataTableTh>Saved</DataTableTh>
-                  <DataTableTh>Note</DataTableTh>
-                  <DataTableTh>Actions</DataTableTh>
-                </tr>
-              </DataTableHead>
-              <tbody>
-                {detail.versions.map((version) => (
-                  <DataTableRow key={version.version}>
-                    <DataTableTd className="font-medium text-foreground">
-                      v{version.version}
-                    </DataTableTd>
-                    <DataTableTd className="text-foreground-muted">
-                      {version.subject}
-                    </DataTableTd>
-                    <DataTableTd className="text-foreground-muted">
-                      {formatDateTime(version.createdAt)}
-                    </DataTableTd>
-                    <DataTableTd className="text-foreground-muted">
-                      {version.changeNote ?? "—"}
-                    </DataTableTd>
-                    <DataTableTd>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        onClick={() => void revertToVersion(version.version)}
-                        disabled={
-                          saving ||
-                          loading ||
-                          revertingVersion === version.version
-                        }
-                      >
-                        {revertingVersion === version.version
-                          ? "Reverting…"
-                          : "Revert"}
-                      </Button>
-                    </DataTableTd>
-                  </DataTableRow>
+      <div className="grid min-h-[32rem] gap-4 lg:grid-cols-[18rem_minmax(0,1fr)] xl:grid-cols-[20rem_minmax(0,1fr)]">
+        <aside className={cn(ui.card, "flex min-h-0 flex-col overflow-hidden")}>
+          <div className="border-b border-border p-4">
+            <p className="text-sm font-semibold text-foreground">Templates</p>
+            <p className="mt-0.5 text-xs text-foreground-subtle">
+              Select a template to edit or restore
+            </p>
+            <div className="mt-3 space-y-2">
+              <input
+                type="search"
+                value={templateSearch}
+                onChange={(event) => setTemplateSearch(event.target.value)}
+                placeholder="Search by name"
+                className={ui.input}
+                disabled={busy}
+              />
+              <select
+                value={templateCategory}
+                onChange={(event) =>
+                  setTemplateCategory(event.target.value as TemplateCategory)
+                }
+                className={ui.select}
+                disabled={busy}
+                aria-label="Filter by category"
+              >
+                {TEMPLATE_CATEGORIES.map((category) => (
+                  <option key={category.value} value={category.value}>
+                    {category.label}
+                  </option>
                 ))}
-              </tbody>
-            </DataTable>
-          </DataTableFrame>
-        </div>
-      </PageCard>
+              </select>
+            </div>
+          </div>
+
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
+            {groupedTemplates.length === 0 ? (
+              <p className="px-2 py-6 text-center text-sm text-foreground-subtle">
+                No templates match your filters.
+              </p>
+            ) : (
+              groupedTemplates.map(([group, items]) => (
+                <div key={group} className="space-y-1">
+                  {templateCategory === "all" ? (
+                    <p className="px-2 text-[11px] font-semibold tracking-wider text-foreground-subtle uppercase">
+                      {group}
+                    </p>
+                  ) : null}
+                  {items.map((template) => {
+                    const active = template.code === selectedCode;
+                    return (
+                      <button
+                        key={template.code}
+                        type="button"
+                        onClick={() => handleSelect(template.code)}
+                        disabled={busy && !active}
+                        className={cn(
+                          "flex w-full items-center justify-between gap-2 rounded-2xl px-3 py-2.5 text-left transition-colors",
+                          active
+                            ? "bg-primary-muted text-primary"
+                            : "text-foreground-muted hover:bg-surface-muted hover:text-foreground",
+                          busy && !active && "opacity-60",
+                        )}
+                      >
+                        <span className="min-w-0 truncate text-sm font-medium">
+                          {template.name}
+                        </span>
+                        <span
+                          className={cn(
+                            "shrink-0 text-xs",
+                            active ? "text-primary/80" : "text-foreground-subtle",
+                          )}
+                        >
+                          v{template.currentVersion}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ))
+            )}
+          </div>
+        </aside>
+
+        <section className={cn(ui.card, "flex min-h-0 flex-col overflow-hidden")}>
+          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-5 py-4">
+            <div className="min-w-0 space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="truncate text-lg font-semibold text-foreground">
+                  {detail.name}
+                </h2>
+                <StatusPill tone="info">Live v{detail.currentVersion}</StatusPill>
+                {isDirty ? (
+                  <StatusPill tone="warning">Unsaved changes</StatusPill>
+                ) : null}
+              </div>
+              <p className="text-xs text-foreground-subtle">
+                {groupLabelForCode(detail.code)} template
+              </p>
+            </div>
+
+            <div className="flex rounded-2xl border border-border bg-surface-muted/50 p-1">
+              {(
+                [
+                  ["edit", "Edit"],
+                  ["preview", "Preview"],
+                  ["versions", "Versions"],
+                ] as const
+              ).map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setTab(id)}
+                  className={cn(
+                    "rounded-xl px-3 py-1.5 text-sm font-medium transition-colors",
+                    tab === id
+                      ? "bg-surface text-foreground shadow-[var(--shadow-sm)]"
+                      : "text-foreground-muted hover:text-foreground",
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="min-h-0 flex-1 overflow-y-auto p-5">
+            {loading ? (
+              <p className="text-sm text-foreground-muted">Loading template…</p>
+            ) : null}
+
+            {!loading && tab === "edit" ? (
+              <form
+                onSubmit={(event) => void saveTemplate(event)}
+                className="space-y-4"
+              >
+                <div className="space-y-2">
+                  <p className={ui.label}>Placeholders</p>
+                  <div className="flex flex-wrap gap-2">
+                    {detail.placeholders.length === 0 ? (
+                      <span className="text-sm text-foreground-subtle">
+                        {formatPlaceholderTokens(detail.placeholders)}
+                      </span>
+                    ) : (
+                      detail.placeholders.map((token) => (
+                        <button
+                          key={token}
+                          type="button"
+                          onClick={() => insertPlaceholder(token)}
+                          className="rounded-full border border-border bg-surface px-3 py-1 font-mono text-xs font-medium text-foreground-muted transition-colors hover:border-primary hover:bg-primary-muted hover:text-primary"
+                          title={`Insert {{${token}}} into ${lastFieldRef.current}`}
+                        >
+                          {`{{${token}}}`}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                  <p className={ui.hint}>
+                    Click a placeholder to insert it into the subject or body
+                    (whichever you last focused).
+                  </p>
+                </div>
+
+                <div className="space-y-1">
+                  <label htmlFor="templateSubject" className={ui.label}>
+                    Subject
+                  </label>
+                  <input
+                    id="templateSubject"
+                    ref={subjectRef}
+                    value={form.subject}
+                    onFocus={() => {
+                      lastFieldRef.current = "subject";
+                    }}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        subject: event.target.value,
+                      }))
+                    }
+                    className={ui.input}
+                    disabled={busy}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label htmlFor="templateBody" className={ui.label}>
+                    Body
+                  </label>
+                  <textarea
+                    id="templateBody"
+                    ref={bodyRef}
+                    rows={12}
+                    value={form.body}
+                    onFocus={() => {
+                      lastFieldRef.current = "body";
+                    }}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        body: event.target.value,
+                      }))
+                    }
+                    className={cn(ui.input, "min-h-[14rem] py-3")}
+                    disabled={busy}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label htmlFor="changeNote" className={ui.label}>
+                    Change note
+                  </label>
+                  <input
+                    id="changeNote"
+                    value={form.changeNote}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        changeNote: event.target.value,
+                      }))
+                    }
+                    placeholder="Optional note for this version"
+                    className={ui.input}
+                    disabled={busy}
+                  />
+                </div>
+
+                <div className="flex flex-wrap gap-3 pt-1">
+                  <Button type="submit" disabled={busy || !isDirty}>
+                    {saving ? "Saving…" : "Save as new version"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={discardChanges}
+                    disabled={busy || !isDirty}
+                  >
+                    Discard
+                  </Button>
+                </div>
+              </form>
+            ) : null}
+
+            {!loading && tab === "preview" ? (
+              <div className="space-y-4">
+                <p className="text-sm text-foreground-muted">
+                  Preview with sample values
+                  {detail.placeholders.includes("period")
+                    ? ` ({{period}} → ${SAMPLE_PLACEHOLDERS.period})`
+                    : null}
+                  . This is what recipients will roughly see when the email is
+                  sent.
+                </p>
+                <div className="overflow-hidden rounded-[24px] border border-border bg-surface-muted/40">
+                  <div className="border-b border-border bg-surface px-5 py-3">
+                    <p className="text-xs font-semibold tracking-wide text-foreground-subtle uppercase">
+                      Subject
+                    </p>
+                    <p className="mt-1 text-sm font-medium text-foreground">
+                      {previewSubject || "(empty subject)"}
+                    </p>
+                  </div>
+                  <div className="bg-surface px-5 py-5">
+                    <p className="text-xs font-semibold tracking-wide text-foreground-subtle uppercase">
+                      Body
+                    </p>
+                    <pre className="mt-3 whitespace-pre-wrap font-sans text-sm leading-relaxed text-foreground">
+                      {previewBody || "(empty body)"}
+                    </pre>
+                  </div>
+                </div>
+                {isDirty ? (
+                  <p className={ui.alertWarning}>
+                    Showing unsaved edits. Save to publish a new live version.
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+
+            {!loading && tab === "versions" ? (
+              <div className="space-y-4">
+                <p className="text-sm text-foreground-muted">
+                  Each save creates a new version. Restoring copies an older
+                  version forward as the new live version — history is kept.
+                </p>
+                <ul className="space-y-3">
+                  {detail.versions.map((version) => {
+                    const isLive = version.version === detail.currentVersion;
+                    return (
+                      <li
+                        key={version.version}
+                        className="rounded-[24px] border border-border bg-surface px-4 py-4"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="min-w-0 space-y-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-sm font-semibold text-foreground">
+                                v{version.version}
+                              </span>
+                              {isLive ? (
+                                <StatusPill tone="success">Live</StatusPill>
+                              ) : null}
+                            </div>
+                            <p className="truncate text-sm text-foreground-muted">
+                              {version.subject}
+                            </p>
+                            <p className="text-xs text-foreground-subtle">
+                              {formatDateTime(version.createdAt)}
+                              {version.changeNote
+                                ? ` · ${version.changeNote}`
+                                : ""}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              onClick={() => setPreviewVersion(version)}
+                              disabled={busy}
+                            >
+                              Preview
+                            </Button>
+                            {!isLive ? (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                onClick={() =>
+                                  setConfirmRevertVersion(version.version)
+                                }
+                                disabled={busy}
+                              >
+                                {revertingVersion === version.version
+                                  ? "Restoring…"
+                                  : "Restore"}
+                              </Button>
+                            ) : null}
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ) : null}
+          </div>
+        </section>
+      </div>
+
+      <Modal
+        open={previewVersion !== null}
+        title={
+          previewVersion
+            ? `Preview · v${previewVersion.version}`
+            : "Preview"
+        }
+        onClose={() => setPreviewVersion(null)}
+        wide
+      >
+        {previewVersion ? (
+          <div className="space-y-4">
+            <p className="text-sm text-foreground-muted">
+              Saved {formatDateTime(previewVersion.createdAt)}
+              {previewVersion.changeNote
+                ? ` · ${previewVersion.changeNote}`
+                : ""}
+            </p>
+            <div className="rounded-2xl border border-border bg-surface-muted/40 p-4">
+              <p className="text-xs font-semibold tracking-wide text-foreground-subtle uppercase">
+                Subject
+              </p>
+              <p className="mt-1 text-sm font-medium">{previewVersion.subject}</p>
+            </div>
+            <div className="rounded-2xl border border-border bg-surface-muted/40 p-4">
+              <p className="text-xs font-semibold tracking-wide text-foreground-subtle uppercase">
+                Body
+              </p>
+              <pre className="mt-2 whitespace-pre-wrap font-sans text-sm leading-relaxed text-foreground">
+                {previewVersion.body}
+              </pre>
+            </div>
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setPreviewVersion(null)}
+              >
+                Close
+              </Button>
+              {previewVersion.version !== detail.currentVersion ? (
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setConfirmRevertVersion(previewVersion.version);
+                  }}
+                  disabled={busy}
+                >
+                  Restore this version
+                </Button>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+      </Modal>
+
+      <Modal
+        open={confirmRevertVersion !== null}
+        title="Restore version?"
+        onClose={() => setConfirmRevertVersion(null)}
+      >
+        {confirmRevertVersion !== null ? (
+          <div className="space-y-4">
+            <p className="text-sm text-foreground-muted">
+              Restore <strong>v{confirmRevertVersion}</strong> as a new live
+              version (v{detail.currentVersion + 1}). Previous versions stay in
+              history.
+            </p>
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setConfirmRevertVersion(null)}
+                disabled={busy}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={() => void revertToVersion(confirmRevertVersion)}
+                disabled={busy}
+              >
+                {revertingVersion === confirmRevertVersion
+                  ? "Restoring…"
+                  : "Restore"}
+              </Button>
+            </div>
+          </div>
+        ) : null}
+      </Modal>
     </div>
   );
 }

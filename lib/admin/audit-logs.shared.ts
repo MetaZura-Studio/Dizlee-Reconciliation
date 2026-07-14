@@ -46,8 +46,8 @@ export type AuditLogFilterOptions = {
   actorRoles: Array<{ code: AuditLogActorRole; label: string }>;
 };
 
-const DEFAULT_PAGE_SIZE = 25;
-const MAX_PAGE_SIZE = 100;
+const DEFAULT_PAGE_SIZE = 10;
+const MAX_PAGE_SIZE = 10;
 
 export function parseAuditLogListFilters(
   searchParams: URLSearchParams,

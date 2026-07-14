@@ -40,7 +40,7 @@ export default async function AdminAuditLogsPage({
         <h1 className="text-2xl font-semibold tracking-tight">Audit logs</h1>
         <p className="text-sm text-foreground-muted">
           View and export platform audit events. Filter by category, actor role,
-          action, entity, and date range.
+          action, and date range.
         </p>
       </div>
 

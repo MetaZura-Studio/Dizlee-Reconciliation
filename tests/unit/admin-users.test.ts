@@ -91,7 +91,7 @@ describe("parseUserListFilters", () => {
       sortBy: "name",
       sortDir: "asc",
       page: 1,
-      pageSize: 20,
+      pageSize: 10,
     });
   });
 

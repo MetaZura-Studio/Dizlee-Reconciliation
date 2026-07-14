@@ -76,7 +76,7 @@ export type PartnerReportFilterOptions = {
   statuses: Array<{ code: string; label: string }>;
 };
 
-export const PARTNER_REPORTS_PAGE_SIZE = 25;
+export const PARTNER_REPORTS_PAGE_SIZE = 10;
 
 function buildOrderBy(
   sortBy: PartnerReportSortField,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -14,9 +14,11 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { IconButton } from "@/components/ui/icon-button";
 import { IconEye } from "@/components/ui/icons";
+import { ListSearch, OrFiltersDivider } from "@/components/ui/list-search";
 import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
 import { cn, ui } from "@/lib/ui/classes";
+import { useDebouncedValue } from "@/lib/ui/use-debounced-value";
 import type {
   ConsolidationDetail,
   ConsolidationHistoryResult,
@@ -103,6 +105,9 @@ export function ConsolidationView({
   const [month, setMonth] = useState(initialMonth);
   const [year, setYear] = useState(initialYear);
   const [opcoId, setOpcoId] = useState(initialOpcoId);
+  const [historySearch, setHistorySearch] = useState("");
+  const debouncedHistorySearch = useDebouncedValue(historySearch, 300);
+  const skipHistorySearchEffect = useRef(true);
 
   const [filterOptions, setFilterOptions] =
     useState<ReportFilterOptions>(initialFilterOptions);
@@ -151,7 +156,13 @@ export function ConsolidationView({
   );
 
   const loadHistory = useCallback(
-    async (page = 1, historyMonth = month, historyYear = year, historyOpcoId = opcoId) => {
+    async (
+      page = 1,
+      historyMonth = month,
+      historyYear = year,
+      historyOpcoId = opcoId,
+      search = debouncedHistorySearch,
+    ) => {
       setLoading(true);
       setError(null);
       try {
@@ -162,7 +173,10 @@ export function ConsolidationView({
         if (historyYear) {
           params.set("year", String(historyYear));
         }
-        if (historyOpcoId) {
+        const term = search.trim();
+        if (term) {
+          params.set("search", term);
+        } else if (historyOpcoId) {
           params.set("opcoId", historyOpcoId);
         }
 
@@ -180,8 +194,29 @@ export function ConsolidationView({
         setLoading(false);
       }
     },
-    [month, opcoId, year],
+    [debouncedHistorySearch, month, opcoId, year],
   );
+
+  const applyHistoryFilters = () => {
+    if (historySearch) {
+      skipHistorySearchEffect.current = true;
+      setHistorySearch("");
+    }
+    void loadHistory(1, month, year, opcoId, "");
+  };
+
+  useEffect(() => {
+    if (skipHistorySearchEffect.current) {
+      skipHistorySearchEffect.current = false;
+      return;
+    }
+    if (activeTab !== "history") {
+      return;
+    }
+    const term = debouncedHistorySearch.trim();
+    void loadHistory(1, month, year, term ? "" : opcoId, term);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- live search only
+  }, [debouncedHistorySearch, activeTab, loadHistory]);
 
   const loadDetail = useCallback(async (id: number) => {
     setLoading(true);
@@ -491,6 +526,20 @@ export function ConsolidationView({
         </div>
       ) : (
         <div className="mt-6 space-y-4">
+          <ListSearch
+            className="mt-0"
+            value={historySearch}
+            onChange={(value) => {
+              setHistorySearch(value);
+              if (value.trim()) {
+                setOpcoId("");
+              }
+            }}
+            placeholder="OpCo, status, or run by"
+          />
+
+          <OrFiltersDivider className="mt-0" />
+
           <FilterToolbar>
             <div className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <label className="text-sm">
@@ -540,7 +589,7 @@ export function ConsolidationView({
               </label>
             </div>
 
-            <Button onClick={() => void loadHistory(1)} disabled={loading}>
+            <Button onClick={applyHistoryFilters} disabled={loading}>
               Apply filters
             </Button>
           </FilterToolbar>

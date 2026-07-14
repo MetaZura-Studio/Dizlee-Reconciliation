@@ -122,6 +122,7 @@ export function parseHistoryFilters(searchParams: URLSearchParams): {
   month?: number;
   year?: number;
   opcoId?: string;
+  search?: string;
   page: number;
 } {
   const month = Number(searchParams.get("month"));
@@ -134,6 +135,7 @@ export function parseHistoryFilters(searchParams: URLSearchParams): {
     year:
       Number.isInteger(year) && year >= 2000 && year <= 2100 ? year : undefined,
     opcoId: searchParams.get("opcoId") ?? undefined,
+    search: searchParams.get("search")?.trim() || undefined,
     page: Number.isInteger(page) && page >= 1 ? page : 1,
   };
 }
@@ -428,6 +430,7 @@ export async function listConsolidationHistory(filters: {
   month?: number;
   year?: number;
   opcoId?: string;
+  search?: string;
   page: number;
 }): Promise<ConsolidationHistoryResult> {
   const where = {
@@ -435,6 +438,15 @@ export async function listConsolidationHistory(filters: {
     ...(filters.month ? { month: filters.month } : {}),
     ...(filters.year ? { year: filters.year } : {}),
     ...(filters.opcoId ? { opcoId: BigInt(filters.opcoId) } : {}),
+    ...(filters.search
+      ? {
+          OR: [
+            { opco: { name: { contains: filters.search } } },
+            { runBy: { name: { contains: filters.search } } },
+            { status: { code: { contains: filters.search } } },
+          ],
+        }
+      : {}),
   };
 
   const [totalCount, rows] = await Promise.all([

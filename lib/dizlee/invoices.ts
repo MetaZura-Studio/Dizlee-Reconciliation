@@ -22,6 +22,7 @@ export type InvoiceListFilters = {
   opcoId?: string;
   partnerId?: string;
   paymentStatus: PaymentStatusFilter;
+  search?: string;
   sortBy: InvoiceSortField;
   sortDir: SortDirection;
   page: number;
@@ -192,6 +193,7 @@ export function parseInvoiceListFilters(
       paymentStatus === "paid" || paymentStatus === "pending"
         ? paymentStatus
         : "all",
+    search: searchParams.get("search")?.trim() || undefined,
     sortBy:
       sortBy === "period" ||
       sortBy === "uploaded" ||
@@ -480,14 +482,33 @@ export async function listInvoices(
   if (filters.partnerId) {
     where.partnerId = BigInt(filters.partnerId);
   }
+
+  const andClauses: Prisma.InvoiceWhereInput[] = [];
+
   if (filters.paymentStatus === "paid") {
-    where.paymentStatus = { code: "PAID" };
+    andClauses.push({ paymentStatus: { code: "PAID" } });
   } else if (filters.paymentStatus === "pending") {
-    where.OR = [
-      { paymentStatus: { code: "UNPAID" } },
-      { paymentStatus: { code: "OVERDUE" } },
-      { paymentStatusId: null },
-    ];
+    andClauses.push({
+      OR: [
+        { paymentStatus: { code: "UNPAID" } },
+        { paymentStatus: { code: "OVERDUE" } },
+        { paymentStatusId: null },
+      ],
+    });
+  }
+
+  if (filters.search) {
+    andClauses.push({
+      OR: [
+        { invoiceNumber: { contains: filters.search } },
+        { opco: { name: { contains: filters.search } } },
+        { partner: { name: { contains: filters.search } } },
+      ],
+    });
+  }
+
+  if (andClauses.length > 0) {
+    where.AND = andClauses;
   }
 
   const [totalCount, rows] = await Promise.all([

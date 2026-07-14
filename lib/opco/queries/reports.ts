@@ -76,7 +76,7 @@ export type OpcoReportFilterOptions = {
   statuses: Array<{ code: string; label: string }>;
 };
 
-export const OPCO_REPORTS_PAGE_SIZE = 25;
+export const OPCO_REPORTS_PAGE_SIZE = 10;
 
 function buildOrderBy(
   sortBy: OpcoReportSortField,

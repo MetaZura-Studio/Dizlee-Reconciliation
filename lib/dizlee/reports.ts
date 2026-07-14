@@ -11,6 +11,7 @@ export type ReportListFilters = {
   year: number;
   opcoId?: string;
   partnerId?: string;
+  search?: string;
   sortBy: ReportSortField;
   sortDir: SortDirection;
   page: number;
@@ -128,6 +129,7 @@ export function parseReportListFilters(
       Number.isInteger(year) && year >= 2000 && year <= 2100 ? year : fallback.year,
     opcoId: searchParams.get("opcoId") ?? undefined,
     partnerId: searchParams.get("partnerId") ?? undefined,
+    search: searchParams.get("search")?.trim() || undefined,
     sortBy:
       sortBy === "period" || sortBy === "filename" || sortBy === "uploaded"
         ? sortBy
@@ -168,6 +170,13 @@ export async function listReports(
   }
   if (filters.partnerId) {
     where.partnerId = BigInt(filters.partnerId);
+  }
+  if (filters.search) {
+    where.OR = [
+      { file: { filename: { contains: filters.search } } },
+      { opco: { name: { contains: filters.search } } },
+      { partner: { name: { contains: filters.search } } },
+    ];
   }
 
   const [totalCount, rows] = await Promise.all([
