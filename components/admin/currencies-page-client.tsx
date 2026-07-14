@@ -32,6 +32,7 @@ export function CurrenciesPageClient({ initialData }: CurrenciesPageClientProps)
 
       <CurrencyRatesSection
         initialRates={initialData.rates}
+        initialPeriods={initialData.periods}
         onNotice={handleNotice}
       />
     </div>

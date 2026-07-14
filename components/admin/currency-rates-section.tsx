@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -48,17 +48,19 @@ function periodKey(month: number, year: number): string {
 
 type CurrencyRatesSectionProps = {
   initialRates: CurrencyRatesPeriodView;
+  initialPeriods: CurrencyRatePeriodOption[];
   onRatesChange?: (rates: CurrencyRatesPeriodView) => void;
   onNotice?: (message: string | null, error?: string | null) => void;
 };
 
 export function CurrencyRatesSection({
   initialRates,
+  initialPeriods,
   onRatesChange,
   onNotice,
 }: CurrencyRatesSectionProps) {
   const [periodView, setPeriodView] = useState(initialRates);
-  const [periods, setPeriods] = useState<CurrencyRatePeriodOption[]>([]);
+  const [periods, setPeriods] = useState<CurrencyRatePeriodOption[]>(initialPeriods);
   const [selectedKey, setSelectedKey] = useState(
     periodKey(initialRates.month, initialRates.year),
   );
@@ -85,7 +87,7 @@ export function CurrencyRatesSection({
     [onRatesChange],
   );
 
-  const loadPeriods = useCallback(async () => {
+  const refreshPeriods = async () => {
     try {
       const response = await fetch("/api/admin/currency-rates/periods");
       const body = await response.json();
@@ -94,25 +96,9 @@ export function CurrencyRatesSection({
       }
       setPeriods((body.data?.periods ?? []) as CurrencyRatePeriodOption[]);
     } catch {
-      // Fallback: at least show the loaded period
-      setPeriods((current) =>
-        current.length > 0
-          ? current
-          : [
-              {
-                month: initialRates.month,
-                year: initialRates.year,
-                label: initialRates.periodLabel,
-                isCurrent: initialRates.isCurrent,
-              },
-            ],
-      );
+      // Keep the last known period list on refresh failure.
     }
-  }, [initialRates]);
-
-  useEffect(() => {
-    void loadPeriods();
-  }, [loadPeriods]);
+  };
 
   const loadPeriod = async (targetMonth: number, targetYear: number) => {
     setError(null);
@@ -192,7 +178,7 @@ export function CurrencyRatesSection({
       const message = "Monthly rates saved.";
       setSuccess(message);
       onNotice?.(message, null);
-      void loadPeriods();
+      void refreshPeriods();
     } catch (saveError) {
       const message =
         saveError instanceof Error
@@ -282,6 +268,17 @@ export function CurrencyRatesSection({
   };
 
   const busy = loading || saving || reloading || importing;
+  const periodOptions =
+    periods.length > 0
+      ? periods
+      : [
+          {
+            month: periodView.month,
+            year: periodView.year,
+            label: periodView.periodLabel,
+            isCurrent: periodView.isCurrent,
+          },
+        ];
 
   return (
     <section className={ui.cardPaddingLg}>
@@ -308,17 +305,7 @@ export function CurrencyRatesSection({
             className={ui.select}
             disabled={busy}
           >
-            {(periods.length > 0
-              ? periods
-              : [
-                  {
-                    month: periodView.month,
-                    year: periodView.year,
-                    label: periodView.periodLabel,
-                    isCurrent: periodView.isCurrent,
-                  },
-                ]
-            ).map((period) => (
+            {periodOptions.map((period) => (
               <option
                 key={periodKey(period.month, period.year)}
                 value={periodKey(period.month, period.year)}

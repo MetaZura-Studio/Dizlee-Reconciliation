@@ -7,6 +7,7 @@ import {
   currentCalendarPeriod,
   CurrencyRatesError,
   getRatesForPeriod,
+  listRatePeriods,
 } from "@/lib/admin/currency-rates";
 import type { CurrenciesPageData } from "@/lib/admin/currencies.shared";
 
@@ -16,11 +17,12 @@ export default async function AdminCurrenciesPage() {
 
   try {
     const period = currentCalendarPeriod();
-    const [currencies, rates] = await Promise.all([
+    const [currencies, rates, periods] = await Promise.all([
       listCurrencies(),
       getRatesForPeriod(period.month, period.year),
+      listRatePeriods(),
     ]);
-    pageData = { currencies, rates };
+    pageData = { currencies, rates, periods };
   } catch (error) {
     errorMessage =
       error instanceof CurrencyActionError || error instanceof CurrencyRatesError

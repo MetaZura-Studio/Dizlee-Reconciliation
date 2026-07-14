@@ -1,5 +1,4 @@
 import {
-  DEFAULT_REMINDER_MESSAGE_SOURCE,
   type ReminderSettingsView,
   type SendReportRemindersInput,
   type SendReportRemindersResult,

@@ -34,4 +34,5 @@ export type CurrencyRatePeriodOption = {
 export type CurrenciesPageData = {
   currencies: CurrencyListItem[];
   rates: CurrencyRatesPeriodView;
+  periods: CurrencyRatePeriodOption[];
 };
