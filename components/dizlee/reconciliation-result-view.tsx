@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useState } from "react";
 
-import { ReportDetailModal } from "@/components/dizlee/report-detail-modal";
 import { ReportFilenameLink } from "@/components/shared/report-filename-link";
 import {
   attachmentFileIds,
@@ -12,7 +11,6 @@ import {
 } from "@/components/shared/notification-attachment-picker";
 import { ModalCloseButton } from "@/components/ui/modal-close-button";
 import type { ReconciliationDetail } from "@/lib/dizlee/reconciliation";
-import type { ReportDetail } from "@/lib/dizlee/reports";
 import { reportRawFilePreviewUrl } from "@/lib/platform/reports/preview-url";
 
 function formatDateTime(value: string): string {
@@ -97,9 +95,6 @@ export function ReconciliationResultView({
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [reportDetailOpen, setReportDetailOpen] = useState(false);
-  const [reportDetailLoading, setReportDetailLoading] = useState(false);
-  const [reportDetail, setReportDetail] = useState<ReportDetail | null>(null);
   const [alertOpen, setAlertOpen] = useState(false);
   const [alerting, setAlerting] = useState(false);
   const [alertSubject, setAlertSubject] = useState("");
@@ -107,29 +102,6 @@ export function ReconciliationResultView({
   const [alertAttachments, setAlertAttachments] = useState<PendingAttachment[]>(
     [],
   );
-
-  async function openReportDetail(reportId: string) {
-    setReportDetailOpen(true);
-    setReportDetailLoading(true);
-    setReportDetail(null);
-    try {
-      const response = await fetch(`/api/dizlee/reports/${reportId}`);
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to load report");
-      }
-      setReportDetail(payload.data as ReportDetail);
-    } catch (detailError) {
-      setError(
-        detailError instanceof Error
-          ? detailError.message
-          : "Failed to load report",
-      );
-      setReportDetailOpen(false);
-    } finally {
-      setReportDetailLoading(false);
-    }
-  }
 
   async function confirmReconciliation() {
     setConfirming(true);
@@ -418,17 +390,6 @@ export function ReconciliationResultView({
             </div>
           </div>
         </div>
-      ) : null}
-
-      {reportDetailOpen ? (
-        <ReportDetailModal
-          detail={reportDetail}
-          loading={reportDetailLoading}
-          onClose={() => {
-            setReportDetailOpen(false);
-            setReportDetail(null);
-          }}
-        />
       ) : null}
     </div>
   );

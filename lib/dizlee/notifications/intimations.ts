@@ -1,7 +1,6 @@
 import { getLookupId } from "@/lib/dizlee/lookups";
 import {
   BROADCAST_PICKER_CATEGORIES,
-  BROADCAST_TEMPLATE_CODES,
   type BroadcastTemplateOption,
   type IntimationFormOptions,
   type IntimationListItem,

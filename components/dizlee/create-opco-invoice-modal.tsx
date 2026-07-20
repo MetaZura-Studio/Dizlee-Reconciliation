@@ -65,8 +65,20 @@ function toBankDetails(
   };
 }
 
-export function CreateOpcoInvoiceModal({
-  open,
+export function CreateOpcoInvoiceModal(props: CreateOpcoInvoiceModalProps) {
+  if (!props.open) {
+    return null;
+  }
+
+  return (
+    <CreateOpcoInvoiceModalInner
+      key={`${props.defaultMonth}-${props.defaultYear}`}
+      {...props}
+    />
+  );
+}
+
+function CreateOpcoInvoiceModalInner({
   defaultMonth,
   defaultYear,
   onClose,
@@ -92,22 +104,15 @@ export function CreateOpcoInvoiceModal({
   ]);
 
   useEffect(() => {
-    if (!open) {
-      return;
-    }
-    setStep("edit");
-    setError(null);
-    setMonth(defaultMonth);
-    setYear(defaultYear);
-    setPreparedBy("");
-    setApprovedBy("");
-    setLineItems([emptyLine()]);
-    setLoadingOptions(true);
+    let cancelled = false;
     void fetch("/api/dizlee/invoices?form=create")
       .then(async (response) => {
         const payload = await response.json();
         if (!response.ok) {
           throw new Error(payload.error ?? "Failed to load form options");
+        }
+        if (cancelled) {
+          return;
         }
         const options = payload.data as CreateOpcoInvoiceFormOptions;
         setFormOptions(options);
@@ -123,14 +128,24 @@ export function CreateOpcoInvoiceModal({
         }
       })
       .catch((loadError) => {
+        if (cancelled) {
+          return;
+        }
         setError(
           loadError instanceof Error
             ? loadError.message
             : "Failed to load form options",
         );
       })
-      .finally(() => setLoadingOptions(false));
-  }, [open, defaultMonth, defaultYear]);
+      .finally(() => {
+        if (!cancelled) {
+          setLoadingOptions(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleOpcoChange = (nextOpcoId: string) => {
     setOpcoId(nextOpcoId);
@@ -248,10 +263,6 @@ export function CreateOpcoInvoiceModal({
     }
   };
 
-  if (!open) {
-    return null;
-  }
-
   const yearOptions = getPeriodYearOptions();
   const maxMonth = getMaxMonthForYear(year);
 
@@ -259,7 +270,7 @@ export function CreateOpcoInvoiceModal({
 
   return (
     <Modal
-      open={open}
+      open
       title={isPreview ? "Preview invoice" : "Create invoice to OpCo"}
       onClose={onClose}
       wide

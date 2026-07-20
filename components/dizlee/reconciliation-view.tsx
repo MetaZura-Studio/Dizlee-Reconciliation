@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { ReportDetailModal } from "@/components/dizlee/report-detail-modal";
 import { LaneRemindModal } from "@/components/dizlee/lane-remind-modal";
 import { ReportFilenameLink } from "@/components/shared/report-filename-link";
 import { Button } from "@/components/ui/button";
@@ -24,7 +23,7 @@ import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
 import { ListPagination } from "@/components/ui/list-pagination";
 import { ListSearch, OrFiltersDivider } from "@/components/ui/list-search";
-import type { ReportDetail, ReportFilterOptions } from "@/lib/dizlee/reports";
+import type { ReportFilterOptions } from "@/lib/dizlee/reports";
 import type {
   CompareLaneFilters,
   CompareLaneRow,
@@ -197,34 +196,8 @@ export function ReconciliationView({
   const [actionId, setActionId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [reportDetailOpen, setReportDetailOpen] = useState(false);
-  const [reportDetailLoading, setReportDetailLoading] = useState(false);
-  const [reportDetail, setReportDetail] = useState<ReportDetail | null>(null);
   const [remindLane, setRemindLane] = useState<CompareLaneRow | null>(null);
   const [reconcilingLabel, setReconcilingLabel] = useState<string | null>(null);
-
-  const openReportDetail = async (reportId: string) => {
-    setReportDetailOpen(true);
-    setReportDetailLoading(true);
-    setReportDetail(null);
-    try {
-      const response = await fetch(`/api/dizlee/reports/${reportId}`);
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to load report");
-      }
-      setReportDetail(payload.data as ReportDetail);
-    } catch (detailError) {
-      setError(
-        detailError instanceof Error
-          ? detailError.message
-          : "Failed to load report",
-      );
-      setReportDetailOpen(false);
-    } finally {
-      setReportDetailLoading(false);
-    }
-  };
 
   const loadLanes = useCallback(async (filters: CompareLaneFilters) => {
     setLoading(true);
@@ -326,6 +299,7 @@ export function ReconciliationView({
     void loadHistory(1, debouncedHistorySearch, next.sortBy, next.sortDir);
   };
 
+  // Debounced lane search — intentionally omit sort/status/period (Apply / sort handlers load those).
   useEffect(() => {
     if (skipLaneSearchEffect.current) {
       skipLaneSearchEffect.current = false;
@@ -348,8 +322,7 @@ export function ReconciliationView({
       });
     }, 0);
     return () => window.clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- live search only
-  }, [debouncedLaneSearch, loadLanes, activeTab]);
+  }, [debouncedLaneSearch, loadLanes, activeTab]); // eslint-disable-line react-hooks/exhaustive-deps -- live search only
 
   useEffect(() => {
     if (skipHistorySearchEffect.current) {
@@ -430,9 +403,12 @@ export function ReconciliationView({
     return () => window.removeEventListener("focus", handleFocus);
   }, [
     activeTab,
+    compareSortBy,
+    compareSortDir,
     debouncedLaneSearch,
     entityId,
     history.page,
+    laneStatus,
     loadHistory,
     loadLanes,
     month,
@@ -868,17 +844,6 @@ export function ReconciliationView({
               sortBy: compareSortBy,
               sortDir: compareSortDir,
             });
-          }}
-        />
-      ) : null}
-
-      {reportDetailOpen ? (
-        <ReportDetailModal
-          detail={reportDetail}
-          loading={reportDetailLoading}
-          onClose={() => {
-            setReportDetailOpen(false);
-            setReportDetail(null);
           }}
         />
       ) : null}

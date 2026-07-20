@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { PASSWORD_MIN_LENGTH, validatePasswordMatch } from "@/lib/auth/password-policy";
-import { FieldLabel, FieldLegend } from "@/components/ui/field";
+import { FieldLegend } from "@/components/ui/field";
 import { ui } from "@/lib/ui/classes";
 
 export function ChangePasswordForm() {

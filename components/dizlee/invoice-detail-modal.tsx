@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { DizleeOpcoInvoiceDocument } from "@/components/shared/dizlee-opco-invoice-document";
 import { Button } from "@/components/ui/button";
@@ -64,11 +64,9 @@ export function InvoiceDetailModal({
   onClose,
   onMarkPayment,
 }: InvoiceDetailModalProps) {
-  const [confirmingPaid, setConfirmingPaid] = useState(false);
-
-  useEffect(() => {
-    setConfirmingPaid(false);
-  }, [detail?.id]);
+  const [confirmingPaidId, setConfirmingPaidId] = useState<string | null>(null);
+  const confirmingPaid =
+    detail != null && confirmingPaidId === detail.id;
 
   if (!detail && !loading) {
     return null;
@@ -82,7 +80,7 @@ export function InvoiceDetailModal({
       open={!!detail || loading}
       title="Invoice details"
       onClose={() => {
-        setConfirmingPaid(false);
+        setConfirmingPaidId(null);
         onClose();
       }}
       wide
@@ -245,7 +243,7 @@ export function InvoiceDetailModal({
                       type="button"
                       variant="secondary"
                       disabled={actionLoading}
-                      onClick={() => setConfirmingPaid(false)}
+                      onClick={() => setConfirmingPaidId(null)}
                     >
                       Cancel
                     </Button>
@@ -267,7 +265,7 @@ export function InvoiceDetailModal({
                 <Button
                   type="button"
                   disabled={actionLoading}
-                  onClick={() => setConfirmingPaid(true)}
+                  onClick={() => setConfirmingPaidId(detail.id)}
                 >
                   Mark as paid
                 </Button>
