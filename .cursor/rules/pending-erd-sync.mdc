@@ -9,6 +9,17 @@ When the user later asks to update the ERD / [`04_DATABASE_SCHEMA_FOR_CURSOR.md`
 
 ## Known drift to merge (accumulated)
 
+### Applied migration — notification schedules JSON
+- Migration: `prisma/migrations/20260720120000_app_settings_notification_schedules_json`
+- Table `app_settings`: add column `notification_schedules_json` TEXT NULL
+- Stores Admin Reminder Settings schedule (JSON)
+
+### Applied migration — invoice bank details JSON
+- Migration: `prisma/migrations/20260720100000_invoice_bank_details_json`
+- Table `invoices`: add column `bank_details_json` TEXT NULL (`bankDetailsJson`)
+- Snapshot of bank + signatories for digital Dizlee→OpCo invoices
+- Note: may already exist on some local DBs from earlier `db push`; migration history now tracks it for TiDB/CD
+
 ### Applied migration — email template category
 - Migration: `prisma/migrations/20260715100000_email_template_category`
 - Table `notification_templates`: add column `category VARCHAR(32) NOT NULL DEFAULT 'OTHER'`
@@ -19,11 +30,10 @@ When the user later asks to update the ERD / [`04_DATABASE_SCHEMA_FOR_CURSOR.md`
 - Dizlee broadcast picker uses `INTIMATION` + `REMINDER` (excludes Other/password)
 
 ### Other schema already in Prisma (verify ERD/doc vs `prisma/schema.prisma`)
-- `invoices.bank_details_json` (`bankDetailsJson`) — bank + signatories snapshot for Dizlee→OpCo invoices
 - Lookup seed: `INVOICE_STATUS` includes **PAID** (Settled → Paid lifecycle)
 - Soft-delete and audit patterns as in current Prisma models
 - Auth password emails are **DB-backed templates** under Other (not “hardcoded only” in ERD notes)
-
+- Reminder schedules live in `app_settings.notification_schedules_json` (JSON, no extra table)
 ## Source of truth until ERD is refreshed
 1. [`prisma/schema.prisma`](prisma/schema.prisma)
 2. Files under [`prisma/migrations/`](prisma/migrations/)

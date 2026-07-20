@@ -105,6 +105,8 @@ docs/             Setup guides and developer handoffs
 
 ## CI/CD
 
+### CI (already live)
+
 GitHub Actions runs on every push/PR to `main` and `develop`:
 
 - Lint & type-check
@@ -112,7 +114,15 @@ GitHub Actions runs on every push/PR to `main` and `develop`:
 - Production build
 - Prisma migration validation (on PRs)
 
-Vercel deploys and TiDB Cloud provisioning are deferred to Phase 4.
+### CD (Vercel + TiDB Cloud)
+
+See **[docs/CD_VERCEL_TIDB.md](docs/CD_VERCEL_TIDB.md)** for the full checklist:
+
+1. Provision MySQL on **TiDB Cloud** and run `prisma migrate deploy`
+2. Link the GitHub repo to **Vercel** (Production branch `main`; use `develop` for staging/preview)
+3. Set env vars (`DATABASE_URL`, `NEXTAUTH_*`, `CRON_SECRET`, SMTP, …)
+4. Build command: `npm run build:vercel` (migrate + build)
+5. Daily cron (08:00 UTC) hits `/api/admin/cron/submission-reminders` via `vercel.json`
 
 ## License
 

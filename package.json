@@ -6,6 +6,7 @@
     "dev": "next dev",
     "dev:admin": "next dev --port 3001",
     "build": "next build",
+    "build:vercel": "prisma migrate deploy && next build",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
