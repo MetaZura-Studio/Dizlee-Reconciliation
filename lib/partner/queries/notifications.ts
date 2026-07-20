@@ -193,6 +193,7 @@ export async function getPartnerInboxNotificationDetail(params: {
         take: 1,
       },
       attachments: {
+        where: { isDeleted: false },
         include: {
           file: { select: { filename: true } },
         },
@@ -256,6 +257,30 @@ export async function markPartnerInboxNotificationRead(params: {
       userId: params.userId,
     },
   });
+}
+
+export async function markAllPartnerInboxNotificationsRead(params: {
+  userId: bigint;
+  partnerId: bigint;
+}): Promise<{ markedCount: number }> {
+  const unread = await prisma.notification.findMany({
+    where: inboxWhere(params.userId, params.partnerId, true),
+    select: { id: true },
+  });
+
+  if (unread.length === 0) {
+    return { markedCount: 0 };
+  }
+
+  const result = await prisma.notificationRead.createMany({
+    data: unread.map((row) => ({
+      notificationId: row.id,
+      userId: params.userId,
+    })),
+    skipDuplicates: true,
+  });
+
+  return { markedCount: result.count };
 }
 
 export async function dismissPartnerInboxNotification(params: {

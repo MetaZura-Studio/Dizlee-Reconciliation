@@ -60,7 +60,7 @@ export function RequestChangeDialog({
 
       <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
         <div>
-          <FieldLabel htmlFor="change-reason">Reason</FieldLabel>
+          <FieldLabel htmlFor="change-reason" required>Reason</FieldLabel>
           <textarea
             id="change-reason"
             rows={4}

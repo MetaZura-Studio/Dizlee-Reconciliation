@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { ModalCloseButton } from "@/components/ui/modal-close-button";
 import { PortalOverlay } from "@/components/ui/portal-overlay";
 import type { PartnerListItem } from "@/lib/admin/partners.shared";
 import { ui } from "@/lib/ui/classes";
@@ -61,9 +62,12 @@ export function PartnerDeleteModal({
         aria-labelledby="partner-delete-title"
         className={ui.modal}
       >
-        <h2 id="partner-delete-title" className="text-lg font-semibold tracking-tight text-foreground">
-          Delete Partner
-        </h2>
+        <div className="flex items-start justify-between gap-4">
+          <h2 id="partner-delete-title" className="text-lg font-semibold tracking-tight text-foreground">
+            Delete Partner
+          </h2>
+          <ModalCloseButton onClick={onClose} disabled={submitting} />
+        </div>
         <p className="mt-2 text-sm text-foreground-muted">
           This will soft-delete{" "}
           <span className="font-medium text-foreground">{partner.name}</span>.

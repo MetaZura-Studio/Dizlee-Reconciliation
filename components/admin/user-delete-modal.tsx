@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { ModalCloseButton } from "@/components/ui/modal-close-button";
 import { PortalOverlay } from "@/components/ui/portal-overlay";
 import type { UserListItem } from "@/lib/admin/users.shared";
 import { ui } from "@/lib/ui/classes";
@@ -61,9 +62,12 @@ export function UserDeleteModal({
         aria-labelledby="user-delete-title"
         className={ui.modal}
       >
-        <h2 id="user-delete-title" className="text-lg font-semibold tracking-tight text-foreground">
-          Delete user
-        </h2>
+        <div className="flex items-start justify-between gap-4">
+          <h2 id="user-delete-title" className="text-lg font-semibold tracking-tight text-foreground">
+            Delete user
+          </h2>
+          <ModalCloseButton onClick={onClose} disabled={submitting} />
+        </div>
         <p className="mt-2 text-sm text-foreground-muted">
           This will deactivate and soft-delete{" "}
           <span className="font-medium text-foreground">{user.email}</span>. The

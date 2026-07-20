@@ -34,8 +34,8 @@ export default async function AdminReminderSettingsPage() {
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">Reminder Settings</h1>
         <p className="text-sm text-foreground-muted">
-          Configure per-event due dates, multiple pre-due intimations, and
-          multiple post-due reminders for Report and Invoice cycles.
+          Configure intimations (before due day) and reminders (after due day).
+          Each step picks a day of month, email template, and audience.
         </p>
       </div>
 

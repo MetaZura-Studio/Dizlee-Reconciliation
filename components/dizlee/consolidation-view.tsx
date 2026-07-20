@@ -1,8 +1,10 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { FieldLegend } from "@/components/ui/field";
 import {
   DataTable,
   DataTableFrame,
@@ -10,21 +12,28 @@ import {
   DataTableRow,
   DataTableTd,
   DataTableTh,
+  SortableDataTableTh,
 } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { IconButton } from "@/components/ui/icon-button";
-import { IconEye } from "@/components/ui/icons";
+import { IconDownload, IconEye } from "@/components/ui/icons";
 import { ListSearch, OrFiltersDivider } from "@/components/ui/list-search";
 import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
 import { cn, ui } from "@/lib/ui/classes";
+import { nextSortState } from "@/lib/ui/sort";
 import { useDebouncedValue } from "@/lib/ui/use-debounced-value";
 import type {
-  ConsolidationDetail,
   ConsolidationHistoryResult,
+  ConsolidationHistorySortField,
   ConsolidationReadiness,
+  SortDirection,
 } from "@/lib/dizlee/consolidation";
 import type { ReportFilterOptions } from "@/lib/dizlee/reports";
+import {
+  getMaxMonthForYear,
+  getPeriodYearOptions,
+} from "@/lib/platform/period";
 
 const MONTHS = [
   "January",
@@ -59,16 +68,10 @@ function formatUsd(value: number | null): string {
   if (value === null) {
     return "—";
   }
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat("en-KW", {
     style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 2,
-  }).format(value);
-}
-
-function formatNumber(value: number): string {
-  return new Intl.NumberFormat("en-US", {
-    maximumFractionDigits: 4,
+    currency: "KWD",
+    maximumFractionDigits: 3,
   }).format(value);
 }
 
@@ -88,7 +91,6 @@ type ConsolidationViewProps = {
   initialFilterOptions: ReportFilterOptions;
   initialReadiness: ConsolidationReadiness | null;
   initialHistory: ConsolidationHistoryResult;
-  initialDetail: ConsolidationDetail | null;
 };
 
 export function ConsolidationView({
@@ -99,8 +101,8 @@ export function ConsolidationView({
   initialFilterOptions,
   initialReadiness,
   initialHistory,
-  initialDetail,
 }: ConsolidationViewProps) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<"generate" | "history">(initialTab);
   const [month, setMonth] = useState(initialMonth);
   const [year, setYear] = useState(initialYear);
@@ -108,6 +110,12 @@ export function ConsolidationView({
   const [historySearch, setHistorySearch] = useState("");
   const debouncedHistorySearch = useDebouncedValue(historySearch, 300);
   const skipHistorySearchEffect = useRef(true);
+  const [historySortBy, setHistorySortBy] = useState<ConsolidationHistorySortField>(
+    initialHistory.sortBy ?? "generated",
+  );
+  const [historySortDir, setHistorySortDir] = useState<SortDirection>(
+    initialHistory.sortDir ?? "desc",
+  );
 
   const [filterOptions, setFilterOptions] =
     useState<ReportFilterOptions>(initialFilterOptions);
@@ -115,12 +123,20 @@ export function ConsolidationView({
     initialReadiness,
   );
   const [history, setHistory] = useState(initialHistory);
-  const [detail, setDetail] = useState<ConsolidationDetail | null>(initialDetail);
+  const [appliedHistoryFilters, setAppliedHistoryFilters] = useState<{
+    month?: number;
+    year?: number;
+    opcoId?: string;
+  }>({});
 
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+
+  const openConsolidationResult = (id: number | string) => {
+    router.push(`/dizlee/consolidation/${id}`);
+  };
 
   const loadReadiness = useCallback(
     async (nextMonth: number, nextYear: number, nextOpcoId: string) => {
@@ -158,26 +174,30 @@ export function ConsolidationView({
   const loadHistory = useCallback(
     async (
       page = 1,
-      historyMonth = month,
-      historyYear = year,
-      historyOpcoId = opcoId,
+      filters: { month?: number; year?: number; opcoId?: string } = appliedHistoryFilters,
       search = debouncedHistorySearch,
+      sortBy = historySortBy,
+      sortDir = historySortDir,
     ) => {
       setLoading(true);
       setError(null);
       try {
-        const params = new URLSearchParams({ page: String(page) });
-        if (historyMonth) {
-          params.set("month", String(historyMonth));
+        const params = new URLSearchParams({
+          page: String(page),
+          sortBy,
+          sortDir,
+        });
+        if (filters.month) {
+          params.set("month", String(filters.month));
         }
-        if (historyYear) {
-          params.set("year", String(historyYear));
+        if (filters.year) {
+          params.set("year", String(filters.year));
         }
         const term = search.trim();
         if (term) {
           params.set("search", term);
-        } else if (historyOpcoId) {
-          params.set("opcoId", historyOpcoId);
+        } else if (filters.opcoId) {
+          params.set("opcoId", filters.opcoId);
         }
 
         const response = await fetch(`/api/dizlee/consolidation/history?${params}`);
@@ -185,7 +205,10 @@ export function ConsolidationView({
         if (!response.ok) {
           throw new Error(payload.error ?? "Failed to load history");
         }
-        setHistory(payload.data as ConsolidationHistoryResult);
+        const data = payload.data as ConsolidationHistoryResult;
+        setHistory(data);
+        setHistorySortBy(data.sortBy);
+        setHistorySortDir(data.sortDir);
       } catch (loadError) {
         setError(
           loadError instanceof Error ? loadError.message : "Failed to load history",
@@ -194,15 +217,34 @@ export function ConsolidationView({
         setLoading(false);
       }
     },
-    [debouncedHistorySearch, month, opcoId, year],
+    [appliedHistoryFilters, debouncedHistorySearch, historySortBy, historySortDir],
   );
+
+  const applyHistorySort = (field: ConsolidationHistorySortField) => {
+    const next = nextSortState(historySortBy, historySortDir, field);
+    setHistorySortBy(next.sortBy);
+    setHistorySortDir(next.sortDir);
+    void loadHistory(
+      1,
+      appliedHistoryFilters,
+      debouncedHistorySearch,
+      next.sortBy,
+      next.sortDir,
+    );
+  };
 
   const applyHistoryFilters = () => {
     if (historySearch) {
       skipHistorySearchEffect.current = true;
       setHistorySearch("");
     }
-    void loadHistory(1, month, year, opcoId, "");
+    const next = {
+      month,
+      year,
+      opcoId: opcoId || undefined,
+    };
+    setAppliedHistoryFilters(next);
+    void loadHistory(1, next, "");
   };
 
   useEffect(() => {
@@ -215,31 +257,11 @@ export function ConsolidationView({
     }
     const term = debouncedHistorySearch.trim();
     const timer = window.setTimeout(() => {
-      void loadHistory(1, month, year, term ? "" : opcoId, term);
+      void loadHistory(1, appliedHistoryFilters, term);
     }, 0);
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- live search only
-  }, [debouncedHistorySearch, activeTab, loadHistory]);
-
-  const loadDetail = useCallback(async (id: number) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetch(`/api/dizlee/consolidation/${id}`);
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to load consolidation");
-      }
-      setDetail(payload.data as ConsolidationDetail);
-    } catch (loadError) {
-      setError(
-        loadError instanceof Error ? loadError.message : "Failed to load consolidation",
-      );
-      setDetail(null);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  }, [debouncedHistorySearch, activeTab]);
 
   const applyGenerateFilters = () => {
     void loadReadiness(month, year, opcoId);
@@ -265,12 +287,7 @@ export function ConsolidationView({
         throw new Error(payload.error ?? "Failed to generate consolidation");
       }
 
-      setMessage(payload.data.message as string);
-      await Promise.all([
-        loadReadiness(month, year, opcoId),
-        loadDetail(payload.data.id as number),
-        loadHistory(1),
-      ]);
+      openConsolidationResult(payload.data.id as number);
     } catch (generateError) {
       setError(
         generateError instanceof Error
@@ -298,10 +315,8 @@ export function ConsolidationView({
     return () => window.removeEventListener("focus", handleFocus);
   }, [activeTab, history.page, loadHistory, loadReadiness, month, opcoId, year]);
 
-  const yearOptions = [];
-  for (let value = year + 1; value >= year - 4; value -= 1) {
-    yearOptions.push(value);
-  }
+  const yearOptions = getPeriodYearOptions();
+  const maxMonth = getMaxMonthForYear(year);
 
   const canGenerate = Boolean(readiness?.ready && opcoId);
   const isRegenerate = Boolean(readiness?.existingConsolidationId);
@@ -325,7 +340,11 @@ export function ConsolidationView({
               onClick={() => {
                 setActiveTab(tab.id);
                 if (tab.id === "history") {
-                  void loadHistory(1);
+                  setError(null);
+                  setAppliedHistoryFilters({});
+                  skipHistorySearchEffect.current = true;
+                  setHistorySearch("");
+                  void loadHistory(1, {}, "");
                 }
               }}
               className={`border-b-2 px-1 pb-3 text-sm font-medium ${
@@ -349,13 +368,13 @@ export function ConsolidationView({
           <FilterToolbar>
             <div className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <label className="text-sm">
-                <span className={ui.label}>Month</span>
+                <FieldLegend required>Month</FieldLegend>
                 <select
                   value={month}
                   onChange={(event) => setMonth(Number(event.target.value))}
                   className={ui.select}
                 >
-                  {MONTHS.map((label, index) => (
+                  {MONTHS.slice(0, maxMonth).map((label, index) => (
                     <option key={label} value={index + 1}>
                       {label}
                     </option>
@@ -364,10 +383,15 @@ export function ConsolidationView({
               </label>
 
               <label className="text-sm">
-                <span className={ui.label}>Year</span>
+                <FieldLegend required>Year</FieldLegend>
                 <select
                   value={year}
-                  onChange={(event) => setYear(Number(event.target.value))}
+                  onChange={(event) => {
+                const nextYear = Number(event.target.value);
+                setYear(nextYear);
+                const capped = getMaxMonthForYear(nextYear);
+                if (month > capped) setMonth(capped);
+              }}
                   className={ui.select}
                 >
                   {yearOptions.map((value) => (
@@ -379,7 +403,7 @@ export function ConsolidationView({
               </label>
 
               <label className="text-sm sm:col-span-2">
-                <span className={ui.label}>OpCo</span>
+                <FieldLegend required>OpCo</FieldLegend>
                 <select
                   value={opcoId}
                   onChange={(event) => setOpcoId(event.target.value)}
@@ -435,95 +459,38 @@ export function ConsolidationView({
 
               {readiness.missingPartners.length > 0 ? (
                 <div className={cn("mt-3", ui.alertWarning)}>
-                  Missing OpCo reports or line items for:{" "}
-                  {readiness.missingPartners.join(", ")}
+                  Missing OpCo reports for: {readiness.missingPartners.join(", ")}
                 </div>
               ) : null}
 
-              <DataTableFrame className="mt-4">
-                <DataTable>
-                  <DataTableHead>
-                    <tr>
-                      <DataTableTh>Partner</DataTableTh>
-                      <DataTableTh>OpCo report</DataTableTh>
-                      <DataTableTh>Line items</DataTableTh>
-                    </tr>
-                  </DataTableHead>
-                  <tbody>
-                    {readiness.partners.map((partner) => (
-                      <DataTableRow key={partner.partnerId}>
-                        <DataTableTd>{partner.partnerName}</DataTableTd>
-                        <DataTableTd>
-                          <StatusPill tone={partner.hasReport ? "success" : "warning"}>
-                            {partner.hasReport ? "Uploaded" : "Missing"}
-                          </StatusPill>
-                        </DataTableTd>
-                        <DataTableTd className="text-foreground-muted">
-                          {partner.lineItemCount}
-                        </DataTableTd>
-                      </DataTableRow>
-                    ))}
-                  </tbody>
-                </DataTable>
-              </DataTableFrame>
-            </div>
-          ) : null}
-
-          {detail ? (
-            <div className={ui.cardPaddingLg}>
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <h2 className="text-lg font-medium text-foreground">
-                    Latest detail — {detail.opcoName}
-                  </h2>
-                  <p className="mt-1 text-sm text-foreground-subtle">
-                    Generated {formatDateTime(detail.generatedAt)} by {detail.runBy}
-                  </p>
-                </div>
-                <Button variant="secondary" onClick={() => downloadExcel(detail.id)}>
-                  Download Excel
-                </Button>
-              </div>
-
-              <p className="mt-3 text-sm text-foreground-muted">
-                Total USD: {formatUsd(detail.totalAmountUsd)}
-              </p>
-
-              <DataTableFrame className="mt-4 max-h-80 overflow-auto">
-                <DataTable>
-                  <DataTableHead className="sticky top-0 z-10">
-                    <tr>
-                      <DataTableTh>Partner</DataTableTh>
-                      <DataTableTh>Service</DataTableTh>
-                      <DataTableTh>Description</DataTableTh>
-                      <DataTableTh align="right">Usage</DataTableTh>
-                      <DataTableTh align="right">USD</DataTableTh>
-                    </tr>
-                  </DataTableHead>
-                  <tbody>
-                    {detail.items.map((item, index) => (
-                      <DataTableRow
-                        key={`${item.partnerName}-${item.serviceCode}-${index}`}
-                      >
-                        <DataTableTd>{item.partnerName}</DataTableTd>
-                        <DataTableTd className="text-foreground-muted">
-                          {item.serviceCode ?? "—"}
-                        </DataTableTd>
-                        <DataTableTd className="text-foreground-muted">
-                          {item.description}
-                        </DataTableTd>
-                        <DataTableTd align="right" className="text-foreground-muted">
-                          {formatNumber(item.usageAmount)}
-                          {item.usageUnit ? ` ${item.usageUnit}` : ""}
-                        </DataTableTd>
-                        <DataTableTd align="right" className="text-foreground-muted">
-                          {formatUsd(item.usageUsd)}
-                        </DataTableTd>
-                      </DataTableRow>
-                    ))}
-                  </tbody>
-                </DataTable>
-              </DataTableFrame>
+              {readiness.linkedCount > 0 ? (
+                <DataTableFrame className="mt-4">
+                  <DataTable>
+                    <DataTableHead>
+                      <tr>
+                        <DataTableTh>Partner</DataTableTh>
+                        <DataTableTh>OpCo report</DataTableTh>
+                      </tr>
+                    </DataTableHead>
+                    <tbody>
+                      {readiness.partners.map((partner) => {
+                        const submitted =
+                          partner.hasReport && partner.lineItemCount > 0;
+                        return (
+                          <DataTableRow key={partner.partnerId}>
+                            <DataTableTd>{partner.partnerName}</DataTableTd>
+                            <DataTableTd>
+                              <StatusPill tone={submitted ? "success" : "warning"}>
+                                {submitted ? "Submitted" : "Missing"}
+                              </StatusPill>
+                            </DataTableTd>
+                          </DataTableRow>
+                        );
+                      })}
+                    </tbody>
+                  </DataTable>
+                </DataTableFrame>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -534,9 +501,6 @@ export function ConsolidationView({
             value={historySearch}
             onChange={(value) => {
               setHistorySearch(value);
-              if (value.trim()) {
-                setOpcoId("");
-              }
             }}
             placeholder="OpCo, status, or run by"
           />
@@ -552,7 +516,7 @@ export function ConsolidationView({
                   onChange={(event) => setMonth(Number(event.target.value))}
                   className={ui.select}
                 >
-                  {MONTHS.map((label, index) => (
+                  {MONTHS.slice(0, maxMonth).map((label, index) => (
                     <option key={label} value={index + 1}>
                       {label}
                     </option>
@@ -564,7 +528,12 @@ export function ConsolidationView({
                 <span className={ui.label}>Year</span>
                 <select
                   value={year}
-                  onChange={(event) => setYear(Number(event.target.value))}
+                  onChange={(event) => {
+                const nextYear = Number(event.target.value);
+                setYear(nextYear);
+                const capped = getMaxMonthForYear(nextYear);
+                if (month > capped) setMonth(capped);
+              }}
                   className={ui.select}
                 >
                   {yearOptions.map((value) => (
@@ -608,12 +577,39 @@ export function ConsolidationView({
                 <DataTable>
                   <DataTableHead>
                     <tr>
-                      <DataTableTh>Period</DataTableTh>
-                      <DataTableTh>OpCo</DataTableTh>
+                      <SortableDataTableTh
+                        label="Period"
+                        active={historySortBy === "period"}
+                        direction={historySortDir}
+                        onSort={() => applyHistorySort("period")}
+                      />
+                      <SortableDataTableTh
+                        label="OpCo"
+                        active={historySortBy === "opco"}
+                        direction={historySortDir}
+                        onSort={() => applyHistorySort("opco")}
+                      />
                       <DataTableTh>Status</DataTableTh>
-                      <DataTableTh align="right">Total USD</DataTableTh>
-                      <DataTableTh align="right">Items</DataTableTh>
-                      <DataTableTh>Generated</DataTableTh>
+                      <SortableDataTableTh
+                        label="Total KWD"
+                        active={historySortBy === "total"}
+                        direction={historySortDir}
+                        onSort={() => applyHistorySort("total")}
+                        align="right"
+                      />
+                      <SortableDataTableTh
+                        label="Items"
+                        active={historySortBy === "items"}
+                        direction={historySortDir}
+                        onSort={() => applyHistorySort("items")}
+                        align="right"
+                      />
+                      <SortableDataTableTh
+                        label="Generated"
+                        active={historySortBy === "generated"}
+                        direction={historySortDir}
+                        onSort={() => applyHistorySort("generated")}
+                      />
                       <DataTableTh>Actions</DataTableTh>
                     </tr>
                   </DataTableHead>
@@ -637,16 +633,16 @@ export function ConsolidationView({
                           <div className="flex flex-wrap items-center gap-2">
                             <IconButton
                               label="View consolidation"
-                              onClick={() => void loadDetail(item.id)}
+                              onClick={() => openConsolidationResult(item.id)}
                             >
                               <IconEye />
                             </IconButton>
-                            <Button
-                              variant="secondary"
+                            <IconButton
+                              label="Download Excel"
                               onClick={() => downloadExcel(item.id)}
                             >
-                              Excel
-                            </Button>
+                              <IconDownload />
+                            </IconButton>
                           </div>
                         </DataTableTd>
                       </DataTableRow>
@@ -680,64 +676,6 @@ export function ConsolidationView({
               ) : null}
             </>
           )}
-
-          {detail ? (
-            <div className={ui.cardPaddingLg}>
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <h2 className="text-lg font-medium text-foreground">
-                    {detail.opcoName} — {detail.period.label}
-                  </h2>
-                  <p className="mt-1 text-sm text-foreground-subtle">
-                    {detail.status} · Generated {formatDateTime(detail.generatedAt)}
-                  </p>
-                </div>
-                <Button variant="secondary" onClick={() => downloadExcel(detail.id)}>
-                  Download Excel
-                </Button>
-              </div>
-
-              <p className="mt-3 text-sm text-foreground-muted">
-                Total USD: {formatUsd(detail.totalAmountUsd)}
-              </p>
-
-              <DataTableFrame className="mt-4 max-h-96 overflow-auto">
-                <DataTable>
-                  <DataTableHead className="sticky top-0 z-10">
-                    <tr>
-                      <DataTableTh>Partner</DataTableTh>
-                      <DataTableTh>Service</DataTableTh>
-                      <DataTableTh>Description</DataTableTh>
-                      <DataTableTh align="right">Usage</DataTableTh>
-                      <DataTableTh align="right">USD</DataTableTh>
-                    </tr>
-                  </DataTableHead>
-                  <tbody>
-                    {detail.items.map((item, index) => (
-                      <DataTableRow
-                        key={`${item.partnerName}-${item.serviceCode}-${index}`}
-                      >
-                        <DataTableTd>{item.partnerName}</DataTableTd>
-                        <DataTableTd className="text-foreground-muted">
-                          {item.serviceCode ?? "—"}
-                        </DataTableTd>
-                        <DataTableTd className="text-foreground-muted">
-                          {item.description}
-                        </DataTableTd>
-                        <DataTableTd align="right" className="text-foreground-muted">
-                          {formatNumber(item.usageAmount)}
-                          {item.usageUnit ? ` ${item.usageUnit}` : ""}
-                        </DataTableTd>
-                        <DataTableTd align="right" className="text-foreground-muted">
-                          {formatUsd(item.usageUsd)}
-                        </DataTableTd>
-                      </DataTableRow>
-                    ))}
-                  </tbody>
-                </DataTable>
-              </DataTableFrame>
-            </div>
-          ) : null}
         </div>
       )}
     </PageCard>

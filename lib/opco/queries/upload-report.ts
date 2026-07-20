@@ -3,12 +3,14 @@ import { Prisma } from "@prisma/client";
 import type { ParsedReportLine } from "@/lib/opco/excel/parse-report";
 import { isPartnerLinkedToOpco } from "@/lib/opco/queries/partners";
 import { saveReportFileLocally } from "@/lib/opco/storage/save-report-file";
+import { writePlatformAuditLog } from "@/lib/platform/audit-log";
+import { notifyDizleeUsers } from "@/lib/platform/notify-dizlee";
 import {
   OPCO_REPORT_VERSION,
   laneReportWhere,
 } from "@/lib/platform/reports/sides";
-import { writePlatformAuditLog } from "@/lib/platform/audit-log";
 import prisma from "@/lib/prisma";
+import { formatPeriodLabel } from "@/lib/opco/period";
 
 export class ReportUploadError extends Error {
   status: number;
@@ -145,6 +147,13 @@ export async function createReportUpload(
         year: input.year,
         filename: input.filename,
       },
+    });
+
+    const periodLabel = formatPeriodLabel(input.year, input.month);
+    await notifyDizleeUsers({
+      fromUserId: input.userId,
+      subject: "OpCo report uploaded",
+      body: `${report.opco.name} uploaded a report for ${report.partner.name} (${periodLabel}).`,
     });
 
     return { reportId: report.id.toString() };

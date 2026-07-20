@@ -378,6 +378,8 @@ model NotificationTemplate {
   id              Int      @id @default(autoincrement())
   code            String   @unique @db.VarChar(64)
   name            String   @db.VarChar(255)
+  /// INTIMATION | REMINDER | OTHER
+  category        String   @default("OTHER") @db.VarChar(32)
   subject         String   @db.VarChar(255)
   body            String   @db.Text
   statusId        Int      @map("status_id")
@@ -392,6 +394,7 @@ model NotificationTemplate {
   status   Lookup                 @relation("NotificationTemplateStatus", fields: [statusId], references: [id])
   versions EmailTemplateVersion[]
 
+  @@index([category], map: "idx_notification_templates_category")
   @@map("notification_templates")
 }
 

@@ -386,10 +386,7 @@ export function AuditLogsView({
                       {item.actionLabel}
                     </DataTableTd>
                     <DataTableTd className="whitespace-nowrap text-foreground-muted">
-                      <div>{item.entityTypeLabel}</div>
-                      <div className="text-xs text-foreground-subtle">
-                        #{item.entityId}
-                      </div>
+                      {item.entityTypeLabel}
                     </DataTableTd>
                     <DataTableTd className="text-foreground-muted">
                       {item.message ?? "—"}

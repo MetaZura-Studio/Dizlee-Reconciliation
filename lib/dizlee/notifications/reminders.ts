@@ -16,6 +16,7 @@ import {
   ReportReminderError,
   sendMissingReportReminders,
 } from "@/lib/platform/report-reminders";
+import { NotificationAttachmentError } from "@/lib/platform/notification-attachments";
 import { prisma } from "@/lib/prisma";
 
 export {
@@ -79,10 +80,14 @@ export async function sendReportReminders(params: {
       templateCode: input.messageSource,
       subject: input.subject,
       body: input.body,
+      attachmentFileIds: input.attachmentFileIds,
       throwIfNoRecipients: true,
     });
   } catch (error) {
     if (error instanceof ReportReminderError) {
+      throw new NotificationError(error.message, error.status);
+    }
+    if (error instanceof NotificationAttachmentError) {
       throw new NotificationError(error.message, error.status);
     }
     throw error;

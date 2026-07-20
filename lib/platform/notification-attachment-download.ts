@@ -1,0 +1,94 @@
+import "server-only";
+
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+
+import { NextResponse } from "next/server";
+
+import { prisma } from "@/lib/prisma";
+
+export async function buildNotificationAttachmentDownloadResponse(params: {
+  notificationId: bigint;
+  attachmentId: bigint;
+  recipientMatch: {
+    userId: bigint;
+    orgId: bigint;
+    orgType: "OPCO" | "PARTNER";
+  };
+}): Promise<NextResponse> {
+  const recipientWhere =
+    params.recipientMatch.orgType === "OPCO"
+      ? {
+          isDeleted: false,
+          OR: [
+            {
+              recipientType: { code: "USER" as const },
+              recipientId: params.recipientMatch.userId,
+            },
+            {
+              recipientType: { code: "OPCO" as const },
+              recipientId: params.recipientMatch.orgId,
+            },
+          ],
+        }
+      : {
+          isDeleted: false,
+          OR: [
+            {
+              recipientType: { code: "USER" as const },
+              recipientId: params.recipientMatch.userId,
+            },
+            {
+              recipientType: { code: "PARTNER" as const },
+              recipientId: params.recipientMatch.orgId,
+            },
+          ],
+        };
+
+  const attachment = await prisma.notificationAttachment.findFirst({
+    where: {
+      id: params.attachmentId,
+      isDeleted: false,
+      notificationId: params.notificationId,
+      notification: {
+        isDeleted: false,
+        recipients: { some: recipientWhere },
+      },
+    },
+    include: {
+      file: {
+        select: {
+          filename: true,
+          storageKey: true,
+          mimeType: true,
+          isDeleted: true,
+        },
+      },
+    },
+  });
+
+  if (!attachment || attachment.file.isDeleted) {
+    return NextResponse.json({ error: "Attachment not found." }, { status: 404 });
+  }
+
+  const absolutePath = path.join(
+    process.cwd(),
+    ".uploads",
+    attachment.file.storageKey,
+  );
+
+  try {
+    const buffer = await readFile(absolutePath);
+    return new NextResponse(buffer, {
+      headers: {
+        "Content-Type": attachment.file.mimeType ?? "application/octet-stream",
+        "Content-Disposition": `attachment; filename="${attachment.file.filename}"`,
+      },
+    });
+  } catch {
+    return NextResponse.json(
+      { error: "Attachment file is not available." },
+      { status: 404 },
+    );
+  }
+}

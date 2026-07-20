@@ -24,6 +24,11 @@ import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
 import { ui } from "@/lib/ui/classes";
 import { nextSortState } from "@/lib/ui/sort";
 import { useDebouncedValue } from "@/lib/ui/use-debounced-value";
+import {
+  getMaxMonthForYear,
+  getPeriodYearOptions,
+} from "@/lib/platform/period";
+import { reportRawFilePreviewUrl } from "@/lib/platform/reports/preview-url";
 import type {
   ReportDetail,
   ReportFilterOptions,
@@ -249,10 +254,8 @@ export function ReportsListView({
     void openDetail(initialReportId);
   }, [initialReportId]);
 
-  const yearOptions = [];
-  for (let value = year + 1; value >= year - 4; value -= 1) {
-    yearOptions.push(value);
-  }
+  const yearOptions = getPeriodYearOptions();
+  const maxMonth = getMaxMonthForYear(year);
 
   const items: ReportListItem[] = result.items;
 
@@ -286,7 +289,7 @@ export function ReportsListView({
               onChange={(event) => setMonth(Number(event.target.value))}
               className={ui.select}
             >
-              {MONTHS.map((name, index) => (
+              {MONTHS.slice(0, maxMonth).map((name, index) => (
                 <option key={name} value={index + 1}>
                   {name}
                 </option>
@@ -297,7 +300,12 @@ export function ReportsListView({
             <span className={ui.label}>Year</span>
             <select
               value={year}
-              onChange={(event) => setYear(Number(event.target.value))}
+              onChange={(event) => {
+                const nextYear = Number(event.target.value);
+                setYear(nextYear);
+                const capped = getMaxMonthForYear(nextYear);
+                if (month > capped) setMonth(capped);
+              }}
               className={ui.select}
             >
               {yearOptions.map((value) => (
@@ -364,14 +372,19 @@ export function ReportsListView({
                       direction={sortDir}
                       onSort={() => applySort("period")}
                     />
-                    <DataTableTh>OpCo</DataTableTh>
-                    <DataTableTh>Partner</DataTableTh>
                     <SortableDataTableTh
-                      label="Filename"
-                      active={sortBy === "filename"}
+                      label="OpCo"
+                      active={sortBy === "opco"}
                       direction={sortDir}
-                      onSort={() => applySort("filename")}
+                      onSort={() => applySort("opco")}
                     />
+                    <SortableDataTableTh
+                      label="Partner"
+                      active={sortBy === "partner"}
+                      direction={sortDir}
+                      onSort={() => applySort("partner")}
+                    />
+                    <DataTableTh>Filename</DataTableTh>
                     <SortableDataTableTh
                       label="Uploaded"
                       active={sortBy === "uploaded"}
@@ -393,8 +406,10 @@ export function ReportsListView({
                       <DataTableTd className="text-foreground-muted">
                         <ReportFilenameLink
                           filename={row.filename}
-                          onClick={
-                            row.filename ? () => void openDetail(row.id) : undefined
+                          href={
+                            row.filename
+                              ? reportRawFilePreviewUrl("dizlee", row.id)
+                              : undefined
                           }
                         />
                       </DataTableTd>
@@ -406,7 +421,7 @@ export function ReportsListView({
                       </DataTableTd>
                       <DataTableTd>
                         <IconButton
-                          label="View report"
+                          label="View parsed report"
                           onClick={() => void openDetail(row.id)}
                         >
                           <IconEye />

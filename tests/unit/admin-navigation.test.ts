@@ -11,6 +11,7 @@ import {
 describe("admin navigation", () => {
   it("defines main navigation items with settings children", () => {
     expect(ADMIN_MAIN_NAV_ITEMS.map((item) => item.label)).toEqual([
+      "Dashboard",
       "Audit logs",
       "Users",
       "OpCos",
@@ -18,7 +19,7 @@ describe("admin navigation", () => {
       "Email Templates",
       "OpCo partners",
       "Reconciliation tolerance",
-      "Currencies & USD rates",
+      "Currencies & KWD rates",
       "Invoice bank details",
       "Settings",
     ]);
@@ -34,8 +35,13 @@ describe("admin navigation", () => {
     expect(ADMIN_FOOTER_NAV_ITEMS).toHaveLength(0);
   });
 
-  it("uses Users as the default admin landing route", () => {
-    expect(ADMIN_DEFAULT_ROUTE).toBe("/admin/users");
+  it("uses Dashboard as the default admin landing route", () => {
+    expect(ADMIN_DEFAULT_ROUTE).toBe("/admin");
+  });
+
+  it("marks the dashboard route only on the exact path", () => {
+    expect(isAdminNavActive("/admin", "/admin")).toBe(true);
+    expect(isAdminNavActive("/admin/users", "/admin")).toBe(false);
   });
 
   it("marks active routes including nested paths", () => {
@@ -46,7 +52,7 @@ describe("admin navigation", () => {
 
   it("resolves the nav item for the current path", () => {
     expect(getAdminNavItemForPath("/admin/currencies")?.label).toBe(
-      "Currencies & USD rates",
+      "Currencies & KWD rates",
     );
     expect(getAdminNavItemForPath("/admin/email-settings")?.label).toBe(
       "Email Settings",

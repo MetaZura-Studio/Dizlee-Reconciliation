@@ -15,7 +15,12 @@ export type InvoiceMonitoringFilters = {
   partnerId?: string;
   missing?: InvoiceMissingSideFilter;
   page: number;
+  sortBy: InvoiceMonitoringSortField;
+  sortDir: SortDirection;
 };
+
+export type InvoiceMonitoringSortField = "period" | "opco" | "partner";
+export type SortDirection = "asc" | "desc";
 
 export type InvoiceLaneStatus = "Invoiced" | "Missing";
 
@@ -88,6 +93,8 @@ export function parseInvoiceMonitoringFilters(
   const year = Number(searchParams.get("year"));
   const page = Number(searchParams.get("page"));
   const missing = searchParams.get("missing");
+  const sortBy = searchParams.get("sortBy");
+  const sortDir = searchParams.get("sortDir");
 
   return {
     month:
@@ -101,6 +108,11 @@ export function parseInvoiceMonitoringFilters(
         ? missing
         : undefined,
     page: Number.isInteger(page) && page >= 1 ? page : 1,
+    sortBy:
+      sortBy === "period" || sortBy === "opco" || sortBy === "partner"
+        ? sortBy
+        : "opco",
+    sortDir: sortDir === "desc" ? "desc" : "asc",
   };
 }
 
@@ -196,6 +208,29 @@ export async function listInvoiceMonitoringLanes(
         lane.partnerInvoice.status === "Missing",
     );
   }
+
+  const dir = filters.sortDir === "asc" ? 1 : -1;
+  lanes = [...lanes].sort((a, b) => {
+    if (filters.sortBy === "period") {
+      const av = a.period.year * 100 + a.period.month;
+      const bv = b.period.year * 100 + b.period.month;
+      if (av !== bv) {
+        return (av - bv) * dir;
+      }
+    }
+    if (filters.sortBy === "partner") {
+      const byPartner = a.partnerName.localeCompare(b.partnerName) * dir;
+      if (byPartner !== 0) {
+        return byPartner;
+      }
+      return a.opcoName.localeCompare(b.opcoName) * dir;
+    }
+    const byOpco = a.opcoName.localeCompare(b.opcoName) * dir;
+    if (byOpco !== 0) {
+      return byOpco;
+    }
+    return a.partnerName.localeCompare(b.partnerName) * dir;
+  });
 
   const totalCount = lanes.length;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));

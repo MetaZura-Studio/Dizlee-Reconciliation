@@ -45,7 +45,7 @@ describe("currency rates validation", () => {
       year: 2026,
       rates: [
         { currencyId: "1", rateToUsd: 1 },
-        { currencyId: "2", rateToUsd: 1.08 },
+        { currencyId: "2", rateToUsd: 0.308 },
       ],
     });
     expect(result.success).toBe(true);
@@ -72,23 +72,23 @@ describe("currency rates validation", () => {
 
 describe("computeRateSavePlan", () => {
   const currencies = [
-    { id: "1", isoCode: "USD" },
+    { id: "1", isoCode: "KWD" },
     { id: "2", isoCode: "EUR" },
     { id: "3", isoCode: "GBP" },
   ];
 
-  it("forces USD to 1 and upserts other provided rates", () => {
+  it("forces KWD to 1 and upserts other provided rates", () => {
     const plan = computeRateSavePlan({
       currencies,
       submittedRates: [
         { currencyId: "1", rateToUsd: 99 },
-        { currencyId: "2", rateToUsd: 1.08 },
+        { currencyId: "2", rateToUsd: 0.334 },
       ],
     });
 
     expect(plan.toUpsert).toEqual([
       { currencyId: "1", rateToUsd: 1 },
-      { currencyId: "2", rateToUsd: 1.08 },
+      { currencyId: "2", rateToUsd: 0.334 },
     ]);
     expect(plan.toSoftDelete).toEqual([]);
     expect(plan.updated).toBe(2);
@@ -99,12 +99,12 @@ describe("computeRateSavePlan", () => {
       currencies,
       submittedRates: [
         { currencyId: "2", rateToUsd: null },
-        { currencyId: "3", rateToUsd: 1.27 },
+        { currencyId: "3", rateToUsd: 0.39 },
       ],
     });
 
     expect(plan.toSoftDelete).toEqual(["2"]);
-    expect(plan.toUpsert).toEqual([{ currencyId: "3", rateToUsd: 1.27 }]);
+    expect(plan.toUpsert).toEqual([{ currencyId: "3", rateToUsd: 0.39 }]);
     expect(plan.cleared).toBe(1);
   });
 });

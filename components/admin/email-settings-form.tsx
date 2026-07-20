@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { FieldLabel, FieldLegend } from "@/components/ui/field";
 import type { EmailSettingsView } from "@/lib/admin/email-settings";
 import { ui } from "@/lib/ui/classes";
 
@@ -175,7 +176,7 @@ export function EmailSettingsForm({ initialSettings }: EmailSettingsFormProps) {
         </label>
 
         <label className="block text-sm">
-          <span className={ui.label}>SMTP host</span>
+          <FieldLegend required={form.emailEnabled}>SMTP host</FieldLegend>
           <input
             type="text"
             value={form.smtpHost}
@@ -188,7 +189,7 @@ export function EmailSettingsForm({ initialSettings }: EmailSettingsFormProps) {
         </label>
 
         <label className="block text-sm">
-          <span className={ui.label}>SMTP port</span>
+          <FieldLegend required={form.emailEnabled}>SMTP port</FieldLegend>
           <input
             type="number"
             min={1}
@@ -203,7 +204,7 @@ export function EmailSettingsForm({ initialSettings }: EmailSettingsFormProps) {
         </label>
 
         <label className="block text-sm">
-          <span className={ui.label}>Sender address</span>
+          <FieldLegend required={form.emailEnabled}>Sender address</FieldLegend>
           <input
             type="email"
             value={form.senderAddress}
@@ -269,9 +270,9 @@ export function EmailSettingsForm({ initialSettings }: EmailSettingsFormProps) {
         ) : null}
 
         <div className="space-y-1">
-          <label htmlFor="testRecipient" className={ui.label}>
+          <FieldLabel htmlFor="testRecipient" required>
             Send test email to
-          </label>
+          </FieldLabel>
           <input
             id="testRecipient"
             type="email"

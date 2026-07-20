@@ -1,7 +1,8 @@
+import { redirect } from "next/navigation";
+
 import { ConsolidationView } from "@/components/dizlee/consolidation-view";
 import { currentPeriod } from "@/lib/dizlee/dashboard";
 import {
-  getConsolidationDetail,
   getConsolidationReadiness,
   listConsolidationHistory,
   parseGenerateFilters,
@@ -23,6 +24,14 @@ export default async function DizleeConsolidationPage({
   searchParams,
 }: DizleeConsolidationPageProps) {
   const params = await searchParams;
+
+  if (params.id) {
+    const consolidationId = Number(params.id);
+    if (Number.isInteger(consolidationId) && consolidationId >= 1) {
+      redirect(`/dizlee/consolidation/${consolidationId}`);
+    }
+  }
+
   const query = new URLSearchParams();
 
   for (const [key, value] of Object.entries(params)) {
@@ -33,15 +42,11 @@ export default async function DizleeConsolidationPage({
 
   const generateFilters = parseGenerateFilters(query);
   const historyFilters = parseHistoryFilters(query);
-  const consolidationId = params.id ? Number(params.id) : null;
   const fallback = currentPeriod();
 
-  const [filterOptions, initialHistory, initialDetail] = await Promise.all([
+  const [filterOptions, initialHistory] = await Promise.all([
     getReportFilterOptions(),
     listConsolidationHistory(historyFilters),
-    consolidationId && Number.isInteger(consolidationId)
-      ? getConsolidationDetail(consolidationId)
-      : Promise.resolve(null),
   ]);
 
   const initialOpcoId =
@@ -64,7 +69,6 @@ export default async function DizleeConsolidationPage({
       initialFilterOptions={filterOptions}
       initialReadiness={initialReadiness}
       initialHistory={initialHistory}
-      initialDetail={initialDetail}
     />
   );
 }

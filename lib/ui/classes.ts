@@ -27,6 +27,8 @@ export const ui = {
     "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-[var(--shadow-sm)] transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] disabled:opacity-60",
   iconButtonDanger:
     "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-danger-border bg-surface text-danger shadow-[var(--shadow-sm)] transition-colors hover:bg-danger-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] disabled:opacity-60",
+  modalCloseButton:
+    "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-danger text-white shadow-[var(--shadow-sm)] transition-colors hover:bg-danger/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] disabled:opacity-60",
   navItem:
     "flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-foreground-muted transition-colors hover:bg-surface-muted hover:text-foreground",
   navItemActive:

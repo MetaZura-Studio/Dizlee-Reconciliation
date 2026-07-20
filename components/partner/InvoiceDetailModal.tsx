@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { ModalCloseButton } from "@/components/ui/modal-close-button";
 import type { PartnerInvoiceLifecycleDetail } from "@/lib/partner/invoices/lifecycle";
 import type { PartnerInvoiceDetail } from "@/lib/partner/queries/invoices";
 
@@ -88,13 +89,7 @@ export function InvoiceDetailModal({
                 </p>
               ) : null}
             </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="text-sm text-foreground-subtle hover:text-foreground"
-            >
-              Close
-            </button>
+            <ModalCloseButton onClick={onClose} />
           </div>
 
           <div className="mt-4 flex gap-2">

@@ -53,6 +53,7 @@ export async function POST(request: Request) {
       year?: number;
       priority?: string | null;
       expiresAt?: string | null;
+      attachmentFileIds?: string[];
     };
 
     const result = await sendBroadcastNotification({
@@ -67,6 +68,7 @@ export async function POST(request: Request) {
         body: body.body ?? body.message,
         priority: body.priority,
         expiresAt: body.expiresAt,
+        attachmentFileIds: body.attachmentFileIds,
       },
       fromUserId: user.id,
     });

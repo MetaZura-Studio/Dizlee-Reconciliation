@@ -14,7 +14,11 @@ export default async function PartnerLayout({
   );
 
   return (
-    <PartnerWorkspace email={session.email} unreadCount={unreadCount}>
+    <PartnerWorkspace
+      name={session.name}
+      email={session.email}
+      unreadCount={unreadCount}
+    >
       {children}
     </PartnerWorkspace>
   );

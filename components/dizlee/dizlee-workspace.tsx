@@ -22,6 +22,8 @@ function iconForHref(href: string): AppShellNavItem["icon"] {
       return "layers";
     case "/dizlee/notifications":
       return "bell";
+    case "/dizlee/activity":
+      return "layers";
     case "/dizlee/reporting":
       return "chart";
     default:

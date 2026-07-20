@@ -2,6 +2,7 @@ import { formatPeriodLabel } from "@/lib/partner/period";
 import { getPartnerLookupId } from "@/lib/partner/lookups";
 import { PARTNER_REPORT_VERSION } from "@/lib/platform/reports/sides";
 import { writePlatformAuditLog } from "@/lib/platform/audit-log";
+import { notifyDizleeUsers } from "@/lib/platform/notify-dizlee";
 import prisma from "@/lib/prisma";
 
 export class ReportChangeRequestError extends Error {
@@ -22,44 +23,6 @@ type CreateReportChangeRequestInput = {
   reportId: bigint;
   reason: string;
 };
-
-async function notifyDizleeUsers(params: {
-  fromUserId: bigint;
-  subject: string;
-  body: string;
-}): Promise<void> {
-  const [sentStatusId, userRecipientTypeId, dizleeUsers] = await Promise.all([
-    getPartnerLookupId("NOTIFICATION_STATUS", "SENT"),
-    getPartnerLookupId("RECIPIENT_TYPE", "USER"),
-    prisma.user.findMany({
-      where: {
-        role: { code: "CLIENT", lookupType: { code: "USER_ROLE" } },
-      },
-      select: { id: true },
-    }),
-  ]);
-
-  if (dizleeUsers.length === 0) {
-    return;
-  }
-
-  await prisma.notification.create({
-    data: {
-      subject: params.subject,
-      body: params.body,
-      statusId: sentStatusId,
-      sentAt: new Date(),
-      createdByUserId: params.fromUserId,
-      recipients: {
-        create: dizleeUsers.map((user) => ({
-          recipientTypeId: userRecipientTypeId,
-          recipientId: user.id,
-          fromUserId: params.fromUserId,
-        })),
-      },
-    },
-  });
-}
 
 export async function createReportChangeRequest(
   input: CreateReportChangeRequestInput,

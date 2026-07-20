@@ -65,11 +65,11 @@ export async function POST(request: Request) {
 
     const rates = currentView.rates.map((rate) => {
       const draft = merged.rates.find((item) => item.currencyId === rate.currencyId);
-      const rateToUsd = rate.isUsd ? 1 : (draft?.rateToUsd ?? rate.rateToUsd);
+      const rateToUsd = rate.isBase ? 1 : (draft?.rateToUsd ?? rate.rateToUsd);
       return {
         ...rate,
         rateToUsd,
-        hasRate: rate.isUsd || rateToUsd !== null,
+        hasRate: rate.isBase || rateToUsd !== null,
       };
     });
 

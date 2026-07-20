@@ -112,7 +112,7 @@ export async function sendPlatformEmail(
 export async function sendPasswordEmail(
   input: SendPasswordEmailInput,
 ): Promise<SendMailResult> {
-  const content = buildPasswordEmailContent(input);
+  const content = await buildPasswordEmailContent(input);
   const smtpResult = await resolveSmtpConfig();
 
   if (!smtpResult.ok) {

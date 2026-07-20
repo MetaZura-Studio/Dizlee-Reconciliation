@@ -44,8 +44,8 @@ export default async function PartnerReportsPage({
   return (
     <PageCard>
       <PageHeader
-        title="Reports"
-        description="Find and review submitted reports. Filter by period, OpCo, or status."
+        title="Reports history"
+        description="Search by filename or OpCo, or filter by period and status."
       />
       <ReportsTable initialResult={result} filterOptions={filterOptions} />
     </PageCard>

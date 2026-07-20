@@ -20,6 +20,7 @@ export function reportStatusTone(code: string): StatusTone {
 export function invoiceStatusTone(code: string): StatusTone {
   switch (code.toUpperCase()) {
     case "ACKNOWLEDGED":
+    case "PAID":
     case "SETTLED":
       return "success";
     case "SENT":

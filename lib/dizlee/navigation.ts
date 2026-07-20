@@ -11,6 +11,11 @@ export const DIZLEE_NAV_ITEMS: DizleeNavItem[] = [
   { label: "Reconciliation", href: "/dizlee/reconciliation" },
   { label: "Consolidation", href: "/dizlee/consolidation" },
   { label: "Notifications", href: "/dizlee/notifications" },
+  {
+    label: "Activity",
+    href: "/dizlee/activity",
+    description: "Monthly OpCo / Partner timeline",
+  },
   { label: "Reporting", href: "/dizlee/reporting" },
 ];
 

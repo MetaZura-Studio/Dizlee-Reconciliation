@@ -43,7 +43,7 @@ export default async function OpcoReportsPage({ searchParams }: OpcoReportsPageP
     <PageCard>
       <PageHeader
         title="Reports history"
-        description="Find and review submitted reports. Filter by period, partner, or status."
+        description="Search by filename or partner, or filter by period and status."
       />
       <ReportsTable initialResult={result} filterOptions={filterOptions} />
     </PageCard>

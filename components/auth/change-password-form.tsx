@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { PASSWORD_MIN_LENGTH, validatePasswordMatch } from "@/lib/auth/password-policy";
+import { FieldLabel, FieldLegend } from "@/components/ui/field";
 import { ui } from "@/lib/ui/classes";
 
 export function ChangePasswordForm() {
@@ -60,7 +61,7 @@ export function ChangePasswordForm() {
       {success ? <p className={ui.alertSuccess}>{success}</p> : null}
 
       <label className="block text-sm">
-        <span className={ui.label}>Current password</span>
+        <FieldLegend required>Current password</FieldLegend>
         <input
           type="password"
           value={currentPassword}
@@ -72,7 +73,7 @@ export function ChangePasswordForm() {
       </label>
 
       <label className="block text-sm">
-        <span className={ui.label}>New password</span>
+        <FieldLegend required>New password</FieldLegend>
         <input
           type="password"
           value={password}
@@ -88,7 +89,7 @@ export function ChangePasswordForm() {
       </label>
 
       <label className="block text-sm">
-        <span className={ui.label}>Confirm new password</span>
+        <FieldLegend required>Confirm new password</FieldLegend>
         <input
           type="password"
           value={confirmPassword}

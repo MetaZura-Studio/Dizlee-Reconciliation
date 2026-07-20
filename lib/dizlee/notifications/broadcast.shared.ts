@@ -7,10 +7,11 @@ export const BROADCAST_TEMPLATE_CODES = [
 
 export type BroadcastTemplateCode = (typeof BROADCAST_TEMPLATE_CODES)[number];
 export type BroadcastAudience = "opco" | "partner" | "both";
-export type BroadcastMessageSource = "custom" | BroadcastTemplateCode;
+/** custom = freeform; any other string is a notification_templates.code */
+export type BroadcastMessageSource = "custom" | string;
 
 export type BroadcastTemplateOption = {
-  code: BroadcastTemplateCode;
+  code: string;
   name: string;
   subject: string;
   body: string;
@@ -52,6 +53,7 @@ export type SendBroadcastInput = {
   body?: string;
   priority?: string | null;
   expiresAt?: string | null;
+  attachmentFileIds?: string[];
 };
 
 export const DEFAULT_REMINDER_MESSAGE_SOURCE: BroadcastTemplateCode =
@@ -69,9 +71,10 @@ export type SendReportRemindersInput = {
   year: number;
   laneKeys: string[];
   target: "opco" | "partner" | "both";
-  messageSource: BroadcastTemplateCode;
+  messageSource: string;
   subject?: string;
   body?: string;
+  attachmentFileIds?: string[];
 };
 
 export type SendReportRemindersResult = {
@@ -85,3 +88,6 @@ export function isBroadcastTemplateCode(
 ): value is BroadcastTemplateCode {
   return (BROADCAST_TEMPLATE_CODES as readonly string[]).includes(value);
 }
+
+/** Manual intimations/reminders: Intimation + Reminder categories (not Other/password). */
+export const BROADCAST_PICKER_CATEGORIES = ["INTIMATION", "REMINDER"] as const;

@@ -1,8 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockedGetReminderSettings = vi.fn();
-const mockedSendMissingReportReminders = vi.fn();
-const mockedSendMissingInvoiceReminders = vi.fn();
 const mockedSendBroadcastNotification = vi.fn();
 const mockedFindAdmin = vi.fn();
 const mockedFindOpcos = vi.fn();
@@ -10,16 +8,6 @@ const mockedFindPartners = vi.fn();
 
 vi.mock("@/lib/admin/reminder-settings", () => ({
   getReminderSettings: (...args: unknown[]) => mockedGetReminderSettings(...args),
-}));
-
-vi.mock("@/lib/platform/report-reminders", () => ({
-  sendMissingReportReminders: (...args: unknown[]) =>
-    mockedSendMissingReportReminders(...args),
-}));
-
-vi.mock("@/lib/platform/invoice-reminders", () => ({
-  sendMissingInvoiceReminders: (...args: unknown[]) =>
-    mockedSendMissingInvoiceReminders(...args),
 }));
 
 vi.mock("@/lib/dizlee/notifications/intimations", () => ({
@@ -43,22 +31,26 @@ vi.mock("@/lib/prisma", () => ({
 
 import { runAutomaticSubmissionReminders } from "@/lib/admin/automatic-submission-reminders";
 
-const baseSchedules = [
-  {
-    eventCode: "REPORT" as const,
-    enabled: true,
-    dueDayOfMonth: 10,
-    intimations: [{ id: "i1", offsetDays: 3 }],
-    reminders: [{ id: "r1", offsetDays: 1 }],
-  },
-  {
-    eventCode: "INVOICE" as const,
-    enabled: true,
-    dueDayOfMonth: 15,
-    intimations: [],
-    reminders: [],
-  },
-];
+const baseSchedule = {
+  enabled: true,
+  dueDayOfMonth: 10,
+  intimations: [
+    {
+      id: "i1",
+      dayOfMonth: 7,
+      templateCode: "REPORT_SUBMISSION",
+      audience: "both" as const,
+    },
+  ],
+  reminders: [
+    {
+      id: "r1",
+      dayOfMonth: 11,
+      templateCode: "REPORT_REMINDER",
+      audience: "opco" as const,
+    },
+  ],
+};
 
 describe("runAutomaticSubmissionReminders", () => {
   beforeEach(() => {
@@ -78,7 +70,7 @@ describe("runAutomaticSubmissionReminders", () => {
       remindersEnabled: false,
       reminderValue: 3,
       reminderUnit: "days",
-      schedules: baseSchedules,
+      schedule: baseSchedule,
     });
 
     const result = await runAutomaticSubmissionReminders({
@@ -98,7 +90,7 @@ describe("runAutomaticSubmissionReminders", () => {
       remindersEnabled: true,
       reminderValue: 3,
       reminderUnit: "days",
-      schedules: baseSchedules,
+      schedule: baseSchedule,
     });
 
     const result = await runAutomaticSubmissionReminders({
@@ -112,12 +104,12 @@ describe("runAutomaticSubmissionReminders", () => {
     });
   });
 
-  it("sends intimations when an intimation step is due", async () => {
+  it("sends intimations when an intimation day is due", async () => {
     mockedGetReminderSettings.mockResolvedValue({
       remindersEnabled: true,
       reminderValue: 3,
       reminderUnit: "days",
-      schedules: baseSchedules,
+      schedule: baseSchedule,
     });
 
     const result = await runAutomaticSubmissionReminders({
@@ -126,21 +118,22 @@ describe("runAutomaticSubmissionReminders", () => {
     });
 
     expect(result.status).toBe("sent");
-    expect(mockedSendBroadcastNotification).toHaveBeenCalled();
-    expect(mockedSendMissingReportReminders).not.toHaveBeenCalled();
+    expect(mockedSendBroadcastNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: expect.objectContaining({
+          audience: "both",
+          messageSource: "REPORT_SUBMISSION",
+        }),
+      }),
+    );
   });
 
-  it("sends missing-report reminders when a reminder step is due", async () => {
+  it("sends reminders to the step audience when due", async () => {
     mockedGetReminderSettings.mockResolvedValue({
       remindersEnabled: true,
       reminderValue: 3,
       reminderUnit: "days",
-      schedules: baseSchedules,
-    });
-    mockedSendMissingReportReminders.mockResolvedValue({
-      opcoNotifications: 2,
-      partnerNotifications: 1,
-      message: "Sent",
+      schedule: baseSchedule,
     });
 
     const result = await runAutomaticSubmissionReminders({
@@ -149,12 +142,14 @@ describe("runAutomaticSubmissionReminders", () => {
     });
 
     expect(result.status).toBe("sent");
-    expect(mockedSendMissingReportReminders).toHaveBeenCalledWith(
+    expect(mockedSendBroadcastNotification).toHaveBeenCalledWith(
       expect.objectContaining({
-        templateCode: "REPORT_REMINDER",
-        month: 7,
-        year: 2026,
+        input: expect.objectContaining({
+          audience: "opco",
+          messageSource: "REPORT_REMINDER",
+        }),
       }),
     );
+    expect(mockedFindPartners).not.toHaveBeenCalled();
   });
 });

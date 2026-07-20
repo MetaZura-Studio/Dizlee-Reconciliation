@@ -6,34 +6,38 @@ export const APP_SETTINGS_SEED = {
   remindersEnabled: true,
   reminderValue: 3,
   reminderUnit: "days",
-  notificationSchedulesJson: JSON.stringify([
-    {
-      eventCode: "REPORT",
-      enabled: true,
-      dueDayOfMonth: 10,
-      intimations: [
-        { id: "report-intimation-1", offsetDays: 3 },
-        { id: "report-intimation-2", offsetDays: 1 },
-      ],
-      reminders: [
-        { id: "report-reminder-1", offsetDays: 1 },
-        { id: "report-reminder-2", offsetDays: 3 },
-      ],
-    },
-    {
-      eventCode: "INVOICE",
-      enabled: true,
-      dueDayOfMonth: 15,
-      intimations: [
-        { id: "invoice-intimation-1", offsetDays: 3 },
-        { id: "invoice-intimation-2", offsetDays: 1 },
-      ],
-      reminders: [
-        { id: "invoice-reminder-1", offsetDays: 1 },
-        { id: "invoice-reminder-2", offsetDays: 3 },
-      ],
-    },
-  ]),
+  notificationSchedulesJson: JSON.stringify({
+    enabled: true,
+    dueDayOfMonth: 10,
+    intimations: [
+      {
+        id: "intimation-1",
+        dayOfMonth: 7,
+        templateCode: "REPORT_SUBMISSION",
+        audience: "both",
+      },
+      {
+        id: "intimation-2",
+        dayOfMonth: 9,
+        templateCode: "REPORT_SUBMISSION",
+        audience: "both",
+      },
+    ],
+    reminders: [
+      {
+        id: "reminder-1",
+        dayOfMonth: 11,
+        templateCode: "REPORT_REMINDER",
+        audience: "both",
+      },
+      {
+        id: "reminder-2",
+        dayOfMonth: 13,
+        templateCode: "REPORT_REMINDER",
+        audience: "both",
+      },
+    ],
+  }),
   reconciliationNegligiblePercent: "2.50",
   opcoInvoiceBankDetailsJson: JSON.stringify({
     accounts: [

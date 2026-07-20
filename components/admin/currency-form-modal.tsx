@@ -3,6 +3,8 @@
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { FieldLabel } from "@/components/ui/field";
+import { ModalCloseButton } from "@/components/ui/modal-close-button";
 import { PortalOverlay } from "@/components/ui/portal-overlay";
 import type { CurrencyListItem } from "@/lib/admin/currencies.shared";
 import { ui } from "@/lib/ui/classes";
@@ -122,17 +124,20 @@ function CurrencyFormModalContent({
         className={ui.modal}
       >
         <form onSubmit={(event) => void submit(event)}>
-          <h2 id="currency-form-title" className="text-lg font-semibold tracking-tight text-foreground">
-            {mode === "create" ? "Add currency" : "Edit currency"}
-          </h2>
+          <div className="flex items-start justify-between gap-4">
+            <h2 id="currency-form-title" className="text-lg font-semibold tracking-tight text-foreground">
+              {mode === "create" ? "Add currency" : "Edit currency"}
+            </h2>
+            <ModalCloseButton onClick={onClose} disabled={submitting} />
+          </div>
 
           <div className="mt-4 space-y-4">
             {error ? <p className={ui.alertError}>{error}</p> : null}
 
             <div className="space-y-1">
-              <label htmlFor="isoCode" className={ui.label}>
+              <FieldLabel htmlFor="isoCode" required>
                 ISO code
-              </label>
+              </FieldLabel>
               <input
                 id="isoCode"
                 value={values.isoCode}
@@ -149,9 +154,7 @@ function CurrencyFormModalContent({
             </div>
 
             <div className="space-y-1">
-              <label htmlFor="symbol" className={ui.label}>
-                Symbol
-              </label>
+              <FieldLabel htmlFor="symbol">Symbol</FieldLabel>
               <input
                 id="symbol"
                 value={values.symbol}
@@ -163,9 +166,9 @@ function CurrencyFormModalContent({
             </div>
 
             <div className="space-y-1">
-              <label htmlFor="decimalPrecision" className={ui.label}>
+              <FieldLabel htmlFor="decimalPrecision" required>
                 Decimal precision
-              </label>
+              </FieldLabel>
               <input
                 id="decimalPrecision"
                 type="number"

@@ -5,12 +5,15 @@ import {
   findBankAccountById,
   getInvoiceBankAccounts,
   parseInvoiceBankDetailsJson,
+  parseInvoiceSignatoriesJson,
   serializeInvoiceBankDetailsSnapshot,
   type InvoiceBankAccount,
   type InvoiceBankDetails,
 } from "@/lib/dizlee/invoice-bank-details";
 import { getLookupId } from "@/lib/dizlee/lookups";
 import { prisma } from "@/lib/prisma";
+import { isFuturePeriod } from "@/lib/platform/period";
+import { notifyOpcoUsers } from "@/lib/platform/notify-opco";
 
 export type InvoiceSortField = "uploaded" | "period" | "opco" | "partner";
 export type SortDirection = "asc" | "desc";
@@ -78,6 +81,8 @@ export type InvoiceDetail = {
   previewUrl: string | null;
   isDigital: boolean;
   bankDetails: InvoiceBankDetails | null;
+  preparedBy: string | null;
+  approvedBy: string | null;
   canMarkPayment: boolean;
   lineItems: InvoiceLineItemView[];
 };
@@ -94,6 +99,8 @@ export type CreateOpcoInvoiceInput = {
   opcoId: string;
   currencyId?: string;
   bankAccountId?: string;
+  preparedBy?: string;
+  approvedBy?: string;
   lineItems: CreateOpcoInvoiceLineInput[];
 };
 
@@ -147,11 +154,91 @@ function directionLabel(typeCode: string): string {
   }
 }
 
+function formatStatusLabel(code: string): string {
+  return code.replaceAll("_", " ");
+}
+
+/** Prefer Paid when payment is collected, even if invoice status was left on Acknowledged. */
+export function effectiveInvoiceStatusCode(
+  invoiceStatusCode: string,
+  paymentStatusCode: string | null | undefined,
+): string {
+  if (paymentStatusCode === "PAID") {
+    return "PAID";
+  }
+  if (invoiceStatusCode === "SETTLED") {
+    return "PAID";
+  }
+  return invoiceStatusCode;
+}
+
 function toNumber(value: unknown): number {
   if (value === null || value === undefined) {
     return 0;
   }
   return Number(value as never);
+}
+
+async function ensureInvoiceStatusPaidLookupId(): Promise<number> {
+  const existing = await prisma.lookup.findFirst({
+    where: {
+      code: "PAID",
+      lookupType: { code: "INVOICE_STATUS" },
+    },
+    select: { id: true },
+  });
+  if (existing) {
+    return existing.id;
+  }
+
+  const lookupType = await prisma.lookupType.findFirst({
+    where: { code: "INVOICE_STATUS" },
+    select: { id: true },
+  });
+  if (!lookupType) {
+    throw new InvoiceActionError("Invoice status lookups are not configured.", 500);
+  }
+
+  const created = await prisma.lookup.create({
+    data: {
+      lookupTypeId: lookupType.id,
+      code: "PAID",
+      label: "Paid",
+      sortOrder: 3,
+    },
+    select: { id: true },
+  });
+  return created.id;
+}
+
+/** Align invoice_status to PAID when payment is already PAID (legacy rows). */
+export async function syncInvoiceStatusWhenPaid(invoiceId: bigint): Promise<void> {
+  const invoice = await prisma.invoice.findFirst({
+    where: { id: invoiceId },
+    select: {
+      id: true,
+      invoiceStatus: { select: { code: true } },
+      paymentStatus: { select: { code: true } },
+    },
+  });
+  if (!invoice) {
+    return;
+  }
+  if (invoice.paymentStatus?.code !== "PAID") {
+    return;
+  }
+  if (
+    invoice.invoiceStatus.code === "PAID" ||
+    invoice.invoiceStatus.code === "SETTLED"
+  ) {
+    return;
+  }
+
+  const paidInvoiceStatusId = await ensureInvoiceStatusPaidLookupId();
+  await prisma.invoice.update({
+    where: { id: invoice.id },
+    data: { invoiceStatusId: paidInvoiceStatusId },
+  });
 }
 
 function buildOrderBy(
@@ -271,6 +358,9 @@ function validateCreateInput(input: CreateOpcoInvoiceInput): CreateOpcoInvoiceLi
   if (!Number.isInteger(input.year) || input.year < 2000 || input.year > 2100) {
     throw new InvoiceActionError("Invalid invoice period year.");
   }
+  if (isFuturePeriod(input.year, input.month)) {
+    throw new InvoiceActionError("Invoice period cannot be in the future.");
+  }
   if (!input.opcoId) {
     throw new InvoiceActionError("OpCo is required.");
   }
@@ -354,9 +444,16 @@ export async function createOpcoInvoice(
   if (bankAccounts.length > 1 && !selectedBank) {
     throw new InvoiceActionError("Select a bank account for this invoice.");
   }
+  const preparedBy = input.preparedBy?.trim() || null;
+  const approvedBy = input.approvedBy?.trim() || null;
   const bankDetailsJson = selectedBank
-    ? serializeInvoiceBankDetailsSnapshot(selectedBank)
-    : null;
+    ? serializeInvoiceBankDetailsSnapshot(selectedBank, {
+        preparedBy,
+        approvedBy,
+      })
+    : preparedBy || approvedBy
+      ? JSON.stringify({ preparedBy, approvedBy })
+      : null;
 
   const now = new Date();
   const invoiceNumber = buildInvoiceNumber(opcoId, input.month, input.year);
@@ -406,6 +503,21 @@ export async function createOpcoInvoice(
   if (!detail) {
     throw new InvoiceActionError("Failed to load created invoice.", 500);
   }
+
+  await notifyOpcoUsers({
+    opcoId,
+    fromUserId: actorId,
+    subject: "Invoice received from Dizlee",
+    body: `Dizlee sent invoice ${detail.invoiceNumber ?? `#${detail.id}`} for ${detail.period.label}. Total ${new Intl.NumberFormat(
+      "en-US",
+      {
+        style: "currency",
+        currency: detail.currencyCode,
+        maximumFractionDigits: 2,
+      },
+    ).format(detail.totalAmount)}.`,
+  });
+
   return detail;
 }
 
@@ -417,6 +529,7 @@ export async function markInvoicePaymentDone(
     where: { id: BigInt(invoiceId) },
     include: {
       invoiceType: { select: { code: true } },
+      invoiceStatus: { select: { code: true } },
       paymentStatus: { select: { code: true } },
     },
   });
@@ -431,21 +544,27 @@ export async function markInvoicePaymentDone(
     throw new InvoiceActionError("Invoice is already marked as paid.");
   }
 
-  const [paidStatusId, actionId] = await Promise.all([
-    getLookupId("PAYMENT_STATUS", "PAID"),
-    getLookupId("AUDIT_ACTION", "INVOICE_PAYMENT_RECORDED"),
-  ]);
+  const [paidPaymentStatusId, paidInvoiceStatusId, paymentActionId, statusActionId] =
+    await Promise.all([
+      getLookupId("PAYMENT_STATUS", "PAID"),
+      ensureInvoiceStatusPaidLookupId(),
+      getLookupId("AUDIT_ACTION", "INVOICE_PAYMENT_RECORDED"),
+      getLookupId("AUDIT_ACTION", "INVOICE_STATUS_UPDATED"),
+    ]);
 
   const now = new Date();
   const actorId = BigInt(actorUserId);
-  const previousStatus = invoice.paymentStatus?.code ?? "UNPAID";
+  const previousPaymentStatus = invoice.paymentStatus?.code ?? "UNPAID";
+  const previousInvoiceStatus = invoice.invoiceStatus.code;
 
-  await prisma.$transaction([
+  const ops = [
     prisma.invoice.update({
       where: { id: invoice.id },
       data: {
-        paymentStatusId: paidStatusId,
+        paymentStatusId: paidPaymentStatusId,
+        invoiceStatusId: paidInvoiceStatusId,
         paidAt: now,
+        settledAt: now,
         updatedByUserId: actorId,
       },
     }),
@@ -453,13 +572,30 @@ export async function markInvoicePaymentDone(
       data: {
         invoiceId: invoice.id,
         actorUserId: actorId,
-        actionId,
+        actionId: paymentActionId,
         statusField: "payment_status",
-        previousStatus,
+        previousStatus: previousPaymentStatus,
         newStatus: "PAID",
       },
     }),
-  ]);
+  ];
+
+  if (previousInvoiceStatus !== "PAID" && previousInvoiceStatus !== "SETTLED") {
+    ops.push(
+      prisma.invoiceActivityLog.create({
+        data: {
+          invoiceId: invoice.id,
+          actorUserId: actorId,
+          actionId: statusActionId,
+          statusField: "invoice_status",
+          previousStatus: previousInvoiceStatus,
+          newStatus: "PAID",
+        },
+      }),
+    );
+  }
+
+  await prisma.$transaction(ops);
 
   const detail = await getInvoiceDetail(invoiceId);
   if (!detail) {
@@ -540,7 +676,12 @@ export async function listInvoices(
       opcoName: row.opco.name,
       partnerName: row.partner?.name ?? null,
       direction: directionLabel(row.invoiceType.code),
-      invoiceStatus: row.invoiceStatus.code.replaceAll("_", " "),
+      invoiceStatus: formatStatusLabel(
+        effectiveInvoiceStatusCode(
+          row.invoiceStatus.code,
+          row.paymentStatus?.code,
+        ),
+      ),
       paymentStatus: row.paymentStatus?.code.replaceAll("_", " ") ?? "—",
       uploadedAt: row.createdAt.toISOString(),
       totalAmount: row.items.reduce((sum, item) => sum + toNumber(item.lineTotal), 0),
@@ -694,6 +835,9 @@ function mapInvoiceDetail(
   const isDigital = invoice.invoiceType.code === "CLIENT_TO_OPCO";
   const hasFile = Boolean(invoice.file);
   const paymentCode = invoice.paymentStatus?.code ?? null;
+  const signatories = isDigital
+    ? parseInvoiceSignatoriesJson(invoice.bankDetailsJson)
+    : { preparedBy: null, approvedBy: null };
 
   return {
     id: invoice.id.toString(),
@@ -703,7 +847,9 @@ function mapInvoiceDetail(
     partnerName: invoice.partner?.name ?? null,
     direction: directionLabel(invoice.invoiceType.code),
     invoiceTypeCode: invoice.invoiceType.code,
-    invoiceStatus: invoice.invoiceStatus.code.replaceAll("_", " "),
+    invoiceStatus: formatStatusLabel(
+      effectiveInvoiceStatusCode(invoice.invoiceStatus.code, paymentCode),
+    ),
     paymentStatus: paymentCode?.replaceAll("_", " ") ?? "—",
     uploadedAt: invoice.createdAt.toISOString(),
     acknowledgedAt: invoice.acknowledgedAt?.toISOString() ?? null,
@@ -717,6 +863,8 @@ function mapInvoiceDetail(
       : null,
     isDigital,
     bankDetails: isDigital ? bankDetails : null,
+    preparedBy: signatories.preparedBy,
+    approvedBy: signatories.approvedBy,
     canMarkPayment:
       invoice.invoiceType.code === "CLIENT_TO_OPCO" && paymentCode !== "PAID",
     lineItems: invoice.items.map((item) => ({

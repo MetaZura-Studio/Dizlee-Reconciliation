@@ -3,10 +3,15 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { FieldLabel } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
 import { StatusPill } from "@/components/ui/status-pill";
 import {
+  categoryLabel,
+  EMAIL_TEMPLATE_CATEGORIES,
   formatPlaceholderTokens,
+  suggestTemplateCodeFromName,
+  type EmailTemplateCategory,
   type EmailTemplateDetail,
   type EmailTemplateListItem,
   type EmailTemplateVersionItem,
@@ -15,7 +20,7 @@ import {
 import { cn, ui } from "@/lib/ui/classes";
 
 type WorkTab = "edit" | "preview" | "versions";
-type TemplateCategory = "all" | "Reports" | "Invoices" | "Other";
+type TemplateCategoryFilter = "all" | EmailTemplateCategory;
 
 type EditorFormState = {
   subject: string;
@@ -23,22 +28,33 @@ type EditorFormState = {
   changeNote: string;
 };
 
-const SAMPLE_PLACEHOLDERS: Record<string, string> = {
-  period: "July 2026",
+type CreateFormState = {
+  name: string;
+  code: string;
+  category: EmailTemplateCategory;
+  subject: string;
+  body: string;
 };
 
-const TEMPLATE_CATEGORIES: Array<{ value: TemplateCategory; label: string }> = [
+const SAMPLE_PLACEHOLDERS: Record<string, string> = {
+  period: "July 2026",
+  name: "Jane",
+  link: "https://example.com/set-password?token=…",
+  expiryHours: "24",
+};
+
+const TEMPLATE_CATEGORY_FILTERS: Array<{
+  value: TemplateCategoryFilter;
+  label: string;
+}> = [
   { value: "all", label: "All categories" },
-  { value: "Reports", label: "Reports" },
-  { value: "Invoices", label: "Invoices" },
-  { value: "Other", label: "Other" },
+  ...EMAIL_TEMPLATE_CATEGORIES.map((value) => ({
+    value,
+    label: categoryLabel(value),
+  })),
 ];
 
-const TEMPLATE_GROUP_ORDER: Array<Exclude<TemplateCategory, "all">> = [
-  "Reports",
-  "Invoices",
-  "Other",
-];
+const TEMPLATE_GROUP_ORDER = EMAIL_TEMPLATE_CATEGORIES;
 
 function formatDateTime(value: string): string {
   return new Date(value).toLocaleString("en-US", {
@@ -64,14 +80,14 @@ function applySamplePlaceholders(text: string, placeholders: string[]): string {
   });
 }
 
-function groupLabelForCode(code: string): Exclude<TemplateCategory, "all"> {
-  if (code.startsWith("REPORT_")) {
-    return "Reports";
-  }
-  if (code.startsWith("INVOICE_")) {
-    return "Invoices";
-  }
-  return "Other";
+function defaultCreateForm(): CreateFormState {
+  return {
+    name: "",
+    code: "",
+    category: "INTIMATION",
+    subject: "",
+    body: "",
+  };
 }
 
 type EmailTemplatesViewProps = {
@@ -93,9 +109,13 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
   );
   const [tab, setTab] = useState<WorkTab>("edit");
   const [templateSearch, setTemplateSearch] = useState("");
-  const [templateCategory, setTemplateCategory] = useState<TemplateCategory>("all");
+  const [templateCategory, setTemplateCategory] =
+    useState<TemplateCategoryFilter>("all");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createForm, setCreateForm] = useState<CreateFormState>(defaultCreateForm);
   const [revertingVersion, setRevertingVersion] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -121,7 +141,7 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
     return templates.filter((template) => {
       if (
         templateCategory !== "all" &&
-        groupLabelForCode(template.code) !== templateCategory
+        template.category !== templateCategory
       ) {
         return false;
       }
@@ -130,7 +150,8 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
       }
       return (
         template.name.toLowerCase().includes(query) ||
-        template.subject.toLowerCase().includes(query)
+        template.subject.toLowerCase().includes(query) ||
+        template.code.toLowerCase().includes(query)
       );
     });
   }, [templates, templateSearch, templateCategory]);
@@ -139,18 +160,18 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
     if (templateCategory !== "all") {
       return filteredTemplates.length > 0
         ? ([[templateCategory, filteredTemplates]] as Array<
-            [Exclude<TemplateCategory, "all">, EmailTemplateListItem[]]
+            [EmailTemplateCategory, EmailTemplateListItem[]]
           >)
         : [];
     }
 
     return TEMPLATE_GROUP_ORDER.flatMap((label) => {
       const items = filteredTemplates.filter(
-        (template) => groupLabelForCode(template.code) === label,
+        (template) => template.category === label,
       );
       return items.length > 0
         ? ([[label, items]] as Array<
-            [Exclude<TemplateCategory, "all">, EmailTemplateListItem[]]
+            [EmailTemplateCategory, EmailTemplateListItem[]]
           >)
         : [];
     });
@@ -160,17 +181,32 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
     setDetail(next);
     setForm(toFormState(next));
     setSelectedCode(next.code);
-    setTemplates((current) =>
-      current.map((item) =>
+    setTemplates((current) => {
+      const exists = current.some((item) => item.code === next.code);
+      if (!exists) {
+        return [
+          ...current,
+          {
+            code: next.code,
+            name: next.name,
+            category: next.category,
+            subject: next.subject,
+            currentVersion: next.currentVersion,
+          },
+        ].sort((a, b) => a.name.localeCompare(b.name));
+      }
+      return current.map((item) =>
         item.code === next.code
           ? {
               ...item,
+              name: next.name,
+              category: next.category,
               subject: next.subject,
               currentVersion: next.currentVersion,
             }
           : item,
-      ),
-    );
+      );
+    });
   }, []);
 
   const loadTemplate = async (code: string) => {
@@ -213,6 +249,55 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
     }
     setSelectedCode(code);
     void loadTemplate(code);
+  };
+
+  const openCreateModal = () => {
+    setCreateForm(defaultCreateForm());
+    setCreateOpen(true);
+    setError(null);
+  };
+
+  const createTemplate = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setError(null);
+    setSuccess(null);
+    setCreating(true);
+
+    const code =
+      createForm.code.trim() || suggestTemplateCodeFromName(createForm.name);
+
+    try {
+      const response = await fetch("/api/admin/email-templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: createForm.name,
+          code,
+          category: createForm.category,
+          subject: createForm.subject,
+          body: createForm.body,
+        }),
+      });
+      const body = await response.json();
+      if (!response.ok) {
+        throw new Error(body.error ?? "Failed to create email template");
+      }
+
+      const created = body.data as EmailTemplateDetail;
+      applyDetail(created);
+      setCreateOpen(false);
+      setCreateForm(defaultCreateForm());
+      setTab("edit");
+      setSuccess(`Created ${created.name}.`);
+    } catch (createError) {
+      setError(
+        createError instanceof Error
+          ? createError.message
+          : "Failed to create email template",
+      );
+    } finally {
+      setCreating(false);
+    }
   };
 
   const insertPlaceholder = (token: string) => {
@@ -318,7 +403,7 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
 
       applyDetail(body.data as EmailTemplateDetail);
       setTab("edit");
-      setSuccess(`Restored version ${version} as the new live version.`);
+      setSuccess(`Restored version ${version} as the live version.`);
     } catch (revertError) {
       setError(
         revertError instanceof Error
@@ -330,11 +415,29 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
     }
   };
 
-  if (!detail || templates.length === 0) {
-    return <p className={ui.alertWarning}>No email templates are available.</p>;
+  if (!detail) {
+    return (
+      <div className="space-y-4">
+        {error ? <p className={ui.alertError}>{error}</p> : null}
+        <p className={ui.alertWarning}>
+          No email templates are available yet. Create one to get started.
+        </p>
+        <Button type="button" onClick={openCreateModal}>
+          Create template
+        </Button>
+        <CreateTemplateModal
+          open={createOpen}
+          creating={creating}
+          form={createForm}
+          onClose={() => setCreateOpen(false)}
+          onSubmit={(event) => void createTemplate(event)}
+          onChange={setCreateForm}
+        />
+      </div>
+    );
   }
 
-  const busy = loading || saving || revertingVersion !== null;
+  const busy = loading || saving || creating || revertingVersion !== null;
   const previewSubject = applySamplePlaceholders(form.subject, detail.placeholders);
   const previewBody = applySamplePlaceholders(form.body, detail.placeholders);
 
@@ -346,10 +449,23 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
       <div className="grid min-h-[32rem] gap-4 lg:grid-cols-[18rem_minmax(0,1fr)] xl:grid-cols-[20rem_minmax(0,1fr)]">
         <aside className={cn(ui.card, "flex min-h-0 flex-col overflow-hidden")}>
           <div className="border-b border-border p-4">
-            <p className="text-sm font-semibold text-foreground">Templates</p>
-            <p className="mt-0.5 text-xs text-foreground-subtle">
-              Select a template to edit or restore
-            </p>
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="text-sm font-semibold text-foreground">Templates</p>
+                <p className="mt-0.5 text-xs text-foreground-subtle">
+                  Select a template to edit or restore
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="secondary"
+                className="shrink-0"
+                onClick={openCreateModal}
+                disabled={busy}
+              >
+                Create
+              </Button>
+            </div>
             <div className="mt-3 space-y-2">
               <input
                 type="search"
@@ -362,13 +478,15 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
               <select
                 value={templateCategory}
                 onChange={(event) =>
-                  setTemplateCategory(event.target.value as TemplateCategory)
+                  setTemplateCategory(
+                    event.target.value as TemplateCategoryFilter,
+                  )
                 }
                 className={ui.select}
                 disabled={busy}
                 aria-label="Filter by category"
               >
-                {TEMPLATE_CATEGORIES.map((category) => (
+                {TEMPLATE_CATEGORY_FILTERS.map((category) => (
                   <option key={category.value} value={category.value}>
                     {category.label}
                   </option>
@@ -387,7 +505,7 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
                 <div key={group} className="space-y-1">
                   {templateCategory === "all" ? (
                     <p className="px-2 text-[11px] font-semibold tracking-wider text-foreground-subtle uppercase">
-                      {group}
+                      {categoryLabel(group)}
                     </p>
                   ) : null}
                   {items.map((template) => {
@@ -439,7 +557,7 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
                 ) : null}
               </div>
               <p className="text-xs text-foreground-subtle">
-                {groupLabelForCode(detail.code)} template
+                {categoryLabel(detail.category)}
               </p>
             </div>
 
@@ -506,9 +624,9 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
                 </div>
 
                 <div className="space-y-1">
-                  <label htmlFor="templateSubject" className={ui.label}>
+                  <FieldLabel htmlFor="templateSubject" required>
                     Subject
-                  </label>
+                  </FieldLabel>
                   <input
                     id="templateSubject"
                     ref={subjectRef}
@@ -529,9 +647,9 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
                 </div>
 
                 <div className="space-y-1">
-                  <label htmlFor="templateBody" className={ui.label}>
+                  <FieldLabel htmlFor="templateBody" required>
                     Body
-                  </label>
+                  </FieldLabel>
                   <textarea
                     id="templateBody"
                     ref={bodyRef}
@@ -554,7 +672,7 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
 
                 <div className="space-y-1">
                   <label htmlFor="changeNote" className={ui.label}>
-                    Change note
+                    Change note (optional)
                   </label>
                   <input
                     id="changeNote"
@@ -626,8 +744,8 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
             {!loading && tab === "versions" ? (
               <div className="space-y-4">
                 <p className="text-sm text-foreground-muted">
-                  Each save creates a new version. Restoring copies an older
-                  version forward as the new live version — history is kept.
+                  Each save creates a new version. Restoring falls back to an
+                  older version and removes newer versions from history.
                 </p>
                 <ul className="space-y-3">
                   {detail.versions.map((version) => {
@@ -756,9 +874,9 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
         {confirmRevertVersion !== null ? (
           <div className="space-y-4">
             <p className="text-sm text-foreground-muted">
-              Restore <strong>v{confirmRevertVersion}</strong> as a new live
-              version (v{detail.currentVersion + 1}). Previous versions stay in
-              history.
+              Fall back to <strong>v{confirmRevertVersion}</strong> as the live
+              version. Any newer versions (after v{confirmRevertVersion}) will
+              be removed from history.
             </p>
             <div className="flex flex-wrap justify-end gap-2">
               <Button
@@ -782,6 +900,133 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
           </div>
         ) : null}
       </Modal>
+
+      <CreateTemplateModal
+        open={createOpen}
+        creating={creating}
+        form={createForm}
+        onClose={() => setCreateOpen(false)}
+        onSubmit={(event) => void createTemplate(event)}
+        onChange={setCreateForm}
+      />
     </div>
+  );
+}
+
+function CreateTemplateModal({
+  open,
+  creating,
+  form,
+  onClose,
+  onSubmit,
+  onChange,
+}: {
+  open: boolean;
+  creating: boolean;
+  form: CreateFormState;
+  onClose: () => void;
+  onSubmit: (event: React.FormEvent) => void;
+  onChange: (next: CreateFormState) => void;
+}) {
+  return (
+    <Modal open={open} title="Create template" onClose={onClose} className="max-w-xl">
+      <form onSubmit={onSubmit} className="space-y-4">
+        <div>
+          <FieldLabel htmlFor="create-template-name" required>
+            Name
+          </FieldLabel>
+          <input
+            id="create-template-name"
+            className={ui.input}
+            value={form.name}
+            onChange={(event) => {
+              const name = event.target.value;
+              onChange({
+                ...form,
+                name,
+                code: suggestTemplateCodeFromName(name),
+              });
+            }}
+            required
+            disabled={creating}
+          />
+        </div>
+
+        <div>
+          <FieldLabel htmlFor="create-template-category" required>
+            Category
+          </FieldLabel>
+          <select
+            id="create-template-category"
+            className={ui.select}
+            value={form.category}
+            onChange={(event) =>
+              onChange({
+                ...form,
+                category: event.target.value as EmailTemplateCategory,
+              })
+            }
+            disabled={creating}
+          >
+            {EMAIL_TEMPLATE_CATEGORIES.map((category) => (
+              <option key={category} value={category}>
+                {categoryLabel(category)}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <FieldLabel htmlFor="create-template-subject" required>
+            Subject
+          </FieldLabel>
+          <input
+            id="create-template-subject"
+            className={ui.input}
+            value={form.subject}
+            onChange={(event) =>
+              onChange({ ...form, subject: event.target.value })
+            }
+            required
+            disabled={creating}
+          />
+        </div>
+
+        <div>
+          <FieldLabel htmlFor="create-template-body" required>
+            Body
+          </FieldLabel>
+          <textarea
+            id="create-template-body"
+            className={cn(ui.input, "min-h-36 py-3")}
+            value={form.body}
+            onChange={(event) =>
+              onChange({ ...form, body: event.target.value })
+            }
+            required
+            disabled={creating}
+          />
+          <p className="mt-1 text-xs text-foreground-subtle">
+            Intimation/Reminder templates typically use {"{{period}}"}. Password
+            templates under Other use {"{{name}}"}, {"{{link}}"}, and{" "}
+            {"{{expiryHours}}"}.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={onClose}
+            disabled={creating}
+          >
+            Cancel
+          </Button>
+          <Button type="submit" disabled={creating}>
+            {creating ? "Creating…" : "Create template"}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }

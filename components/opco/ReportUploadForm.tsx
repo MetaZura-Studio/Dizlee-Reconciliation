@@ -3,10 +3,21 @@
 import Link from "next/link";
 import { useRef, useState } from "react";
 
-import { ReportUploadReviewModal } from "@/components/shared/report-upload-review-modal";
+import {
+  formatFileSizeLabel,
+  ReportUploadReviewModal,
+} from "@/components/shared/report-upload-review-modal";
+import { Button } from "@/components/ui/button";
+import { FieldLabel, Select } from "@/components/ui/field";
 import type { LinkedPartner } from "@/lib/opco/queries/partners";
 import { getDefaultPeriod } from "@/lib/opco/period";
-import type { ReportPreviewLineItem } from "@/lib/platform/report-preview";
+import { validateReportUploadFile } from "@/lib/opco/validation/report-upload";
+import { readRawExcelSheetPreview } from "@/lib/platform/excel/read-raw-sheet";
+import {
+  getMaxUploadMonthForYear,
+  getUploadYearOptions,
+} from "@/lib/platform/period";
+import { cn, ui } from "@/lib/ui/classes";
 
 type ReportUploadFormProps = {
   partners: LinkedPartner[];
@@ -19,8 +30,27 @@ type UploadSuccess = {
 
 type ReviewState = {
   filename: string;
-  lineItems: ReportPreviewLineItem[];
+  fileSizeLabel: string;
+  rawRows: string[][];
+  sheetName: string;
+  totalRows: number;
+  truncated: boolean;
 };
+
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
 
 export function ReportUploadForm({ partners }: ReportUploadFormProps) {
   const defaultPeriod = getDefaultPeriod();
@@ -31,55 +61,63 @@ export function ReportUploadForm({ partners }: ReportUploadFormProps) {
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<UploadSuccess | null>(null);
-  const [isParsing, setIsParsing] = useState(false);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const [review, setReview] = useState<ReviewState | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   const selectedPartnerName =
     partners.find((partner) => partner.id === partnerId)?.name ?? "Partner";
 
-  async function parseSelectedFile(selectedFile: File) {
+  const yearOptions = getUploadYearOptions();
+  const maxMonth = getMaxUploadMonthForYear(year);
+  const monthOptions = MONTHS.slice(0, maxMonth);
+
+  function handleYearChange(nextYear: number) {
+    setYear(nextYear);
+    const capped = getMaxUploadMonthForYear(nextYear);
+    if (month > capped) {
+      setMonth(capped);
+    }
+  }
+
+  async function openRawPreview(selectedFile: File) {
     setError(null);
     setSuccess(null);
     setReview(null);
-    setFile(selectedFile);
-    setIsParsing(true);
 
-    const formData = new FormData();
-    formData.append("file", selectedFile);
+    const validationError = validateReportUploadFile(selectedFile);
+    if (validationError) {
+      setError(validationError);
+      setFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+      return;
+    }
+
+    setFile(selectedFile);
+    setIsLoadingPreview(true);
 
     try {
-      const response = await fetch("/api/opco/reports/parse-preview", {
-        method: "POST",
-        body: formData,
-      });
-      const payload = (await response.json()) as {
-        error?: string;
-        filename?: string;
-        lineItems?: ReportPreviewLineItem[];
-      };
-
-      if (!response.ok) {
-        setError(payload.error ?? "Failed to parse report");
-        setFile(null);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = "";
-        }
-        return;
-      }
-
+      const buffer = await selectedFile.arrayBuffer();
+      const preview = await readRawExcelSheetPreview(buffer);
       setReview({
-        filename: payload.filename ?? selectedFile.name,
-        lineItems: payload.lineItems ?? [],
+        filename: selectedFile.name,
+        fileSizeLabel: formatFileSizeLabel(selectedFile.size),
+        rawRows: preview.rows,
+        sheetName: preview.sheetName,
+        totalRows: preview.totalRows,
+        truncated: preview.truncated,
       });
     } catch {
-      setError("Failed to parse report");
+      setError("Could not read this Excel file. Please choose a valid .xlsx file.");
       setFile(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
     } finally {
-      setIsParsing(false);
+      setIsLoadingPreview(false);
     }
   }
 
@@ -90,10 +128,14 @@ export function ReportUploadForm({ partners }: ReportUploadFormProps) {
       setReview(null);
       return;
     }
-    void parseSelectedFile(selectedFile);
+    void openRawPreview(selectedFile);
   }
 
-  function handleReupload() {
+  function handleChooseFile() {
+    fileInputRef.current?.click();
+  }
+
+  function handleChooseDifferentFile() {
     setReview(null);
     setFile(null);
     if (fileInputRef.current) {
@@ -102,8 +144,20 @@ export function ReportUploadForm({ partners }: ReportUploadFormProps) {
     }
   }
 
+  function handleDrop(event: React.DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    setIsDragging(false);
+    if (isLoadingPreview || isConfirming) {
+      return;
+    }
+    const selectedFile = event.dataTransfer.files?.[0] ?? null;
+    if (selectedFile) {
+      void openRawPreview(selectedFile);
+    }
+  }
+
   async function handleConfirmUpload() {
-    if (!file || !review) {
+    if (!file) {
       return;
     }
 
@@ -130,13 +184,12 @@ export function ReportUploadForm({ partners }: ReportUploadFormProps) {
 
       if (!response.ok) {
         setError(payload.error ?? "Failed to upload report");
-        setReview(null);
         return;
       }
 
       setSuccess({
         reportId: payload.reportId ?? "",
-        lineItemCount: payload.lineItemCount ?? review.lineItems.length,
+        lineItemCount: payload.lineItemCount ?? 0,
       });
       setReview(null);
       setFile(null);
@@ -145,7 +198,6 @@ export function ReportUploadForm({ partners }: ReportUploadFormProps) {
       }
     } catch {
       setError("Failed to upload report");
-      setReview(null);
     } finally {
       setIsConfirming(false);
     }
@@ -153,7 +205,7 @@ export function ReportUploadForm({ partners }: ReportUploadFormProps) {
 
   if (partners.length === 0) {
     return (
-      <div className="rounded-lg border border-warning-border bg-warning-muted p-4 text-sm text-warning">
+      <div className={ui.alertWarning}>
         No partners are linked to your OpCo yet. Ask an admin to configure
         OpCo–Partner links before uploading reports.
       </div>
@@ -162,18 +214,15 @@ export function ReportUploadForm({ partners }: ReportUploadFormProps) {
 
   return (
     <>
-      <div className="max-w-2xl space-y-6">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="sm:col-span-2">
-            <label htmlFor="partnerId" className="text-sm font-medium text-foreground-muted">
-              Partner
-            </label>
-            <select
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,28rem)_minmax(0,18rem)] lg:items-start">
+        <div className="space-y-5">
+          <div>
+            <FieldLabel htmlFor="partnerId" required>Partner</FieldLabel>
+            <Select
               id="partnerId"
               name="partnerId"
               value={partnerId}
               onChange={(event) => setPartnerId(event.target.value)}
-              className="mt-1 block w-full rounded border border-border-strong px-3 py-2 text-sm"
               required
             >
               {partners.map((partner) => (
@@ -181,47 +230,48 @@ export function ReportUploadForm({ partners }: ReportUploadFormProps) {
                   {partner.name}
                 </option>
               ))}
-            </select>
+            </Select>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <FieldLabel htmlFor="month" required>Month</FieldLabel>
+              <Select
+                id="month"
+                name="month"
+                value={month}
+                onChange={(event) => setMonth(Number(event.target.value))}
+                required
+              >
+                {monthOptions.map((label, index) => (
+                  <option key={label} value={index + 1}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <FieldLabel htmlFor="year" required>Year</FieldLabel>
+              <Select
+                id="year"
+                name="year"
+                value={year}
+                onChange={(event) =>
+                  handleYearChange(Number(event.target.value))
+                }
+                required
+              >
+                {yearOptions.map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
+              </Select>
+            </div>
           </div>
 
           <div>
-            <label htmlFor="year" className="text-sm font-medium text-foreground-muted">
-              Year
-            </label>
-            <input
-              id="year"
-              name="year"
-              type="number"
-              min={2000}
-              max={2100}
-              value={year}
-              onChange={(event) => setYear(Number(event.target.value))}
-              className="mt-1 block w-full rounded border border-border-strong px-3 py-2 text-sm"
-              required
-            />
-          </div>
-
-          <div>
-            <label htmlFor="month" className="text-sm font-medium text-foreground-muted">
-              Month
-            </label>
-            <input
-              id="month"
-              name="month"
-              type="number"
-              min={1}
-              max={12}
-              value={month}
-              onChange={(event) => setMonth(Number(event.target.value))}
-              className="mt-1 block w-full rounded border border-border-strong px-3 py-2 text-sm"
-              required
-            />
-          </div>
-
-          <div className="sm:col-span-2">
-            <label htmlFor="file" className="text-sm font-medium text-foreground-muted">
-              Excel report (.xlsx)
-            </label>
+            <FieldLabel required>Excel report (.xlsx)</FieldLabel>
             <input
               ref={fileInputRef}
               id="file"
@@ -229,48 +279,138 @@ export function ReportUploadForm({ partners }: ReportUploadFormProps) {
               type="file"
               accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
               onChange={handleFileChange}
-              disabled={isParsing || isConfirming}
-              className="mt-1 block w-full text-sm text-foreground-muted disabled:opacity-60"
+              disabled={isLoadingPreview || isConfirming}
+              className="sr-only"
             />
-            <p className="mt-2 text-xs text-foreground-subtle">
-              Selecting a file opens a preview automatically. Confirm to upload, or
-              reupload to choose a different file.
-            </p>
-            {isParsing ? (
-              <p className="mt-2 text-sm text-foreground-muted">Parsing report…</p>
-            ) : null}
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={handleChooseFile}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  handleChooseFile();
+                }
+              }}
+              onDragEnter={(event) => {
+                event.preventDefault();
+                setIsDragging(true);
+              }}
+              onDragOver={(event) => {
+                event.preventDefault();
+                setIsDragging(true);
+              }}
+              onDragLeave={(event) => {
+                event.preventDefault();
+                setIsDragging(false);
+              }}
+              onDrop={handleDrop}
+              className={cn(
+                "mt-1.5 flex min-h-[9.5rem] cursor-pointer flex-col items-center justify-center rounded-[22px] border border-dashed px-4 py-6 text-center transition-colors",
+                isDragging
+                  ? "border-primary bg-primary-muted/50"
+                  : "border-border-strong bg-surface-muted/40 hover:border-primary hover:bg-primary-muted/30",
+                (isLoadingPreview || isConfirming) && "pointer-events-none opacity-60",
+              )}
+            >
+              <p className="text-sm font-medium text-foreground">
+                {isLoadingPreview
+                  ? "Opening preview…"
+                  : file
+                    ? file.name
+                    : "Drop .xlsx here or browse"}
+              </p>
+              <p className="mt-1 text-xs text-foreground-subtle">
+                {file
+                  ? formatFileSizeLabel(file.size)
+                  : "Excel workbook only (.xlsx)"}
+              </p>
+              {!file ? (
+                <span className={`mt-4 ${ui.btnSecondary}`}>Choose file</span>
+              ) : (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="mt-4"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    handleChooseDifferentFile();
+                  }}
+                >
+                  Replace file
+                </Button>
+              )}
+            </div>
           </div>
+
+          {error ? <p className={ui.alertError}>{error}</p> : null}
+
+          {success ? (
+            <div className={ui.alertSuccess}>
+              <p>
+                Report uploaded successfully with {success.lineItemCount} line
+                items.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-3">
+                <Link href="/opco/reports" className={ui.btnSecondary}>
+                  View reports history
+                </Link>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    setSuccess(null);
+                    setError(null);
+                  }}
+                >
+                  Upload another
+                </Button>
+              </div>
+            </div>
+          ) : null}
         </div>
 
-        {error ? (
-          <p className="rounded border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-            {error}
+        <aside className="rounded-[22px] border border-border bg-surface-muted/50 p-4 sm:p-5">
+          <h2 className="text-sm font-semibold text-foreground">Before you upload</h2>
+          <ul className="mt-3 space-y-2.5 text-sm text-foreground-muted">
+            <li>Use the standard monthly Excel template (.xlsx).</li>
+            <li>
+              Choose the correct partner and period (
+              {MONTHS[month - 1]} {year}).
+            </li>
+            <li>You will preview the sheet before confirming upload.</li>
+            <li>
+              Uploading again for the same partner and period may create a new
+              version or require reupload approval.
+            </li>
+          </ul>
+          <p className="mt-4 text-xs text-foreground-subtle">
+            Need an older file?{" "}
+            <Link href="/opco/reports" className="underline hover:text-foreground">
+              Open reports history
+            </Link>
+            .
           </p>
-        ) : null}
-
-        {success ? (
-          <div className="rounded border border-success-border bg-success-muted px-3 py-2 text-sm text-success">
-            <p>
-              Report uploaded successfully with {success.lineItemCount} line items.
-            </p>
-            <p className="mt-1">
-              <Link href="/opco/reports" className="underline">
-                View reports history
-              </Link>
-            </p>
-          </div>
-        ) : null}
+        </aside>
       </div>
 
       {review ? (
         <ReportUploadReviewModal
           filename={review.filename}
-          subtitle={`${selectedPartnerName} — ${month}/${year}`}
-          lineItems={review.lineItems}
+          fileSizeLabel={review.fileSizeLabel}
+          subtitle={`${selectedPartnerName} — ${MONTHS[month - 1]} ${year}`}
+          rawRows={review.rawRows}
+          rawSheetName={review.sheetName}
+          rawTruncated={review.truncated}
+          rawTotalRows={review.totalRows}
           confirming={isConfirming}
-          onReupload={handleReupload}
+          onReupload={handleChooseDifferentFile}
           onConfirm={() => void handleConfirmUpload()}
-          onClose={() => setReview(null)}
+          onClose={() => {
+            if (!isConfirming) {
+              setReview(null);
+            }
+          }}
         />
       ) : null}
     </>

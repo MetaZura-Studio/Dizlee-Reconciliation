@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { DizleeOpcoInvoiceDocument } from "@/components/shared/dizlee-opco-invoice-document";
 import { Button } from "@/components/ui/button";
 import { FieldLabel, Input, Select } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
@@ -10,7 +11,12 @@ import type {
   CreateOpcoInvoiceInput,
   CreateOpcoInvoiceLineInput,
 } from "@/lib/dizlee/invoices";
+import type { InvoiceBankDetails } from "@/lib/dizlee/invoice-bank-details";
 import { ui } from "@/lib/ui/classes";
+import {
+  getMaxMonthForYear,
+  getPeriodYearOptions,
+} from "@/lib/platform/period";
 
 const MONTHS = [
   "January",
@@ -41,6 +47,24 @@ type CreateOpcoInvoiceModalProps = {
   onCreated: () => void;
 };
 
+type Step = "edit" | "preview";
+
+function toBankDetails(
+  account: CreateOpcoInvoiceFormOptions["bankAccounts"][number] | null | undefined,
+): InvoiceBankDetails | null {
+  if (!account) {
+    return null;
+  }
+  return {
+    bankName: account.bankName,
+    accountName: account.accountName,
+    accountNumber: account.accountNumber,
+    iban: account.iban,
+    swift: account.swift,
+    reference: account.reference,
+  };
+}
+
 export function CreateOpcoInvoiceModal({
   open,
   defaultMonth,
@@ -48,6 +72,7 @@ export function CreateOpcoInvoiceModal({
   onClose,
   onCreated,
 }: CreateOpcoInvoiceModalProps) {
+  const [step, setStep] = useState<Step>("edit");
   const [formOptions, setFormOptions] = useState<CreateOpcoInvoiceFormOptions | null>(
     null,
   );
@@ -60,6 +85,8 @@ export function CreateOpcoInvoiceModal({
   const [opcoId, setOpcoId] = useState("");
   const [currencyId, setCurrencyId] = useState("");
   const [bankAccountId, setBankAccountId] = useState("");
+  const [preparedBy, setPreparedBy] = useState("");
+  const [approvedBy, setApprovedBy] = useState("");
   const [lineItems, setLineItems] = useState<CreateOpcoInvoiceLineInput[]>([
     emptyLine(),
   ]);
@@ -68,6 +95,14 @@ export function CreateOpcoInvoiceModal({
     if (!open) {
       return;
     }
+    setStep("edit");
+    setError(null);
+    setMonth(defaultMonth);
+    setYear(defaultYear);
+    setPreparedBy("");
+    setApprovedBy("");
+    setLineItems([emptyLine()]);
+    setLoadingOptions(true);
     void fetch("/api/dizlee/invoices?form=create")
       .then(async (response) => {
         const payload = await response.json();
@@ -95,7 +130,7 @@ export function CreateOpcoInvoiceModal({
         );
       })
       .finally(() => setLoadingOptions(false));
-  }, [open]);
+  }, [open, defaultMonth, defaultYear]);
 
   const handleOpcoChange = (nextOpcoId: string) => {
     setOpcoId(nextOpcoId);
@@ -126,6 +161,57 @@ export function CreateOpcoInvoiceModal({
     );
   };
 
+  const selectedBank =
+    formOptions?.bankAccounts.find((account) => account.id === bankAccountId) ??
+    (formOptions?.bankAccounts.length === 1 ? formOptions.bankAccounts[0] : null);
+
+  const selectedOpco = formOptions?.opcos.find((row) => row.id === opcoId) ?? null;
+  const selectedCurrency =
+    formOptions?.currencies.find((row) => row.id === currencyId) ?? null;
+
+  const validateForPreview = (): string | null => {
+    if (!opcoId) {
+      return "Select an OpCo.";
+    }
+    if (!currencyId) {
+      return "Select a currency.";
+    }
+    if (formOptions && formOptions.bankAccounts.length > 1 && !bankAccountId) {
+      return "Select a bank account.";
+    }
+    if (!preparedBy.trim()) {
+      return "Prepared by is required.";
+    }
+    if (!approvedBy.trim()) {
+      return "Approved by is required.";
+    }
+    if (lineItems.length === 0) {
+      return "Add at least one line item.";
+    }
+    for (const [index, line] of lineItems.entries()) {
+      if (!line.description.trim()) {
+        return `Line ${index + 1}: description is required.`;
+      }
+      if (!Number.isFinite(line.quantity) || line.quantity <= 0) {
+        return `Line ${index + 1}: number must be greater than 0.`;
+      }
+      if (!Number.isFinite(line.unitPrice) || line.unitPrice < 0) {
+        return `Line ${index + 1}: amount must be 0 or greater.`;
+      }
+    }
+    return null;
+  };
+
+  const goToPreview = () => {
+    const validationError = validateForPreview();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+    setError(null);
+    setStep("preview");
+  };
+
   const submit = async () => {
     setSubmitting(true);
     setError(null);
@@ -136,6 +222,8 @@ export function CreateOpcoInvoiceModal({
         opcoId,
         currencyId: currencyId || undefined,
         bankAccountId: bankAccountId || undefined,
+        preparedBy: preparedBy.trim(),
+        approvedBy: approvedBy.trim(),
         lineItems,
       };
       const response = await fetch("/api/dizlee/invoices", {
@@ -164,40 +252,77 @@ export function CreateOpcoInvoiceModal({
     return null;
   }
 
-  const yearOptions = [];
-  for (let value = year + 1; value >= year - 4; value -= 1) {
-    yearOptions.push(value);
-  }
+  const yearOptions = getPeriodYearOptions();
+  const maxMonth = getMaxMonthForYear(year);
 
-  const selectedBankPreview =
-    formOptions?.bankAccounts.find((account) => account.id === bankAccountId) ??
-    null;
+  const isPreview = step === "preview";
 
   return (
     <Modal
       open={open}
-      title="Create invoice to OpCo"
+      title={isPreview ? "Preview invoice" : "Create invoice to OpCo"}
       onClose={onClose}
       wide
-      className="max-w-2xl"
+      className={isPreview ? "max-w-6xl p-8" : "max-w-2xl"}
     >
-      <p className="mb-4 text-sm text-foreground-muted">
-        Digital Dizlee → OpCo invoice for the selected period.
-      </p>
+      {!isPreview ? (
+        <p className="mb-4 text-sm text-foreground-muted">
+          Digital Dizlee → OpCo invoice for the selected period.
+        </p>
+      ) : null}
 
       {loadingOptions ? (
         <p className="text-sm text-foreground-subtle">Loading form…</p>
+      ) : isPreview ? (
+        <div className="space-y-4">
+          <DizleeOpcoInvoiceDocument
+            invoiceNumber="INV-DRAFT"
+            issuedAt={new Date().toISOString()}
+            billedPartyName={selectedOpco?.name ?? "—"}
+            currencyCode={selectedCurrency?.isoCode ?? "USD"}
+            lineItems={lineItems.map((line) => ({
+              description: line.description,
+              quantity: line.quantity,
+              unitPrice: line.unitPrice,
+              lineTotal: line.quantity * line.unitPrice,
+            }))}
+            bankDetails={toBankDetails(selectedBank)}
+            preparedBy={preparedBy}
+            approvedBy={approvedBy}
+          />
+          {error ? <p className={ui.alertError}>{error}</p> : null}
+          <div className="flex justify-end gap-3 print:hidden">
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={submitting}
+              onClick={() => {
+                setError(null);
+                setStep("edit");
+              }}
+            >
+              Back to edit
+            </Button>
+            <Button
+              type="button"
+              disabled={submitting || !opcoId}
+              onClick={() => void submit()}
+            >
+              {submitting ? "Sending…" : "Confirm & send"}
+            </Button>
+          </div>
+        </div>
       ) : (
         <div className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <FieldLabel htmlFor="create-invoice-month">Month</FieldLabel>
+              <FieldLabel htmlFor="create-invoice-month" required>Month</FieldLabel>
               <Select
                 id="create-invoice-month"
                 value={month}
                 onChange={(event) => setMonth(Number(event.target.value))}
               >
-                {MONTHS.map((name, index) => (
+                {MONTHS.slice(0, maxMonth).map((name, index) => (
                   <option key={name} value={index + 1}>
                     {name}
                   </option>
@@ -205,11 +330,16 @@ export function CreateOpcoInvoiceModal({
               </Select>
             </div>
             <div>
-              <FieldLabel htmlFor="create-invoice-year">Year</FieldLabel>
+              <FieldLabel htmlFor="create-invoice-year" required>Year</FieldLabel>
               <Select
                 id="create-invoice-year"
                 value={year}
-                onChange={(event) => setYear(Number(event.target.value))}
+                onChange={(event) => {
+                const nextYear = Number(event.target.value);
+                setYear(nextYear);
+                const capped = getMaxMonthForYear(nextYear);
+                if (month > capped) setMonth(capped);
+              }}
               >
                 {yearOptions.map((value) => (
                   <option key={value} value={value}>
@@ -219,7 +349,7 @@ export function CreateOpcoInvoiceModal({
               </Select>
             </div>
             <div className="sm:col-span-2">
-              <FieldLabel htmlFor="create-invoice-opco">OpCo</FieldLabel>
+              <FieldLabel htmlFor="create-invoice-opco" required>OpCo</FieldLabel>
               <Select
                 id="create-invoice-opco"
                 value={opcoId}
@@ -233,7 +363,7 @@ export function CreateOpcoInvoiceModal({
               </Select>
             </div>
             <div className="sm:col-span-2">
-              <FieldLabel htmlFor="create-invoice-currency">Currency</FieldLabel>
+              <FieldLabel htmlFor="create-invoice-currency" required>Currency</FieldLabel>
               <Select
                 id="create-invoice-currency"
                 value={currencyId}
@@ -292,7 +422,7 @@ export function CreateOpcoInvoiceModal({
           {formOptions && formOptions.bankAccounts.length > 1 ? (
             <div className="space-y-3">
               <div>
-                <FieldLabel htmlFor="create-invoice-bank">Bank account</FieldLabel>
+                <FieldLabel htmlFor="create-invoice-bank" required>Bank account</FieldLabel>
                 <Select
                   id="create-invoice-bank"
                   value={bankAccountId}
@@ -307,33 +437,33 @@ export function CreateOpcoInvoiceModal({
                   ))}
                 </Select>
               </div>
-              {selectedBankPreview ? (
+              {selectedBank ? (
                 <div className="rounded-md border border-border bg-surface-muted p-3 text-sm text-foreground-muted">
                   <dl className="grid gap-1 sm:grid-cols-2">
-                    {selectedBankPreview.bankName ? (
+                    {selectedBank.bankName ? (
                       <div>
                         <dt className="text-xs text-foreground-subtle">Bank</dt>
-                        <dd>{selectedBankPreview.bankName}</dd>
+                        <dd>{selectedBank.bankName}</dd>
                       </div>
                     ) : null}
-                    {selectedBankPreview.accountName ? (
+                    {selectedBank.accountName ? (
                       <div>
                         <dt className="text-xs text-foreground-subtle">
                           Account name
                         </dt>
-                        <dd>{selectedBankPreview.accountName}</dd>
+                        <dd>{selectedBank.accountName}</dd>
                       </div>
                     ) : null}
-                    {selectedBankPreview.iban ? (
+                    {selectedBank.iban ? (
                       <div>
                         <dt className="text-xs text-foreground-subtle">IBAN</dt>
-                        <dd>{selectedBankPreview.iban}</dd>
+                        <dd>{selectedBank.iban}</dd>
                       </div>
                     ) : null}
-                    {selectedBankPreview.swift ? (
+                    {selectedBank.swift ? (
                       <div>
                         <dt className="text-xs text-foreground-subtle">SWIFT</dt>
-                        <dd>{selectedBankPreview.swift}</dd>
+                        <dd>{selectedBank.swift}</dd>
                       </div>
                     ) : null}
                   </dl>
@@ -341,6 +471,31 @@ export function CreateOpcoInvoiceModal({
               ) : null}
             </div>
           ) : null}
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <FieldLabel htmlFor="create-invoice-prepared-by" required>
+                Prepared by
+              </FieldLabel>
+              <Input
+                id="create-invoice-prepared-by"
+                value={preparedBy}
+                onChange={(event) => setPreparedBy(event.target.value)}
+                placeholder="Name"
+              />
+            </div>
+            <div>
+              <FieldLabel htmlFor="create-invoice-approved-by" required>
+                Approved by
+              </FieldLabel>
+              <Input
+                id="create-invoice-approved-by"
+                value={approvedBy}
+                onChange={(event) => setApprovedBy(event.target.value)}
+                placeholder="Name"
+              />
+            </div>
+          </div>
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -359,36 +514,45 @@ export function CreateOpcoInvoiceModal({
                 key={`line-${index}`}
                 className="grid gap-2 rounded-md border border-border p-3 sm:grid-cols-4"
               >
-                <Input
-                  value={line.description}
-                  onChange={(event) =>
-                    updateLine(index, "description", event.target.value)
-                  }
-                  placeholder="Description"
-                  className="sm:col-span-2"
-                />
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={line.quantity}
-                  onChange={(event) =>
-                    updateLine(index, "quantity", event.target.value)
-                  }
-                  placeholder="Qty"
-                />
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={line.unitPrice}
-                  onChange={(event) =>
-                    updateLine(index, "unitPrice", event.target.value)
-                  }
-                  placeholder="Unit price"
-                />
+                <div className="space-y-1 sm:col-span-2">
+                  <FieldLabel required>Description</FieldLabel>
+                  <Input
+                    value={line.description}
+                    onChange={(event) =>
+                      updateLine(index, "description", event.target.value)
+                    }
+                    placeholder="Description"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <FieldLabel required>Number</FieldLabel>
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    value={line.quantity}
+                    onChange={(event) =>
+                      updateLine(index, "quantity", event.target.value)
+                    }
+                    placeholder="e.g. 1"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <FieldLabel required>Amount</FieldLabel>
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    value={line.unitPrice}
+                    onChange={(event) =>
+                      updateLine(index, "unitPrice", event.target.value)
+                    }
+                    placeholder="Amount"
+                  />
+                </div>
               </div>
             ))}
+            <p className={ui.hint}>
+              Number × Amount is the line total (e.g. 2 × 10.50 = 21.00).
+            </p>
           </div>
 
           {error ? <p className={ui.alertError}>{error}</p> : null}
@@ -397,12 +561,8 @@ export function CreateOpcoInvoiceModal({
             <Button type="button" variant="secondary" onClick={onClose}>
               Cancel
             </Button>
-            <Button
-              type="button"
-              disabled={submitting || !opcoId}
-              onClick={() => void submit()}
-            >
-              {submitting ? "Creating…" : "Create invoice"}
+            <Button type="button" disabled={!opcoId} onClick={goToPreview}>
+              Preview invoice
             </Button>
           </div>
         </div>

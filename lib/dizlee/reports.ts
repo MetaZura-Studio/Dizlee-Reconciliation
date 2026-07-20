@@ -3,7 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { currentPeriod, type DashboardPeriod } from "@/lib/dizlee/dashboard";
 import { prisma } from "@/lib/prisma";
 
-export type ReportSortField = "uploaded" | "period" | "filename";
+export type ReportSortField = "uploaded" | "period" | "opco" | "partner";
 export type SortDirection = "asc" | "desc";
 
 export type ReportListFilters = {
@@ -104,8 +104,10 @@ function buildOrderBy(
   switch (sortBy) {
     case "period":
       return [{ year: sortDir }, { month: sortDir }];
-    case "filename":
-      return { file: { filename: sortDir } };
+    case "opco":
+      return { opco: { name: sortDir } };
+    case "partner":
+      return { partner: { name: sortDir } };
     case "uploaded":
     default:
       return { createdAt: sortDir };
@@ -131,7 +133,10 @@ export function parseReportListFilters(
     partnerId: searchParams.get("partnerId") ?? undefined,
     search: searchParams.get("search")?.trim() || undefined,
     sortBy:
-      sortBy === "period" || sortBy === "filename" || sortBy === "uploaded"
+      sortBy === "period" ||
+      sortBy === "uploaded" ||
+      sortBy === "opco" ||
+      sortBy === "partner"
         ? sortBy
         : "uploaded",
     sortDir: sortDir === "asc" ? "asc" : "desc",

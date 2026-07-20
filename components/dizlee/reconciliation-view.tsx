@@ -14,6 +14,7 @@ import {
   DataTableRow,
   DataTableTd,
   DataTableTh,
+  SortableDataTableTh,
 } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FieldLabel, Select } from "@/components/ui/field";
@@ -21,16 +22,28 @@ import { IconButton } from "@/components/ui/icon-button";
 import { IconBell, IconEye } from "@/components/ui/icons";
 import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
+import { ListPagination } from "@/components/ui/list-pagination";
 import { ListSearch, OrFiltersDivider } from "@/components/ui/list-search";
 import type { ReportDetail, ReportFilterOptions } from "@/lib/dizlee/reports";
 import type {
   CompareLaneFilters,
   CompareLaneRow,
+  CompareLaneSortField,
+  CompareLaneStatusFilter,
   ReconciliationHistoryResult,
+  ReconciliationHistorySortField,
   ReconciliationSearchBy,
+  SortDirection,
 } from "@/lib/dizlee/reconciliation";
 import { ui } from "@/lib/ui/classes";
+import { paginateItems } from "@/lib/ui/list-pagination";
+import { nextSortState } from "@/lib/ui/sort";
 import { useDebouncedValue } from "@/lib/ui/use-debounced-value";
+import {
+  getMaxMonthForYear,
+  getPeriodYearOptions,
+} from "@/lib/platform/period";
+import { reportRawFilePreviewUrl } from "@/lib/platform/reports/preview-url";
 
 const MONTHS = [
   "January",
@@ -107,6 +120,9 @@ function buildLaneQuery(filters: CompareLaneFilters): string {
     month: String(filters.month),
     year: String(filters.year),
     searchBy: filters.searchBy,
+    sortBy: filters.sortBy,
+    sortDir: filters.sortDir,
+    status: filters.status,
   });
   if (filters.entityId) {
     params.set("entityId", filters.entityId);
@@ -145,20 +161,37 @@ export function ReconciliationView({
     initialCompareFilters.searchBy,
   );
   const [entityId, setEntityId] = useState(initialCompareFilters.entityId ?? "");
+  const [laneStatus, setLaneStatus] = useState<CompareLaneStatusFilter>(
+    initialCompareFilters.status,
+  );
   const [laneSearch, setLaneSearch] = useState(initialCompareFilters.search ?? "");
   const debouncedLaneSearch = useDebouncedValue(laneSearch, 300);
   const [historySearch, setHistorySearch] = useState("");
   const debouncedHistorySearch = useDebouncedValue(historySearch, 300);
+  const [compareSortBy, setCompareSortBy] = useState<CompareLaneSortField>(
+    initialCompareFilters.sortBy,
+  );
+  const [compareSortDir, setCompareSortDir] = useState<SortDirection>(
+    initialCompareFilters.sortDir,
+  );
+  const [historySortBy, setHistorySortBy] = useState<ReconciliationHistorySortField>(
+    initialHistory.sortBy ?? "runAt",
+  );
+  const [historySortDir, setHistorySortDir] = useState<SortDirection>(
+    initialHistory.sortDir ?? "desc",
+  );
   const skipLaneSearchEffect = useRef(true);
   const skipHistorySearchEffect = useRef(true);
 
   const [lanes, setLanes] = useState(initialLanes);
+  const [lanePage, setLanePage] = useState(1);
   const [filterOptions, setFilterOptions] =
     useState<ReportFilterOptions>(initialFilterOptions);
   const [tolerancePercent, setTolerancePercent] = useState(
     initialTolerancePercent,
   );
   const [history, setHistory] = useState(initialHistory);
+  const pagedLanes = paginateItems(lanes, lanePage);
 
   const [loading, setLoading] = useState(false);
   const [actionId, setActionId] = useState<string | null>(null);
@@ -205,6 +238,7 @@ export function ReconciliationView({
         throw new Error(payload.error ?? "Failed to load lanes");
       }
       setLanes(payload.data as CompareLaneRow[]);
+      setLanePage(1);
       setFilterOptions(payload.filterOptions as ReportFilterOptions);
       setTolerancePercent(payload.tolerancePercent as number);
     } catch (loadError) {
@@ -216,11 +250,20 @@ export function ReconciliationView({
     }
   }, []);
 
-  const loadHistory = useCallback(async (page = 1, search = debouncedHistorySearch) => {
+  const loadHistory = useCallback(async (
+    page = 1,
+    search = debouncedHistorySearch,
+    sortBy = historySortBy,
+    sortDir = historySortDir,
+  ) => {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams({ page: String(page) });
+      const params = new URLSearchParams({
+        page: String(page),
+        sortBy,
+        sortDir,
+      });
       const term = search.trim();
       if (term) {
         params.set("search", term);
@@ -230,7 +273,10 @@ export function ReconciliationView({
       if (!response.ok) {
         throw new Error(payload.error ?? "Failed to load history");
       }
-      setHistory(payload.data as ReconciliationHistoryResult);
+      const data = payload.data as ReconciliationHistoryResult;
+      setHistory(data);
+      setHistorySortBy(data.sortBy);
+      setHistorySortDir(data.sortDir);
     } catch (loadError) {
       setError(
         loadError instanceof Error ? loadError.message : "Failed to load history",
@@ -238,7 +284,7 @@ export function ReconciliationView({
     } finally {
       setLoading(false);
     }
-  }, [debouncedHistorySearch]);
+  }, [debouncedHistorySearch, historySortBy, historySortDir]);
 
   const applyCompareFilters = () => {
     if (laneSearch) {
@@ -251,7 +297,33 @@ export function ReconciliationView({
       searchBy,
       entityId: entityId || undefined,
       search: undefined,
+      status: laneStatus,
+      sortBy: compareSortBy,
+      sortDir: compareSortDir,
     });
+  };
+
+  const applyCompareSort = (field: CompareLaneSortField) => {
+    const next = nextSortState(compareSortBy, compareSortDir, field);
+    setCompareSortBy(next.sortBy);
+    setCompareSortDir(next.sortDir);
+    void loadLanes({
+      month,
+      year,
+      searchBy,
+      entityId: laneSearch.trim() ? undefined : entityId || undefined,
+      search: laneSearch.trim() || undefined,
+      status: laneStatus,
+      sortBy: next.sortBy,
+      sortDir: next.sortDir,
+    });
+  };
+
+  const applyHistorySort = (field: ReconciliationHistorySortField) => {
+    const next = nextSortState(historySortBy, historySortDir, field);
+    setHistorySortBy(next.sortBy);
+    setHistorySortDir(next.sortDir);
+    void loadHistory(1, debouncedHistorySearch, next.sortBy, next.sortDir);
   };
 
   useEffect(() => {
@@ -270,6 +342,9 @@ export function ReconciliationView({
         searchBy,
         entityId: term ? undefined : entityId || undefined,
         search: term || undefined,
+        status: laneStatus,
+        sortBy: compareSortBy,
+        sortDir: compareSortDir,
       });
     }, 0);
     return () => window.clearTimeout(timer);
@@ -318,6 +393,9 @@ export function ReconciliationView({
         searchBy,
         entityId: debouncedLaneSearch.trim() ? undefined : entityId || undefined,
         search: debouncedLaneSearch.trim() || undefined,
+        status: laneStatus,
+        sortBy: compareSortBy,
+        sortDir: compareSortDir,
       });
       openReconciliationResult(payload.data.id as number);
     } catch (runError) {
@@ -340,6 +418,9 @@ export function ReconciliationView({
           searchBy,
           entityId: term ? undefined : entityId || undefined,
           search: term || undefined,
+          status: laneStatus,
+          sortBy: compareSortBy,
+          sortDir: compareSortDir,
         });
       } else {
         void loadHistory(history.page);
@@ -359,10 +440,8 @@ export function ReconciliationView({
     year,
   ]);
 
-  const yearOptions = [];
-  for (let value = year + 1; value >= year - 4; value -= 1) {
-    yearOptions.push(value);
-  }
+  const yearOptions = getPeriodYearOptions();
+  const maxMonth = getMaxMonthForYear(year);
 
   const entityOptions =
     searchBy === "opco" ? filterOptions.opcos : filterOptions.partners;
@@ -446,14 +525,14 @@ export function ReconciliationView({
             <OrFiltersDivider />
 
             <FilterToolbar className="mt-4">
-              <div className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                 <label className="text-sm">
                   <FieldLabel>Period (month)</FieldLabel>
                   <Select
                     value={month}
                     onChange={(event) => setMonth(Number(event.target.value))}
                   >
-                    {MONTHS.map((name, index) => (
+                    {MONTHS.slice(0, maxMonth).map((name, index) => (
                       <option key={name} value={index + 1}>
                         {name}
                       </option>
@@ -464,13 +543,34 @@ export function ReconciliationView({
                   <FieldLabel>Year</FieldLabel>
                   <Select
                     value={year}
-                    onChange={(event) => setYear(Number(event.target.value))}
+                    onChange={(event) => {
+                const nextYear = Number(event.target.value);
+                setYear(nextYear);
+                const capped = getMaxMonthForYear(nextYear);
+                if (month > capped) setMonth(capped);
+              }}
                   >
                     {yearOptions.map((value) => (
                       <option key={value} value={value}>
                         {value}
                       </option>
                     ))}
+                  </Select>
+                </label>
+                <label className="text-sm">
+                  <FieldLabel>Status</FieldLabel>
+                  <Select
+                    value={laneStatus}
+                    onChange={(event) =>
+                      setLaneStatus(event.target.value as CompareLaneStatusFilter)
+                    }
+                  >
+                    <option value="all">All</option>
+                    <option value="READY">Ready to process</option>
+                    <option value="NO_OPCO_REPORT">Waiting for OpCo</option>
+                    <option value="NO_PARTNER_REPORT">Waiting for Partner</option>
+                    <option value="MISSING">Waiting for both</option>
+                    <option value="RECONCILED">Already reconciled</option>
                   </Select>
                 </label>
                 <label className="text-sm">
@@ -509,15 +609,30 @@ export function ReconciliationView({
             ) : null}
 
             {!loading ? (
-              lanes.length > 0 ? (
-                <div className="mt-6">
+              pagedLanes.total > 0 ? (
+                <div className="mt-6 space-y-4">
                   <DataTableFrame>
                     <DataTable>
                       <DataTableHead>
                         <tr>
-                          <DataTableTh>Period</DataTableTh>
-                          <DataTableTh>OpCo</DataTableTh>
-                          <DataTableTh>Partner</DataTableTh>
+                          <SortableDataTableTh
+                            label="Period"
+                            active={compareSortBy === "period"}
+                            direction={compareSortDir}
+                            onSort={() => applyCompareSort("period")}
+                          />
+                          <SortableDataTableTh
+                            label="OpCo"
+                            active={compareSortBy === "opco"}
+                            direction={compareSortDir}
+                            onSort={() => applyCompareSort("opco")}
+                          />
+                          <SortableDataTableTh
+                            label="Partner"
+                            active={compareSortBy === "partner"}
+                            direction={compareSortDir}
+                            onSort={() => applyCompareSort("partner")}
+                          />
                           <DataTableTh>OpCo report</DataTableTh>
                           <DataTableTh>Partner report</DataTableTh>
                           <DataTableTh>State</DataTableTh>
@@ -526,7 +641,7 @@ export function ReconciliationView({
                         </tr>
                       </DataTableHead>
                       <tbody>
-                        {lanes.map((lane) => {
+                        {pagedLanes.items.map((lane) => {
                           const key = `${lane.opcoId}-${lane.partnerId}`;
                           const busy = actionId === key || Boolean(reconcilingLabel);
                           return (
@@ -539,10 +654,12 @@ export function ReconciliationView({
                               <DataTableTd className="text-foreground-muted">
                                 <ReportFilenameLink
                                   filename={lane.opcoReportFilename}
-                                  onClick={
+                                  href={
                                     lane.opcoReportId
-                                      ? () =>
-                                          void openReportDetail(lane.opcoReportId as string)
+                                      ? reportRawFilePreviewUrl(
+                                          "dizlee",
+                                          lane.opcoReportId as string,
+                                        )
                                       : undefined
                                   }
                                 />
@@ -550,12 +667,12 @@ export function ReconciliationView({
                               <DataTableTd className="text-foreground-muted">
                                 <ReportFilenameLink
                                   filename={lane.partnerReportFilename}
-                                  onClick={
+                                  href={
                                     lane.partnerReportId
-                                      ? () =>
-                                          void openReportDetail(
-                                            lane.partnerReportId as string,
-                                          )
+                                      ? reportRawFilePreviewUrl(
+                                          "dizlee",
+                                          lane.partnerReportId as string,
+                                        )
                                       : undefined
                                   }
                                 />
@@ -611,12 +728,21 @@ export function ReconciliationView({
                       </tbody>
                     </DataTable>
                   </DataTableFrame>
+
+                  <ListPagination
+                    total={pagedLanes.total}
+                    page={pagedLanes.page}
+                    totalPages={pagedLanes.totalPages}
+                    noun="pair"
+                    onPageChange={setLanePage}
+                    loading={loading}
+                  />
                 </div>
               ) : (
                 <EmptyState
                   className="mt-6"
                   title="No pairs found"
-                  description="Adjust period or search filters to see linked OpCo–Partner pairs."
+                  description="Adjust period, status, or search filters to see linked OpCo–Partner pairs."
                 />
               )
             ) : null}
@@ -639,12 +765,33 @@ export function ReconciliationView({
                   <DataTable>
                     <DataTableHead>
                       <tr>
-                        <DataTableTh>Period</DataTableTh>
-                        <DataTableTh>OpCo / Partner</DataTableTh>
+                        <SortableDataTableTh
+                          label="Period"
+                          active={historySortBy === "period"}
+                          direction={historySortDir}
+                          onSort={() => applyHistorySort("period")}
+                        />
+                        <SortableDataTableTh
+                          label="OpCo"
+                          active={historySortBy === "opco"}
+                          direction={historySortDir}
+                          onSort={() => applyHistorySort("opco")}
+                        />
+                        <SortableDataTableTh
+                          label="Partner"
+                          active={historySortBy === "partner"}
+                          direction={historySortDir}
+                          onSort={() => applyHistorySort("partner")}
+                        />
                         <DataTableTh>Status</DataTableTh>
                         <DataTableTh>Matched</DataTableTh>
                         <DataTableTh>Unmatched</DataTableTh>
-                        <DataTableTh>Run at</DataTableTh>
+                        <SortableDataTableTh
+                          label="Run at"
+                          active={historySortBy === "runAt"}
+                          direction={historySortDir}
+                          onSort={() => applyHistorySort("runAt")}
+                        />
                         <DataTableTh>Action</DataTableTh>
                       </tr>
                     </DataTableHead>
@@ -654,7 +801,8 @@ export function ReconciliationView({
                           <DataTableTd className="text-foreground-muted">
                             {formatPeriod(row.period.month, row.period.year)}
                           </DataTableTd>
-                          <DataTableTd>{row.lane}</DataTableTd>
+                          <DataTableTd>{row.opcoName}</DataTableTd>
+                          <DataTableTd>{row.partnerName}</DataTableTd>
                           <DataTableTd className="text-foreground-muted">
                             {row.status}
                           </DataTableTd>
@@ -680,28 +828,14 @@ export function ReconciliationView({
                     </tbody>
                   </DataTable>
                 </DataTableFrame>
-                <div className="flex items-center justify-between text-sm text-foreground-muted">
-                  <p>
-                    Page {history.page} / {history.totalPages} · Total{" "}
-                    {history.totalCount} records
-                  </p>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="secondary"
-                      disabled={history.page <= 1}
-                      onClick={() => void loadHistory(history.page - 1)}
-                    >
-                      Prev
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      disabled={history.page >= history.totalPages}
-                      onClick={() => void loadHistory(history.page + 1)}
-                    >
-                      Next
-                    </Button>
-                  </div>
-                </div>
+                <ListPagination
+                  total={history.totalCount}
+                  page={history.page}
+                  totalPages={history.totalPages}
+                  noun="record"
+                  onPageChange={(page) => void loadHistory(page)}
+                  loading={loading}
+                />
               </div>
             ) : !loading ? (
               <EmptyState
@@ -730,6 +864,9 @@ export function ReconciliationView({
                 ? undefined
                 : entityId || undefined,
               search: debouncedLaneSearch.trim() || undefined,
+              status: laneStatus,
+              sortBy: compareSortBy,
+              sortDir: compareSortDir,
             });
           }}
         />

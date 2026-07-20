@@ -4,10 +4,15 @@ import { useCallback, useMemo, useState } from "react";
 
 import { NotificationsTabs } from "@/components/dizlee/notifications-tabs";
 import { Button } from "@/components/ui/button";
+import { FieldLegend } from "@/components/ui/field";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageCard, PageHeader } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
 import { cn, ui } from "@/lib/ui/classes";
+import {
+  getMaxMonthForYear,
+  getPeriodYearOptions,
+} from "@/lib/platform/period";
 import type {
   BroadcastAudience,
   BroadcastMessageSource,
@@ -32,10 +37,6 @@ const MESSAGE_SOURCE_OPTIONS: Array<{
   label: string;
 }> = [
   { value: "custom", label: "Custom message" },
-  { value: "REPORT_SUBMISSION", label: "Report submission" },
-  { value: "REPORT_REMINDER", label: "Report reminder" },
-  { value: "INVOICE_SUBMISSION", label: "Invoice submission" },
-  { value: "INVOICE_REMINDER", label: "Invoice reminder" },
 ];
 
 const MONTHS = [
@@ -108,6 +109,9 @@ export function IntimationsView({
   const showOpcos = audience === "opco" || audience === "both";
   const showPartners = audience === "partner" || audience === "both";
   const usingTemplate = messageSource !== "custom";
+
+  const yearOptions = getPeriodYearOptions();
+  const maxMonth = getMaxMonthForYear(year);
 
   const sendLabel = useMemo(() => {
     if (sending) {
@@ -276,7 +280,7 @@ export function IntimationsView({
 
           <div className="mt-4 space-y-4">
             <label className="block text-sm">
-              <span className={ui.label}>Audience</span>
+              <FieldLegend required>Audience</FieldLegend>
               <select
                 value={audience}
                 onChange={(event) =>
@@ -293,7 +297,7 @@ export function IntimationsView({
             </label>
 
             <label className="block text-sm">
-              <span className={ui.label}>Message source</span>
+              <FieldLegend required>Message source</FieldLegend>
               <select
                 value={messageSource}
                 onChange={(event) =>
@@ -308,19 +312,24 @@ export function IntimationsView({
                     {option.label}
                   </option>
                 ))}
+                {formOptions.templates.map((template) => (
+                  <option key={template.code} value={template.code}>
+                    {template.name}
+                  </option>
+                ))}
               </select>
             </label>
 
             {usingTemplate ? (
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="block text-sm">
-                  <span className={ui.label}>Month</span>
+                  <FieldLegend required>Month</FieldLegend>
                   <select
                     value={month}
                     onChange={(event) => setMonth(Number(event.target.value))}
                     className={ui.select}
                   >
-                    {MONTHS.map((label, index) => (
+                    {MONTHS.slice(0, maxMonth).map((label, index) => (
                       <option key={label} value={index + 1}>
                         {label}
                       </option>
@@ -329,21 +338,31 @@ export function IntimationsView({
                 </label>
 
                 <label className="block text-sm">
-                  <span className={ui.label}>Year</span>
-                  <input
-                    type="number"
-                    min={2000}
-                    max={2100}
+                  <FieldLegend required>Year</FieldLegend>
+                  <select
                     value={year}
-                    onChange={(event) => setYear(Number(event.target.value))}
-                    className={ui.input}
-                  />
+                    onChange={(event) => {
+                      const nextYear = Number(event.target.value);
+                      setYear(nextYear);
+                      const capped = getMaxMonthForYear(nextYear);
+                      if (month > capped) {
+                        setMonth(capped);
+                      }
+                    }}
+                    className={ui.select}
+                  >
+                    {yearOptions.map((value) => (
+                      <option key={value} value={value}>
+                        {value}
+                      </option>
+                    ))}
+                  </select>
                 </label>
               </div>
             ) : null}
 
             <label className="block text-sm">
-              <span className={ui.label}>Subject</span>
+              <FieldLegend required={!usingTemplate}>Subject</FieldLegend>
               <input
                 type="text"
                 value={subject}
@@ -355,7 +374,7 @@ export function IntimationsView({
             </label>
 
             <label className="block text-sm">
-              <span className={ui.label}>Message</span>
+              <FieldLegend required={!usingTemplate}>Message</FieldLegend>
               <textarea
                 value={body}
                 onChange={(event) => setBody(event.target.value)}
@@ -402,7 +421,7 @@ export function IntimationsView({
             {showOpcos ? (
               <div>
                 <div className="flex items-center justify-between gap-3">
-                  <span className={ui.label}>Recipients (OpCos)</span>
+                  <FieldLegend required>Recipients (OpCos)</FieldLegend>
                   <div className="flex gap-2 text-xs">
                     <Button
                       variant="ghost"
@@ -453,7 +472,7 @@ export function IntimationsView({
             {showPartners ? (
               <div>
                 <div className="flex items-center justify-between gap-3">
-                  <span className={ui.label}>Recipients (Partners)</span>
+                  <FieldLegend required>Recipients (Partners)</FieldLegend>
                   <div className="flex gap-2 text-xs">
                     <Button
                       variant="ghost"

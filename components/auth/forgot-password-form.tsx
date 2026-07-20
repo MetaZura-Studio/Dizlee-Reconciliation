@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 
+import { FieldLabel } from "@/components/ui/field";
 import { ui } from "@/lib/ui/classes";
 
 export function ForgotPasswordForm() {
@@ -79,9 +80,9 @@ export function ForgotPasswordForm() {
       {error ? <p className={ui.alertError}>{error}</p> : null}
 
       <div className="space-y-1">
-        <label htmlFor="email" className={ui.label}>
+        <FieldLabel htmlFor="email" required>
           Email address
-        </label>
+        </FieldLabel>
         <input
           id="email"
           name="email"

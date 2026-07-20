@@ -5,6 +5,8 @@ import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
+import { PasswordInput } from "@/components/auth/password-input";
+import { FieldLabel } from "@/components/ui/field";
 import { getMainPortalHomePath } from "@/lib/auth/roles";
 import { isMainPortalRole } from "@/lib/auth/scopes";
 import { ui } from "@/lib/ui/classes";
@@ -90,9 +92,9 @@ export function LoginForm() {
       {displayError ? <p className={ui.alertError}>{displayError}</p> : null}
 
       <div className="space-y-1">
-        <label htmlFor="email" className={ui.label}>
+        <FieldLabel htmlFor="email">
           Email
-        </label>
+        </FieldLabel>
         <input
           id="email"
           name="email"
@@ -106,13 +108,12 @@ export function LoginForm() {
       </div>
 
       <div className="space-y-1">
-        <label htmlFor="password" className={ui.label}>
+        <FieldLabel htmlFor="password">
           Password
-        </label>
-        <input
+        </FieldLabel>
+        <PasswordInput
           id="password"
           name="password"
-          type="password"
           autoComplete="current-password"
           required
           value={password}
@@ -130,7 +131,10 @@ export function LoginForm() {
       </button>
 
       <p className="text-center text-sm">
-        <Link href="/forgot-password" className="text-foreground-muted underline hover:text-foreground">
+        <Link
+          href="/forgot-password"
+          className="text-foreground-muted underline hover:text-foreground"
+        >
           Forgot password?
         </Link>
       </p>

@@ -21,6 +21,11 @@ import type {
   DirectionPanel,
   DonutSegment,
 } from "@/lib/dizlee/dashboard";
+import {
+  clampPeriodToPresent,
+  getMaxMonthForYear,
+  getPeriodYearOptions,
+} from "@/lib/platform/period";
 import { cn, ui } from "@/lib/ui/classes";
 
 type SectionTone = "billing" | "reports" | "uploads";
@@ -95,28 +100,10 @@ const MONTHS = [
   "December",
 ];
 
-function clampPeriod(month: number, year: number): { month: number; year: number } {
-  const now = new Date();
-  const currentMonth = now.getMonth() + 1;
-  const currentYear = now.getFullYear();
-  const nextYear = Math.min(year, currentYear);
-  let nextMonth = month;
-  if (nextYear === currentYear && nextMonth > currentMonth) {
-    nextMonth = currentMonth;
-  }
-  if (nextMonth < 1) {
-    nextMonth = 1;
-  }
-  if (nextMonth > 12) {
-    nextMonth = 12;
-  }
-  return { month: nextMonth, year: nextYear };
-}
-
-const usdFormatter = new Intl.NumberFormat("en-US", {
+const kwdFormatter = new Intl.NumberFormat("en-KW", {
   style: "currency",
-  currency: "USD",
-  maximumFractionDigits: 0,
+  currency: "KWD",
+  maximumFractionDigits: 3,
 });
 
 function formatDateTime(value: string | null): string {
@@ -229,9 +216,9 @@ type DashboardViewProps = {
 };
 
 export function DashboardView({ initialData }: DashboardViewProps) {
-  const initialPeriod = clampPeriod(
-    initialData.period.month,
+  const initialPeriod = clampPeriodToPresent(
     initialData.period.year,
+    initialData.period.month,
   );
   const [month, setMonth] = useState(initialPeriod.month);
   const [year, setYear] = useState(initialPeriod.year);
@@ -240,7 +227,7 @@ export function DashboardView({ initialData }: DashboardViewProps) {
   const [error, setError] = useState<string | null>(null);
 
   const loadPeriod = useCallback(async (targetMonth: number, targetYear: number) => {
-    const next = clampPeriod(targetMonth, targetYear);
+    const next = clampPeriodToPresent(targetYear, targetMonth);
     setLoading(true);
     setError(null);
     try {
@@ -270,18 +257,12 @@ export function DashboardView({ initialData }: DashboardViewProps) {
   };
 
   const handleYearChange = (nextYear: number) => {
-    void loadPeriod(month, nextYear);
+    const next = clampPeriodToPresent(nextYear, month);
+    void loadPeriod(next.month, next.year);
   };
 
-  const now = new Date();
-  const currentMonth = now.getMonth() + 1;
-  const currentYear = now.getFullYear();
-  const maxMonthForYear = year >= currentYear ? currentMonth : 12;
-
-  const yearOptions: number[] = [];
-  for (let value = currentYear; value >= currentYear - 4; value -= 1) {
-    yearOptions.push(value);
-  }
+  const yearOptions = getPeriodYearOptions();
+  const maxMonthForYear = getMaxMonthForYear(year);
 
   const { billing, reportsRecon, recentUploads } = data;
   const { kpis } = billing;
@@ -428,7 +409,7 @@ function BillingSectionView({
     <DashboardSection
       tone="billing"
       title="Billing & revenue"
-      description="Paid OpCo collections on platform; revenue in USD using admin exchange rates."
+      description="Paid OpCo collections on platform; revenue in KWD using admin exchange rates."
       action={
         <Link
           href={allInvoicesHref}
@@ -442,7 +423,7 @@ function BillingSectionView({
         <KpiCard label="Invoices" value={kpis.invoices} href={allInvoicesHref} tone="blue" />
         <KpiCard
           label="Total revenue (paid OpCos)"
-          value={usdFormatter.format(kpis.totalRevenuePaidUsd)}
+          value={kwdFormatter.format(kpis.totalRevenuePaidUsd)}
           href={paidInvoicesHref}
           tone="teal"
         />
@@ -454,7 +435,7 @@ function BillingSectionView({
         />
         <KpiCard
           label="Pending collection"
-          value={usdFormatter.format(kpis.pendingCollectionUsd)}
+          value={kwdFormatter.format(kpis.pendingCollectionUsd)}
           href={pendingInvoicesHref}
           tone="amber"
         />
@@ -463,7 +444,7 @@ function BillingSectionView({
       {kpis.missingFxCount > 0 ? (
         <div className={ui.alertWarning}>
           {kpis.missingFxCount} paid invoice(s) lack an FX rate for this period
-          and are excluded from the USD total.
+          and are excluded from the KWD total.
         </div>
       ) : null}
 
@@ -471,7 +452,7 @@ function BillingSectionView({
         <DonutChart
           title="Revenue by OpCo (paid)"
           segments={billing.revenueByOpco}
-          formatValue={(value) => usdFormatter.format(value)}
+          formatValue={(value) => kwdFormatter.format(value)}
           getSegmentHref={(segment) =>
             segment.id
               ? invoicesLink(month, year, {

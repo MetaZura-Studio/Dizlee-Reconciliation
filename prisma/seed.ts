@@ -126,6 +126,7 @@ async function seedNotificationTemplates(activeStatusId: number) {
       where: { code: template.code },
       update: {
         name: template.name,
+        category: template.category,
         subject: template.subject,
         body: template.body,
         statusId: activeStatusId,
@@ -134,6 +135,7 @@ async function seedNotificationTemplates(activeStatusId: number) {
       create: {
         code: template.code,
         name: template.name,
+        category: template.category,
         subject: template.subject,
         body: template.body,
         statusId: activeStatusId,

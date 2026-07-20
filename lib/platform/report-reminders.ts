@@ -1,10 +1,13 @@
 import { getLookupId } from "@/lib/admin/lookups";
-import type { BroadcastTemplateCode } from "@/lib/dizlee/notifications/broadcast.shared";
 import {
   listReportMonitoringLanes,
   type ReportMonitoringLane,
 } from "@/lib/dizlee/reports-monitoring";
 import { getActiveEmailTemplate } from "@/lib/platform/email-templates";
+import {
+  notificationAttachmentCreateInput,
+  resolveNotificationAttachmentCreates,
+} from "@/lib/platform/notification-attachments";
 import {
   applyTemplate,
   periodLabel,
@@ -23,10 +26,11 @@ export type SendMissingReportRemindersInput = {
   target: "opco" | "partner" | "both";
   laneKeys?: string[];
   fromUserId: bigint;
-  templateCode?: BroadcastTemplateCode;
+  templateCode?: string;
   subject?: string;
   body?: string;
   throwIfNoRecipients?: boolean;
+  attachmentFileIds?: string[];
 };
 
 export class ReportReminderError extends Error {
@@ -48,6 +52,8 @@ async function getAllMonitoringLanes(
     year,
     page: 1,
     missing: "any",
+    sortBy: "opco",
+    sortDir: "asc",
   });
 
   if (firstPage.totalPages <= 1) {
@@ -61,6 +67,8 @@ async function getAllMonitoringLanes(
       year,
       page,
       missing: "any",
+      sortBy: "opco",
+      sortDir: "asc",
     });
     lanes.push(...next.items);
   }
@@ -92,7 +100,7 @@ function lanesWithMissing(
 }
 
 async function resolveTemplates(
-  templateCode: BroadcastTemplateCode,
+  templateCode: string,
   subject?: string,
   body?: string,
 ): Promise<{ subjectTemplate: string; bodyTemplate: string }> {
@@ -155,6 +163,15 @@ export async function sendMissingReportReminders(
       getLookupId("RECIPIENT_TYPE", "PARTNER"),
     ]);
 
+  const attachmentCreates = await resolveNotificationAttachmentCreates({
+    attachmentFileIds: params.attachmentFileIds ?? [],
+    userId: fromUserId,
+  });
+  const attachments = notificationAttachmentCreateInput(
+    attachmentCreates,
+    fromUserId,
+  );
+
   const sentAt = new Date();
   let opcoNotifications = 0;
   let partnerNotifications = 0;
@@ -194,6 +211,7 @@ export async function sendMissingReportReminders(
               updatedByUserId: fromUserId,
             },
           },
+          ...(attachments ? { attachments } : {}),
         },
       });
       opcoNotifications += 1;
@@ -232,6 +250,7 @@ export async function sendMissingReportReminders(
               updatedByUserId: fromUserId,
             },
           },
+          ...(attachments ? { attachments } : {}),
         },
       });
       partnerNotifications += 1;

@@ -186,7 +186,7 @@ export function CurrenciesView({
             title={currencies.length === 0 ? "No currencies yet" : "No currencies found"}
             description={
               currencies.length === 0
-                ? "Add currencies here first, then set monthly USD rates in the Monthly rates tab."
+                ? "Add currencies here first, then set monthly KWD rates in the Monthly rates tab."
                 : "No currencies match your search."
             }
           />

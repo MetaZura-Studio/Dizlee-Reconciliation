@@ -70,8 +70,9 @@ export function buildRollingPeriods(
   return periods;
 }
 
-export const USD_ISO_CODE = "USD" as const;
-export const USD_RATE = 1;
+/** Platform base currency. Stored FX values (`rate_to_usd`) mean rate toward this ISO. */
+export const BASE_CURRENCY_ISO_CODE = "KWD" as const;
+export const BASE_CURRENCY_RATE = 1;
 
 export type RateSavePlan = {
   toUpsert: Array<{ currencyId: string; rateToUsd: number }>;
@@ -97,8 +98,8 @@ export function computeRateSavePlan(params: {
     }
 
     const submitted = submittedById.get(currency.id);
-    if (currency.isoCode === USD_ISO_CODE) {
-      toUpsert.push({ currencyId: currency.id, rateToUsd: USD_RATE });
+    if (currency.isoCode === BASE_CURRENCY_ISO_CODE) {
+      toUpsert.push({ currencyId: currency.id, rateToUsd: BASE_CURRENCY_RATE });
       continue;
     }
 

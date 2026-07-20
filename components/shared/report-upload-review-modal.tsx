@@ -4,27 +4,69 @@ import { useEffect } from "react";
 
 import { ReportLineItemsTable } from "@/components/shared/report-line-items-table";
 import { Button } from "@/components/ui/button";
+import {
+  DataTable,
+  DataTableHead,
+  DataTableRow,
+  DataTableTd,
+  DataTableTh,
+} from "@/components/ui/data-table";
+import { ModalCloseButton } from "@/components/ui/modal-close-button";
 import type { ReportPreviewLineItem } from "@/lib/platform/report-preview";
+import { ui } from "@/lib/ui/classes";
 
 type ReportUploadReviewModalProps = {
   filename: string;
   subtitle?: string;
-  lineItems: ReportPreviewLineItem[];
+  fileSizeLabel?: string;
+  /** Parsed/mapped line items (legacy confirm flow). */
+  lineItems?: ReportPreviewLineItem[];
+  /** Raw spreadsheet rows from the selected file. */
+  rawRows?: string[][];
+  rawSheetName?: string;
+  rawTruncated?: boolean;
+  rawTotalRows?: number;
   confirming: boolean;
+  confirmError?: string | null;
+  confirmLabel?: string;
+  confirmingLabel?: string;
   onReupload: () => void;
   onConfirm: () => void;
   onClose: () => void;
 };
 
+function formatFileSizeLabel(bytes: number): string {
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 export function ReportUploadReviewModal({
   filename,
   subtitle,
+  fileSizeLabel,
   lineItems,
+  rawRows,
+  rawSheetName,
+  rawTruncated,
+  rawTotalRows,
   confirming,
+  confirmError,
+  confirmLabel = "Confirm upload",
+  confirmingLabel = "Uploading…",
   onReupload,
   onConfirm,
   onClose,
 }: ReportUploadReviewModalProps) {
+  const showRaw = Boolean(rawRows && rawRows.length > 0);
+  const columnCount = showRaw
+    ? Math.max(...(rawRows ?? []).map((row) => row.length), 1)
+    : 0;
+
   useEffect(() => {
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -59,39 +101,94 @@ export function ReportUploadReviewModal({
               Confirm report upload
             </h2>
             <p className="mt-1 text-sm text-foreground-muted">
-              Review the parsed data for <span className="font-medium">{filename}</span>{" "}
-              before submitting.
+              {showRaw
+                ? "Review the file you selected before uploading."
+                : "Review the parsed data before submitting."}{" "}
+              <span className="font-medium text-foreground">{filename}</span>
+              {fileSizeLabel ? (
+                <span className="text-foreground-subtle"> · {fileSizeLabel}</span>
+              ) : null}
             </p>
             {subtitle ? (
               <p className="mt-1 text-sm text-foreground-subtle">{subtitle}</p>
             ) : null}
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={confirming}
-            className="text-sm text-foreground-subtle hover:text-foreground disabled:opacity-60"
-          >
-            Close
-          </button>
+          <ModalCloseButton onClick={onClose} disabled={confirming} />
         </div>
 
-        <div className="overflow-y-auto px-6 py-4">
-          <p className="mb-3 text-sm text-foreground-muted">
-            {lineItems.length} line item{lineItems.length === 1 ? "" : "s"}
-          </p>
-          <ReportLineItemsTable lineItems={lineItems} />
+        <div className="min-h-0 flex-1 overflow-auto px-6 py-4">
+          {showRaw ? (
+            <>
+              <p className="mb-3 text-sm text-foreground-muted">
+                Sheet “{rawSheetName ?? "Sheet1"}”
+                {typeof rawTotalRows === "number"
+                  ? ` · ${rawTotalRows} data row${rawTotalRows === 1 ? "" : "s"}`
+                  : null}
+                {rawTruncated
+                  ? " · preview shows the first rows only"
+                  : null}
+              </p>
+              <div className="overflow-x-auto rounded-[28px] border border-border bg-surface shadow-[var(--shadow-md)]">
+                <DataTable className="min-w-max">
+                  <DataTableHead>
+                    <tr>
+                      <DataTableTh className="sticky left-0 z-10 w-12 bg-surface">
+                        #
+                      </DataTableTh>
+                      {Array.from({ length: columnCount }, (_, index) => (
+                        <DataTableTh key={index} className="whitespace-nowrap">
+                          Col {index + 1}
+                        </DataTableTh>
+                      ))}
+                    </tr>
+                  </DataTableHead>
+                  <tbody>
+                    {(rawRows ?? []).map((row, rowIndex) => (
+                      <DataTableRow key={rowIndex}>
+                        <DataTableTd className="sticky left-0 z-10 bg-surface text-foreground-subtle">
+                          {rowIndex + 1}
+                        </DataTableTd>
+                        {Array.from({ length: columnCount }, (_, colIndex) => (
+                          <DataTableTd
+                            key={colIndex}
+                            className="whitespace-nowrap text-foreground-muted"
+                          >
+                            <span title={row[colIndex] ?? ""}>
+                              {row[colIndex] ?? ""}
+                            </span>
+                          </DataTableTd>
+                        ))}
+                      </DataTableRow>
+                    ))}
+                  </tbody>
+                </DataTable>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="mb-3 text-sm text-foreground-muted">
+                {lineItems?.length ?? 0} line item
+                {(lineItems?.length ?? 0) === 1 ? "" : "s"}
+              </p>
+              <ReportLineItemsTable lineItems={lineItems ?? []} />
+            </>
+          )}
         </div>
 
         <div className="flex flex-wrap justify-end gap-2 border-t border-border px-6 py-4">
+          {confirmError ? (
+            <p className={`mr-auto w-full ${ui.alertError}`}>{confirmError}</p>
+          ) : null}
           <Button variant="secondary" onClick={onReupload} disabled={confirming}>
-            Reupload
+            Choose different file
           </Button>
           <Button onClick={onConfirm} disabled={confirming}>
-            {confirming ? "Uploading..." : "Confirm upload"}
+            {confirming ? confirmingLabel : confirmLabel}
           </Button>
         </div>
       </div>
     </div>
   );
 }
+
+export { formatFileSizeLabel };

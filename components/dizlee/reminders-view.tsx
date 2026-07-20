@@ -18,8 +18,12 @@ import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
 import { cn, ui } from "@/lib/ui/classes";
 import {
+  attachmentFileIds,
+  NotificationAttachmentPicker,
+  type PendingAttachment,
+} from "@/components/shared/notification-attachment-picker";
+import {
   DEFAULT_REMINDER_MESSAGE_SOURCE,
-  type BroadcastTemplateCode,
   type ReminderSettingsView,
   type SendReportRemindersInput,
 } from "@/lib/dizlee/notifications/broadcast.shared";
@@ -28,6 +32,10 @@ import type {
   MissingSideFilter,
   ReportMonitoringResult,
 } from "@/lib/dizlee/reports-monitoring";
+import {
+  getMaxMonthForYear,
+  getPeriodYearOptions,
+} from "@/lib/platform/period";
 
 const MONTHS = [
   "January",
@@ -44,19 +52,9 @@ const MONTHS = [
   "December",
 ];
 
-const MESSAGE_SOURCE_OPTIONS: Array<{
-  value: BroadcastTemplateCode;
-  label: string;
-}> = [
-  { value: "REPORT_SUBMISSION", label: "Report submission" },
-  { value: "REPORT_REMINDER", label: "Report reminder" },
-  { value: "INVOICE_SUBMISSION", label: "Invoice submission" },
-  { value: "INVOICE_REMINDER", label: "Invoice reminder" },
-];
-
 function getTemplateContent(
   templates: ReminderSettingsView["templates"],
-  code: BroadcastTemplateCode,
+  code: string,
 ) {
   const template = templates.find((row) => row.code === code);
   return {
@@ -130,7 +128,7 @@ export function RemindersView({
     initialResult.filters.missing ?? "any",
   );
 
-  const [messageSource, setMessageSource] = useState<BroadcastTemplateCode>(
+  const [messageSource, setMessageSource] = useState<string>(
     DEFAULT_REMINDER_MESSAGE_SOURCE,
   );
   const initialTemplate = getTemplateContent(
@@ -139,6 +137,7 @@ export function RemindersView({
   );
   const [subject, setSubject] = useState(initialTemplate.subject);
   const [body, setBody] = useState(initialTemplate.body);
+  const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const [selectedLaneKeys, setSelectedLaneKeys] = useState<string[]>([]);
 
   const [loading, setLoading] = useState(false);
@@ -184,7 +183,7 @@ export function RemindersView({
     [messageSource, missing, month, opcoId, partnerId, year],
   );
 
-  const handleMessageSourceChange = (source: BroadcastTemplateCode) => {
+  const handleMessageSourceChange = (source: string) => {
     setMessageSource(source);
     const template = getTemplateContent(settings.templates, source);
     setSubject(template.subject);
@@ -226,6 +225,7 @@ export function RemindersView({
           messageSource,
           subject,
           body,
+          attachmentFileIds: attachmentFileIds(attachments),
         }),
       });
       const payload = await response.json();
@@ -234,6 +234,7 @@ export function RemindersView({
       }
       setMessage(payload.data.message as string);
       setSelectedLaneKeys([]);
+      setAttachments([]);
       await loadData(result.page);
     } catch (sendError) {
       setError(
@@ -244,10 +245,8 @@ export function RemindersView({
     }
   };
 
-  const yearOptions = [];
-  for (let value = year + 1; value >= year - 4; value -= 1) {
-    yearOptions.push(value);
-  }
+  const yearOptions = getPeriodYearOptions();
+  const maxMonth = getMaxMonthForYear(year);
 
   const scheduleLabel =
     settings.reminderValue && settings.reminderUnit
@@ -288,7 +287,7 @@ export function RemindersView({
               onChange={(event) => setMonth(Number(event.target.value))}
               className={ui.select}
             >
-              {MONTHS.map((label, index) => (
+              {MONTHS.slice(0, maxMonth).map((label, index) => (
                 <option key={label} value={index + 1}>
                   {label}
                 </option>
@@ -300,7 +299,14 @@ export function RemindersView({
             <span className={ui.label}>Year</span>
             <select
               value={year}
-              onChange={(event) => setYear(Number(event.target.value))}
+              onChange={(event) => {
+                const nextYear = Number(event.target.value);
+                setYear(nextYear);
+                const capped = getMaxMonthForYear(nextYear);
+                if (month > capped) {
+                  setMonth(capped);
+                }
+              }}
               className={ui.select}
             >
               {yearOptions.map((value) => (
@@ -493,15 +499,13 @@ export function RemindersView({
               <select
                 value={messageSource}
                 onChange={(event) =>
-                  handleMessageSourceChange(
-                    event.target.value as BroadcastTemplateCode,
-                  )
+                  handleMessageSourceChange(event.target.value)
                 }
                 className={ui.select}
               >
-                {MESSAGE_SOURCE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
+                {settings.templates.map((template) => (
+                  <option key={template.code} value={template.code}>
+                    {template.name}
                   </option>
                 ))}
               </select>
@@ -531,6 +535,12 @@ export function RemindersView({
             <p className={ui.hint}>
               Placeholder {"{{period}}"} uses the month and year filters above.
             </p>
+
+            <NotificationAttachmentPicker
+              attachments={attachments}
+              onChange={setAttachments}
+              disabled={sending}
+            />
 
             <div className="space-y-2">
               <Button

@@ -13,6 +13,9 @@ import type { AdminSessionUser } from "@/lib/admin/auth";
 import { cn, ui } from "@/lib/ui/classes";
 
 function mapIcon(icon: string): AppShellNavItem["icon"] {
+  if (icon === "dashboard") {
+    return "home";
+  }
   if (icon === "users" || icon === "partners" || icon === "opcos" || icon === "opco-partners") {
     return "users";
   }

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 
@@ -14,6 +13,7 @@ import type {
   OpcoInboxFilters,
   OpcoInboxListResult,
 } from "@/lib/opco/queries/notifications";
+import { notificationAttachmentDownloadUrl } from "@/lib/platform/notification-attachment-url";
 
 function formatDateTime(value: string): string {
   return new Date(value).toLocaleString("en-US", {
@@ -43,6 +43,7 @@ export function NotificationsInbox({ initialResult }: NotificationsInboxProps) {
   const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dismissing, setDismissing] = useState(false);
+  const [markingAllRead, setMarkingAllRead] = useState(false);
 
   const unreadOnly = result.filters.unreadOnly;
 
@@ -115,6 +116,37 @@ export function NotificationsInbox({ initialResult }: NotificationsInboxProps) {
     }
   }
 
+  async function markAllRead() {
+    if (result.unreadCount === 0 || markingAllRead) {
+      return;
+    }
+
+    setMarkingAllRead(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/opco/notifications/mark-all-read", {
+        method: "POST",
+      });
+      const payload = (await response.json()) as { error?: string };
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Failed to mark all as read");
+      }
+
+      router.refresh();
+      window.dispatchEvent(new CustomEvent("opco-inbox-updated"));
+    } catch (markError) {
+      setError(
+        markError instanceof Error
+          ? markError.message
+          : "Failed to mark all as read",
+      );
+    } finally {
+      setMarkingAllRead(false);
+    }
+  }
+
   return (
     <div className="space-y-4">
       {error ? <p className={ui.alertError}>{error}</p> : null}
@@ -123,20 +155,30 @@ export function NotificationsInbox({ initialResult }: NotificationsInboxProps) {
         <p className="text-sm text-foreground-muted">
           {result.unreadCount} unread · {result.totalCount} total
         </p>
-        <label className="flex items-center gap-2 text-sm text-foreground-muted">
-          <input
-            type="checkbox"
-            checked={unreadOnly}
-            onChange={(event) => {
-              refreshList({
-                page: 1,
-                unreadOnly: event.target.checked,
-              });
-            }}
-            className="rounded border-border"
-          />
-          Unread only
-        </label>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={result.unreadCount === 0 || markingAllRead}
+            onClick={() => void markAllRead()}
+          >
+            {markingAllRead ? "Marking…" : "Mark all as read"}
+          </Button>
+          <label className="flex items-center gap-2 text-sm text-foreground-muted">
+            <input
+              type="checkbox"
+              checked={unreadOnly}
+              onChange={(event) => {
+                refreshList({
+                  page: 1,
+                  unreadOnly: event.target.checked,
+                });
+              }}
+              className="rounded border-border"
+            />
+            Unread only
+          </label>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -256,7 +298,18 @@ export function NotificationsInbox({ initialResult }: NotificationsInboxProps) {
                   <h4 className="text-sm font-medium text-foreground">Attachments</h4>
                   <ul className="mt-2 space-y-1 text-sm text-foreground-muted">
                     {detail.attachments.map((attachment) => (
-                      <li key={attachment.id}>{attachment.filename}</li>
+                      <li key={attachment.id}>
+                        <a
+                          href={notificationAttachmentDownloadUrl(
+                            "opco",
+                            detail.id,
+                            attachment.id,
+                          )}
+                          className="underline hover:text-foreground"
+                        >
+                          {attachment.filename}
+                        </a>
+                      </li>
                     ))}
                   </ul>
                 </div>
@@ -269,13 +322,6 @@ export function NotificationsInbox({ initialResult }: NotificationsInboxProps) {
           )}
         </div>
       </div>
-
-      <p className="text-sm text-foreground-subtle">
-        Account settings:{" "}
-        <Link href="/change-password" className="text-foreground underline">
-          Change password
-        </Link>
-      </p>
     </div>
   );
 }

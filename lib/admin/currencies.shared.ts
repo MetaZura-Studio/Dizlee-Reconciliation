@@ -9,9 +9,10 @@ export type MonthlyRateRow = {
   currencyId: string;
   isoCode: string;
   symbol: string | null;
+  /** Rate toward platform base (KWD). Prisma field remains `rateToUsd`. */
   rateToUsd: number | null;
   hasRate: boolean;
-  isUsd: boolean;
+  isBase: boolean;
 };
 
 export type CurrencyRatesPeriodView = {

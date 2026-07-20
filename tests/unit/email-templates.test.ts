@@ -1,14 +1,17 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  formatPlaceholderTokens,
+  categoryLabel,
   getPlaceholdersForTemplate,
+  formatPlaceholderTokens,
+  suggestTemplateCodeFromName,
 } from "@/lib/admin/email-templates.shared";
 import {
   buildRevertChangeNote,
   getNextTemplateVersion,
 } from "@/lib/admin/email-templates";
 import {
+  createEmailTemplateSchema,
   revertEmailTemplateSchema,
   saveEmailTemplateSchema,
 } from "@/lib/admin/validation/email-templates";
@@ -21,6 +24,31 @@ describe("email template validation", () => {
       changeNote: "Clarified wording",
     });
     expect(result.success).toBe(true);
+  });
+
+  it("allows empty or null change notes", () => {
+    expect(
+      saveEmailTemplateSchema.safeParse({
+        subject: "Subject",
+        body: "Body",
+        changeNote: "",
+      }).success,
+    ).toBe(true);
+
+    expect(
+      saveEmailTemplateSchema.safeParse({
+        subject: "Subject",
+        body: "Body",
+        changeNote: null,
+      }).success,
+    ).toBe(true);
+
+    expect(
+      saveEmailTemplateSchema.safeParse({
+        subject: "Subject",
+        body: "Body",
+      }).success,
+    ).toBe(true);
   });
 
   it("rejects blank subject or body", () => {
@@ -43,6 +71,43 @@ describe("email template validation", () => {
     const result = revertEmailTemplateSchema.safeParse({ version: 1 });
     expect(result.success).toBe(true);
   });
+
+  it("accepts valid create input", () => {
+    const result = createEmailTemplateSchema.safeParse({
+      name: "Custom notice",
+      code: "custom_notice",
+      category: "INTIMATION",
+      subject: "Hello {{period}}",
+      body: "Body for {{period}}",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.code).toBe("CUSTOM_NOTICE");
+      expect(result.data.category).toBe("INTIMATION");
+    }
+  });
+
+  it("rejects invalid create codes and categories", () => {
+    expect(
+      createEmailTemplateSchema.safeParse({
+        name: "Bad",
+        code: "1STARTS_WITH_NUMBER",
+        category: "INTIMATION",
+        subject: "Subject",
+        body: "Body",
+      }).success,
+    ).toBe(false);
+
+    expect(
+      createEmailTemplateSchema.safeParse({
+        name: "Bad",
+        code: "OK_CODE",
+        category: "INVALID",
+        subject: "Subject",
+        body: "Body",
+      }).success,
+    ).toBe(false);
+  });
 });
 
 describe("email template helpers", () => {
@@ -55,9 +120,24 @@ describe("email template helpers", () => {
     expect(buildRevertChangeNote(1)).toBe("Reverted to version 1");
   });
 
-  it("returns placeholders per template code", () => {
+  it("returns placeholders per template code and category", () => {
     expect(getPlaceholdersForTemplate("REPORT_REMINDER")).toEqual(["period"]);
-    expect(getPlaceholdersForTemplate("REPORT_SUBMISSION")).toEqual(["period"]);
+    expect(getPlaceholdersForTemplate("PASSWORD_INVITE")).toEqual([
+      "name",
+      "link",
+      "expiryHours",
+    ]);
+    expect(getPlaceholdersForTemplate("CUSTOM_X", "REMINDER")).toEqual([
+      "period",
+    ]);
+    expect(getPlaceholdersForTemplate("CUSTOM_Y", "OTHER")).toEqual([]);
     expect(formatPlaceholderTokens(["period"])).toBe("{{period}}");
+  });
+
+  it("labels categories and suggests codes", () => {
+    expect(categoryLabel("INTIMATION")).toBe("Intimation");
+    expect(categoryLabel("REMINDER")).toBe("Reminder");
+    expect(categoryLabel("OTHER")).toBe("Other");
+    expect(suggestTemplateCodeFromName("Custom notice!")).toBe("CUSTOM_NOTICE");
   });
 });

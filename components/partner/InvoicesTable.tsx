@@ -22,12 +22,16 @@ import {
   SortableDataTableTh,
 } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
-import { FieldLabel, Input, Select } from "@/components/ui/field";
+import { FieldLabel, Select } from "@/components/ui/field";
 import { IconButton } from "@/components/ui/icon-button";
 import { IconEye } from "@/components/ui/icons";
 import { FilterToolbar } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
 import { formatPeriodLabel } from "@/lib/partner/period";
+import {
+  getMaxMonthForYear,
+  getPeriodYearOptions,
+} from "@/lib/platform/period";
 import { ui } from "@/lib/ui/classes";
 import { nextSortState } from "@/lib/ui/sort";
 import { invoiceStatusTone, paymentLabelTone } from "@/lib/ui/status-tones";
@@ -267,6 +271,9 @@ export function InvoicesTable({ initialResult, filterOptions }: InvoicesTablePro
     initialResult.totalCount,
   );
 
+  const yearOptions = getPeriodYearOptions();
+  const maxMonth = year === "" ? 12 : getMaxMonthForYear(Number(year));
+
   return (
     <div className="space-y-4">
       <form
@@ -279,15 +286,27 @@ export function InvoicesTable({ initialResult, filterOptions }: InvoicesTablePro
           <div className="grid w-full gap-4 md:grid-cols-2 xl:grid-cols-4">
             <div>
               <FieldLabel htmlFor="invoices-year">Year</FieldLabel>
-              <Input
+              <Select
                 id="invoices-year"
-                type="number"
-                min={2000}
-                max={2100}
                 value={year}
-                onChange={(event) => setYear(event.target.value)}
-                placeholder="All years"
-              />
+                onChange={(event) => {
+                  const nextYear = event.target.value;
+                  setYear(nextYear);
+                  if (nextYear && month) {
+                    const capped = getMaxMonthForYear(Number(nextYear));
+                    if (Number(month) > capped) {
+                      setMonth(String(capped));
+                    }
+                  }
+                }}
+              >
+                <option value="">All years</option>
+                {yearOptions.map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
+              </Select>
             </div>
             <div>
               <FieldLabel htmlFor="invoices-month">Month</FieldLabel>
@@ -297,7 +316,7 @@ export function InvoicesTable({ initialResult, filterOptions }: InvoicesTablePro
                 onChange={(event) => setMonth(event.target.value)}
               >
                 <option value="">All months</option>
-                {MONTHS.map((item) => (
+                {MONTHS.filter((item) => item.value <= maxMonth).map((item) => (
                   <option key={item.value} value={item.value}>
                     {item.label}
                   </option>

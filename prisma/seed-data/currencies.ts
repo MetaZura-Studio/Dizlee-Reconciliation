@@ -5,10 +5,10 @@ export type CurrencySeed = {
 };
 
 export const CURRENCY_SEEDS: CurrencySeed[] = [
+  { isoCode: "KWD", symbol: "KD", decimalPrecision: 3 },
   { isoCode: "USD", symbol: "$", decimalPrecision: 2 },
   { isoCode: "EUR", symbol: "€", decimalPrecision: 2 },
   { isoCode: "GBP", symbol: "£", decimalPrecision: 2 },
-  { isoCode: "KWD", symbol: "KD", decimalPrecision: 3 },
   { isoCode: "SAR", symbol: "SR", decimalPrecision: 2 },
   { isoCode: "IQD", symbol: "IQD", decimalPrecision: 3 },
   { isoCode: "JOD", symbol: "JD", decimalPrecision: 3 },

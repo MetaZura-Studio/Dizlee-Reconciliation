@@ -1,3 +1,5 @@
+import { clampPeriodToPresent } from "@/lib/platform/period";
+
 export type Period = {
   year: number;
   month: number;
@@ -36,10 +38,9 @@ export function parseDashboardPeriod(
 ): Period {
   const defaults = getDefaultPeriod(date);
 
-  return {
-    year: parsePeriodParam(yearParam, defaults.year, 2000, 2100),
-    month: parsePeriodParam(monthParam, defaults.month, 1, 12),
-  };
+  const year = parsePeriodParam(yearParam, defaults.year, 2000, 2100);
+  const month = parsePeriodParam(monthParam, defaults.month, 1, 12);
+  return clampPeriodToPresent(year, month, date);
 }
 
 export function formatPeriodLabel(year: number, month: number): string {

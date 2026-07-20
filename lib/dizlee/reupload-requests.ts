@@ -15,7 +15,12 @@ export type ReuploadListFilters = {
   opcoId?: string;
   partnerId?: string;
   page: number;
+  sortBy: ReuploadSortField;
+  sortDir: SortDirection;
 };
+
+export type ReuploadSortField = "period" | "opco" | "partner" | "requested";
+export type SortDirection = "asc" | "desc";
 
 export type ReuploadRequestItem = {
   id: string;
@@ -73,6 +78,8 @@ export function parseReuploadListFilters(
   const month = Number(searchParams.get("month"));
   const year = Number(searchParams.get("year"));
   const page = Number(searchParams.get("page"));
+  const sortBy = searchParams.get("sortBy");
+  const sortDir = searchParams.get("sortDir");
 
   return {
     month:
@@ -82,6 +89,14 @@ export function parseReuploadListFilters(
     opcoId: searchParams.get("opcoId") ?? undefined,
     partnerId: searchParams.get("partnerId") ?? undefined,
     page: Number.isInteger(page) && page >= 1 ? page : 1,
+    sortBy:
+      sortBy === "period" ||
+      sortBy === "opco" ||
+      sortBy === "partner" ||
+      sortBy === "requested"
+        ? sortBy
+        : "requested",
+    sortDir: sortDir === "asc" ? "asc" : "desc",
   };
 }
 
@@ -113,7 +128,23 @@ export async function listPendingReuploadRequests(
     prisma.reportChangeRequest.count({ where }),
     prisma.reportChangeRequest.findMany({
       where,
-      orderBy: { createdAt: "desc" },
+      orderBy: (() => {
+        switch (filters.sortBy) {
+          case "period":
+            return [
+              { report: { year: filters.sortDir } },
+              { report: { month: filters.sortDir } },
+              { createdAt: "desc" as const },
+            ];
+          case "opco":
+            return { report: { opco: { name: filters.sortDir } } };
+          case "partner":
+            return { report: { partner: { name: filters.sortDir } } };
+          case "requested":
+          default:
+            return { createdAt: filters.sortDir };
+        }
+      })(),
       skip: (filters.page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
       include: {

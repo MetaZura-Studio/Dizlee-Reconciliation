@@ -18,13 +18,26 @@ export type LaneState =
   | "READY"
   | "RECONCILED";
 
+export type CompareLaneStatusFilter = "all" | LaneState;
+
 export type CompareLaneFilters = {
   month: number;
   year: number;
   searchBy: ReconciliationSearchBy;
   entityId?: string;
   search?: string;
+  status: CompareLaneStatusFilter;
+  sortBy: CompareLaneSortField;
+  sortDir: SortDirection;
 };
+
+export type CompareLaneSortField = "period" | "opco" | "partner";
+export type SortDirection = "asc" | "desc";
+export type ReconciliationHistorySortField =
+  | "period"
+  | "opco"
+  | "partner"
+  | "runAt";
 
 export type CompareLaneRow = {
   opcoId: string;
@@ -66,6 +79,8 @@ export type ReconciliationHistoryResult = {
   pageSize: number;
   totalPages: number;
   totalCount: number;
+  sortBy: ReconciliationHistorySortField;
+  sortDir: SortDirection;
 };
 
 export type ReconciliationItemView = {
@@ -137,6 +152,9 @@ export function parseCompareLaneFilters(
   const month = Number(searchParams.get("month"));
   const year = Number(searchParams.get("year"));
   const searchBy = searchParams.get("searchBy");
+  const sortBy = searchParams.get("sortBy");
+  const sortDir = searchParams.get("sortDir");
+  const status = searchParams.get("status");
 
   return {
     month:
@@ -146,6 +164,19 @@ export function parseCompareLaneFilters(
     searchBy: searchBy === "partner" ? "partner" : "opco",
     entityId: searchParams.get("entityId") ?? undefined,
     search: searchParams.get("search")?.trim() || undefined,
+    status:
+      status === "MISSING" ||
+      status === "NO_OPCO_REPORT" ||
+      status === "NO_PARTNER_REPORT" ||
+      status === "READY" ||
+      status === "RECONCILED"
+        ? status
+        : "all",
+    sortBy:
+      sortBy === "period" || sortBy === "opco" || sortBy === "partner"
+        ? sortBy
+        : "opco",
+    sortDir: sortDir === "desc" ? "desc" : "asc",
   };
 }
 
@@ -154,10 +185,14 @@ export function parseHistoryFilters(searchParams: URLSearchParams): {
   year?: number;
   page: number;
   search?: string;
+  sortBy: ReconciliationHistorySortField;
+  sortDir: SortDirection;
 } {
   const month = Number(searchParams.get("month"));
   const year = Number(searchParams.get("year"));
   const page = Number(searchParams.get("page"));
+  const sortBy = searchParams.get("sortBy");
+  const sortDir = searchParams.get("sortDir");
 
   return {
     month:
@@ -166,6 +201,14 @@ export function parseHistoryFilters(searchParams: URLSearchParams): {
       Number.isInteger(year) && year >= 2000 && year <= 2100 ? year : undefined,
     page: Number.isInteger(page) && page >= 1 ? page : 1,
     search: searchParams.get("search")?.trim() || undefined,
+    sortBy:
+      sortBy === "period" ||
+      sortBy === "opco" ||
+      sortBy === "partner" ||
+      sortBy === "runAt"
+        ? sortBy
+        : "runAt",
+    sortDir: sortDir === "asc" ? "asc" : "desc",
   };
 }
 
@@ -328,7 +371,7 @@ export async function listCompareLanes(
     })),
   });
 
-  return links.map((link) => {
+  const rows = links.map((link) => {
     const laneKey = `${link.opcoId.toString()}-${link.partnerId.toString()}`;
     const laneReports = reportsByLane.get(laneKey);
     const reconciliation = reconciliationByLane.get(laneKey);
@@ -359,6 +402,42 @@ export async function listCompareLanes(
       lastPartnerIntimationAt: notificationSummary?.lastPartnerIntimationAt ?? null,
       notificationCount: notificationSummary?.totalCount ?? 0,
     };
+  });
+
+  const filteredRows =
+    filters.status === "all"
+      ? rows
+      : rows.filter((row) => row.state === filters.status);
+
+  return sortCompareLanes(filteredRows, filters.sortBy, filters.sortDir);
+}
+
+function sortCompareLanes(
+  rows: CompareLaneRow[],
+  sortBy: CompareLaneSortField,
+  sortDir: SortDirection,
+): CompareLaneRow[] {
+  const dir = sortDir === "asc" ? 1 : -1;
+  return [...rows].sort((a, b) => {
+    if (sortBy === "period") {
+      const av = a.period.year * 100 + a.period.month;
+      const bv = b.period.year * 100 + b.period.month;
+      if (av !== bv) {
+        return (av - bv) * dir;
+      }
+    }
+    if (sortBy === "partner") {
+      const byPartner = a.partnerName.localeCompare(b.partnerName) * dir;
+      if (byPartner !== 0) {
+        return byPartner;
+      }
+      return a.opcoName.localeCompare(b.opcoName) * dir;
+    }
+    const byOpco = a.opcoName.localeCompare(b.opcoName) * dir;
+    if (byOpco !== 0) {
+      return byOpco;
+    }
+    return a.partnerName.localeCompare(b.partnerName) * dir;
   });
 }
 
@@ -558,6 +637,8 @@ export async function listReconciliationHistory(filters: {
   year?: number;
   page: number;
   search?: string;
+  sortBy: ReconciliationHistorySortField;
+  sortDir: SortDirection;
 }): Promise<ReconciliationHistoryResult> {
   const where = {
     ...(filters.month ? { month: filters.month } : {}),
@@ -574,11 +655,25 @@ export async function listReconciliationHistory(filters: {
       : {}),
   };
 
+  const orderBy = (() => {
+    switch (filters.sortBy) {
+      case "period":
+        return [{ year: filters.sortDir }, { month: filters.sortDir }, { runAt: "desc" as const }];
+      case "opco":
+        return { opco: { name: filters.sortDir } };
+      case "partner":
+        return { partner: { name: filters.sortDir } };
+      case "runAt":
+      default:
+        return { runAt: filters.sortDir };
+    }
+  })();
+
   const [totalCount, rows] = await Promise.all([
     prisma.reconciliation.count({ where }),
     prisma.reconciliation.findMany({
       where,
-      orderBy: { runAt: "desc" },
+      orderBy,
       skip: (filters.page - 1) * HISTORY_PAGE_SIZE,
       take: HISTORY_PAGE_SIZE,
       include: {
@@ -610,6 +705,8 @@ export async function listReconciliationHistory(filters: {
     pageSize: HISTORY_PAGE_SIZE,
     totalPages,
     totalCount,
+    sortBy: filters.sortBy,
+    sortDir: filters.sortDir,
   };
 }
 

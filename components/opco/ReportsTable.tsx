@@ -1,14 +1,7 @@
 "use client";
 
-import {
-  createColumnHelper,
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { ReportDetailModal } from "@/components/opco/ReportDetailModal";
 import { ReportReuploadDialog } from "@/components/opco/ReportReuploadDialog";
@@ -25,15 +18,22 @@ import {
   SortableDataTableTh,
 } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
-import { FieldLabel, Input, Select } from "@/components/ui/field";
 import { IconButton } from "@/components/ui/icon-button";
-import { IconEye, IconPencil, IconUpload } from "@/components/ui/icons";
+import { IconEye, IconRefresh, IconUpload } from "@/components/ui/icons";
+import { ListSearch, OrFiltersDivider } from "@/components/ui/list-search";
+import { LoadingBar } from "@/components/ui/loading";
 import { FilterToolbar } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
-import { formatPeriodLabel } from "@/lib/opco/period";
+import { formatPeriodLabel, getDefaultPeriod } from "@/lib/opco/period";
+import { reportRawFilePreviewUrl } from "@/lib/platform/reports/preview-url";
+import {
+  getMaxMonthForYear,
+  getPeriodYearOptions,
+} from "@/lib/platform/period";
 import { ui } from "@/lib/ui/classes";
 import { nextSortState } from "@/lib/ui/sort";
 import { reportStatusTone } from "@/lib/ui/status-tones";
+import { useDebouncedValue } from "@/lib/ui/use-debounced-value";
 import type {
   OpcoReportDetail,
   OpcoReportFilterOptions,
@@ -46,25 +46,19 @@ import type {
 
 const REQUESTABLE_STATUSES = new Set(["SUBMITTED", "APPROVED", "RESUBMITTED"]);
 
-const SORTABLE_COLUMNS: Record<string, OpcoReportSortField> = {
-  partnerName: "partner",
-  period: "period",
-  uploadedAt: "uploaded",
-};
-
 const MONTHS = [
-  { value: 1, label: "January" },
-  { value: 2, label: "February" },
-  { value: 3, label: "March" },
-  { value: 4, label: "April" },
-  { value: 5, label: "May" },
-  { value: 6, label: "June" },
-  { value: 7, label: "July" },
-  { value: 8, label: "August" },
-  { value: 9, label: "September" },
-  { value: 10, label: "October" },
-  { value: 11, label: "November" },
-  { value: 12, label: "December" },
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
 
 function canRequestChange(report: OpcoReportListItem): boolean {
@@ -92,6 +86,9 @@ function buildReportsQuery(filters: OpcoReportListFilters): string {
   if (filters.statusCode) {
     params.set("status", filters.statusCode);
   }
+  if (filters.search) {
+    params.set("search", filters.search);
+  }
 
   return params.toString();
 }
@@ -101,16 +98,31 @@ type ReportsTableProps = {
   filterOptions: OpcoReportFilterOptions;
 };
 
-export function ReportsTable({ initialResult, filterOptions }: ReportsTableProps) {
-  const router = useRouter();
-  const { filters } = initialResult;
+export function ReportsTable({
+  initialResult,
+  filterOptions: initialFilterOptions,
+}: ReportsTableProps) {
+  const defaults = getDefaultPeriod();
+  const { filters: initialFilters } = initialResult;
 
-  const [year, setYear] = useState(filters.year?.toString() ?? "");
-  const [month, setMonth] = useState(filters.month?.toString() ?? "");
-  const [partnerId, setPartnerId] = useState(filters.partnerId ?? "");
-  const [statusCode, setStatusCode] = useState(filters.statusCode ?? "");
-  const [sortBy, setSortBy] = useState<OpcoReportSortField>(filters.sortBy);
-  const [sortDir, setSortDir] = useState<OpcoSortDirection>(filters.sortDir);
+  const [year, setYear] = useState(
+    initialFilters.year?.toString() ?? String(defaults.year),
+  );
+  const [month, setMonth] = useState(
+    initialFilters.month?.toString() ?? String(defaults.month),
+  );
+  const [partnerId, setPartnerId] = useState(initialFilters.partnerId ?? "");
+  const [statusCode, setStatusCode] = useState(initialFilters.statusCode ?? "");
+  const [search, setSearch] = useState(initialFilters.search ?? "");
+  const debouncedSearch = useDebouncedValue(search, 300);
+  const [sortBy, setSortBy] = useState<OpcoReportSortField>(initialFilters.sortBy);
+  const [sortDir, setSortDir] = useState<OpcoSortDirection>(initialFilters.sortDir);
+
+  const [result, setResult] = useState(initialResult);
+  const [filterOptions, setFilterOptions] = useState(initialFilterOptions);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const skipSearchEffect = useRef(true);
 
   const [changeRequestReport, setChangeRequestReport] =
     useState<OpcoReportListItem | null>(null);
@@ -123,46 +135,109 @@ export function ReportsTable({ initialResult, filterOptions }: ReportsTableProps
   const [detailLoading, setDetailLoading] = useState(false);
   const [detail, setDetail] = useState<OpcoReportDetail | null>(null);
 
-  function navigateWithFilters(nextFilters: OpcoReportListFilters) {
-    router.push(`/opco/reports?${buildReportsQuery(nextFilters)}`);
-  }
+  const loadReports = useCallback(async (filters: OpcoReportListFilters) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/opco/reports?${buildReportsQuery(filters)}`);
+      const payload = (await response.json()) as {
+        result?: OpcoReportListResult;
+        filterOptions?: OpcoReportFilterOptions;
+        error?: string;
+      };
+      if (!response.ok || !payload.result) {
+        throw new Error(payload.error ?? "Failed to load reports");
+      }
+      setResult(payload.result);
+      if (payload.filterOptions) {
+        setFilterOptions(payload.filterOptions);
+      }
+      setSortBy(payload.result.filters.sortBy);
+      setSortDir(payload.result.filters.sortDir);
+    } catch (loadError) {
+      setError(
+        loadError instanceof Error ? loadError.message : "Failed to load reports",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  function applyFilters() {
-    navigateWithFilters({
+  const handleSearchChange = (value: string) => {
+    setSearch(value);
+    if (value.trim()) {
+      setPartnerId("");
+      setStatusCode("");
+    }
+  };
+
+  const applyFilters = () => {
+    if (search) {
+      skipSearchEffect.current = true;
+      setSearch("");
+    }
+    void loadReports({
       year: year ? Number(year) : undefined,
       month: month ? Number(month) : undefined,
       partnerId: partnerId || undefined,
       statusCode: statusCode || undefined,
+      search: undefined,
       sortBy,
       sortDir,
       page: 1,
     });
-  }
+  };
 
-  function applySort(field: OpcoReportSortField) {
+  const applySort = (field: OpcoReportSortField) => {
     const next = nextSortState(sortBy, sortDir, field);
     setSortBy(next.sortBy);
     setSortDir(next.sortDir);
-    navigateWithFilters({
-      year: year ? Number(year) : undefined,
-      month: month ? Number(month) : undefined,
-      partnerId: partnerId || undefined,
-      statusCode: statusCode || undefined,
+    const term = debouncedSearch.trim();
+    void loadReports({
+      year: term ? result.filters.year : year ? Number(year) : result.filters.year,
+      month: term
+        ? result.filters.month
+        : month
+          ? Number(month)
+          : result.filters.month,
+      partnerId: term ? undefined : partnerId || result.filters.partnerId,
+      statusCode: term ? undefined : statusCode || result.filters.statusCode,
+      search: term || undefined,
       sortBy: next.sortBy,
       sortDir: next.sortDir,
       page: 1,
     });
-  }
+  };
 
-  function clearFilters() {
-    setYear("");
-    setMonth("");
-    setPartnerId("");
-    setStatusCode("");
-    setSortBy("uploaded");
-    setSortDir("desc");
-    router.push("/opco/reports");
-  }
+  const refresh = () => {
+    void loadReports({ ...result.filters, page: 1 });
+  };
+
+  useEffect(() => {
+    if (skipSearchEffect.current) {
+      skipSearchEffect.current = false;
+      return;
+    }
+    const term = debouncedSearch.trim();
+    const timer = window.setTimeout(() => {
+      void loadReports({
+        year: result.filters.year,
+        month: result.filters.month,
+        partnerId: term ? undefined : result.filters.partnerId,
+        statusCode: term ? undefined : result.filters.statusCode,
+        search: term || undefined,
+        sortBy: result.filters.sortBy,
+        sortDir: result.filters.sortDir,
+        page: 1,
+      });
+    }, 0);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- live search only
+  }, [debouncedSearch, loadReports]);
+
+  const goToPage = (nextPage: number) => {
+    void loadReports({ ...result.filters, page: nextPage });
+  };
 
   async function openDetail(reportId: string) {
     setDetailOpen(true);
@@ -193,290 +268,257 @@ export function ReportsTable({ initialResult, filterOptions }: ReportsTableProps
 
   function handleRequestSuccess() {
     setSuccessMessage("Reupload request submitted. Dizlee has been notified.");
-    router.refresh();
+    void loadReports({ ...result.filters });
   }
 
   function handleReuploadSuccess() {
     setSuccessMessage("Corrected report uploaded successfully.");
-    router.refresh();
+    void loadReports({ ...result.filters });
   }
 
-  const columnHelper = createColumnHelper<OpcoReportListItem>();
-
-  const columns = useMemo(
-    () => [
-      columnHelper.accessor("partnerName", {
-        header: "Partner",
-        cell: (info) => info.getValue(),
-      }),
-      columnHelper.display({
-        id: "period",
-        header: "Period",
-        cell: ({ row }) => formatPeriodLabel(row.original.year, row.original.month),
-      }),
-      columnHelper.accessor("statusLabel", {
-        header: "Status",
-        cell: ({ row }) => (
-          <div>
-            <StatusPill tone={reportStatusTone(row.original.statusCode)}>
-              {row.original.statusLabel}
-            </StatusPill>
-            {row.original.hasPendingChangeRequest ? (
-              <p className="mt-1 text-xs text-warning">Reupload pending review</p>
-            ) : null}
-          </div>
-        ),
-      }),
-      columnHelper.accessor("filename", {
-        header: "File",
-        cell: ({ row }) => (
-          <ReportFilenameLink
-            filename={row.original.filename}
-            onClick={
-              row.original.filename
-                ? () => void openDetail(row.original.id)
-                : undefined
-            }
-          />
-        ),
-      }),
-      columnHelper.accessor("lineItemCount", {
-        header: "Lines",
-        cell: (info) => info.getValue(),
-      }),
-      columnHelper.accessor("uploadedAt", {
-        header: "Uploaded",
-        cell: (info) =>
-          new Date(info.getValue()).toLocaleDateString("en-US", {
-            dateStyle: "medium",
-          }),
-      }),
-      columnHelper.display({
-        id: "actions",
-        header: "Actions",
-        cell: ({ row }) => (
-          <div className="flex gap-2">
-            <IconButton
-              label="View"
-              onClick={() => void openDetail(row.original.id)}
-            >
-              <IconEye />
-            </IconButton>
-            {canRequestChange(row.original) ? (
-              <IconButton
-                label="Request reupload"
-                onClick={() => setChangeRequestReport(row.original)}
-              >
-                <IconPencil />
-              </IconButton>
-            ) : null}
-            {row.original.canReupload ? (
-              <IconButton
-                label="Reupload corrected file"
-                variant="primary"
-                onClick={() => setReuploadReport(row.original)}
-              >
-                <IconUpload />
-              </IconButton>
-            ) : null}
-          </div>
-        ),
-      }),
-    ],
-    [columnHelper],
-  );
-
-  const table = useReactTable({
-    data: initialResult.items,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    manualPagination: true,
-    pageCount: initialResult.totalPages,
-  });
+  const yearOptions = getPeriodYearOptions();
+  const maxMonth = year === "" ? 12 : getMaxMonthForYear(Number(year));
 
   const showingFrom =
-    initialResult.totalCount === 0
-      ? 0
-      : (initialResult.page - 1) * initialResult.pageSize + 1;
-  const showingTo = Math.min(
-    initialResult.page * initialResult.pageSize,
-    initialResult.totalCount,
-  );
+    result.totalCount === 0 ? 0 : (result.page - 1) * result.pageSize + 1;
+  const showingTo = Math.min(result.page * result.pageSize, result.totalCount);
 
   return (
     <div className="space-y-4">
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          applyFilters();
-        }}
-      >
-        <FilterToolbar>
-          <div className="grid w-full gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <div>
-              <FieldLabel htmlFor="reports-year">Year</FieldLabel>
-              <Input
-                id="reports-year"
-                type="number"
-                min={2000}
-                max={2100}
-                value={year}
-                onChange={(event) => setYear(event.target.value)}
-                placeholder="All years"
-              />
-            </div>
-            <div>
-              <FieldLabel htmlFor="reports-month">Month</FieldLabel>
-              <Select
-                id="reports-month"
-                value={month}
-                onChange={(event) => setMonth(event.target.value)}
-              >
-                <option value="">All months</option>
-                {MONTHS.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {item.label}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            <div>
-              <FieldLabel htmlFor="reports-partner">Partner</FieldLabel>
-              <Select
-                id="reports-partner"
-                value={partnerId}
-                onChange={(event) => setPartnerId(event.target.value)}
-              >
-                <option value="">All partners</option>
-                {filterOptions.partners.map((partner) => (
-                  <option key={partner.id} value={partner.id}>
-                    {partner.name}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            <div>
-              <FieldLabel htmlFor="reports-status">Status</FieldLabel>
-              <Select
-                id="reports-status"
-                value={statusCode}
-                onChange={(event) => setStatusCode(event.target.value)}
-              >
-                <option value="">All statuses</option>
-                {filterOptions.statuses.map((status) => (
-                  <option key={status.code} value={status.code}>
-                    {status.label}
-                  </option>
-                ))}
-              </Select>
-            </div>
-          </div>
-          <div className="flex w-full gap-2">
-            <Button type="submit">Apply filters</Button>
-            <Button type="button" variant="secondary" onClick={clearFilters}>
-              Clear
-            </Button>
-          </div>
-        </FilterToolbar>
-      </form>
+      <ListSearch
+        value={search}
+        onChange={handleSearchChange}
+        placeholder="Filename or Partner"
+        className="mt-0"
+      />
 
-      {successMessage ? (
-        <p className={ui.alertSuccess}>{successMessage}</p>
-      ) : null}
+      <OrFiltersDivider className="mt-0" />
 
-      {initialResult.totalCount === 0 ? (
-        <EmptyState
-          title="No reports match your filters"
-          action={
-            <Link href="/opco/upload" className={ui.btnSecondary}>
-              Upload a report
-            </Link>
-          }
-        />
-      ) : (
-        <>
-          <DataTableFrame>
-            <DataTable>
-              <DataTableHead>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <tr key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => {
-                      const sortField = SORTABLE_COLUMNS[header.column.id];
-                      if (sortField) {
-                        return (
-                          <SortableDataTableTh
-                            key={header.id}
-                            label={String(header.column.columnDef.header)}
-                            active={sortBy === sortField}
-                            direction={sortDir}
-                            onSort={() => applySort(sortField)}
-                          />
-                        );
-                      }
-                      return (
-                        <DataTableTh key={header.id}>
-                          {header.isPlaceholder
-                            ? null
-                            : flexRender(
-                                header.column.columnDef.header,
-                                header.getContext(),
-                              )}
-                        </DataTableTh>
-                      );
-                    })}
+      <FilterToolbar className="mt-4">
+        <div className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <label className="text-sm">
+            <span className={ui.label}>Period (month)</span>
+            <select
+              value={month}
+              onChange={(event) => setMonth(event.target.value)}
+              className={ui.select}
+            >
+              <option value="">All months</option>
+              {MONTHS.slice(0, maxMonth).map((name, index) => (
+                <option key={name} value={index + 1}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm">
+            <span className={ui.label}>Year</span>
+            <select
+              value={year}
+              onChange={(event) => {
+                const nextYear = event.target.value;
+                setYear(nextYear);
+                if (nextYear && month) {
+                  const capped = getMaxMonthForYear(Number(nextYear));
+                  if (Number(month) > capped) {
+                    setMonth(String(capped));
+                  }
+                }
+              }}
+              className={ui.select}
+            >
+              <option value="">All years</option>
+              {yearOptions.map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm">
+            <span className={ui.label}>Partner</span>
+            <select
+              value={partnerId}
+              onChange={(event) => setPartnerId(event.target.value)}
+              className={ui.select}
+            >
+              <option value="">All Partners</option>
+              {filterOptions.partners.map((partner) => (
+                <option key={partner.id} value={partner.id}>
+                  {partner.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm">
+            <span className={ui.label}>Status</span>
+            <select
+              value={statusCode}
+              onChange={(event) => setStatusCode(event.target.value)}
+              className={ui.select}
+            >
+              <option value="">All statuses</option>
+              {filterOptions.statuses.map((status) => (
+                <option key={status.code} value={status.code}>
+                  {status.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div className="flex w-full gap-3">
+          <Button onClick={applyFilters}>Apply filters</Button>
+          <Button variant="secondary" onClick={refresh}>
+            Refresh
+          </Button>
+        </div>
+      </FilterToolbar>
+
+      <div className="mt-4">
+        <LoadingBar active={loading} />
+      </div>
+
+      {successMessage ? <p className={ui.alertSuccess}>{successMessage}</p> : null}
+      {error ? <div className={ui.alertError}>{error}</div> : null}
+
+      {!loading && !error ? (
+        result.items.length > 0 ? (
+          <div className="mt-6 space-y-4">
+            <DataTableFrame>
+              <DataTable>
+                <DataTableHead>
+                  <tr>
+                    <SortableDataTableTh
+                      label="Partner"
+                      active={sortBy === "partner"}
+                      direction={sortDir}
+                      onSort={() => applySort("partner")}
+                    />
+                    <SortableDataTableTh
+                      label="Period"
+                      active={sortBy === "period"}
+                      direction={sortDir}
+                      onSort={() => applySort("period")}
+                    />
+                    <DataTableTh>Status</DataTableTh>
+                    <DataTableTh>File</DataTableTh>
+                    <DataTableTh>Lines</DataTableTh>
+                    <SortableDataTableTh
+                      label="Uploaded"
+                      active={sortBy === "uploaded"}
+                      direction={sortDir}
+                      onSort={() => applySort("uploaded")}
+                    />
+                    <DataTableTh>Actions</DataTableTh>
                   </tr>
-                ))}
-              </DataTableHead>
-              <tbody>
-                {table.getRowModel().rows.map((row) => (
-                  <DataTableRow key={row.id}>
-                    {row.getVisibleCells().map((cell) => (
-                      <DataTableTd key={cell.id} className="align-top">
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </DataTableHead>
+                <tbody>
+                  {result.items.map((row) => (
+                    <DataTableRow key={row.id}>
+                      <DataTableTd>{row.partnerName}</DataTableTd>
+                      <DataTableTd className="text-foreground-muted">
+                        {formatPeriodLabel(row.year, row.month)}
                       </DataTableTd>
-                    ))}
-                  </DataTableRow>
-                ))}
-              </tbody>
-            </DataTable>
-          </DataTableFrame>
+                      <DataTableTd>
+                        <div>
+                          <StatusPill tone={reportStatusTone(row.statusCode)}>
+                            {row.statusLabel}
+                          </StatusPill>
+                          {row.hasPendingChangeRequest ? (
+                            <p className="mt-1 text-xs text-warning">
+                              Reupload pending review
+                            </p>
+                          ) : null}
+                        </div>
+                      </DataTableTd>
+                      <DataTableTd className="text-foreground-muted">
+                        <ReportFilenameLink
+                          filename={row.filename}
+                          href={
+                            row.filename
+                              ? reportRawFilePreviewUrl("opco", row.id)
+                              : undefined
+                          }
+                        />
+                      </DataTableTd>
+                      <DataTableTd className="text-foreground-muted">
+                        {row.lineItemCount}
+                      </DataTableTd>
+                      <DataTableTd className="text-foreground-muted">
+                        {new Date(row.uploadedAt).toLocaleDateString("en-US", {
+                          dateStyle: "medium",
+                        })}
+                      </DataTableTd>
+                      <DataTableTd>
+                        <div className="flex gap-2">
+                          <IconButton
+                            label="View parsed report"
+                            onClick={() => void openDetail(row.id)}
+                          >
+                            <IconEye />
+                          </IconButton>
+                          {canRequestChange(row) ? (
+                            <IconButton
+                              label="Request reupload"
+                              onClick={() => setChangeRequestReport(row)}
+                            >
+                              <IconRefresh />
+                            </IconButton>
+                          ) : null}
+                          {row.canReupload ? (
+                            <IconButton
+                              label="Reupload corrected file"
+                              variant="primary"
+                              onClick={() => setReuploadReport(row)}
+                            >
+                              <IconUpload />
+                            </IconButton>
+                          ) : null}
+                        </div>
+                      </DataTableTd>
+                    </DataTableRow>
+                  ))}
+                </tbody>
+              </DataTable>
+            </DataTableFrame>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-foreground-muted">
-            <p>
-              Showing {showingFrom}–{showingTo} of {initialResult.totalCount}
-            </p>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="secondary"
-                disabled={initialResult.page <= 1}
-                onClick={() =>
-                  navigateWithFilters({
-                    ...filters,
-                    page: initialResult.page - 1,
-                  })
-                }
-              >
-                Previous
-              </Button>
-              <span>
-                Page {initialResult.page} of {initialResult.totalPages}
-              </span>
-              <Button
-                variant="secondary"
-                disabled={initialResult.page >= initialResult.totalPages}
-                onClick={() =>
-                  navigateWithFilters({
-                    ...filters,
-                    page: initialResult.page + 1,
-                  })
-                }
-              >
-                Next
-              </Button>
+            <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-foreground-muted">
+              <p>
+                Showing {showingFrom}–{showingTo} of {result.totalCount}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="secondary"
+                  disabled={result.page <= 1}
+                  onClick={() => goToPage(result.page - 1)}
+                >
+                  Previous
+                </Button>
+                <span>
+                  Page {result.page} of {result.totalPages}
+                </span>
+                <Button
+                  variant="secondary"
+                  disabled={result.page >= result.totalPages}
+                  onClick={() => goToPage(result.page + 1)}
+                >
+                  Next
+                </Button>
+              </div>
             </div>
           </div>
-        </>
-      )}
+        ) : (
+          <EmptyState
+            title="No reports match your filters"
+            description="Try adjusting search or filters, or upload a new report."
+            action={
+              <Link href="/opco/upload" className={ui.btnSecondary}>
+                Upload a report
+              </Link>
+            }
+          />
+        )
+      ) : null}
 
       {changeRequestReport ? (
         <RequestChangeDialog

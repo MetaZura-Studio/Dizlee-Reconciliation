@@ -37,12 +37,22 @@ export type ConsolidationHistoryItem = {
   runBy: string;
 };
 
+export type ConsolidationHistorySortField =
+  | "period"
+  | "opco"
+  | "generated"
+  | "total"
+  | "items";
+export type SortDirection = "asc" | "desc";
+
 export type ConsolidationHistoryResult = {
   items: ConsolidationHistoryItem[];
   page: number;
   pageSize: number;
   totalPages: number;
   totalCount: number;
+  sortBy: ConsolidationHistorySortField;
+  sortDir: SortDirection;
 };
 
 export type ConsolidationItemView = {
@@ -124,10 +134,14 @@ export function parseHistoryFilters(searchParams: URLSearchParams): {
   opcoId?: string;
   search?: string;
   page: number;
+  sortBy: ConsolidationHistorySortField;
+  sortDir: SortDirection;
 } {
   const month = Number(searchParams.get("month"));
   const year = Number(searchParams.get("year"));
   const page = Number(searchParams.get("page"));
+  const sortBy = searchParams.get("sortBy");
+  const sortDir = searchParams.get("sortDir");
 
   return {
     month:
@@ -137,6 +151,15 @@ export function parseHistoryFilters(searchParams: URLSearchParams): {
     opcoId: searchParams.get("opcoId") ?? undefined,
     search: searchParams.get("search")?.trim() || undefined,
     page: Number.isInteger(page) && page >= 1 ? page : 1,
+    sortBy:
+      sortBy === "period" ||
+      sortBy === "opco" ||
+      sortBy === "generated" ||
+      sortBy === "total" ||
+      sortBy === "items"
+        ? sortBy
+        : "generated",
+    sortDir: sortDir === "asc" ? "asc" : "desc",
   };
 }
 
@@ -432,6 +455,8 @@ export async function listConsolidationHistory(filters: {
   opcoId?: string;
   search?: string;
   page: number;
+  sortBy: ConsolidationHistorySortField;
+  sortDir: SortDirection;
 }): Promise<ConsolidationHistoryResult> {
   const where = {
     isDeleted: false,
@@ -449,11 +474,31 @@ export async function listConsolidationHistory(filters: {
       : {}),
   };
 
+  const orderBy = (() => {
+    switch (filters.sortBy) {
+      case "period":
+        return [
+          { year: filters.sortDir },
+          { month: filters.sortDir },
+          { generatedAt: "desc" as const },
+        ];
+      case "opco":
+        return { opco: { name: filters.sortDir } };
+      case "total":
+        return { totalAmountUsd: filters.sortDir };
+      case "items":
+        return { items: { _count: filters.sortDir } };
+      case "generated":
+      default:
+        return { generatedAt: filters.sortDir };
+    }
+  })();
+
   const [totalCount, rows] = await Promise.all([
     prisma.consolidation.count({ where }),
     prisma.consolidation.findMany({
       where,
-      orderBy: { generatedAt: "desc" },
+      orderBy,
       skip: (filters.page - 1) * HISTORY_PAGE_SIZE,
       take: HISTORY_PAGE_SIZE,
       include: {
@@ -483,6 +528,8 @@ export async function listConsolidationHistory(filters: {
     pageSize: HISTORY_PAGE_SIZE,
     totalPages,
     totalCount,
+    sortBy: filters.sortBy,
+    sortDir: filters.sortDir,
   };
 }
 

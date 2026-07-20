@@ -14,7 +14,11 @@ export default async function OpcoLayout({
   );
 
   return (
-    <OpcoWorkspace email={session.email} unreadCount={unreadCount}>
+    <OpcoWorkspace
+      name={session.name}
+      email={session.email}
+      unreadCount={unreadCount}
+    >
       {children}
     </OpcoWorkspace>
   );

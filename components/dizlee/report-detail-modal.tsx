@@ -9,6 +9,7 @@ import {
   DataTableTh,
 } from "@/components/ui/data-table";
 import { Modal } from "@/components/ui/modal";
+import { ReportFilenameLink } from "@/components/shared/report-filename-link";
 import type { ReportDetail } from "@/lib/dizlee/reports";
 
 function formatBytes(size: number | null): string {
@@ -49,10 +50,10 @@ export function ReportDetailModal({
   return (
     <Modal
       open={!!detail || loading}
-      title="Report details"
+      title="Parsed report data"
       onClose={onClose}
       wide
-      className="max-w-5xl"
+      className="max-w-6xl"
     >
       {loading ? (
         <p className="text-sm text-foreground-subtle">Loading report details…</p>
@@ -78,8 +79,13 @@ export function ReportDetailModal({
               </dd>
             </div>
             <div>
-              <dt className="text-foreground-subtle">File</dt>
-              <dd className="font-medium text-foreground">{detail.filename ?? "—"}</dd>
+              <dt className="text-foreground-subtle">Original file</dt>
+              <dd className="font-medium text-foreground">
+                <ReportFilenameLink
+                  filename={detail.filename}
+                  href={detail.previewUrl ?? undefined}
+                />
+              </dd>
             </div>
             <div>
               <dt className="text-foreground-subtle">File size</dt>
@@ -98,7 +104,7 @@ export function ReportDetailModal({
           </dl>
 
           <div>
-            <h3 className="text-sm font-semibold text-foreground">Report data</h3>
+            <h3 className="text-sm font-semibold text-foreground">Parsed report data</h3>
             <div className="mt-3">
               {detail.lineItems.length === 0 ? (
                 <p className="rounded-2xl border border-border bg-surface-muted px-3 py-4 text-sm text-foreground-subtle">
@@ -120,8 +126,8 @@ export function ReportDetailModal({
                       </DataTableRow>
                     </DataTableHead>
                     <tbody>
-                      {detail.lineItems.map((item) => (
-                        <DataTableRow key={item.lineNumber}>
+                      {detail.lineItems.map((item, index) => (
+                        <DataTableRow key={`${item.lineNumber}-${index}`}>
                           <DataTableTd className="text-foreground-subtle">
                             {item.lineNumber}
                           </DataTableTd>

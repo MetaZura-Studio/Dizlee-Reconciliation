@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { FieldLegend } from "@/components/ui/field";
+import { ModalCloseButton } from "@/components/ui/modal-close-button";
 import { PortalOverlay } from "@/components/ui/portal-overlay";
 import type {
   AdminUserRole,
@@ -228,21 +230,26 @@ function UserFormModalContent({
         className={`${ui.modal} relative z-[101] max-h-[90vh] overflow-y-auto bg-surface`}
         onClick={(event) => event.stopPropagation()}
       >
-        <h2 id="user-form-title" className="text-lg font-semibold tracking-tight text-foreground">
-          {title}
-        </h2>
-        <p className="mt-1 text-sm text-foreground-subtle">
-          {mode === "create"
-            ? "A set-password link is emailed to the user (expires in 1 hour). They can change it later from their profile."
-            : "Profile and access only. Password changes are done by the user."}{" "}
-          OpCo and Partner users must be linked to an existing organization.
-        </p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 id="user-form-title" className="text-lg font-semibold tracking-tight text-foreground">
+              {title}
+            </h2>
+            <p className="mt-1 text-sm text-foreground-subtle">
+              {mode === "create"
+                ? "A set-password link is emailed to the user (expires in 1 hour). They can change it later from their profile."
+                : "Profile and access only. Password changes are done by the user."}{" "}
+              OpCo and Partner users must be linked to an existing organization.
+            </p>
+          </div>
+          <ModalCloseButton onClick={onClose} disabled={submitting} />
+        </div>
 
         <div className="mt-4 space-y-4">
           {error ? <p className={ui.alertError}>{error}</p> : null}
 
           <label className="block text-sm">
-            <span className={ui.label}>Name</span>
+            <FieldLegend required>Name</FieldLegend>
             <input
               type="text"
               value={values.name}
@@ -253,7 +260,7 @@ function UserFormModalContent({
           </label>
 
           <label className="block text-sm">
-            <span className={ui.label}>Email</span>
+            <FieldLegend required>Email</FieldLegend>
             <input
               type="email"
               value={values.email}
@@ -264,7 +271,7 @@ function UserFormModalContent({
           </label>
 
           <label className="block text-sm">
-            <span className={ui.label}>Role</span>
+            <FieldLegend required>Role</FieldLegend>
             <select
               value={values.role}
               onChange={(event) =>
@@ -280,7 +287,7 @@ function UserFormModalContent({
 
           {values.role === "opco" ? (
             <label className="block text-sm">
-              <span className={ui.label}>OpCo</span>
+              <FieldLegend required>OpCo</FieldLegend>
               <select
                 value={values.opcoId}
                 onChange={(event) => updateField("opcoId", event.target.value)}
@@ -301,7 +308,7 @@ function UserFormModalContent({
 
           {values.role === "partner" ? (
             <label className="block text-sm">
-              <span className={ui.label}>Partner</span>
+              <FieldLegend required>Partner</FieldLegend>
               <select
                 value={values.partnerId}
                 onChange={(event) => updateField("partnerId", event.target.value)}
@@ -321,7 +328,7 @@ function UserFormModalContent({
           ) : null}
 
           <label className="block text-sm">
-            <span className={ui.label}>Status</span>
+            <FieldLegend>Status</FieldLegend>
             <select
               value={values.status}
               onChange={(event) =>
