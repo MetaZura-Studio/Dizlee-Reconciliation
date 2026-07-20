@@ -164,8 +164,35 @@ export function serializeInvoiceBankAccounts(
   });
 }
 
+export type InvoiceSignatories = {
+  preparedBy: string | null;
+  approvedBy: string | null;
+};
+
+export function parseInvoiceSignatoriesJson(
+  raw: string | null | undefined,
+): InvoiceSignatories {
+  if (!raw?.trim()) {
+    return { preparedBy: null, approvedBy: null };
+  }
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return { preparedBy: null, approvedBy: null };
+    }
+    const record = parsed as Record<string, unknown>;
+    return {
+      preparedBy: readString(record.preparedBy ?? record.prepared_by),
+      approvedBy: readString(record.approvedBy ?? record.approved_by),
+    };
+  } catch {
+    return { preparedBy: null, approvedBy: null };
+  }
+}
+
 export function serializeInvoiceBankDetailsSnapshot(
   account: InvoiceBankAccount | InvoiceBankDetails,
+  signatories?: Partial<InvoiceSignatories> | null,
 ): string {
   return JSON.stringify({
     label: "label" in account ? account.label : null,
@@ -175,6 +202,8 @@ export function serializeInvoiceBankDetailsSnapshot(
     iban: account.iban,
     swift: account.swift,
     reference: account.reference,
+    preparedBy: readString(signatories?.preparedBy) ?? null,
+    approvedBy: readString(signatories?.approvedBy) ?? null,
   });
 }
 

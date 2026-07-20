@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 
+import { FieldLabel } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import type { ReconciliationToleranceView } from "@/lib/admin/reconciliation-tolerance";
 import { ui } from "@/lib/ui/classes";
@@ -111,9 +112,9 @@ export function ReconciliationToleranceForm({
 
       <form onSubmit={(event) => void saveSettings(event)} className="space-y-6">
         <div className="space-y-1">
-          <label htmlFor="reconciliationNegligiblePercent" className={ui.label}>
+          <FieldLabel htmlFor="reconciliationNegligiblePercent" required>
             Negligible difference (%)
-          </label>
+          </FieldLabel>
           <input
             id="reconciliationNegligiblePercent"
             type="number"
@@ -134,12 +135,6 @@ export function ReconciliationToleranceForm({
             {formatPercent(savedSettings.reconciliationNegligiblePercent)}%
           </p>
         </div>
-
-        <p className={`${ui.cardPadding} text-sm text-foreground-muted`}>
-          Lines within this percentage relative difference are treated as
-          matched when Dizlee runs reconciliation. Unlinked or larger variances
-          remain mismatched.
-        </p>
 
         <div className="flex flex-wrap gap-3">
           <Button type="submit" disabled={saving || reloading}>

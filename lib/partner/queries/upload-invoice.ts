@@ -1,8 +1,10 @@
 import { getPartnerLookupId } from "@/lib/partner/lookups";
+import { formatPeriodLabel } from "@/lib/partner/period";
 import { isOpcoLinkedToPartner } from "@/lib/partner/queries/opcos";
 import { saveInvoiceFileLocally } from "@/lib/partner/storage/save-invoice-file";
 import type { PartnerInvoiceUploadMetadata } from "@/lib/partner/validation/invoice-upload";
 import { writePlatformAuditLog } from "@/lib/platform/audit-log";
+import { notifyDizleeUsers } from "@/lib/platform/notify-dizlee";
 import prisma from "@/lib/prisma";
 
 export class InvoiceUploadError extends Error {
@@ -51,11 +53,15 @@ export async function createPartnerInvoice(
 
   const opcoId = BigInt(input.metadata.opcoId);
 
-  const [opco, invoiceTypeId, sentStatusId, unpaidStatusId, actionId] =
+  const [opco, partner, invoiceTypeId, sentStatusId, unpaidStatusId, actionId] =
     await Promise.all([
       prisma.opco.findFirst({
         where: { id: opcoId },
-        select: { defaultCurrencyId: true },
+        select: { defaultCurrencyId: true, name: true },
+      }),
+      prisma.partner.findFirst({
+        where: { id: input.partnerId },
+        select: { name: true },
       }),
       getPartnerLookupId("INVOICE_TYPE", "PARTNER_TO_CLIENT"),
       getPartnerLookupId("INVOICE_STATUS", "SENT"),
@@ -65,6 +71,10 @@ export async function createPartnerInvoice(
 
   if (!opco) {
     throw new InvoiceUploadError("OpCo not found", 404);
+  }
+
+  if (!partner) {
+    throw new InvoiceUploadError("Partner not found", 404);
   }
 
   const duplicate = await prisma.invoice.findFirst({
@@ -178,6 +188,16 @@ export async function createPartnerInvoice(
       month: input.metadata.month,
       year: input.metadata.year,
     },
+  });
+
+  const periodLabel = formatPeriodLabel(
+    input.metadata.year,
+    input.metadata.month,
+  );
+  await notifyDizleeUsers({
+    fromUserId: input.userId,
+    subject: "Partner invoice uploaded",
+    body: `${partner.name} uploaded invoice ${invoiceNumber} for ${opco.name} (${periodLabel}).`,
   });
 
   return { invoiceId: invoice.id.toString() };

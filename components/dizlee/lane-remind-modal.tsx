@@ -15,8 +15,12 @@ import { FieldLabel, Input, Select } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
 import { FilterToolbar } from "@/components/ui/page";
 import {
+  attachmentFileIds,
+  NotificationAttachmentPicker,
+  type PendingAttachment,
+} from "@/components/shared/notification-attachment-picker";
+import {
   DEFAULT_REMINDER_MESSAGE_SOURCE,
-  type BroadcastTemplateCode,
   type BroadcastTemplateOption,
 } from "@/lib/dizlee/notifications/broadcast.shared";
 import type {
@@ -57,7 +61,7 @@ function kindLabel(kind: LaneNotificationHistoryItem["kind"]): string {
 
 function getTemplateContent(
   templates: BroadcastTemplateOption[],
-  code: BroadcastTemplateCode,
+  code: string,
 ) {
   const template = templates.find((row) => row.code === code);
   return {
@@ -105,11 +109,12 @@ export function LaneRemindModal({
   const [history, setHistory] = useState<LaneNotificationHistoryResult | null>(
     null,
   );
-  const [messageSource, setMessageSource] = useState<BroadcastTemplateCode>(
+  const [messageSource, setMessageSource] = useState<string>(
     DEFAULT_REMINDER_MESSAGE_SOURCE,
   );
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
+  const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
 
   const canRemindOpco =
     lane.state === "MISSING" || lane.state === "NO_OPCO_REPORT";
@@ -168,7 +173,7 @@ export function LaneRemindModal({
     };
   }, [lane.opcoId, lane.partnerId, month, year]);
 
-  function handleTemplateChange(code: BroadcastTemplateCode) {
+  function handleTemplateChange(code: string) {
     setMessageSource(code);
     if (history) {
       const content = getTemplateContent(history.templates, code);
@@ -195,6 +200,7 @@ export function LaneRemindModal({
           messageSource,
           subject,
           body,
+          attachmentFileIds: attachmentFileIds(attachments),
         }),
       });
       const payload = await response.json();
@@ -205,6 +211,7 @@ export function LaneRemindModal({
       const message =
         (payload.data?.message as string | undefined) ?? "Reminder sent.";
       onSent(message);
+      setAttachments([]);
 
       const refresh = await fetch(
         `/api/dizlee/reconciliation/lane-notifications?${new URLSearchParams({
@@ -263,9 +270,7 @@ export function LaneRemindModal({
             <Select
               id="lane-remind-template"
               value={messageSource}
-              onChange={(event) =>
-                handleTemplateChange(event.target.value as BroadcastTemplateCode)
-              }
+              onChange={(event) => handleTemplateChange(event.target.value)}
               disabled={sending}
             >
               {history.templates.map((template) => (
@@ -297,6 +302,11 @@ export function LaneRemindModal({
               className={`${ui.input} h-auto resize-y py-2.5 disabled:opacity-60`}
             />
           </div>
+          <NotificationAttachmentPicker
+            attachments={attachments}
+            onChange={setAttachments}
+            disabled={sending}
+          />
         </FilterToolbar>
         <div className="flex flex-wrap gap-2">
           <Button

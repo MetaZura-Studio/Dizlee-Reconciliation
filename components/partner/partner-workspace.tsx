@@ -1,47 +1,137 @@
 "use client";
 
-import { AppShell, type AppShellNavItem } from "@/components/layout/app-shell";
-import { NotificationsBell } from "@/components/partner/NotificationsBell";
-import { SignOutButton } from "@/components/partner/SignOutButton";
+import Link from "next/link";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-const NAV: AppShellNavItem[] = [
-  { href: "/partner", label: "Dashboard", icon: "home" },
-  { href: "/partner/upload", label: "Upload Report", icon: "file" },
-  { href: "/partner/reports", label: "Reports history", icon: "file" },
-  { href: "/partner/invoices", label: "Invoices", icon: "file" },
-  { href: "/partner/notifications", label: "Notifications", icon: "users" },
-  {
-    href: "/partner/settings",
-    label: "Settings",
-    icon: "settings",
-    footer: true,
-  },
-];
+import { SignOutButton } from "@/components/auth/sign-out-button";
+import { AppShell, type AppShellNavItem } from "@/components/layout/app-shell";
+import { cn, ui } from "@/lib/ui/classes";
 
 type PartnerWorkspaceProps = {
+  name?: string | null;
   email: string;
   unreadCount: number;
   children: React.ReactNode;
 };
 
+function PartnerProfileMenu({
+  name,
+  email,
+  collapsed,
+}: {
+  name?: string | null;
+  email: string;
+  collapsed: boolean;
+}) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const displayName = name?.trim() || "Partner User";
+  const initial = displayName.charAt(0).toUpperCase() || "P";
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (!menuRef.current?.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative w-full min-w-0" ref={menuRef}>
+      <button
+        type="button"
+        onClick={() => setMenuOpen((open) => !open)}
+        className={cn(
+          "flex w-full min-w-0 items-center gap-3 rounded-2xl px-3 py-2 text-left transition-colors hover:bg-surface-muted",
+          collapsed && "justify-center px-2",
+        )}
+        aria-expanded={menuOpen}
+        aria-haspopup="menu"
+        aria-label={`${displayName} menu`}
+        title={displayName}
+      >
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground shadow-[var(--shadow-sm)]">
+          {initial}
+        </span>
+        {!collapsed ? (
+          <span className="min-w-0">
+            <span className="block truncate text-sm font-medium text-foreground">
+              {displayName}
+            </span>
+            <span className="block truncate text-xs text-foreground-subtle">
+              {email}
+            </span>
+          </span>
+        ) : null}
+      </button>
+      {menuOpen ? (
+        <div
+          className={cn(
+            ui.dropdown,
+            "bottom-full left-0 right-auto top-auto mb-2 mt-0 min-w-[14rem]",
+          )}
+          role="menu"
+        >
+          <div className="border-b border-border px-3 py-2">
+            <p className="truncate text-sm font-medium">{displayName}</p>
+            <p className="truncate text-xs text-foreground-subtle">{email}</p>
+          </div>
+          <Link
+            href="/change-password"
+            className="block px-3 py-2 text-sm text-foreground-muted hover:bg-surface-muted"
+            role="menuitem"
+            onClick={() => setMenuOpen(false)}
+          >
+            Change password
+          </Link>
+          <div className="border-t border-border px-2 py-1">
+            <SignOutButton />
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function PartnerWorkspace({
+  name,
   email,
   unreadCount,
   children,
 }: PartnerWorkspaceProps) {
+  const navItems = useMemo<AppShellNavItem[]>(
+    () => [
+      { href: "/partner", label: "Dashboard", icon: "home" },
+      { href: "/partner/upload", label: "Upload Report", icon: "file" },
+      { href: "/partner/reports", label: "Reports history", icon: "file" },
+      { href: "/partner/invoices", label: "Invoices", icon: "invoice" },
+      {
+        href: "/partner/notifications",
+        label: "Notifications",
+        icon: "bell",
+        badge: unreadCount > 0 ? unreadCount : undefined,
+      },
+      {
+        href: "/partner/settings",
+        label: "Settings",
+        icon: "settings",
+        footer: true,
+      },
+    ],
+    [unreadCount],
+  );
+
   return (
     <AppShell
       brand="Partner Portal"
       subtitle="Dizlee Reconciliation"
       storageKey="partner-sidebar-collapsed"
-      navItems={NAV}
-      userLabel={email}
-      headerRight={
-        <>
-          <NotificationsBell initialUnreadCount={unreadCount} />
-          <SignOutButton />
-        </>
-      }
+      navItems={navItems}
+      footerSlot={(collapsed) => (
+        <PartnerProfileMenu name={name} email={email} collapsed={collapsed} />
+      )}
     >
       {children}
     </AppShell>

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/ui/classes";
+import { getMaxMonthForYear } from "@/lib/platform/period";
 
 export type DateRangeValue = {
   dateFrom: string;
@@ -190,7 +191,8 @@ function CalendarPanel({
   const firstWeekday = new Date(year, month, 1).getDay();
   const totalDays = daysInMonth(year, month);
   const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 12 }, (_, index) => currentYear - 8 + index);
+  const years = Array.from({ length: 9 }, (_, index) => currentYear - 8 + index);
+  const maxMonth = getMaxMonthForYear(year);
 
   const cells: Array<{ ymd: string; day: number } | null> = [];
   for (let i = 0; i < firstWeekday; i += 1) {
@@ -217,7 +219,7 @@ function CalendarPanel({
             onViewChange(new Date(year, Number(event.target.value), 1))
           }
         >
-          {MONTHS.map((name, index) => (
+          {MONTHS.slice(0, maxMonth).map((name, index) => (
             <option key={name} value={index}>
               {name}
             </option>

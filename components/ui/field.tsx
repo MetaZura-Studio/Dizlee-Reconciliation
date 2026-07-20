@@ -1,6 +1,15 @@
-import type { InputHTMLAttributes, SelectHTMLAttributes } from "react";
+import type { InputHTMLAttributes, LabelHTMLAttributes, SelectHTMLAttributes } from "react";
 
 import { cn, ui } from "@/lib/ui/classes";
+
+export function RequiredMark() {
+  return (
+    <span className="text-danger" aria-hidden="true">
+      {" "}
+      *
+    </span>
+  );
+}
 
 export function Input({
   className,
@@ -21,16 +30,42 @@ export function Select({
   );
 }
 
+type FieldLabelProps = {
+  children: React.ReactNode;
+  htmlFor?: string;
+  required?: boolean;
+  className?: string;
+} & Pick<LabelHTMLAttributes<HTMLLabelElement>, "id">;
+
 export function FieldLabel({
   children,
   htmlFor,
+  required,
+  className,
+  id,
+}: FieldLabelProps) {
+  return (
+    <label htmlFor={htmlFor} id={id} className={cn(ui.label, className)}>
+      {children}
+      {required ? <RequiredMark /> : null}
+    </label>
+  );
+}
+
+/** Label styled like FieldLabel but for non-`<label>` group headings (e.g. checkbox lists). */
+export function FieldLegend({
+  children,
+  required,
+  className,
 }: {
   children: React.ReactNode;
-  htmlFor?: string;
+  required?: boolean;
+  className?: string;
 }) {
   return (
-    <label htmlFor={htmlFor} className={ui.label}>
+    <span className={cn(ui.label, className)}>
       {children}
-    </label>
+      {required ? <RequiredMark /> : null}
+    </span>
   );
 }

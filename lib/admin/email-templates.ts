@@ -2,27 +2,37 @@ import type { Prisma } from "@prisma/client";
 
 import { writeNotificationAuditLog } from "@/lib/admin/audit";
 import type {
+  EmailTemplateCategory,
   EmailTemplateDetail,
   EmailTemplateListItem,
   EmailTemplateVersionItem,
 } from "@/lib/admin/email-templates.shared";
-import { getPlaceholdersForTemplate } from "@/lib/admin/email-templates.shared";
 import {
+  getPlaceholdersForTemplate,
+  normalizeEmailTemplateCategory,
+} from "@/lib/admin/email-templates.shared";
+import {
+  createEmailTemplateSchema,
   revertEmailTemplateSchema,
   saveEmailTemplateSchema,
+  type CreateEmailTemplateInput,
   type RevertEmailTemplateInput,
   type SaveEmailTemplateInput,
 } from "@/lib/admin/validation/email-templates";
 import { prisma } from "@/lib/prisma";
 
 export type {
+  EmailTemplateCategory,
   EmailTemplateDetail,
   EmailTemplateListItem,
   EmailTemplateVersionItem,
   EmailTemplatesPageData,
 } from "@/lib/admin/email-templates.shared";
 
-export { getPlaceholdersForTemplate } from "@/lib/admin/email-templates.shared";
+export {
+  categoryLabel,
+  getPlaceholdersForTemplate,
+} from "@/lib/admin/email-templates.shared";
 
 export class EmailTemplateError extends Error {
   status: number;
@@ -49,6 +59,7 @@ async function getTemplateRowByCode(code: string) {
       id: true,
       code: true,
       name: true,
+      category: true,
       subject: true,
       body: true,
     },
@@ -91,9 +102,11 @@ async function buildTemplateDetail(template: {
   id: number;
   code: string;
   name: string;
+  category: string;
   subject: string;
   body: string;
 }): Promise<EmailTemplateDetail> {
+  const category = normalizeEmailTemplateCategory(template.category, template.code);
   const versions = await prisma.emailTemplateVersion.findMany({
     where: { notificationTemplateId: template.id },
     orderBy: { version: "desc" },
@@ -111,10 +124,11 @@ async function buildTemplateDetail(template: {
   return {
     code: template.code,
     name: template.name,
+    category,
     subject: template.subject,
     body: template.body,
     currentVersion,
-    placeholders: getPlaceholdersForTemplate(template.code),
+    placeholders: getPlaceholdersForTemplate(template.code, category),
     versions: versions.map(mapVersionRow),
   };
 }
@@ -122,21 +136,27 @@ async function buildTemplateDetail(template: {
 export async function listEmailTemplates(): Promise<EmailTemplateListItem[]> {
   const templates = await prisma.notificationTemplate.findMany({
     where: { isDeleted: false },
-    orderBy: { name: "asc" },
+    orderBy: [{ category: "asc" }, { name: "asc" }],
     select: {
       id: true,
       code: true,
       name: true,
+      category: true,
       subject: true,
     },
   });
 
   const items = await Promise.all(
     templates.map(async (template) => {
+      const category = normalizeEmailTemplateCategory(
+        template.category,
+        template.code,
+      );
       const currentVersion = await getMaxVersion(template.id);
       return {
         code: template.code,
         name: template.name,
+        category,
         subject: template.subject,
         currentVersion,
       };
@@ -149,6 +169,96 @@ export async function listEmailTemplates(): Promise<EmailTemplateListItem[]> {
 export async function getEmailTemplate(code: string): Promise<EmailTemplateDetail> {
   const template = await getTemplateRowByCode(code);
   return buildTemplateDetail(template);
+}
+
+async function resolveActiveStatusId(): Promise<number> {
+  const status = await prisma.lookup.findFirst({
+    where: {
+      code: "ACTIVE",
+      lookupType: { code: "USER_STATUS" },
+    },
+    select: { id: true },
+  });
+
+  if (!status) {
+    throw new EmailTemplateError("Active status lookup is missing", 500);
+  }
+
+  return status.id;
+}
+
+export async function createEmailTemplate(
+  rawInput: CreateEmailTemplateInput,
+  actorUserId: bigint,
+): Promise<EmailTemplateDetail> {
+  const parsed = createEmailTemplateSchema.safeParse(rawInput);
+  if (!parsed.success) {
+    throw new EmailTemplateError(
+      parsed.error.issues[0]?.message ?? "Invalid input",
+    );
+  }
+
+  const { name, code, category, subject, body, changeNote } = parsed.data;
+
+  const existing = await prisma.notificationTemplate.findFirst({
+    where: { code },
+    select: { id: true, isDeleted: true },
+  });
+
+  if (existing && !existing.isDeleted) {
+    throw new EmailTemplateError(
+      `A template with code ${code} already exists.`,
+      409,
+    );
+  }
+
+  if (existing?.isDeleted) {
+    throw new EmailTemplateError(
+      `Template code ${code} was previously retired and cannot be reused.`,
+      409,
+    );
+  }
+
+  const statusId = await resolveActiveStatusId();
+
+  const template = await prisma.notificationTemplate.create({
+    data: {
+      code,
+      name,
+      category: category as EmailTemplateCategory,
+      subject,
+      body,
+      statusId,
+      createdByUserId: actorUserId,
+      updatedByUserId: actorUserId,
+    },
+  });
+
+  await prisma.emailTemplateVersion.create({
+    data: {
+      notificationTemplateId: template.id,
+      version: 1,
+      subject,
+      body,
+      changeNote: changeNote ?? "Initial version",
+      createdByUserId: actorUserId,
+    },
+  });
+
+  await writeNotificationAuditLog({
+    actorUserId,
+    action: "EMAIL_TEMPLATE_UPDATED",
+    notificationTemplateId: BigInt(template.id),
+    message: `Email template ${code} created.`,
+    metadata: {
+      code,
+      category,
+      version: 1,
+      changeNote: changeNote ?? "Initial version",
+    },
+  });
+
+  return getEmailTemplate(code);
 }
 
 async function persistTemplateVersion(params: {
@@ -239,6 +349,12 @@ export async function revertEmailTemplate(
   }
 
   const template = await getTemplateRowByCode(code);
+  const currentVersion = await getMaxVersion(template.id);
+
+  if (parsed.data.version === currentVersion) {
+    throw new EmailTemplateError("That version is already live.");
+  }
+
   const sourceVersion = await prisma.emailTemplateVersion.findFirst({
     where: {
       notificationTemplateId: template.id,
@@ -255,25 +371,37 @@ export async function revertEmailTemplate(
     throw new EmailTemplateError("Template version not found", 404);
   }
 
-  const nextVersion = getNextTemplateVersion(await getMaxVersion(template.id));
-  const changeNote = buildRevertChangeNote(sourceVersion.version);
+  await prisma.$transaction([
+    prisma.notificationTemplate.update({
+      where: { id: template.id },
+      data: {
+        subject: sourceVersion.subject,
+        body: sourceVersion.body,
+        updatedByUserId: actorUserId,
+      },
+    }),
+    prisma.emailTemplateVersion.deleteMany({
+      where: {
+        notificationTemplateId: template.id,
+        version: { gt: sourceVersion.version },
+      },
+    }),
+  ]);
 
-  return persistTemplateVersion({
-    notificationTemplateId: template.id,
-    templateCode: template.code,
-    version: nextVersion,
-    subject: sourceVersion.subject,
-    body: sourceVersion.body,
-    changeNote,
+  await writeNotificationAuditLog({
     actorUserId,
-    auditMessage: `Email template ${template.code} reverted to version ${sourceVersion.version}.`,
-    auditMetadata: {
+    action: "EMAIL_TEMPLATE_UPDATED",
+    notificationTemplateId: BigInt(template.id),
+    message: `Email template ${template.code} reverted to version ${sourceVersion.version}.`,
+    metadata: {
       code: template.code,
-      version: nextVersion,
-      revertedFromVersion: sourceVersion.version,
-      changeNote,
+      version: sourceVersion.version,
+      revertedFromVersion: currentVersion,
+      changeNote: buildRevertChangeNote(sourceVersion.version),
     },
   });
+
+  return getEmailTemplate(template.code);
 }
 
 export async function getEmailTemplatesPageData(

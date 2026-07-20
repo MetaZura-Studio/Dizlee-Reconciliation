@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 
 import { cn } from "@/lib/ui/classes";
 
@@ -27,7 +28,7 @@ export function StatCard({
   const inner = (
     <div
       className={cn(
-        "rounded-[22px] bg-gradient-to-br p-4",
+        "flex h-full min-h-[7.5rem] flex-col rounded-[22px] bg-gradient-to-br p-4",
         toneWash[tone],
       )}
     >
@@ -37,18 +38,26 @@ export function StatCard({
       <p className="mt-2 text-2xl font-semibold tracking-tight text-foreground">
         {value}
       </p>
-      {hint ? <p className="mt-1 text-xs text-foreground-subtle">{hint}</p> : null}
+      <p
+        className={cn(
+          "mt-auto pt-1 text-xs",
+          hint ? "text-foreground-subtle" : "invisible",
+        )}
+        aria-hidden={hint ? undefined : true}
+      >
+        {hint ?? "\u00a0"}
+      </p>
     </div>
   );
 
   const shellClass =
-    "block rounded-[28px] border border-border bg-surface p-2 shadow-[var(--shadow-md)] transition-colors";
+    "block h-full rounded-[28px] border border-border bg-surface p-2 shadow-[var(--shadow-md)] transition-colors";
 
   if (href) {
     return (
-      <a href={href} className={cn(shellClass, "hover:bg-surface-muted/40")}>
+      <Link href={href} className={cn(shellClass, "hover:bg-surface-muted/40")}>
         {inner}
-      </a>
+      </Link>
     );
   }
 

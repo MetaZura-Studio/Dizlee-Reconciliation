@@ -19,7 +19,7 @@ export async function GET(request: Request) {
 
   const [result, filterOptions] = await Promise.all([
     searchInvoicesForOpco(opcoId, filters),
-    getOpcoInvoiceFilterOptions(opcoId),
+    getOpcoInvoiceFilterOptions(),
   ]);
 
   return NextResponse.json({ result, filterOptions });

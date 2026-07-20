@@ -17,8 +17,8 @@ import {
   formatCurrencyPeriodLabel,
   getMonthlyRatesForPeriod,
   isSameCalendarPeriod,
-  USD_ISO_CODE,
-  USD_RATE,
+  BASE_CURRENCY_ISO_CODE,
+  BASE_CURRENCY_RATE,
 } from "@/lib/platform/currency-rates";
 import { prisma } from "@/lib/prisma";
 
@@ -68,16 +68,16 @@ export async function getRatesForPeriod(
 
   const rates = currencies.map((currency) => {
     const storedRate = rateByCurrencyId.get(currency.id);
-    const isUsd = currency.isoCode === USD_ISO_CODE;
-    const rateToUsd = isUsd ? USD_RATE : (storedRate ?? null);
+    const isBase = currency.isoCode === BASE_CURRENCY_ISO_CODE;
+    const rateToUsd = isBase ? BASE_CURRENCY_RATE : (storedRate ?? null);
 
     return {
       currencyId: currency.id,
       isoCode: currency.isoCode,
       symbol: currency.symbol,
       rateToUsd,
-      hasRate: isUsd || storedRate !== undefined,
-      isUsd,
+      hasRate: isBase || storedRate !== undefined,
+      isBase,
     };
   });
 
@@ -172,11 +172,11 @@ export async function saveRatesForPeriod(
   for (const entry of parsed.data.rates) {
     const currency = currencies.find((item) => item.id === entry.currencyId);
     if (
-      currency?.isoCode === USD_ISO_CODE &&
+      currency?.isoCode === BASE_CURRENCY_ISO_CODE &&
       entry.rateToUsd !== null &&
-      entry.rateToUsd !== USD_RATE
+      entry.rateToUsd !== BASE_CURRENCY_RATE
     ) {
-      throw new CurrencyRatesError("USD rate must be 1");
+      throw new CurrencyRatesError("KWD rate must be 1");
     }
   }
 

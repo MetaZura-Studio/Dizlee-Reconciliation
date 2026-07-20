@@ -1,14 +1,7 @@
 "use client";
 
-import {
-  createColumnHelper,
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { InvoiceDetailModal } from "@/components/opco/InvoiceDetailModal";
 import { Button } from "@/components/ui/button";
@@ -22,15 +15,21 @@ import {
   SortableDataTableTh,
 } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
-import { FieldLabel, Input, Select } from "@/components/ui/field";
 import { IconButton } from "@/components/ui/icon-button";
 import { IconEye, IconPrint } from "@/components/ui/icons";
+import { ListSearch, OrFiltersDivider } from "@/components/ui/list-search";
+import { LoadingBar } from "@/components/ui/loading";
 import { FilterToolbar } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
-import { formatPeriodLabel } from "@/lib/opco/period";
+import { formatPeriodLabel, getDefaultPeriod } from "@/lib/opco/period";
+import {
+  getMaxMonthForYear,
+  getPeriodYearOptions,
+} from "@/lib/platform/period";
 import { ui } from "@/lib/ui/classes";
 import { nextSortState } from "@/lib/ui/sort";
 import { invoiceStatusTone, paymentLabelTone } from "@/lib/ui/status-tones";
+import { useDebouncedValue } from "@/lib/ui/use-debounced-value";
 import type {
   OpcoInvoiceDetail,
   OpcoInvoiceFilterOptions,
@@ -42,25 +41,19 @@ import type {
   OpcoSortDirection,
 } from "@/lib/opco/queries/invoices";
 
-const SORTABLE_COLUMNS: Record<string, OpcoInvoiceSortField> = {
-  partnerName: "partner",
-  period: "period",
-  issuedAt: "uploaded",
-};
-
 const MONTHS = [
-  { value: 1, label: "January" },
-  { value: 2, label: "February" },
-  { value: 3, label: "March" },
-  { value: 4, label: "April" },
-  { value: 5, label: "May" },
-  { value: 6, label: "June" },
-  { value: 7, label: "July" },
-  { value: 8, label: "August" },
-  { value: 9, label: "September" },
-  { value: 10, label: "October" },
-  { value: 11, label: "November" },
-  { value: 12, label: "December" },
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
 
 function formatCurrency(amount: number, currencyCode: string): string {
@@ -84,11 +77,11 @@ function buildInvoicesQuery(filters: OpcoInvoiceListFilters): string {
   if (filters.month !== undefined) {
     params.set("month", String(filters.month));
   }
-  if (filters.partnerId) {
-    params.set("partnerId", filters.partnerId);
-  }
   if (filters.statusCode) {
     params.set("status", filters.statusCode);
+  }
+  if (filters.search) {
+    params.set("search", filters.search);
   }
 
   return params.toString();
@@ -99,96 +92,176 @@ type InvoicesTableProps = {
   filterOptions: OpcoInvoiceFilterOptions;
 };
 
-export function InvoicesTable({ initialResult, filterOptions }: InvoicesTableProps) {
-  const router = useRouter();
-  const { filters } = initialResult;
+export function InvoicesTable({
+  initialResult,
+  filterOptions: initialFilterOptions,
+}: InvoicesTableProps) {
+  const defaults = getDefaultPeriod();
+  const { filters: initialFilters } = initialResult;
 
-  const [year, setYear] = useState(filters.year?.toString() ?? "");
-  const [month, setMonth] = useState(filters.month?.toString() ?? "");
-  const [partnerId, setPartnerId] = useState(filters.partnerId ?? "");
-  const [statusCode, setStatusCode] = useState(filters.statusCode ?? "");
-  const [paymentStatus, setPaymentStatus] = useState<OpcoInvoicePaymentFilter>(
-    filters.paymentStatus,
+  const [year, setYear] = useState(
+    initialFilters.year?.toString() ?? String(defaults.year),
   );
-  const [sortBy, setSortBy] = useState<OpcoInvoiceSortField>(filters.sortBy);
-  const [sortDir, setSortDir] = useState<OpcoSortDirection>(filters.sortDir);
+  const [month, setMonth] = useState(
+    initialFilters.month?.toString() ?? String(defaults.month),
+  );
+  const [statusCode, setStatusCode] = useState(initialFilters.statusCode ?? "");
+  const [paymentStatus, setPaymentStatus] = useState<OpcoInvoicePaymentFilter>(
+    initialFilters.paymentStatus,
+  );
+  const [search, setSearch] = useState(initialFilters.search ?? "");
+  const debouncedSearch = useDebouncedValue(search, 300);
+  const [sortBy, setSortBy] = useState<OpcoInvoiceSortField>(initialFilters.sortBy);
+  const [sortDir, setSortDir] = useState<OpcoSortDirection>(initialFilters.sortDir);
+
+  const [result, setResult] = useState(initialResult);
+  const [filterOptions, setFilterOptions] = useState(initialFilterOptions);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const skipSearchEffect = useRef(true);
 
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detail, setDetail] = useState<OpcoInvoiceDetail | null>(null);
   const [justAcknowledged, setJustAcknowledged] = useState(false);
 
-  function navigateWithFilters(nextFilters: OpcoInvoiceListFilters) {
-    router.push(`/opco/invoices?${buildInvoicesQuery(nextFilters)}`);
-  }
+  const loadInvoices = useCallback(async (filters: OpcoInvoiceListFilters) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(
+        `/api/opco/invoices?${buildInvoicesQuery(filters)}`,
+      );
+      const payload = (await response.json()) as {
+        result?: OpcoInvoiceListResult;
+        filterOptions?: OpcoInvoiceFilterOptions;
+        error?: string;
+      };
+      if (!response.ok || !payload.result) {
+        throw new Error(payload.error ?? "Failed to load invoices");
+      }
+      setResult(payload.result);
+      if (payload.filterOptions) {
+        setFilterOptions(payload.filterOptions);
+      }
+      setSortBy(payload.result.filters.sortBy);
+      setSortDir(payload.result.filters.sortDir);
+      setPaymentStatus(payload.result.filters.paymentStatus);
+    } catch (loadError) {
+      setError(
+        loadError instanceof Error ? loadError.message : "Failed to load invoices",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  function applyFilters() {
-    navigateWithFilters({
+  const handleSearchChange = (value: string) => {
+    setSearch(value);
+    if (value.trim()) {
+      setStatusCode("");
+      setPaymentStatus("all");
+    }
+  };
+
+  const applyFilters = () => {
+    if (search) {
+      skipSearchEffect.current = true;
+      setSearch("");
+    }
+    void loadInvoices({
       year: year ? Number(year) : undefined,
       month: month ? Number(month) : undefined,
-      partnerId: partnerId || undefined,
       statusCode: statusCode || undefined,
       paymentStatus,
+      search: undefined,
       sortBy,
       sortDir,
       page: 1,
     });
-  }
+  };
 
-  function applySort(field: OpcoInvoiceSortField) {
+  const applySort = (field: OpcoInvoiceSortField) => {
     const next = nextSortState(sortBy, sortDir, field);
     setSortBy(next.sortBy);
     setSortDir(next.sortDir);
-    navigateWithFilters({
-      year: year ? Number(year) : undefined,
-      month: month ? Number(month) : undefined,
-      partnerId: partnerId || undefined,
-      statusCode: statusCode || undefined,
-      paymentStatus,
+    const term = debouncedSearch.trim();
+    void loadInvoices({
+      year: term ? result.filters.year : year ? Number(year) : result.filters.year,
+      month: term
+        ? result.filters.month
+        : month
+          ? Number(month)
+          : result.filters.month,
+      statusCode: term ? undefined : statusCode || result.filters.statusCode,
+      paymentStatus: term ? "all" : paymentStatus,
+      search: term || undefined,
       sortBy: next.sortBy,
       sortDir: next.sortDir,
       page: 1,
     });
-  }
+  };
 
-  function clearFilters() {
-    setYear("");
-    setMonth("");
-    setPartnerId("");
-    setStatusCode("");
-    setPaymentStatus("all");
-    setSortBy("uploaded");
-    setSortDir("desc");
-    router.push("/opco/invoices");
-  }
+  const refresh = () => {
+    void loadInvoices({ ...result.filters, page: 1 });
+  };
 
-  const openDetail = useCallback(async (invoiceId: string) => {
-    setDetailOpen(true);
-    setDetailLoading(true);
-    setDetail(null);
-    setJustAcknowledged(false);
-
-    try {
-      const response = await fetch(`/api/opco/invoices/${invoiceId}`);
-      const payload = (await response.json()) as {
-        detail?: OpcoInvoiceDetail;
-        acknowledged?: boolean;
-        error?: string;
-      };
-
-      if (response.ok && payload.detail) {
-        setDetail(payload.detail);
-        setJustAcknowledged(Boolean(payload.acknowledged));
-        if (payload.acknowledged) {
-          router.refresh();
-        }
-      }
-    } catch {
-      setDetail(null);
-    } finally {
-      setDetailLoading(false);
+  useEffect(() => {
+    if (skipSearchEffect.current) {
+      skipSearchEffect.current = false;
+      return;
     }
-  }, [router]);
+    const term = debouncedSearch.trim();
+    const timer = window.setTimeout(() => {
+      void loadInvoices({
+        year: result.filters.year,
+        month: result.filters.month,
+        statusCode: term ? undefined : result.filters.statusCode,
+        paymentStatus: term ? "all" : result.filters.paymentStatus,
+        search: term || undefined,
+        sortBy: result.filters.sortBy,
+        sortDir: result.filters.sortDir,
+        page: 1,
+      });
+    }, 0);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- live search only
+  }, [debouncedSearch, loadInvoices]);
+
+  const goToPage = (nextPage: number) => {
+    void loadInvoices({ ...result.filters, page: nextPage });
+  };
+
+  const openDetail = useCallback(
+    async (invoiceId: string) => {
+      setDetailOpen(true);
+      setDetailLoading(true);
+      setDetail(null);
+      setJustAcknowledged(false);
+
+      try {
+        const response = await fetch(`/api/opco/invoices/${invoiceId}`);
+        const payload = (await response.json()) as {
+          detail?: OpcoInvoiceDetail;
+          acknowledged?: boolean;
+          error?: string;
+        };
+
+        if (response.ok && payload.detail) {
+          setDetail(payload.detail);
+          setJustAcknowledged(Boolean(payload.acknowledged));
+          if (payload.acknowledged) {
+            void loadInvoices({ ...result.filters });
+          }
+        }
+      } catch {
+        setDetail(null);
+      } finally {
+        setDetailLoading(false);
+      }
+    },
+    [loadInvoices, result.filters],
+  );
 
   function closeDetail() {
     setDetailOpen(false);
@@ -196,274 +269,219 @@ export function InvoicesTable({ initialResult, filterOptions }: InvoicesTablePro
     setJustAcknowledged(false);
   }
 
-  const columnHelper = createColumnHelper<OpcoInvoiceListItem>();
-
-  const columns = useMemo(
-    () => [
-      columnHelper.accessor("invoiceNumber", {
-        header: "Invoice #",
-        cell: (info) => info.getValue() ?? "—",
-      }),
-      columnHelper.display({
-        id: "period",
-        header: "Period",
-        cell: ({ row }) => formatPeriodLabel(row.original.year, row.original.month),
-      }),
-      columnHelper.accessor("partnerName", {
-        header: "Partner",
-        cell: (info) => info.getValue() ?? "—",
-      }),
-      columnHelper.accessor("statusLabel", {
-        header: "Status",
-        cell: ({ row }) => (
-          <StatusPill tone={invoiceStatusTone(row.original.statusCode)}>
-            {row.original.statusLabel}
-          </StatusPill>
-        ),
-      }),
-      columnHelper.accessor("paymentStatusLabel", {
-        header: "Payment",
-        cell: (info) => (
-          <StatusPill tone={paymentLabelTone(info.getValue())}>
-            {info.getValue()}
-          </StatusPill>
-        ),
-      }),
-      columnHelper.display({
-        id: "total",
-        header: "Total",
-        cell: ({ row }) =>
-          formatCurrency(row.original.totalAmount, row.original.currencyCode),
-      }),
-      columnHelper.accessor("issuedAt", {
-        header: "Issued",
-        cell: (info) =>
-          new Date(info.getValue()).toLocaleDateString("en-US", {
-            dateStyle: "medium",
-          }),
-      }),
-      columnHelper.display({
-        id: "actions",
-        header: "Actions",
-        cell: ({ row }) => (
-          <div className="flex gap-2">
-            <IconButton
-              label="View"
-              onClick={() => void openDetail(row.original.id)}
-            >
-              <IconEye />
-            </IconButton>
-            <Link
-              href={`/opco/invoices/${row.original.id}/print`}
-              target="_blank"
-              rel="noreferrer"
-              className={ui.iconButton}
-              title="Print"
-              aria-label="Print"
-            >
-              <IconPrint />
-            </Link>
-          </div>
-        ),
-      }),
-    ],
-    [columnHelper, openDetail],
-  );
-
-  const table = useReactTable({
-    data: initialResult.items,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    manualPagination: true,
-    pageCount: initialResult.totalPages,
-  });
+  const yearOptions = getPeriodYearOptions();
+  const maxMonth = year === "" ? 12 : getMaxMonthForYear(Number(year));
 
   const showingFrom =
-    initialResult.totalCount === 0
-      ? 0
-      : (initialResult.page - 1) * initialResult.pageSize + 1;
-  const showingTo = Math.min(
-    initialResult.page * initialResult.pageSize,
-    initialResult.totalCount,
-  );
+    result.totalCount === 0 ? 0 : (result.page - 1) * result.pageSize + 1;
+  const showingTo = Math.min(result.page * result.pageSize, result.totalCount);
 
   return (
     <div className="space-y-4">
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          applyFilters();
-        }}
-      >
-        <FilterToolbar>
-          <div className="grid w-full gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <div>
-              <FieldLabel htmlFor="invoices-year">Year</FieldLabel>
-              <Input
-                id="invoices-year"
-                type="number"
-                min={2000}
-                max={2100}
-                value={year}
-                onChange={(event) => setYear(event.target.value)}
-                placeholder="All years"
-              />
-            </div>
-            <div>
-              <FieldLabel htmlFor="invoices-month">Month</FieldLabel>
-              <Select
-                id="invoices-month"
-                value={month}
-                onChange={(event) => setMonth(event.target.value)}
-              >
-                <option value="">All months</option>
-                {MONTHS.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {item.label}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            <div>
-              <FieldLabel htmlFor="invoices-partner">Partner</FieldLabel>
-              <Select
-                id="invoices-partner"
-                value={partnerId}
-                onChange={(event) => setPartnerId(event.target.value)}
-              >
-                <option value="">All partners</option>
-                {filterOptions.partners.map((partner) => (
-                  <option key={partner.id} value={partner.id}>
-                    {partner.name}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            <div>
-              <FieldLabel htmlFor="invoices-status">Status</FieldLabel>
-              <Select
-                id="invoices-status"
-                value={statusCode}
-                onChange={(event) => setStatusCode(event.target.value)}
-              >
-                <option value="">All statuses</option>
-                {filterOptions.statuses.map((status) => (
-                  <option key={status.code} value={status.code}>
-                    {status.label}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            <div>
-              <FieldLabel htmlFor="invoices-payment">Payment</FieldLabel>
-              <Select
-                id="invoices-payment"
-                value={paymentStatus}
-                onChange={(event) =>
-                  setPaymentStatus(event.target.value as OpcoInvoicePaymentFilter)
-                }
-              >
-                <option value="all">All</option>
-                <option value="pending">Pending</option>
-                <option value="paid">Paid</option>
-              </Select>
-            </div>
-          </div>
-          <div className="flex w-full gap-2">
-            <Button type="submit">Apply filters</Button>
-            <Button type="button" variant="secondary" onClick={clearFilters}>
-              Clear
-            </Button>
-          </div>
-        </FilterToolbar>
-      </form>
+      <ListSearch
+        value={search}
+        onChange={handleSearchChange}
+        placeholder="Invoice number"
+        className="mt-0"
+      />
 
-      {initialResult.totalCount === 0 ? (
-        <EmptyState title="No Dizlee → OpCo invoices match your filters" />
-      ) : (
-        <>
-          <DataTableFrame>
-            <DataTable>
-              <DataTableHead>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <tr key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => {
-                      const sortField = SORTABLE_COLUMNS[header.column.id];
-                      if (sortField) {
-                        return (
-                          <SortableDataTableTh
-                            key={header.id}
-                            label={String(header.column.columnDef.header)}
-                            active={sortBy === sortField}
-                            direction={sortDir}
-                            onSort={() => applySort(sortField)}
-                          />
-                        );
-                      }
-                      return (
-                        <DataTableTh key={header.id}>
-                          {header.isPlaceholder
-                            ? null
-                            : flexRender(
-                                header.column.columnDef.header,
-                                header.getContext(),
-                              )}
-                        </DataTableTh>
-                      );
-                    })}
+      <OrFiltersDivider className="mt-0" />
+
+      <FilterToolbar className="mt-4">
+        <div className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <label className="text-sm">
+            <span className={ui.label}>Period (month)</span>
+            <select
+              value={month}
+              onChange={(event) => setMonth(event.target.value)}
+              className={ui.select}
+            >
+              <option value="">All months</option>
+              {MONTHS.slice(0, maxMonth).map((name, index) => (
+                <option key={name} value={index + 1}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm">
+            <span className={ui.label}>Year</span>
+            <select
+              value={year}
+              onChange={(event) => {
+                const nextYear = event.target.value;
+                setYear(nextYear);
+                if (nextYear && month) {
+                  const capped = getMaxMonthForYear(Number(nextYear));
+                  if (Number(month) > capped) {
+                    setMonth(String(capped));
+                  }
+                }
+              }}
+              className={ui.select}
+            >
+              <option value="">All years</option>
+              {yearOptions.map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm">
+            <span className={ui.label}>Status</span>
+            <select
+              value={statusCode}
+              onChange={(event) => setStatusCode(event.target.value)}
+              className={ui.select}
+            >
+              <option value="">All statuses</option>
+              {filterOptions.statuses.map((status) => (
+                <option key={status.code} value={status.code}>
+                  {status.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm">
+            <span className={ui.label}>Payment</span>
+            <select
+              value={paymentStatus}
+              onChange={(event) =>
+                setPaymentStatus(event.target.value as OpcoInvoicePaymentFilter)
+              }
+              className={ui.select}
+            >
+              <option value="all">All</option>
+              <option value="pending">Pending</option>
+              <option value="paid">Paid</option>
+            </select>
+          </label>
+        </div>
+        <div className="flex w-full gap-3">
+          <Button onClick={applyFilters}>Apply filters</Button>
+          <Button variant="secondary" onClick={refresh}>
+            Refresh
+          </Button>
+        </div>
+      </FilterToolbar>
+
+      <div className="mt-4">
+        <LoadingBar active={loading} />
+      </div>
+
+      {error ? <div className={ui.alertError}>{error}</div> : null}
+
+      {!loading && !error ? (
+        result.items.length > 0 ? (
+          <div className="mt-6 space-y-4">
+            <DataTableFrame>
+              <DataTable>
+                <DataTableHead>
+                  <tr>
+                    <DataTableTh>Invoice #</DataTableTh>
+                    <SortableDataTableTh
+                      label="Period"
+                      active={sortBy === "period"}
+                      direction={sortDir}
+                      onSort={() => applySort("period")}
+                    />
+                    <DataTableTh>Status</DataTableTh>
+                    <DataTableTh>Payment</DataTableTh>
+                    <DataTableTh>Total</DataTableTh>
+                    <SortableDataTableTh
+                      label="Issued"
+                      active={sortBy === "uploaded"}
+                      direction={sortDir}
+                      onSort={() => applySort("uploaded")}
+                    />
+                    <DataTableTh>Actions</DataTableTh>
                   </tr>
-                ))}
-              </DataTableHead>
-              <tbody>
-                {table.getRowModel().rows.map((row) => (
-                  <DataTableRow key={row.id}>
-                    {row.getVisibleCells().map((cell) => (
-                      <DataTableTd key={cell.id} className="align-top">
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </DataTableHead>
+                <tbody>
+                  {result.items.map((invoice: OpcoInvoiceListItem) => (
+                    <DataTableRow key={invoice.id}>
+                      <DataTableTd className="align-top">
+                        {invoice.invoiceNumber ?? "—"}
                       </DataTableTd>
-                    ))}
-                  </DataTableRow>
-                ))}
-              </tbody>
-            </DataTable>
-          </DataTableFrame>
+                      <DataTableTd className="align-top">
+                        {formatPeriodLabel(invoice.year, invoice.month)}
+                      </DataTableTd>
+                      <DataTableTd className="align-top">
+                        <StatusPill tone={invoiceStatusTone(invoice.statusCode)}>
+                          {invoice.statusLabel}
+                        </StatusPill>
+                      </DataTableTd>
+                      <DataTableTd className="align-top">
+                        <StatusPill
+                          tone={paymentLabelTone(invoice.paymentStatusLabel)}
+                        >
+                          {invoice.paymentStatusLabel}
+                        </StatusPill>
+                      </DataTableTd>
+                      <DataTableTd className="align-top">
+                        {formatCurrency(invoice.totalAmount, invoice.currencyCode)}
+                      </DataTableTd>
+                      <DataTableTd className="align-top">
+                        {new Date(invoice.issuedAt).toLocaleDateString("en-US", {
+                          dateStyle: "medium",
+                        })}
+                      </DataTableTd>
+                      <DataTableTd className="align-top">
+                        <div className="flex gap-2">
+                          <IconButton
+                            label="View"
+                            onClick={() => void openDetail(invoice.id)}
+                          >
+                            <IconEye />
+                          </IconButton>
+                          <Link
+                            href={`/opco/invoices/${invoice.id}/print`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className={ui.iconButton}
+                            title="Print"
+                            aria-label="Print"
+                          >
+                            <IconPrint />
+                          </Link>
+                        </div>
+                      </DataTableTd>
+                    </DataTableRow>
+                  ))}
+                </tbody>
+              </DataTable>
+            </DataTableFrame>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-foreground-muted">
-            <p>
-              Showing {showingFrom}–{showingTo} of {initialResult.totalCount}
-            </p>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="secondary"
-                disabled={initialResult.page <= 1}
-                onClick={() =>
-                  navigateWithFilters({
-                    ...filters,
-                    page: initialResult.page - 1,
-                  })
-                }
-              >
-                Previous
-              </Button>
-              <span>
-                Page {initialResult.page} of {initialResult.totalPages}
-              </span>
-              <Button
-                variant="secondary"
-                disabled={initialResult.page >= initialResult.totalPages}
-                onClick={() =>
-                  navigateWithFilters({
-                    ...filters,
-                    page: initialResult.page + 1,
-                  })
-                }
-              >
-                Next
-              </Button>
+            <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-foreground-muted">
+              <p>
+                Showing {showingFrom}–{showingTo} of {result.totalCount}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="secondary"
+                  disabled={result.page <= 1}
+                  onClick={() => goToPage(result.page - 1)}
+                >
+                  Previous
+                </Button>
+                <span>
+                  Page {result.page} of {result.totalPages}
+                </span>
+                <Button
+                  variant="secondary"
+                  disabled={result.page >= result.totalPages}
+                  onClick={() => goToPage(result.page + 1)}
+                >
+                  Next
+                </Button>
+              </div>
             </div>
           </div>
-        </>
-      )}
+        ) : (
+          <EmptyState title="No Dizlee → OpCo invoices match your filters" />
+        )
+      ) : null}
 
       {detailOpen ? (
         <InvoiceDetailModal

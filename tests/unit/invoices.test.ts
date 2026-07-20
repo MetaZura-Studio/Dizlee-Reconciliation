@@ -10,9 +10,9 @@ describe("parseOpcoInvoiceListFilters", () => {
     expect(result).toEqual({
       year: undefined,
       month: undefined,
-      partnerId: undefined,
       statusCode: undefined,
       paymentStatus: "all",
+      search: undefined,
       sortBy: "uploaded",
       sortDir: "desc",
       page: 1,
@@ -24,9 +24,9 @@ describe("parseOpcoInvoiceListFilters", () => {
       new URLSearchParams({
         year: "2026",
         month: "7",
-        partnerId: "3",
         status: "SENT",
         paymentStatus: "pending",
+        search: "INV-100",
         sortBy: "period",
         sortDir: "asc",
         page: "2",
@@ -36,21 +36,21 @@ describe("parseOpcoInvoiceListFilters", () => {
     expect(result).toEqual({
       year: 2026,
       month: 7,
-      partnerId: "3",
       statusCode: "SENT",
       paymentStatus: "pending",
+      search: "INV-100",
       sortBy: "period",
       sortDir: "asc",
       page: 2,
     });
   });
 
-  it("parses partner sort field", () => {
+  it("ignores partner sort and falls back to uploaded", () => {
     const result = parseOpcoInvoiceListFilters(
       new URLSearchParams({ sortBy: "partner", sortDir: "asc" }),
     );
 
-    expect(result.sortBy).toBe("partner");
+    expect(result.sortBy).toBe("uploaded");
     expect(result.sortDir).toBe("asc");
   });
 });

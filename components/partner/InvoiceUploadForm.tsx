@@ -7,6 +7,10 @@ import { Button } from "@/components/ui/button";
 import { FieldLabel, Input, Select } from "@/components/ui/field";
 import type { LinkedOpco } from "@/lib/partner/queries/opcos";
 import { getDefaultPeriod } from "@/lib/partner/period";
+import {
+  getMaxMonthForYear,
+  getPeriodYearOptions,
+} from "@/lib/platform/period";
 import { ui } from "@/lib/ui/classes";
 
 type InvoiceLineItem = {
@@ -25,6 +29,21 @@ const emptyLine = (): InvoiceLineItem => ({
   unitPrice: 0,
 });
 
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
 export function InvoiceUploadForm({ opcos }: InvoiceUploadFormProps) {
   const defaultPeriod = getDefaultPeriod();
   const [opcoId, setOpcoId] = useState(opcos[0]?.id ?? "");
@@ -36,6 +55,18 @@ export function InvoiceUploadForm({ opcos }: InvoiceUploadFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [successInvoiceId, setSuccessInvoiceId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const yearOptions = getPeriodYearOptions();
+  const maxMonth = getMaxMonthForYear(year);
+  const monthOptions = MONTHS.slice(0, maxMonth);
+
+  function handleYearChange(nextYear: number) {
+    setYear(nextYear);
+    const capped = getMaxMonthForYear(nextYear);
+    if (month > capped) {
+      setMonth(capped);
+    }
+  }
 
   function updateLine(
     index: number,
@@ -121,7 +152,7 @@ export function InvoiceUploadForm({ opcos }: InvoiceUploadFormProps) {
     <form onSubmit={handleSubmit} className="max-w-3xl space-y-6">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2">
-          <FieldLabel htmlFor="invoice-opco">OpCo</FieldLabel>
+          <FieldLabel htmlFor="invoice-opco" required>OpCo</FieldLabel>
           <Select
             id="invoice-opco"
             name="opcoId"
@@ -138,31 +169,37 @@ export function InvoiceUploadForm({ opcos }: InvoiceUploadFormProps) {
         </div>
 
         <div>
-          <FieldLabel htmlFor="invoice-year">Year</FieldLabel>
-          <Input
+          <FieldLabel htmlFor="invoice-year" required>Year</FieldLabel>
+          <Select
             id="invoice-year"
             name="year"
-            type="number"
-            min={2000}
-            max={2100}
             value={year}
-            onChange={(event) => setYear(Number(event.target.value))}
+            onChange={(event) => handleYearChange(Number(event.target.value))}
             required
-          />
+          >
+            {yearOptions.map((value) => (
+              <option key={value} value={value}>
+                {value}
+              </option>
+            ))}
+          </Select>
         </div>
 
         <div>
-          <FieldLabel htmlFor="invoice-month">Month</FieldLabel>
-          <Input
+          <FieldLabel htmlFor="invoice-month" required>Month</FieldLabel>
+          <Select
             id="invoice-month"
             name="month"
-            type="number"
-            min={1}
-            max={12}
             value={month}
             onChange={(event) => setMonth(Number(event.target.value))}
             required
-          />
+          >
+            {monthOptions.map((name, index) => (
+              <option key={name} value={index + 1}>
+                {name}
+              </option>
+            ))}
+          </Select>
         </div>
 
         <div className="sm:col-span-2">
@@ -179,7 +216,7 @@ export function InvoiceUploadForm({ opcos }: InvoiceUploadFormProps) {
         </div>
 
         <div className="sm:col-span-2">
-          <FieldLabel htmlFor="invoice-file">Invoice PDF</FieldLabel>
+          <FieldLabel htmlFor="invoice-file" required>Invoice PDF</FieldLabel>
           <input
             id="invoice-file"
             name="file"
@@ -207,7 +244,7 @@ export function InvoiceUploadForm({ opcos }: InvoiceUploadFormProps) {
               className={`grid gap-3 sm:grid-cols-4 ${ui.cardPadding}`}
             >
               <div className="sm:col-span-2">
-                <FieldLabel>Description</FieldLabel>
+                <FieldLabel required>Description</FieldLabel>
                 <Input
                   type="text"
                   value={line.description}
@@ -216,7 +253,7 @@ export function InvoiceUploadForm({ opcos }: InvoiceUploadFormProps) {
                 />
               </div>
               <div>
-                <FieldLabel>Quantity</FieldLabel>
+                <FieldLabel required>Quantity</FieldLabel>
                 <Input
                   type="number"
                   min={0.0001}
@@ -227,7 +264,7 @@ export function InvoiceUploadForm({ opcos }: InvoiceUploadFormProps) {
                 />
               </div>
               <div>
-                <FieldLabel>Unit price</FieldLabel>
+                <FieldLabel required>Unit price</FieldLabel>
                 <Input
                   type="number"
                   min={0}

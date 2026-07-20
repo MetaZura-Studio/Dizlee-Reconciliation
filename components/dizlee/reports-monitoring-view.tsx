@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { KpiCard } from "@/components/dizlee/kpi-card";
+import { LaneRemindModal } from "@/components/dizlee/lane-remind-modal";
 import { ReportDetailModal } from "@/components/dizlee/report-detail-modal";
 import { ReportsTabs } from "@/components/dizlee/reports-tabs";
 import { Button } from "@/components/ui/button";
@@ -13,20 +14,32 @@ import {
   DataTableRow,
   DataTableTd,
   DataTableTh,
+  SortableDataTableTh,
 } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { IconButton } from "@/components/ui/icon-button";
-import { IconEye } from "@/components/ui/icons";
+import { IconBell, IconEye } from "@/components/ui/icons";
 import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
 import { LoadingBar } from "@/components/ui/loading";
 import { ui } from "@/lib/ui/classes";
+import { nextSortState, type SortDirection } from "@/lib/ui/sort";
 import type { ReportDetail, ReportFilterOptions } from "@/lib/dizlee/reports";
+import {
+  getMaxMonthForYear,
+  getPeriodYearOptions,
+} from "@/lib/platform/period";
 import type {
   MissingSideFilter,
   ReportMonitoringFilters,
+  ReportMonitoringLane,
   ReportMonitoringResult,
-} from "@/lib/dizlee/reports-monitoring";
+  ReportMonitoringSortField,
+} from "@/lib/dizlee/reports-monitoring.shared";
+import {
+  monitoringLaneNeedsReminder,
+  monitoringLaneToCompareLane,
+} from "@/lib/dizlee/reports-monitoring.shared";
 
 const MONTHS = [
   "January",
@@ -66,11 +79,29 @@ function reportMonitoringStatusTone(
   return status === "Submitted" ? "success" : "warning";
 }
 
+function lastReminderLabel(lane: ReportMonitoringLane): string {
+  const times = [
+    lane.lastOpcoReminderAt,
+    lane.lastPartnerReminderAt,
+    lane.lastOpcoIntimationAt,
+    lane.lastPartnerIntimationAt,
+  ].filter((value): value is string => Boolean(value));
+
+  if (times.length === 0) {
+    return "No reminders yet";
+  }
+
+  const latest = times.sort((a, b) => (a < b ? 1 : -1))[0];
+  return `Last notice: ${formatDateTime(latest)}`;
+}
+
 function buildQuery(filters: ReportMonitoringFilters): string {
   const params = new URLSearchParams({
     month: String(filters.month),
     year: String(filters.year),
     page: String(filters.page),
+    sortBy: filters.sortBy,
+    sortDir: filters.sortDir,
   });
   if (filters.opcoId) {
     params.set("opcoId", filters.opcoId);
@@ -104,15 +135,23 @@ export function ReportsMonitoringView({
   const [missing, setMissing] = useState<MissingSideFilter | "">(
     initialResult.filters.missing ?? "",
   );
+  const [sortBy, setSortBy] = useState<ReportMonitoringSortField>(
+    initialResult.filters.sortBy,
+  );
+  const [sortDir, setSortDir] = useState<SortDirection>(
+    initialResult.filters.sortDir,
+  );
 
   const [result, setResult] = useState<ReportMonitoringResult>(initialResult);
   const [filterOptions, setFilterOptions] =
     useState<ReportFilterOptions>(initialFilterOptions);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detail, setDetail] = useState<ReportDetail | null>(null);
+  const [remindLane, setRemindLane] = useState<ReportMonitoringLane | null>(null);
 
   const loadMonitoring = useCallback(async (filters: ReportMonitoringFilters) => {
     setLoading(true);
@@ -146,11 +185,30 @@ export function ReportsMonitoringView({
       partnerId: partnerId || undefined,
       missing: missing || undefined,
       page: 1,
+      sortBy,
+      sortDir,
+    });
+  };
+
+  const applySort = (field: ReportMonitoringSortField) => {
+    const next = nextSortState(sortBy, sortDir, field);
+    setSortBy(next.sortBy);
+    setSortDir(next.sortDir);
+    void loadMonitoring({
+      ...result.filters,
+      month,
+      year,
+      opcoId: opcoId || undefined,
+      partnerId: partnerId || undefined,
+      missing: missing || undefined,
+      page: 1,
+      sortBy: next.sortBy,
+      sortDir: next.sortDir,
     });
   };
 
   const refresh = () => {
-    void loadMonitoring({ ...result.filters, page: 1 });
+    void loadMonitoring({ ...result.filters, sortBy, sortDir, page: 1 });
   };
 
   useEffect(() => {
@@ -188,10 +246,8 @@ export function ReportsMonitoringView({
     }
   };
 
-  const yearOptions = [];
-  for (let value = year + 1; value >= year - 4; value -= 1) {
-    yearOptions.push(value);
-  }
+  const yearOptions = getPeriodYearOptions();
+  const maxMonth = getMaxMonthForYear(year);
 
   const items = result.items;
   const { summary } = result;
@@ -225,7 +281,7 @@ export function ReportsMonitoringView({
               onChange={(event) => setMonth(Number(event.target.value))}
               className={ui.select}
             >
-              {MONTHS.map((name, index) => (
+              {MONTHS.slice(0, maxMonth).map((name, index) => (
                 <option key={name} value={index + 1}>
                   {name}
                 </option>
@@ -236,7 +292,12 @@ export function ReportsMonitoringView({
             <span className={ui.label}>Year</span>
             <select
               value={year}
-              onChange={(event) => setYear(Number(event.target.value))}
+              onChange={(event) => {
+                const nextYear = Number(event.target.value);
+                setYear(nextYear);
+                const capped = getMaxMonthForYear(nextYear);
+                if (month > capped) setMonth(capped);
+              }}
               className={ui.select}
             >
               {yearOptions.map((value) => (
@@ -306,6 +367,7 @@ export function ReportsMonitoringView({
         </div>
       ) : null}
       {error ? <div className={`mt-4 ${ui.alertError}`}>{error}</div> : null}
+      {message ? <p className={`mt-4 ${ui.alertSuccess}`}>{message}</p> : null}
 
       {!loading && !error ? (
         items.length > 0 ? (
@@ -313,13 +375,29 @@ export function ReportsMonitoringView({
             <DataTableFrame>
               <DataTable>
                 <DataTableHead>
-                  <tr>
-                    <DataTableTh>Period</DataTableTh>
-                    <DataTableTh>OpCo</DataTableTh>
-                    <DataTableTh>Partner</DataTableTh>
-                    <DataTableTh>OpCo report</DataTableTh>
-                    <DataTableTh>Partner report</DataTableTh>
-                  </tr>
+                    <tr>
+                      <SortableDataTableTh
+                        label="Period"
+                        active={sortBy === "period"}
+                        direction={sortDir}
+                        onSort={() => applySort("period")}
+                      />
+                      <SortableDataTableTh
+                        label="OpCo"
+                        active={sortBy === "opco"}
+                        direction={sortDir}
+                        onSort={() => applySort("opco")}
+                      />
+                      <SortableDataTableTh
+                        label="Partner"
+                        active={sortBy === "partner"}
+                        direction={sortDir}
+                        onSort={() => applySort("partner")}
+                      />
+                      <DataTableTh>OpCo report</DataTableTh>
+                      <DataTableTh>Partner report</DataTableTh>
+                      <DataTableTh>Actions</DataTableTh>
+                    </tr>
                 </DataTableHead>
                 <tbody>
                   {items.map((row) => (
@@ -366,6 +444,20 @@ export function ReportsMonitoringView({
                             }
                           >
                             <IconEye />
+                          </IconButton>
+                        ) : null}
+                      </DataTableTd>
+                      <DataTableTd>
+                        {monitoringLaneNeedsReminder(row) ? (
+                          <IconButton
+                            label={
+                              row.notificationCount > 0
+                                ? `Remind… · ${lastReminderLabel(row)} · ${row.notificationCount} prior notice${row.notificationCount === 1 ? "" : "s"}`
+                                : `Remind… · ${lastReminderLabel(row)}`
+                            }
+                            onClick={() => setRemindLane(row)}
+                          >
+                            <IconBell />
                           </IconButton>
                         ) : null}
                       </DataTableTd>
@@ -418,6 +510,19 @@ export function ReportsMonitoringView({
           onClose={() => {
             setDetailOpen(false);
             setDetail(null);
+          }}
+        />
+      ) : null}
+
+      {remindLane ? (
+        <LaneRemindModal
+          lane={monitoringLaneToCompareLane(remindLane)}
+          month={remindLane.period.month}
+          year={remindLane.period.year}
+          onClose={() => setRemindLane(null)}
+          onSent={(sentMessage) => {
+            setMessage(sentMessage);
+            void loadMonitoring({ ...result.filters, sortBy, sortDir });
           }}
         />
       ) : null}

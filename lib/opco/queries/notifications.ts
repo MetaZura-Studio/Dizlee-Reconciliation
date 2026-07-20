@@ -193,6 +193,7 @@ export async function getOpcoInboxNotificationDetail(params: {
         take: 1,
       },
       attachments: {
+        where: { isDeleted: false },
         include: {
           file: { select: { filename: true } },
         },
@@ -256,6 +257,30 @@ export async function markOpcoInboxNotificationRead(params: {
       userId: params.userId,
     },
   });
+}
+
+export async function markAllOpcoInboxNotificationsRead(params: {
+  userId: bigint;
+  opcoId: bigint;
+}): Promise<{ markedCount: number }> {
+  const unread = await prisma.notification.findMany({
+    where: inboxWhere(params.userId, params.opcoId, true),
+    select: { id: true },
+  });
+
+  if (unread.length === 0) {
+    return { markedCount: 0 };
+  }
+
+  const result = await prisma.notificationRead.createMany({
+    data: unread.map((row) => ({
+      notificationId: row.id,
+      userId: params.userId,
+    })),
+    skipDuplicates: true,
+  });
+
+  return { markedCount: result.count };
 }
 
 export async function dismissOpcoInboxNotification(params: {

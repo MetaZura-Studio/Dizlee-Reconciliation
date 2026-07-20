@@ -1,5 +1,4 @@
 import { getLookupId } from "@/lib/admin/lookups";
-import type { BroadcastTemplateCode } from "@/lib/dizlee/notifications/broadcast.shared";
 import {
   listInvoiceMonitoringLanes,
   type InvoiceMonitoringLane,
@@ -22,7 +21,7 @@ export type SendMissingInvoiceRemindersInput = {
   year: number;
   target: "opco" | "partner" | "both";
   fromUserId: bigint;
-  templateCode?: BroadcastTemplateCode;
+  templateCode?: string;
   throwIfNoRecipients?: boolean;
 };
 
@@ -45,6 +44,8 @@ async function getAllInvoiceLanes(
     year,
     page: 1,
     missing: "any",
+    sortBy: "opco",
+    sortDir: "asc",
   });
 
   if (firstPage.totalPages <= 1) {
@@ -58,6 +59,8 @@ async function getAllInvoiceLanes(
       year,
       page,
       missing: "any",
+      sortBy: "opco",
+      sortDir: "asc",
     });
     lanes.push(...next.items);
   }
@@ -66,7 +69,7 @@ async function getAllInvoiceLanes(
 }
 
 async function resolveTemplates(
-  templateCode: BroadcastTemplateCode,
+  templateCode: string,
 ): Promise<{ subjectTemplate: string; bodyTemplate: string }> {
   const template = await getActiveEmailTemplate(templateCode);
   if (!template) {

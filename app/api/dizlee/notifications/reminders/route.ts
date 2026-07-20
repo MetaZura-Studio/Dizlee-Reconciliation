@@ -53,6 +53,7 @@ export async function POST(request: Request) {
       messageSource?: SendReportRemindersInput["messageSource"];
       subject?: string;
       body?: string;
+      attachmentFileIds?: string[];
     };
 
     if (!body.month || !body.year) {
@@ -73,6 +74,7 @@ export async function POST(request: Request) {
         messageSource: body.messageSource ?? DEFAULT_REMINDER_MESSAGE_SOURCE,
         subject: body.subject,
         body: body.body,
+        attachmentFileIds: body.attachmentFileIds,
       },
       fromUserId: user.id,
     });

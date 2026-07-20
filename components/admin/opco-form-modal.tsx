@@ -3,6 +3,8 @@
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { FieldLegend } from "@/components/ui/field";
+import { ModalCloseButton } from "@/components/ui/modal-close-button";
 import { PortalOverlay } from "@/components/ui/portal-overlay";
 import type { CurrencyListItem } from "@/lib/admin/currencies.shared";
 import type {
@@ -47,10 +49,10 @@ function getInitialValues(
     };
   }
 
-  const usd = currencies.find((currency) => currency.isoCode === "USD");
+  const kwd = currencies.find((currency) => currency.isoCode === "KWD");
   return {
     name: "",
-    defaultCurrencyId: usd?.id ?? currencies[0]?.id ?? "",
+    defaultCurrencyId: kwd?.id ?? currencies[0]?.id ?? "",
     status: "ACTIVE",
   };
 }
@@ -116,15 +118,18 @@ function OpcoFormModalContent({
         className={ui.modal}
       >
         <form onSubmit={(event) => void submit(event)}>
-          <h2 id="opco-form-title" className="text-lg font-semibold tracking-tight text-foreground">
-            {mode === "create" ? "Create OpCo" : "Edit OpCo"}
-          </h2>
+          <div className="flex items-start justify-between gap-4">
+            <h2 id="opco-form-title" className="text-lg font-semibold tracking-tight text-foreground">
+              {mode === "create" ? "Create OpCo" : "Edit OpCo"}
+            </h2>
+            <ModalCloseButton onClick={onClose} disabled={submitting} />
+          </div>
 
           <div className="mt-4 space-y-4">
             {error ? <p className={ui.alertError}>{error}</p> : null}
 
             <label className="block text-sm">
-              <span className={ui.label}>Name</span>
+              <FieldLegend required>Name</FieldLegend>
               <input
                 value={values.name}
                 onChange={(event) =>
@@ -136,7 +141,7 @@ function OpcoFormModalContent({
             </label>
 
             <label className="block text-sm">
-              <span className={ui.label}>Default currency</span>
+              <FieldLegend required>Default currency</FieldLegend>
               <select
                 value={values.defaultCurrencyId}
                 onChange={(event) =>
@@ -162,7 +167,7 @@ function OpcoFormModalContent({
             </label>
 
             <label className="block text-sm">
-              <span className={ui.label}>Status</span>
+              <FieldLegend>Status</FieldLegend>
               <select
                 value={values.status}
                 onChange={(event) =>

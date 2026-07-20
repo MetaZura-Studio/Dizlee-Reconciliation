@@ -13,6 +13,7 @@ import {
   DataTableRow,
   DataTableTd,
   DataTableTh,
+  SortableDataTableTh,
 } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { IconEye } from "@/components/ui/icons";
@@ -20,11 +21,17 @@ import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
 import { LoadingBar } from "@/components/ui/loading";
 import { ui } from "@/lib/ui/classes";
+import { nextSortState, type SortDirection } from "@/lib/ui/sort";
 import type { InvoiceFilterOptions } from "@/lib/dizlee/invoices";
+import {
+  getMaxMonthForYear,
+  getPeriodYearOptions,
+} from "@/lib/platform/period";
 import type {
   InvoiceMissingSideFilter,
   InvoiceMonitoringFilters,
   InvoiceMonitoringResult,
+  InvoiceMonitoringSortField,
 } from "@/lib/dizlee/invoices-monitoring";
 
 const MONTHS = [
@@ -68,6 +75,8 @@ function buildQuery(filters: InvoiceMonitoringFilters): string {
     month: String(filters.month),
     year: String(filters.year),
     page: String(filters.page),
+    sortBy: filters.sortBy,
+    sortDir: filters.sortDir,
   });
   if (filters.opcoId) {
     params.set("opcoId", filters.opcoId);
@@ -98,6 +107,12 @@ export function InvoicesMonitoringView({
   const [partnerId, setPartnerId] = useState(initialResult.filters.partnerId ?? "");
   const [missing, setMissing] = useState<InvoiceMissingSideFilter | "">(
     initialResult.filters.missing ?? "",
+  );
+  const [sortBy, setSortBy] = useState<InvoiceMonitoringSortField>(
+    initialResult.filters.sortBy,
+  );
+  const [sortDir, setSortDir] = useState<SortDirection>(
+    initialResult.filters.sortDir,
   );
 
   const [result, setResult] = useState<InvoiceMonitoringResult>(initialResult);
@@ -143,8 +158,16 @@ export function InvoicesMonitoringView({
       partnerId: partnerId || undefined,
       missing: missing || undefined,
       page: 1,
+      sortBy,
+      sortDir,
     });
-  }, [month, year, opcoId, partnerId, missing, loadMonitoring]);
+  }, [month, year, opcoId, partnerId, missing, sortBy, sortDir, loadMonitoring]);
+
+  const applySort = (field: InvoiceMonitoringSortField) => {
+    const next = nextSortState(sortBy, sortDir, field);
+    setSortBy(next.sortBy);
+    setSortDir(next.sortDir);
+  };
 
   const goToPage = (nextPage: number) => {
     void loadMonitoring({
@@ -154,13 +177,13 @@ export function InvoicesMonitoringView({
       partnerId: partnerId || undefined,
       missing: missing || undefined,
       page: nextPage,
+      sortBy,
+      sortDir,
     });
   };
 
-  const yearOptions = [];
-  for (let value = year + 1; value >= year - 4; value -= 1) {
-    yearOptions.push(value);
-  }
+  const yearOptions = getPeriodYearOptions();
+  const maxMonth = getMaxMonthForYear(year);
 
   const { summary } = result;
 
@@ -193,7 +216,7 @@ export function InvoicesMonitoringView({
               onChange={(event) => setMonth(Number(event.target.value))}
               className={ui.select}
             >
-              {MONTHS.map((name, index) => (
+              {MONTHS.slice(0, maxMonth).map((name, index) => (
                 <option key={name} value={index + 1}>
                   {name}
                 </option>
@@ -202,7 +225,18 @@ export function InvoicesMonitoringView({
           </label>
           <label className="text-sm">
             <span className={ui.label}>Year</span>
-            <select value={year} onChange={(event) => setYear(Number(event.target.value))} className={ui.select}>
+            <select
+              value={year}
+              onChange={(event) => {
+                const nextYear = Number(event.target.value);
+                setYear(nextYear);
+                const capped = getMaxMonthForYear(nextYear);
+                if (month > capped) {
+                  setMonth(capped);
+                }
+              }}
+              className={ui.select}
+            >
               {yearOptions.map((value) => (
                 <option key={value} value={value}>
                   {value}
@@ -263,13 +297,28 @@ export function InvoicesMonitoringView({
             <DataTableFrame>
               <DataTable>
                 <DataTableHead>
-                  <tr>
-                    <DataTableTh>Period</DataTableTh>
-                    <DataTableTh>OpCo</DataTableTh>
-                    <DataTableTh>Partner</DataTableTh>
-                    <DataTableTh>Dizlee → OpCo</DataTableTh>
-                    <DataTableTh>Partner → Dizlee</DataTableTh>
-                  </tr>
+                    <tr>
+                      <SortableDataTableTh
+                        label="Period"
+                        active={sortBy === "period"}
+                        direction={sortDir}
+                        onSort={() => applySort("period")}
+                      />
+                      <SortableDataTableTh
+                        label="OpCo"
+                        active={sortBy === "opco"}
+                        direction={sortDir}
+                        onSort={() => applySort("opco")}
+                      />
+                      <SortableDataTableTh
+                        label="Partner"
+                        active={sortBy === "partner"}
+                        direction={sortDir}
+                        onSort={() => applySort("partner")}
+                      />
+                      <DataTableTh>Dizlee → OpCo</DataTableTh>
+                      <DataTableTh>Partner → Dizlee</DataTableTh>
+                    </tr>
                 </DataTableHead>
                 <tbody>
                   {result.items.map((row) => (

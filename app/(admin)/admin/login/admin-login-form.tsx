@@ -5,7 +5,10 @@ import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
+import { PasswordInput } from "@/components/auth/password-input";
+import { FieldLabel } from "@/components/ui/field";
 import { ADMIN_DEFAULT_ROUTE } from "@/lib/admin/navigation";
+import { ui } from "@/lib/ui/classes";
 
 const ERROR_MESSAGES: Record<string, string> = {
   AccessDenied: "You do not have access to the Admin portal.",
@@ -81,20 +84,14 @@ export function AdminLoginForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {displaySuccess ? (
-        <p className="rounded-md border border-success-border bg-success-muted px-3 py-2 text-sm text-success">
-          {displaySuccess}
-        </p>
+        <p className={ui.alertSuccess}>{displaySuccess}</p>
       ) : null}
-      {displayError ? (
-        <p className="rounded-md border border-danger-border bg-danger-muted px-3 py-2 text-sm text-danger">
-          {displayError}
-        </p>
-      ) : null}
+      {displayError ? <p className={ui.alertError}>{displayError}</p> : null}
 
       <div className="space-y-1">
-        <label htmlFor="email" className="text-sm font-medium text-foreground-muted">
+        <FieldLabel htmlFor="email">
           Email
-        </label>
+        </FieldLabel>
         <input
           id="email"
           name="email"
@@ -103,30 +100,29 @@ export function AdminLoginForm() {
           required
           value={email}
           onChange={(event) => setEmail(event.target.value)}
-          className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
+          className={ui.input}
         />
       </div>
 
       <div className="space-y-1">
-        <label htmlFor="password" className="text-sm font-medium text-foreground-muted">
+        <FieldLabel htmlFor="password">
           Password
-        </label>
-        <input
+        </FieldLabel>
+        <PasswordInput
           id="password"
           name="password"
-          type="password"
           autoComplete="current-password"
           required
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-none focus:border-primary"
+          className={ui.input}
         />
       </div>
 
       <button
         type="submit"
         disabled={isSubmitting}
-        className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-60"
+        className={`w-full ${ui.btnPrimary}`}
       >
         {isSubmitting ? "Signing in..." : "Sign in to Admin"}
       </button>

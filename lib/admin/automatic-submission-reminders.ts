@@ -11,11 +11,10 @@
 import {
   getDueScheduleSteps,
   type DueScheduleStep,
+  type ScheduleAudience,
 } from "@/lib/admin/notification-schedules.shared";
 import { getReminderSettings } from "@/lib/admin/reminder-settings";
 import { sendBroadcastNotification } from "@/lib/dizlee/notifications/intimations";
-import { sendMissingInvoiceReminders } from "@/lib/platform/invoice-reminders";
-import { sendMissingReportReminders } from "@/lib/platform/report-reminders";
 import { prisma } from "@/lib/prisma";
 
 export type AutomaticReminderSkipReason =
@@ -83,21 +82,25 @@ export async function resolveAutomaticReminderActorId(
   return adminUser.id;
 }
 
-async function listAllActiveOrgIds(): Promise<{
+async function listOrgIdsForAudience(audience: ScheduleAudience): Promise<{
   opcoIds: string[];
   partnerIds: string[];
 }> {
   const [opcos, partners] = await Promise.all([
-    prisma.opco.findMany({
-      where: { isDeleted: false },
-      select: { id: true },
-      orderBy: { name: "asc" },
-    }),
-    prisma.partner.findMany({
-      where: { isDeleted: false },
-      select: { id: true },
-      orderBy: { name: "asc" },
-    }),
+    audience === "partner"
+      ? Promise.resolve([])
+      : prisma.opco.findMany({
+          where: { isDeleted: false },
+          select: { id: true },
+          orderBy: { name: "asc" },
+        }),
+    audience === "opco"
+      ? Promise.resolve([])
+      : prisma.partner.findMany({
+          where: { isDeleted: false },
+          select: { id: true },
+          orderBy: { name: "asc" },
+        }),
   ]);
 
   return {
@@ -112,58 +115,28 @@ async function fireScheduleStep(params: {
   fromUserId: bigint;
 }): Promise<{ opcoNotifications: number; partnerNotifications: number }> {
   const { step, period, fromUserId } = params;
+  const { opcoIds, partnerIds } = await listOrgIdsForAudience(step.audience);
 
-  if (step.kind === "INTIMATION") {
-    const { opcoIds, partnerIds } = await listAllActiveOrgIds();
-    if (opcoIds.length === 0 && partnerIds.length === 0) {
-      return { opcoNotifications: 0, partnerNotifications: 0 };
-    }
-
-    await sendBroadcastNotification({
-      fromUserId: fromUserId.toString(),
-      input: {
-        audience: "both",
-        messageSource: step.templateCode,
-        month: period.month,
-        year: period.year,
-        opcoIds,
-        partnerIds,
-        priority: "NORMAL",
-      },
-    });
-
-    return {
-      opcoNotifications: opcoIds.length,
-      partnerNotifications: partnerIds.length,
-    };
+  if (opcoIds.length === 0 && partnerIds.length === 0) {
+    return { opcoNotifications: 0, partnerNotifications: 0 };
   }
 
-  if (step.eventCode === "REPORT") {
-    const result = await sendMissingReportReminders({
+  await sendBroadcastNotification({
+    fromUserId: fromUserId.toString(),
+    input: {
+      audience: step.audience,
+      messageSource: step.templateCode,
       month: period.month,
       year: period.year,
-      target: "both",
-      fromUserId,
-      templateCode: step.templateCode,
-      throwIfNoRecipients: false,
-    });
-    return {
-      opcoNotifications: result.opcoNotifications,
-      partnerNotifications: result.partnerNotifications,
-    };
-  }
-
-  const result = await sendMissingInvoiceReminders({
-    month: period.month,
-    year: period.year,
-    target: "both",
-    fromUserId,
-    templateCode: step.templateCode,
-    throwIfNoRecipients: false,
+      opcoIds,
+      partnerIds,
+      priority: "NORMAL",
+    },
   });
+
   return {
-    opcoNotifications: result.opcoNotifications,
-    partnerNotifications: result.partnerNotifications,
+    opcoNotifications: opcoIds.length,
+    partnerNotifications: partnerIds.length,
   };
 }
 
@@ -188,7 +161,7 @@ export async function runAutomaticSubmissionReminders(params?: {
   }
 
   const dueSteps = getDueScheduleSteps({
-    schedules: settings.schedules,
+    schedule: settings.schedule,
     now,
   });
 
@@ -214,7 +187,7 @@ export async function runAutomaticSubmissionReminders(params?: {
     opcoNotifications += result.opcoNotifications;
     partnerNotifications += result.partnerNotifications;
     messages.push(
-      `${step.eventCode} ${step.kind.toLowerCase()} (${step.offsetDays}d): ${result.opcoNotifications + result.partnerNotifications} recipients`,
+      `${step.kind.toLowerCase()} (day ${step.dayOfMonth} → ${step.audience}): ${result.opcoNotifications + result.partnerNotifications} recipients`,
     );
   }
 

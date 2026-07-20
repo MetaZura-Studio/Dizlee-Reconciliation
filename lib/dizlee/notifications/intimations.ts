@@ -1,13 +1,11 @@
 import { getLookupId } from "@/lib/dizlee/lookups";
 import {
-  BROADCAST_TEMPLATE_CODES,
-  type BroadcastTemplateCode,
+  BROADCAST_PICKER_CATEGORIES,
   type BroadcastTemplateOption,
   type IntimationFormOptions,
   type IntimationListItem,
   type IntimationListResult,
   type SendBroadcastInput,
-  isBroadcastTemplateCode,
 } from "@/lib/dizlee/notifications/broadcast.shared";
 import {
   formatRecipientSummary,
@@ -15,6 +13,11 @@ import {
   trimNotificationPreview,
 } from "@/lib/dizlee/notifications/shared";
 import { getActiveEmailTemplate } from "@/lib/platform/email-templates";
+import {
+  notificationAttachmentCreateInput,
+  NotificationAttachmentError,
+  resolveNotificationAttachmentCreates,
+} from "@/lib/platform/notification-attachments";
 import {
   applyTemplate,
   periodLabel,
@@ -93,22 +96,18 @@ export async function getBroadcastTemplateOptions(): Promise<
   const templates = await prisma.notificationTemplate.findMany({
     where: {
       isDeleted: false,
-      code: { in: [...BROADCAST_TEMPLATE_CODES] },
+      category: { in: [...BROADCAST_PICKER_CATEGORIES] },
     },
-    orderBy: { code: "asc" },
+    orderBy: [{ category: "asc" }, { name: "asc" }],
     select: { code: true, name: true, subject: true, body: true },
   });
 
-  return templates
-    .filter((row): row is typeof row & { code: BroadcastTemplateCode } =>
-      isBroadcastTemplateCode(row.code),
-    )
-    .map((row) => ({
-      code: row.code,
-      name: row.name,
-      subject: row.subject,
-      body: row.body,
-    }));
+  return templates.map((row) => ({
+    code: row.code,
+    name: row.name,
+    subject: row.subject,
+    body: row.body,
+  }));
 }
 
 export async function getIntimationFormOptions(): Promise<IntimationFormOptions> {
@@ -346,6 +345,27 @@ export async function sendBroadcastNotification(params: {
       getLookupId("RECIPIENT_TYPE", "PARTNER"),
     ]);
 
+  let attachmentCreates: Awaited<
+    ReturnType<typeof resolveNotificationAttachmentCreates>
+  > = [];
+
+  try {
+    attachmentCreates = await resolveNotificationAttachmentCreates({
+      attachmentFileIds: params.input.attachmentFileIds ?? [],
+      userId: fromUserId,
+    });
+  } catch (error) {
+    if (error instanceof NotificationAttachmentError) {
+      throw new NotificationError(error.message, error.status);
+    }
+    throw error;
+  }
+
+  const attachments = notificationAttachmentCreateInput(
+    attachmentCreates,
+    fromUserId,
+  );
+
   const sentAt = new Date();
   const recipientCreates = [
     ...opcos.map((opco) => ({
@@ -377,6 +397,7 @@ export async function sendBroadcastNotification(params: {
       recipients: {
         create: recipientCreates,
       },
+      ...(attachments ? { attachments } : {}),
     },
     select: { id: true },
   });

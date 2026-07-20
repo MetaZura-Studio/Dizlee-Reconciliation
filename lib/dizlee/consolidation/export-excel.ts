@@ -20,7 +20,7 @@ export async function buildConsolidationWorkbook(
   sheet.addRow(["OpCo", detail.opcoName]);
   sheet.addRow(["Period", detail.period.label]);
   sheet.addRow(["Generated at", detail.generatedAt]);
-  sheet.addRow(["Total USD", detail.totalAmountUsd ?? 0]);
+  sheet.addRow(["Total KWD", detail.totalAmountUsd ?? 0]);
   sheet.addRow([]);
 
   sheet.addRow([
@@ -29,7 +29,7 @@ export async function buildConsolidationWorkbook(
     "Description",
     "Usage amount",
     "Usage unit",
-    "Usage USD",
+    "Usage KWD",
     "Exchange rate",
     "Revenue basis",
   ]);

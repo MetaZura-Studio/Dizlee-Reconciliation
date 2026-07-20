@@ -1,8 +1,9 @@
+import { ADMIN_DEFAULT_ROUTE } from "@/lib/admin/navigation";
 import type { MainPortalRole } from "@/lib/auth/scopes";
 import type { AppRole } from "@/lib/auth/types";
 
 const PORTAL_HOME: Record<AppRole, string> = {
-  admin: "/admin/users",
+  admin: ADMIN_DEFAULT_ROUTE,
   client: "/dizlee",
   opco: "/opco",
   partner: "/partner",

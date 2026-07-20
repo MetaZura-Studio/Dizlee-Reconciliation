@@ -1,12 +1,16 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { FieldLabel, Input, Select } from "@/components/ui/field";
+import { FieldLabel, Select } from "@/components/ui/field";
 import { FilterToolbar } from "@/components/ui/page";
-import { formatPeriodLabel } from "@/lib/opco/period";
-import { ui } from "@/lib/ui/classes";
+import {
+  clampPeriodToPresent,
+  getMaxMonthForYear,
+  getPeriodYearOptions,
+} from "@/lib/platform/period";
 
 type PeriodSelectorProps = {
   year: number;
@@ -30,48 +34,64 @@ const MONTHS = [
 
 export function PeriodSelector({ year, month }: PeriodSelectorProps) {
   const router = useRouter();
+  const [selectedYear, setSelectedYear] = useState(year);
+  const [selectedMonth, setSelectedMonth] = useState(month);
+
+  const yearOptions = getPeriodYearOptions();
+  const maxMonth = getMaxMonthForYear(selectedYear);
+  const monthOptions = MONTHS.filter((item) => item.value <= maxMonth);
+
+  function handleYearChange(nextYear: number) {
+    setSelectedYear(nextYear);
+    const capped = getMaxMonthForYear(nextYear);
+    if (selectedMonth > capped) {
+      setSelectedMonth(capped);
+    }
+  }
 
   return (
     <form
       className="mt-6"
       onSubmit={(event) => {
         event.preventDefault();
-        const formData = new FormData(event.currentTarget);
-        const nextYear = formData.get("year");
-        const nextMonth = formData.get("month");
-        router.push(`/opco?year=${nextYear}&month=${nextMonth}`);
+        const next = clampPeriodToPresent(selectedYear, selectedMonth);
+        router.push(`/opco?year=${next.year}&month=${next.month}`);
       }}
     >
-      <FilterToolbar>
-        <div>
-          <FieldLabel htmlFor="dashboard-year">Year</FieldLabel>
-          <Input
-            id="dashboard-year"
-            name="year"
-            type="number"
-            min={2000}
-            max={2100}
-            defaultValue={year}
-            className="w-28"
-          />
-        </div>
+      <FilterToolbar className="justify-end">
         <div>
           <FieldLabel htmlFor="dashboard-month">Month</FieldLabel>
           <Select
             id="dashboard-month"
             name="month"
-            defaultValue={month}
+            value={selectedMonth}
+            onChange={(event) => setSelectedMonth(Number(event.target.value))}
             className="w-40"
           >
-            {MONTHS.map((item) => (
+            {monthOptions.map((item) => (
               <option key={item.value} value={item.value}>
                 {item.label}
               </option>
             ))}
           </Select>
         </div>
+        <div>
+          <FieldLabel htmlFor="dashboard-year">Year</FieldLabel>
+          <Select
+            id="dashboard-year"
+            name="year"
+            value={selectedYear}
+            onChange={(event) => handleYearChange(Number(event.target.value))}
+            className="w-28"
+          >
+            {yearOptions.map((value) => (
+              <option key={value} value={value}>
+                {value}
+              </option>
+            ))}
+          </Select>
+        </div>
         <Button type="submit">Apply</Button>
-        <p className={ui.hint}>Viewing {formatPeriodLabel(year, month)}</p>
       </FilterToolbar>
     </form>
   );

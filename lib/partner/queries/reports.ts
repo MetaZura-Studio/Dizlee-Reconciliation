@@ -14,6 +14,7 @@ export type PartnerReportListFilters = {
   month?: number;
   opcoId?: string;
   statusCode?: string;
+  search?: string;
   sortBy: PartnerReportSortField;
   sortDir: PartnerSortDirection;
   page: number;
@@ -114,6 +115,12 @@ function buildWhere(
   if (filters.statusCode) {
     where.status = { code: filters.statusCode };
   }
+  if (filters.search) {
+    where.OR = [
+      { file: { filename: { contains: filters.search } } },
+      { opco: { name: { contains: filters.search } } },
+    ];
+  }
 
   return where;
 }
@@ -178,12 +185,14 @@ export function parsePartnerReportListFilters(
 
   const opcoId = searchParams.get("opcoId")?.trim();
   const statusCode = searchParams.get("status")?.trim();
+  const search = searchParams.get("search")?.trim();
 
   return {
     year,
     month,
     opcoId: opcoId || undefined,
     statusCode: statusCode || undefined,
+    search: search || undefined,
     sortBy:
       sortBy === "period" || sortBy === "opco" || sortBy === "uploaded"
         ? sortBy

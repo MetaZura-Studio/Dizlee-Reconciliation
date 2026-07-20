@@ -3,6 +3,8 @@
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { FieldLegend } from "@/components/ui/field";
+import { ModalCloseButton } from "@/components/ui/modal-close-button";
 import { PortalOverlay } from "@/components/ui/portal-overlay";
 import type {
   AdminEntityStatus,
@@ -110,15 +112,18 @@ function PartnerFormModalContent({
         className={ui.modal}
       >
         <form onSubmit={(event) => void submit(event)}>
-          <h2 id="partner-form-title" className="text-lg font-semibold tracking-tight text-foreground">
-            {mode === "create" ? "Create Partner" : "Edit Partner"}
-          </h2>
+          <div className="flex items-start justify-between gap-4">
+            <h2 id="partner-form-title" className="text-lg font-semibold tracking-tight text-foreground">
+              {mode === "create" ? "Create Partner" : "Edit Partner"}
+            </h2>
+            <ModalCloseButton onClick={onClose} disabled={submitting} />
+          </div>
 
           <div className="mt-4 space-y-4">
             {error ? <p className={ui.alertError}>{error}</p> : null}
 
             <label className="block text-sm">
-              <span className={ui.label}>Name</span>
+              <FieldLegend required>Name</FieldLegend>
               <input
                 value={values.name}
                 onChange={(event) =>
@@ -130,7 +135,7 @@ function PartnerFormModalContent({
             </label>
 
             <label className="block text-sm">
-              <span className={ui.label}>Status</span>
+              <FieldLegend>Status</FieldLegend>
               <select
                 value={values.status}
                 onChange={(event) =>

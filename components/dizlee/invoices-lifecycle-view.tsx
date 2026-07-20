@@ -18,6 +18,10 @@ import { LoadingBar } from "@/components/ui/loading";
 import { cn, ui } from "@/lib/ui/classes";
 import { invoiceStatusTone } from "@/lib/ui/status-tones";
 import type { InvoiceFilterOptions } from "@/lib/dizlee/invoices";
+import {
+  getMaxMonthForYear,
+  getPeriodYearOptions,
+} from "@/lib/platform/period";
 import type {
   InvoiceLifecycleDetail,
   LifecycleListFilters,
@@ -192,10 +196,8 @@ export function InvoicesLifecycleView({
     );
   };
 
-  const yearOptions = [];
-  for (let value = year + 1; value >= year - 4; value -= 1) {
-    yearOptions.push(value);
-  }
+  const yearOptions = getPeriodYearOptions();
+  const maxMonth = getMaxMonthForYear(year);
 
   return (
     <PageCard>
@@ -215,7 +217,7 @@ export function InvoicesLifecycleView({
               onChange={(event) => setMonth(Number(event.target.value))}
               className={ui.select}
             >
-              {MONTHS.map((name, index) => (
+              {MONTHS.slice(0, maxMonth).map((name, index) => (
                 <option key={name} value={index + 1}>
                   {name}
                 </option>
@@ -226,7 +228,12 @@ export function InvoicesLifecycleView({
             <span className={ui.label}>Year</span>
             <select
               value={year}
-              onChange={(event) => setYear(Number(event.target.value))}
+              onChange={(event) => {
+                const nextYear = Number(event.target.value);
+                setYear(nextYear);
+                const capped = getMaxMonthForYear(nextYear);
+                if (month > capped) setMonth(capped);
+              }}
               className={ui.select}
             >
               {yearOptions.map((value) => (

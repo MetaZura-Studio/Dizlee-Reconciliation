@@ -232,3 +232,27 @@ export async function markInboxNotificationRead(params: {
     },
   });
 }
+
+export async function markAllInboxNotificationsRead(params: {
+  userId: string;
+}): Promise<{ markedCount: number }> {
+  const userId = BigInt(params.userId);
+  const unread = await prisma.notification.findMany({
+    where: inboxWhere(userId, true),
+    select: { id: true },
+  });
+
+  if (unread.length === 0) {
+    return { markedCount: 0 };
+  }
+
+  const result = await prisma.notificationRead.createMany({
+    data: unread.map((row) => ({
+      notificationId: row.id,
+      userId,
+    })),
+    skipDuplicates: true,
+  });
+
+  return { markedCount: result.count };
+}

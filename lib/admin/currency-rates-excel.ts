@@ -1,6 +1,9 @@
 import ExcelJS from "exceljs";
 
-import { USD_ISO_CODE, USD_RATE } from "@/lib/platform/currency-rates";
+import {
+  BASE_CURRENCY_ISO_CODE,
+  BASE_CURRENCY_RATE,
+} from "@/lib/platform/currency-rates";
 
 export type ParsedCurrencyRateRow = {
   isoCode: string;
@@ -53,7 +56,7 @@ function parseRate(value: ExcelJS.CellValue): number | null {
 }
 
 /**
- * Parse currency rate Excel. Expected headers: ISO | RateToUSD (aliases accepted).
+ * Parse currency rate Excel. Expected headers: ISO | RateToKWD (aliases accepted).
  */
 export async function parseCurrencyRatesExcel(
   buffer: ArrayBuffer | Buffer | Uint8Array,
@@ -83,8 +86,12 @@ export async function parseCurrencyRatesExcel(
       isoCol = colNumber;
     }
     if (
-      header === "ratetousd" ||
+      header === "ratetokwd" ||
       header === "rate" ||
+      header === "kwdrate" ||
+      header === "ratekwd" ||
+      // Legacy USD-based templates still accepted
+      header === "ratetousd" ||
       header === "usdrate" ||
       header === "rateusd"
     ) {
@@ -98,7 +105,7 @@ export async function parseCurrencyRatesExcel(
       issues: [
         {
           rowNumber: 1,
-          message: "Missing required headers. Expected ISO and RateToUSD columns.",
+          message: "Missing required headers. Expected ISO and RateToKWD columns.",
         },
       ],
     };
@@ -143,10 +150,10 @@ export async function parseCurrencyRatesExcel(
       return;
     }
 
-    if (isoRaw === USD_ISO_CODE && rate !== USD_RATE) {
+    if (isoRaw === BASE_CURRENCY_ISO_CODE && rate !== BASE_CURRENCY_RATE) {
       issues.push({
         rowNumber,
-        message: "USD rate must be 1 (row skipped; USD stays locked)",
+        message: "KWD rate must be 1 (row skipped; KWD stays locked)",
       });
       return;
     }
@@ -176,15 +183,15 @@ export async function buildCurrencyRatesTemplateBuffer(
   const sheet = workbook.addWorksheet("Rates");
   sheet.columns = [
     { header: "ISO", key: "iso", width: 12 },
-    { header: "RateToUSD", key: "rate", width: 16 },
+    { header: "RateToKWD", key: "rate", width: 16 },
   ];
 
   for (const currency of currencies) {
     sheet.addRow({
       iso: currency.isoCode,
       rate:
-        currency.isoCode === USD_ISO_CODE
-          ? USD_RATE
+        currency.isoCode === BASE_CURRENCY_ISO_CODE
+          ? BASE_CURRENCY_RATE
           : (currency.rateToUsd ?? ""),
     });
   }
@@ -216,8 +223,8 @@ export function mergeParsedRatesIntoDraft(params: {
 
   let applied = 0;
   const rates = params.currencies.map((currency) => {
-    if (currency.isoCode === USD_ISO_CODE) {
-      return { currencyId: currency.id, rateToUsd: USD_RATE };
+    if (currency.isoCode === BASE_CURRENCY_ISO_CODE) {
+      return { currencyId: currency.id, rateToUsd: BASE_CURRENCY_RATE };
     }
     if (byIso.has(currency.isoCode)) {
       applied += 1;

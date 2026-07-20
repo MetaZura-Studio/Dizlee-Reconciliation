@@ -25,6 +25,27 @@ export function IconEye(props: IconProps) {
   );
 }
 
+export function IconDownload(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M12 3v12" />
+      <path d="m7 10 5 5 5-5" />
+      <path d="M5 21h14" />
+    </svg>
+  );
+}
+
+export function IconEyeOff(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M9.9 4.2A10.4 10.4 0 0 1 12 4c6.5 0 10 8 10 8a17.6 17.6 0 0 1-3.1 4.3" />
+      <path d="M6.6 6.6C3.8 8.4 2 12 2 12s3.5 7 10 7a10 10 0 0 0 4.4-1" />
+      <path d="M14.1 9.9a3 3 0 0 1-4.2 4.2" />
+      <path d="m1 1 22 22" />
+    </svg>
+  );
+}
+
 export function IconPencil(props: IconProps) {
   return (
     <svg {...base(props)}>
@@ -203,6 +224,15 @@ export function IconPrint(props: IconProps) {
       <path d="M6 9V2h12v7" />
       <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
       <path d="M6 14h12v8H6z" />
+    </svg>
+  );
+}
+
+export function IconClose(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M18 6 6 18" />
+      <path d="m6 6 12 12" />
     </svg>
   );
 }

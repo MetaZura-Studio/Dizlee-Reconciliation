@@ -1,6 +1,8 @@
 import { currentPeriod, type DashboardPeriod } from "@/lib/dizlee/dashboard";
 import {
+  effectiveInvoiceStatusCode,
   getInvoiceFilterOptions,
+  syncInvoiceStatusWhenPaid,
   type InvoiceFilterOptions,
 } from "@/lib/dizlee/invoices";
 import { prisma } from "@/lib/prisma";
@@ -62,7 +64,7 @@ const LIFECYCLE_STEPS = [
   { code: "DRAFT", label: "Draft" },
   { code: "SENT", label: "Sent" },
   { code: "ACKNOWLEDGED", label: "Acknowledged" },
-  { code: "SETTLED", label: "Settled" },
+  { code: "PAID", label: "Paid" },
 ] as const;
 
 function periodFromParts(month: number, year: number): DashboardPeriod {
@@ -87,6 +89,10 @@ function directionLabel(typeCode: string): string {
   }
 }
 
+function formatStatusLabel(code: string): string {
+  return code.replaceAll("_", " ");
+}
+
 function statusRank(code: string): number {
   switch (code) {
     case "DRAFT":
@@ -95,6 +101,7 @@ function statusRank(code: string): number {
       return 1;
     case "ACKNOWLEDGED":
       return 2;
+    case "PAID":
     case "SETTLED":
       return 3;
     default:
@@ -104,12 +111,17 @@ function statusRank(code: string): number {
 
 function buildSteps(params: {
   statusCode: string;
+  paymentStatusCode: string | null;
   sentAt: Date | null;
   acknowledgedAt: Date | null;
-  settledAt: Date | null;
+  paidAt: Date | null;
   createdAt: Date;
 }): LifecycleStep[] {
-  const currentRank = statusRank(params.statusCode);
+  const statusRankValue = statusRank(params.statusCode);
+  const currentRank = Math.max(
+    statusRankValue,
+    params.paymentStatusCode === "PAID" ? 3 : -1,
+  );
 
   return LIFECYCLE_STEPS.map((step) => {
     const stepRank = statusRank(step.code);
@@ -127,8 +139,8 @@ function buildSteps(params: {
         case "ACKNOWLEDGED":
           completedAt = params.acknowledgedAt?.toISOString() ?? null;
           break;
-        case "SETTLED":
-          completedAt = params.settledAt?.toISOString() ?? null;
+        case "PAID":
+          completedAt = params.paidAt?.toISOString() ?? null;
           break;
         default:
           break;
@@ -210,8 +222,15 @@ export async function listLifecycleInvoices(
       opcoName: row.opco.name,
       partnerName: row.partner?.name ?? null,
       direction: directionLabel(row.invoiceType.code),
-      invoiceStatus: row.invoiceStatus.code.replaceAll("_", " "),
-      paymentStatus: row.paymentStatus?.code.replaceAll("_", " ") ?? "—",
+      invoiceStatus: formatStatusLabel(
+        effectiveInvoiceStatusCode(
+          row.invoiceStatus.code,
+          row.paymentStatus?.code,
+        ),
+      ),
+      paymentStatus: row.paymentStatus?.code
+        ? formatStatusLabel(row.paymentStatus.code)
+        : "—",
     })),
     page: filters.page,
     pageSize: PAGE_SIZE,
@@ -246,27 +265,62 @@ export async function getInvoiceLifecycleDetail(
     return null;
   }
 
+  await syncInvoiceStatusWhenPaid(invoice.id);
+
+  const refreshed = await prisma.invoice.findFirst({
+    where: { id: invoice.id },
+    include: {
+      opco: { select: { name: true } },
+      partner: { select: { name: true } },
+      invoiceType: { select: { code: true } },
+      invoiceStatus: { select: { code: true } },
+      paymentStatus: { select: { code: true } },
+      activityLogs: {
+        orderBy: { createdAt: "desc" },
+        include: {
+          actor: { select: { name: true, email: true } },
+          action: { select: { code: true } },
+        },
+      },
+    },
+  });
+
+  if (!refreshed) {
+    return null;
+  }
+
   const listItem: LifecycleListItem = {
-    id: invoice.id.toString(),
-    invoiceNumber: invoice.invoiceNumber,
-    period: periodFromParts(invoice.month, invoice.year),
-    opcoName: invoice.opco.name,
-    partnerName: invoice.partner?.name ?? null,
-    direction: directionLabel(invoice.invoiceType.code),
-    invoiceStatus: invoice.invoiceStatus.code.replaceAll("_", " "),
-    paymentStatus: invoice.paymentStatus?.code.replaceAll("_", " ") ?? "—",
+    id: refreshed.id.toString(),
+    invoiceNumber: refreshed.invoiceNumber,
+    period: periodFromParts(refreshed.month, refreshed.year),
+    opcoName: refreshed.opco.name,
+    partnerName: refreshed.partner?.name ?? null,
+    direction: directionLabel(refreshed.invoiceType.code),
+    invoiceStatus: formatStatusLabel(
+      effectiveInvoiceStatusCode(
+        refreshed.invoiceStatus.code,
+        refreshed.paymentStatus?.code,
+      ),
+    ),
+    paymentStatus: refreshed.paymentStatus?.code
+      ? formatStatusLabel(refreshed.paymentStatus.code)
+      : "—",
   };
 
   return {
     invoice: listItem,
     steps: buildSteps({
-      statusCode: invoice.invoiceStatus.code,
-      sentAt: invoice.sentAt,
-      acknowledgedAt: invoice.acknowledgedAt,
-      settledAt: invoice.settledAt,
-      createdAt: invoice.createdAt,
+      statusCode: effectiveInvoiceStatusCode(
+        refreshed.invoiceStatus.code,
+        refreshed.paymentStatus?.code,
+      ),
+      paymentStatusCode: refreshed.paymentStatus?.code ?? null,
+      sentAt: refreshed.sentAt,
+      acknowledgedAt: refreshed.acknowledgedAt,
+      paidAt: refreshed.paidAt ?? refreshed.settledAt,
+      createdAt: refreshed.createdAt,
     }),
-    activities: invoice.activityLogs.map((entry) => ({
+    activities: refreshed.activityLogs.map((entry) => ({
       id: entry.id.toString(),
       actorName: entry.actor.name ?? entry.actor.email,
       action: entry.action.code.replaceAll("_", " "),

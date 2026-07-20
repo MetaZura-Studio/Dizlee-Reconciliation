@@ -37,10 +37,6 @@ export default async function AdminInvoiceBankDetailsPage() {
         <h1 className="text-2xl font-semibold tracking-tight">
           Invoice bank details
         </h1>
-        <p className="text-sm text-foreground-muted">
-          Add one or more bank accounts for Dizlee → OpCo digital invoices. If
-          multiple are saved, create-invoice will let you choose.
-        </p>
       </div>
 
       <InvoiceBankDetailsForm initialSettings={settings!} />

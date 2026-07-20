@@ -34,7 +34,7 @@ export default async function AdminCurrenciesPage() {
     return (
       <div className="mx-auto max-w-5xl space-y-3">
         <h1 className="text-2xl font-semibold tracking-tight">
-          Currencies &amp; USD rates
+          Currencies &amp; KWD rates
         </h1>
         <p className="rounded-md border border-danger-border bg-danger-muted px-3 py-2 text-sm text-danger">
           {errorMessage}
@@ -47,7 +47,7 @@ export default async function AdminCurrenciesPage() {
     <div className="mx-auto max-w-6xl space-y-6">
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">
-          Currencies &amp; USD rates
+          Currencies &amp; KWD rates
         </h1>
         <p className="text-sm text-foreground-muted">
           Set monthly exchange rates for billing (Monthly rates), or manage which

@@ -2,14 +2,18 @@
 
 import { useRef, useState } from "react";
 
-import { ReportUploadReviewModal } from "@/components/shared/report-upload-review-modal";
+import {
+  formatFileSizeLabel,
+  ReportUploadReviewModal,
+} from "@/components/shared/report-upload-review-modal";
 import { Button } from "@/components/ui/button";
 import { FieldLabel } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
 import { formatPeriodLabel } from "@/lib/partner/period";
-import { ui } from "@/lib/ui/classes";
 import type { PartnerReportListItem } from "@/lib/partner/queries/reports";
-import type { ReportPreviewLineItem } from "@/lib/platform/report-preview";
+import { validateReportUploadFile } from "@/lib/partner/validation/report-upload";
+import { readRawExcelSheetPreview } from "@/lib/platform/excel/read-raw-sheet";
+import { ui } from "@/lib/ui/classes";
 
 type ReportReuploadDialogProps = {
   report: PartnerReportListItem;
@@ -19,7 +23,11 @@ type ReportReuploadDialogProps = {
 
 type ReviewState = {
   filename: string;
-  lineItems: ReportPreviewLineItem[];
+  fileSizeLabel: string;
+  rawRows: string[][];
+  sheetName: string;
+  totalRows: number;
+  truncated: boolean;
 };
 
 export function ReportReuploadDialog({
@@ -30,51 +38,48 @@ export function ReportReuploadDialog({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isParsing, setIsParsing] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const [review, setReview] = useState<ReviewState | null>(null);
 
-  async function parseSelectedFile(selectedFile: File) {
+  async function openRawPreview(selectedFile: File) {
     setError(null);
+    setConfirmError(null);
     setReview(null);
-    setFile(selectedFile);
-    setIsParsing(true);
 
-    const formData = new FormData();
-    formData.append("file", selectedFile);
+    const validationError = validateReportUploadFile(selectedFile);
+    if (validationError) {
+      setError(validationError);
+      setFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+      return;
+    }
+
+    setFile(selectedFile);
+    setIsLoadingPreview(true);
 
     try {
-      const response = await fetch("/api/partner/reports/parse-preview", {
-        method: "POST",
-        body: formData,
-      });
-      const payload = (await response.json()) as {
-        error?: string;
-        filename?: string;
-        lineItems?: ReportPreviewLineItem[];
-      };
-
-      if (!response.ok) {
-        setError(payload.error ?? "Failed to parse report");
-        setFile(null);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = "";
-        }
-        return;
-      }
-
+      const buffer = await selectedFile.arrayBuffer();
+      const preview = await readRawExcelSheetPreview(buffer);
       setReview({
-        filename: payload.filename ?? selectedFile.name,
-        lineItems: payload.lineItems ?? [],
+        filename: selectedFile.name,
+        fileSizeLabel: formatFileSizeLabel(selectedFile.size),
+        rawRows: preview.rows,
+        sheetName: preview.sheetName,
+        totalRows: preview.totalRows,
+        truncated: preview.truncated,
       });
     } catch {
-      setError("Failed to parse report");
+      setError("Could not read this Excel file. Please choose a valid .xlsx file.");
       setFile(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
     } finally {
-      setIsParsing(false);
+      setIsLoadingPreview(false);
     }
   }
 
@@ -85,16 +90,19 @@ export function ReportReuploadDialog({
       setReview(null);
       return;
     }
-    void parseSelectedFile(selectedFile);
+    void openRawPreview(selectedFile);
   }
 
   function handleReupload() {
     setReview(null);
     setFile(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-      fileInputRef.current.click();
-    }
+    setConfirmError(null);
+    window.setTimeout(() => {
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+        fileInputRef.current.click();
+      }
+    }, 0);
   }
 
   async function handleConfirmUpload() {
@@ -102,7 +110,7 @@ export function ReportReuploadDialog({
       return;
     }
 
-    setError(null);
+    setConfirmError(null);
     setIsConfirming(true);
 
     const formData = new FormData();
@@ -117,16 +125,14 @@ export function ReportReuploadDialog({
       const payload = (await response.json()) as { error?: string };
 
       if (!response.ok) {
-        setError(payload.error ?? "Failed to upload corrected report");
-        setReview(null);
+        setConfirmError(payload.error ?? "Failed to upload corrected report");
         return;
       }
 
       onSuccess();
       onClose();
     } catch {
-      setError("Failed to upload corrected report");
-      setReview(null);
+      setConfirmError("Failed to upload corrected report");
     } finally {
       setIsConfirming(false);
     }
@@ -134,7 +140,7 @@ export function ReportReuploadDialog({
 
   return (
     <>
-      <Modal open title="Reupload corrected file" onClose={onClose}>
+      <Modal open={!review} title="Reupload corrected file" onClose={onClose}>
         <p className="text-sm text-foreground-muted">
           {report.opcoName} — {formatPeriodLabel(report.year, report.month)}
         </p>
@@ -145,18 +151,20 @@ export function ReportReuploadDialog({
 
         <div className="mt-4 space-y-4">
           <div>
-            <FieldLabel htmlFor="reupload-file">Corrected Excel file</FieldLabel>
+            <FieldLabel htmlFor="reupload-file" required>
+              Corrected Excel file
+            </FieldLabel>
             <input
               ref={fileInputRef}
               id="reupload-file"
               type="file"
               accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
               onChange={handleFileChange}
-              disabled={isParsing || isConfirming}
+              disabled={isLoadingPreview || isConfirming}
               className="mt-1 block w-full text-sm disabled:opacity-60"
             />
-            {isParsing ? (
-              <p className="mt-2 text-sm text-foreground-muted">Parsing report…</p>
+            {isLoadingPreview ? (
+              <p className="mt-2 text-sm text-foreground-muted">Loading preview…</p>
             ) : null}
           </div>
 
@@ -167,7 +175,7 @@ export function ReportReuploadDialog({
               type="button"
               variant="secondary"
               onClick={onClose}
-              disabled={isParsing || isConfirming}
+              disabled={isLoadingPreview || isConfirming}
             >
               Cancel
             </Button>
@@ -179,11 +187,21 @@ export function ReportReuploadDialog({
         <ReportUploadReviewModal
           filename={review.filename}
           subtitle={`${report.opcoName} — ${formatPeriodLabel(report.year, report.month)}`}
-          lineItems={review.lineItems}
+          fileSizeLabel={review.fileSizeLabel}
+          rawRows={review.rawRows}
+          rawSheetName={review.sheetName}
+          rawTruncated={review.truncated}
+          rawTotalRows={review.totalRows}
           confirming={isConfirming}
+          confirmError={confirmError}
+          confirmLabel="Confirm reupload"
+          confirmingLabel="Reuploading…"
           onReupload={handleReupload}
           onConfirm={() => void handleConfirmUpload()}
-          onClose={() => setReview(null)}
+          onClose={() => {
+            setReview(null);
+            setConfirmError(null);
+          }}
         />
       ) : null}
     </>

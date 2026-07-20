@@ -1,8 +1,9 @@
 import { writeSettingsAuditLog } from "@/lib/admin/audit";
 import {
-  defaultNotificationSchedules,
-  parseNotificationSchedulesJson,
-  type NotificationSchedules,
+  defaultNotificationSchedule,
+  parseNotificationScheduleJson,
+  type NotificationSchedule,
+  type ScheduleTemplateOption,
 } from "@/lib/admin/notification-schedules.shared";
 import { isReminderUnit } from "@/lib/admin/reminder-duration";
 import {
@@ -15,7 +16,11 @@ export type ReminderSettingsView = {
   remindersEnabled: boolean;
   reminderValue: number | null;
   reminderUnit: string | null;
-  schedules: NotificationSchedules;
+  schedule: NotificationSchedule;
+  templateOptions: {
+    intimations: ScheduleTemplateOption[];
+    reminders: ScheduleTemplateOption[];
+  };
 };
 
 export class ReminderSettingsError extends Error {
@@ -28,12 +33,49 @@ export class ReminderSettingsError extends Error {
   }
 }
 
-function mapSettingsRow(row: {
-  remindersEnabled: boolean;
-  reminderValue: number | null;
-  reminderUnit: string | null;
-  notificationSchedulesJson: string | null;
-}): ReminderSettingsView {
+async function loadScheduleTemplateOptions(): Promise<
+  ReminderSettingsView["templateOptions"]
+> {
+  const templates = await prisma.notificationTemplate.findMany({
+    where: {
+      isDeleted: false,
+      category: { in: ["INTIMATION", "REMINDER"] },
+    },
+    orderBy: [{ category: "asc" }, { name: "asc" }],
+    select: { code: true, name: true, category: true },
+  });
+
+  const intimations: ScheduleTemplateOption[] = [];
+  const reminders: ScheduleTemplateOption[] = [];
+
+  for (const template of templates) {
+    if (template.category === "INTIMATION") {
+      intimations.push({
+        code: template.code,
+        name: template.name,
+        category: "INTIMATION",
+      });
+    } else if (template.category === "REMINDER") {
+      reminders.push({
+        code: template.code,
+        name: template.name,
+        category: "REMINDER",
+      });
+    }
+  }
+
+  return { intimations, reminders };
+}
+
+function mapSettingsRow(
+  row: {
+    remindersEnabled: boolean;
+    reminderValue: number | null;
+    reminderUnit: string | null;
+    notificationSchedulesJson: string | null;
+  },
+  templateOptions: ReminderSettingsView["templateOptions"],
+): ReminderSettingsView {
   return {
     remindersEnabled: row.remindersEnabled,
     reminderValue: row.reminderValue,
@@ -41,20 +83,24 @@ function mapSettingsRow(row: {
       row.reminderUnit && isReminderUnit(row.reminderUnit)
         ? row.reminderUnit
         : "days",
-    schedules: parseNotificationSchedulesJson(row.notificationSchedulesJson),
+    schedule: parseNotificationScheduleJson(row.notificationSchedulesJson),
+    templateOptions,
   };
 }
 
 export async function getReminderSettings(): Promise<ReminderSettingsView> {
-  const settings = await prisma.appSettings.findFirst({
-    where: { id: 1 },
-    select: {
-      remindersEnabled: true,
-      reminderValue: true,
-      reminderUnit: true,
-      notificationSchedulesJson: true,
-    },
-  });
+  const [settings, templateOptions] = await Promise.all([
+    prisma.appSettings.findFirst({
+      where: { id: 1 },
+      select: {
+        remindersEnabled: true,
+        reminderValue: true,
+        reminderUnit: true,
+        notificationSchedulesJson: true,
+      },
+    }),
+    loadScheduleTemplateOptions(),
+  ]);
 
   if (!settings) {
     throw new ReminderSettingsError(
@@ -63,7 +109,7 @@ export async function getReminderSettings(): Promise<ReminderSettingsView> {
     );
   }
 
-  return mapSettingsRow(settings);
+  return mapSettingsRow(settings, templateOptions);
 }
 
 export async function updateReminderSettings(
@@ -77,7 +123,30 @@ export async function updateReminderSettings(
     );
   }
 
-  const schedulesJson = JSON.stringify(parsed.data.schedules);
+  const templateOptions = await loadScheduleTemplateOptions();
+  const intimationCodes = new Set(
+    templateOptions.intimations.map((row) => row.code),
+  );
+  const reminderCodes = new Set(
+    templateOptions.reminders.map((row) => row.code),
+  );
+
+  for (const step of parsed.data.schedule.intimations) {
+    if (!intimationCodes.has(step.templateCode)) {
+      throw new ReminderSettingsError(
+        `Unknown intimation template: ${step.templateCode}`,
+      );
+    }
+  }
+  for (const step of parsed.data.schedule.reminders) {
+    if (!reminderCodes.has(step.templateCode)) {
+      throw new ReminderSettingsError(
+        `Unknown reminder template: ${step.templateCode}`,
+      );
+    }
+  }
+
+  const schedulesJson = JSON.stringify(parsed.data.schedule);
 
   const updated = await prisma.appSettings.upsert({
     where: { id: 1 },
@@ -108,15 +177,15 @@ export async function updateReminderSettings(
     message: "Reminder settings updated.",
     metadata: {
       remindersEnabled: updated.remindersEnabled,
-      schedules: parsed.data.schedules,
+      schedule: parsed.data.schedule,
     },
   });
 
-  return mapSettingsRow(updated);
+  return mapSettingsRow(updated, templateOptions);
 }
 
-export function ensureDefaultSchedules(
-  schedules: NotificationSchedules | null | undefined,
-): NotificationSchedules {
-  return schedules?.length ? schedules : defaultNotificationSchedules();
+export function ensureDefaultSchedule(
+  schedule: NotificationSchedule | null | undefined,
+): NotificationSchedule {
+  return schedule ?? defaultNotificationSchedule();
 }

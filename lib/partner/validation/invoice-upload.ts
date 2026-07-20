@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { getCurrentPeriod, isFuturePeriod } from "@/lib/platform/period";
+
 export const MAX_INVOICE_UPLOAD_BYTES = 10 * 1024 * 1024;
 
 export const ALLOWED_INVOICE_MIME_TYPES = ["application/pdf"] as const;
@@ -12,15 +14,34 @@ export const invoiceUploadLineItemSchema = z.object({
   unitPrice: z.coerce.number().min(0, "Unit price must be 0 or greater"),
 });
 
-export const partnerInvoiceUploadMetadataSchema = z.object({
-  opcoId: z.string().trim().min(1, "OpCo is required"),
-  year: z.coerce.number().int().min(2000).max(2100),
-  month: z.coerce.number().int().min(1).max(12),
-  invoiceNumber: z.string().trim().max(64).optional(),
-  lineItems: z
-    .array(invoiceUploadLineItemSchema)
-    .min(1, "At least one line item is required"),
-});
+export const partnerInvoiceUploadMetadataSchema = z
+  .object({
+    opcoId: z.string().trim().min(1, "OpCo is required"),
+    year: z.coerce.number().int().min(2000).max(2100),
+    month: z.coerce.number().int().min(1).max(12),
+    invoiceNumber: z.string().trim().max(64).optional(),
+    lineItems: z
+      .array(invoiceUploadLineItemSchema)
+      .min(1, "At least one line item is required"),
+  })
+  .superRefine((data, ctx) => {
+    const current = getCurrentPeriod();
+    if (data.year > current.year) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Invoice year cannot be in the future",
+        path: ["year"],
+      });
+      return;
+    }
+    if (isFuturePeriod(data.year, data.month)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Invoice period cannot be in the future",
+        path: ["month"],
+      });
+    }
+  });
 
 export type PartnerInvoiceUploadMetadata = z.infer<
   typeof partnerInvoiceUploadMetadataSchema

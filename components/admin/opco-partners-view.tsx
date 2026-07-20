@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { FieldLegend } from "@/components/ui/field";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ListPagination } from "@/components/ui/list-pagination";
 import { FilterToolbar, PageCard } from "@/components/ui/page";
@@ -162,7 +163,7 @@ export function OpcoPartnersView({ initialData }: OpcoPartnersViewProps) {
   }, [linksView?.partners, search, linkStatus, selectedPartnerIds]);
 
   const pagedPartners = useMemo(
-    () => paginateItems(filteredPartners, page),
+    () => paginateItems(filteredPartners, page, 24),
     [filteredPartners, page],
   );
 
@@ -193,7 +194,7 @@ export function OpcoPartnersView({ initialData }: OpcoPartnersViewProps) {
         <FilterToolbar>
           <div className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <label className="text-sm">
-              <span className={ui.label}>OpCo</span>
+              <FieldLegend required>OpCo</FieldLegend>
               <select
                 id="opcoId"
                 value={selectedOpcoId}

@@ -1,7 +1,8 @@
-import { redirect } from "next/navigation";
+import { DashboardView } from "@/components/admin/dashboard-view";
+import { getAdminDashboardData } from "@/lib/admin/dashboard";
 
-import { ADMIN_DEFAULT_ROUTE } from "@/lib/admin/navigation";
+export default async function AdminDashboardPage() {
+  const data = await getAdminDashboardData();
 
-export default function AdminIndexPage() {
-  redirect(ADMIN_DEFAULT_ROUTE);
+  return <DashboardView data={data} />;
 }

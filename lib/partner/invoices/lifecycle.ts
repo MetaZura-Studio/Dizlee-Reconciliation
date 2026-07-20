@@ -33,7 +33,7 @@ const LIFECYCLE_STEPS = [
   { code: "DRAFT", label: "Draft" },
   { code: "SENT", label: "Sent" },
   { code: "ACKNOWLEDGED", label: "Acknowledged" },
-  { code: "SETTLED", label: "Settled" },
+  { code: "PAID", label: "Paid" },
 ] as const;
 
 function statusRank(code: string): number {
@@ -44,6 +44,7 @@ function statusRank(code: string): number {
       return 1;
     case "ACKNOWLEDGED":
       return 2;
+    case "PAID":
     case "SETTLED":
       return 3;
     default:
@@ -53,12 +54,17 @@ function statusRank(code: string): number {
 
 function buildSteps(params: {
   statusCode: string;
+  paymentStatusCode: string | null;
   sentAt: Date | null;
   acknowledgedAt: Date | null;
-  settledAt: Date | null;
+  paidAt: Date | null;
   createdAt: Date;
 }): LifecycleStep[] {
-  const currentRank = statusRank(params.statusCode);
+  const statusRankValue = statusRank(params.statusCode);
+  const currentRank = Math.max(
+    statusRankValue,
+    params.paymentStatusCode === "PAID" ? 3 : -1,
+  );
 
   return LIFECYCLE_STEPS.map((step) => {
     const stepRank = statusRank(step.code);
@@ -76,8 +82,8 @@ function buildSteps(params: {
         case "ACKNOWLEDGED":
           completedAt = params.acknowledgedAt?.toISOString() ?? null;
           break;
-        case "SETTLED":
-          completedAt = params.settledAt?.toISOString() ?? null;
+        case "PAID":
+          completedAt = params.paidAt?.toISOString() ?? null;
           break;
         default:
           break;
@@ -131,9 +137,10 @@ export async function getPartnerInvoiceLifecycle(
     paymentStatusLabel: invoice.paymentStatus?.label ?? "—",
     steps: buildSteps({
       statusCode: invoice.invoiceStatus.code,
+      paymentStatusCode: invoice.paymentStatus?.code ?? null,
       sentAt: invoice.sentAt,
       acknowledgedAt: invoice.acknowledgedAt,
-      settledAt: invoice.settledAt,
+      paidAt: invoice.paidAt ?? invoice.settledAt,
       createdAt: invoice.createdAt,
     }),
     activities: invoice.activityLogs.map((entry) => ({

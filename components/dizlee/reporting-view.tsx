@@ -23,6 +23,10 @@ import { cn, ui } from "@/lib/ui/classes";
 import { paginateItems } from "@/lib/ui/list-pagination";
 import { useDebouncedValue } from "@/lib/ui/use-debounced-value";
 import type { ReportFilterOptions } from "@/lib/dizlee/reports";
+import {
+  getMaxMonthForYear,
+  getPeriodYearOptions,
+} from "@/lib/platform/period";
 import type {
   ReportingLaneRow,
   ReportingLaneStatus,
@@ -44,10 +48,10 @@ const MONTHS = [
   "December",
 ];
 
-const usdFormatter = new Intl.NumberFormat("en-US", {
+const kwdFormatter = new Intl.NumberFormat("en-KW", {
   style: "currency",
-  currency: "USD",
-  maximumFractionDigits: 0,
+  currency: "KWD",
+  maximumFractionDigits: 3,
 });
 
 type StatusFilter = "all" | ReportingLaneStatus;
@@ -243,10 +247,8 @@ export function ReportingView({
     }
   }, [month, opcoId, partnerId, year]);
 
-  const yearOptions = [];
-  for (let value = year + 1; value >= year - 4; value -= 1) {
-    yearOptions.push(value);
-  }
+  const yearOptions = getPeriodYearOptions();
+  const maxMonth = getMaxMonthForYear(year);
 
   const { summary } = overview;
   const periodQuery = `month=${overview.filters.month}&year=${overview.filters.year}`;
@@ -313,7 +315,7 @@ export function ReportingView({
               onChange={(event) => setMonth(Number(event.target.value))}
               className={ui.select}
             >
-              {MONTHS.map((label, index) => (
+              {MONTHS.slice(0, maxMonth).map((label, index) => (
                 <option key={label} value={index + 1}>
                   {label}
                 </option>
@@ -325,7 +327,12 @@ export function ReportingView({
             <span className={ui.label}>Year</span>
             <select
               value={year}
-              onChange={(event) => setYear(Number(event.target.value))}
+              onChange={(event) => {
+                const nextYear = Number(event.target.value);
+                setYear(nextYear);
+                const capped = getMaxMonthForYear(nextYear);
+                if (month > capped) setMonth(capped);
+              }}
               className={ui.select}
             >
               {yearOptions.map((value) => (
@@ -461,8 +468,8 @@ export function ReportingView({
             tone="teal"
           />
           <KpiCard
-            label="Revenue paid (USD)"
-            value={usdFormatter.format(summary.totalRevenuePaidUsd)}
+            label="Revenue paid (KWD)"
+            value={kwdFormatter.format(summary.totalRevenuePaidUsd)}
             tone="amber"
           />
         </div>
@@ -647,7 +654,7 @@ export function ReportingView({
                     <DataTableTh>OpCo</DataTableTh>
                     <DataTableTh>Status</DataTableTh>
                     <DataTableTh>Generated at</DataTableTh>
-                    <DataTableTh className="text-right">Total USD</DataTableTh>
+                    <DataTableTh className="text-right">Total KWD</DataTableTh>
                   </tr>
                 </DataTableHead>
                 <tbody>
@@ -666,7 +673,7 @@ export function ReportingView({
                       </DataTableTd>
                       <DataTableTd className="text-right text-foreground-muted">
                         {row.totalAmountUsd !== null
-                          ? usdFormatter.format(row.totalAmountUsd)
+                          ? kwdFormatter.format(row.totalAmountUsd)
                           : "—"}
                       </DataTableTd>
                     </DataTableRow>
@@ -690,3 +697,6 @@ export function ReportingView({
     </PageCard>
   );
 }
+
+
+

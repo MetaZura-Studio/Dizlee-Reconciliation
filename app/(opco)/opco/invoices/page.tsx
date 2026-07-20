@@ -38,14 +38,14 @@ export default async function OpcoInvoicesPage({
 
   const [result, filterOptions] = await Promise.all([
     searchInvoicesForOpco(opcoId, filters),
-    getOpcoInvoiceFilterOptions(opcoId),
+    getOpcoInvoiceFilterOptions(),
   ]);
 
   return (
     <PageCard>
       <PageHeader
         title="Invoices"
-        description="View Dizlee → OpCo invoices. Opening an invoice acknowledges receipt automatically."
+        description="Search by invoice number, or filter by period, status, and payment. Opening an invoice acknowledges receipt automatically."
       />
       <InvoicesTable initialResult={result} filterOptions={filterOptions} />
     </PageCard>

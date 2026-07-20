@@ -13,10 +13,6 @@ export default function LoginPage() {
           <DizleeLogo variant="full" priority className="h-10 px-2" />
           <div className="space-y-1">
             <h1 className={ui.pageTitle}>Sign in</h1>
-            <p className={ui.pageSubtitle}>
-              OpCo, Dizlee, and Partner sign-in. You will be redirected to your
-              portal after login.
-            </p>
           </div>
         </div>
 

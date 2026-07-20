@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { ReportDetailModal } from "@/components/dizlee/report-detail-modal";
 import { ReportsTabs } from "@/components/dizlee/reports-tabs";
 import { ReportFilenameLink } from "@/components/shared/report-filename-link";
+import { reportRawFilePreviewUrl } from "@/lib/platform/reports/preview-url";
 import { Button } from "@/components/ui/button";
 import {
   DataTable,
@@ -13,17 +13,23 @@ import {
   DataTableRow,
   DataTableTd,
   DataTableTh,
+  SortableDataTableTh,
 } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Modal } from "@/components/ui/modal";
 import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
 import { LoadingBar } from "@/components/ui/loading";
 import { cn, ui } from "@/lib/ui/classes";
-import type { ReportDetail, ReportFilterOptions } from "@/lib/dizlee/reports";
-import type {
-  ReuploadListFilters,
+import { nextSortState, type SortDirection } from "@/lib/ui/sort";
+import type { ReportFilterOptions } from "@/lib/dizlee/reports";
+import {
+  getMaxMonthForYear,
+  getPeriodYearOptions,
+} from "@/lib/platform/period";
+import type {  ReuploadListFilters,
   ReuploadListResult,
   ReuploadRequestItem,
+  ReuploadSortField,
 } from "@/lib/dizlee/reupload-requests";
 
 const MONTHS = [
@@ -60,6 +66,8 @@ function buildQuery(filters: ReuploadListFilters): string {
     month: String(filters.month),
     year: String(filters.year),
     page: String(filters.page),
+    sortBy: filters.sortBy,
+    sortDir: filters.sortDir,
   });
   if (filters.opcoId) {
     params.set("opcoId", filters.opcoId);
@@ -85,6 +93,12 @@ export function ReuploadRequestsView({
   const [partnerId, setPartnerId] = useState(
     initialResult.filters.partnerId ?? "",
   );
+  const [sortBy, setSortBy] = useState<ReuploadSortField>(
+    initialResult.filters.sortBy,
+  );
+  const [sortDir, setSortDir] = useState<SortDirection>(
+    initialResult.filters.sortDir,
+  );
 
   const [result, setResult] = useState<ReuploadListResult>(initialResult);
   const [filterOptions, setFilterOptions] =
@@ -98,9 +112,6 @@ export function ReuploadRequestsView({
     null,
   );
   const [decisionNote, setDecisionNote] = useState("");
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [detailLoading, setDetailLoading] = useState(false);
-  const [detail, setDetail] = useState<ReportDetail | null>(null);
 
   const loadRequests = useCallback(async (filters: ReuploadListFilters) => {
     setLoading(true);
@@ -133,11 +144,29 @@ export function ReuploadRequestsView({
       opcoId: opcoId || undefined,
       partnerId: partnerId || undefined,
       page: 1,
+      sortBy,
+      sortDir,
+    });
+  };
+
+  const applySort = (field: ReuploadSortField) => {
+    const next = nextSortState(sortBy, sortDir, field);
+    setSortBy(next.sortBy);
+    setSortDir(next.sortDir);
+    void loadRequests({
+      ...result.filters,
+      month,
+      year,
+      opcoId: opcoId || undefined,
+      partnerId: partnerId || undefined,
+      page: 1,
+      sortBy: next.sortBy,
+      sortDir: next.sortDir,
     });
   };
 
   const refresh = () => {
-    void loadRequests({ ...result.filters, page: 1 });
+    void loadRequests({ ...result.filters, sortBy, sortDir, page: 1 });
   };
 
   useEffect(() => {
@@ -150,29 +179,6 @@ export function ReuploadRequestsView({
 
   const goToPage = (nextPage: number) => {
     void loadRequests({ ...result.filters, page: nextPage });
-  };
-
-  const openDetail = async (reportId: string) => {
-    setDetailOpen(true);
-    setDetailLoading(true);
-    setDetail(null);
-    try {
-      const response = await fetch(`/api/dizlee/reports/${reportId}`);
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to load report");
-      }
-      setDetail(payload.data as ReportDetail);
-    } catch (detailError) {
-      setError(
-        detailError instanceof Error
-          ? detailError.message
-          : "Failed to load report",
-      );
-      setDetailOpen(false);
-    } finally {
-      setDetailLoading(false);
-    }
   };
 
   const approve = async (requestId: string) => {
@@ -239,10 +245,8 @@ export function ReuploadRequestsView({
     }
   };
 
-  const yearOptions = [];
-  for (let value = year + 1; value >= year - 4; value -= 1) {
-    yearOptions.push(value);
-  }
+  const yearOptions = getPeriodYearOptions();
+  const maxMonth = getMaxMonthForYear(year);
 
   const items = result.items;
 
@@ -261,7 +265,7 @@ export function ReuploadRequestsView({
               onChange={(event) => setMonth(Number(event.target.value))}
               className={ui.select}
             >
-              {MONTHS.map((name, index) => (
+              {MONTHS.slice(0, maxMonth).map((name, index) => (
                 <option key={name} value={index + 1}>
                   {name}
                 </option>
@@ -272,7 +276,12 @@ export function ReuploadRequestsView({
             <span className={ui.label}>Year</span>
             <select
               value={year}
-              onChange={(event) => setYear(Number(event.target.value))}
+              onChange={(event) => {
+                const nextYear = Number(event.target.value);
+                setYear(nextYear);
+                const capped = getMaxMonthForYear(nextYear);
+                if (month > capped) setMonth(capped);
+              }}
               className={ui.select}
             >
               {yearOptions.map((value) => (
@@ -334,16 +343,36 @@ export function ReuploadRequestsView({
             <DataTableFrame>
               <DataTable>
                 <DataTableHead>
-                  <tr>
-                    <DataTableTh>Period</DataTableTh>
-                    <DataTableTh>OpCo</DataTableTh>
-                    <DataTableTh>Partner</DataTableTh>
-                    <DataTableTh>Filename</DataTableTh>
-                    <DataTableTh>Requested by</DataTableTh>
-                    <DataTableTh>Requested</DataTableTh>
-                    <DataTableTh>Reason</DataTableTh>
-                    <DataTableTh>Actions</DataTableTh>
-                  </tr>
+                    <tr>
+                      <SortableDataTableTh
+                        label="Period"
+                        active={sortBy === "period"}
+                        direction={sortDir}
+                        onSort={() => applySort("period")}
+                      />
+                      <SortableDataTableTh
+                        label="OpCo"
+                        active={sortBy === "opco"}
+                        direction={sortDir}
+                        onSort={() => applySort("opco")}
+                      />
+                      <SortableDataTableTh
+                        label="Partner"
+                        active={sortBy === "partner"}
+                        direction={sortDir}
+                        onSort={() => applySort("partner")}
+                      />
+                      <DataTableTh>Filename</DataTableTh>
+                      <DataTableTh>Requested by</DataTableTh>
+                      <SortableDataTableTh
+                        label="Requested"
+                        active={sortBy === "requested"}
+                        direction={sortDir}
+                        onSort={() => applySort("requested")}
+                      />
+                      <DataTableTh>Reason</DataTableTh>
+                      <DataTableTh>Actions</DataTableTh>
+                    </tr>
                 </DataTableHead>
                 <tbody>
                   {items.map((row) => {
@@ -358,9 +387,9 @@ export function ReuploadRequestsView({
                         <DataTableTd className="text-foreground-muted">
                           <ReportFilenameLink
                             filename={row.filename}
-                            onClick={
+                            href={
                               row.filename
-                                ? () => void openDetail(row.reportId)
+                                ? reportRawFilePreviewUrl("dizlee", row.reportId)
                                 : undefined
                             }
                           />
@@ -474,17 +503,6 @@ export function ReuploadRequestsView({
           </>
         ) : null}
       </Modal>
-
-      {detailOpen ? (
-        <ReportDetailModal
-          detail={detail}
-          loading={detailLoading}
-          onClose={() => {
-            setDetailOpen(false);
-            setDetail(null);
-          }}
-        />
-      ) : null}
     </PageCard>
   );
 }

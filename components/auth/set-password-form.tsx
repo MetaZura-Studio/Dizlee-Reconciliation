@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { FieldLabel } from "@/components/ui/field";
 import { PASSWORD_MIN_LENGTH, validatePasswordMatch } from "@/lib/auth/password-policy";
 import { ui } from "@/lib/ui/classes";
 
@@ -63,9 +64,9 @@ export function SetPasswordForm({
       {error ? <p className={ui.alertError}>{error}</p> : null}
 
       <div className="space-y-1">
-        <label htmlFor="password" className={ui.label}>
+        <FieldLabel htmlFor="password" required>
           New password
-        </label>
+        </FieldLabel>
         <input
           id="password"
           name="password"
@@ -83,9 +84,9 @@ export function SetPasswordForm({
       </div>
 
       <div className="space-y-1">
-        <label htmlFor="confirmPassword" className={ui.label}>
+        <FieldLabel htmlFor="confirmPassword" required>
           Confirm new password
-        </label>
+        </FieldLabel>
         <input
           id="confirmPassword"
           name="confirmPassword"

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { CreateOpcoInvoiceModal } from "@/components/dizlee/create-opco-invoice-modal";
@@ -17,7 +18,7 @@ import {
 } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { IconButton } from "@/components/ui/icon-button";
-import { IconEye } from "@/components/ui/icons";
+import { IconEye, IconPrint } from "@/components/ui/icons";
 import { ListSearch, OrFiltersDivider } from "@/components/ui/list-search";
 import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
@@ -25,6 +26,10 @@ import { LoadingBar } from "@/components/ui/loading";
 import { ui } from "@/lib/ui/classes";
 import { nextSortState } from "@/lib/ui/sort";
 import { useDebouncedValue } from "@/lib/ui/use-debounced-value";
+import {
+  getMaxMonthForYear,
+  getPeriodYearOptions,
+} from "@/lib/platform/period";
 import type {
   InvoiceDetail,
   InvoiceFilterOptions,
@@ -300,7 +305,7 @@ export function InvoicesListView({
           ...prev,
           items: prev.items.map((item) =>
             item.id === invoiceId
-              ? { ...item, paymentStatus: "PAID" }
+              ? { ...item, paymentStatus: "PAID", invoiceStatus: "PAID" }
               : item,
           ),
         }));
@@ -316,10 +321,8 @@ export function InvoicesListView({
     }
   };
 
-  const yearOptions = [];
-  for (let value = year + 1; value >= year - 4; value -= 1) {
-    yearOptions.push(value);
-  }
+  const yearOptions = getPeriodYearOptions();
+  const maxMonth = getMaxMonthForYear(year);
 
   const items: InvoiceListItem[] = result.items;
 
@@ -359,7 +362,7 @@ export function InvoicesListView({
               }}
               className={ui.select}
             >
-              {MONTHS.map((name, index) => (
+              {MONTHS.slice(0, maxMonth).map((name, index) => (
                 <option key={name} value={index + 1}>
                   {name}
                 </option>
@@ -372,7 +375,12 @@ export function InvoicesListView({
               value={year}
               onChange={(event) => {
                 setSearch("");
-                setYear(Number(event.target.value));
+                const nextYear = Number(event.target.value);
+                setYear(nextYear);
+                const capped = getMaxMonthForYear(nextYear);
+                if (month > capped) {
+                  setMonth(capped);
+                }
               }}
               className={ui.select}
             >
@@ -517,12 +525,26 @@ export function InvoicesListView({
                         {formatMoney(row.totalAmount, row.currencyCode)}
                       </DataTableTd>
                       <DataTableTd>
-                        <IconButton
-                          label="View invoice"
-                          onClick={() => void openDetail(row.id)}
-                        >
-                          <IconEye />
-                        </IconButton>
+                        <div className="flex gap-2">
+                          <IconButton
+                            label="View invoice"
+                            onClick={() => void openDetail(row.id)}
+                          >
+                            <IconEye />
+                          </IconButton>
+                          {row.direction === "Dizlee → OpCo" ? (
+                            <Link
+                              href={`/dizlee/invoices/${row.id}/print`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className={ui.iconButton}
+                              title="Print"
+                              aria-label="Print"
+                            >
+                              <IconPrint />
+                            </Link>
+                          ) : null}
+                        </div>
                       </DataTableTd>
                     </DataTableRow>
                   ))}

@@ -45,6 +45,7 @@ export function NotificationsInboxView({
   const [loading, setLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [markingAllRead, setMarkingAllRead] = useState(false);
 
   const loadList = useCallback(async (page = 1, onlyUnread = unreadOnly) => {
     setLoading(true);
@@ -92,6 +93,34 @@ export function NotificationsInboxView({
     }
   }, [loadList, result.page, unreadOnly]);
 
+  const markAllRead = useCallback(async () => {
+    if (result.unreadCount === 0 || markingAllRead) {
+      return;
+    }
+    setMarkingAllRead(true);
+    setError(null);
+    try {
+      const response = await fetch(
+        "/api/dizlee/notifications/inbox/mark-all-read",
+        { method: "POST" },
+      );
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Failed to mark all as read");
+      }
+      await loadList(result.page, unreadOnly);
+      window.dispatchEvent(new CustomEvent("dizlee-inbox-updated"));
+    } catch (markError) {
+      setError(
+        markError instanceof Error
+          ? markError.message
+          : "Failed to mark all as read",
+      );
+    } finally {
+      setMarkingAllRead(false);
+    }
+  }, [loadList, markingAllRead, result.page, result.unreadCount, unreadOnly]);
+
   useEffect(() => {
     const handleFocus = () => {
       void loadList(result.page, unreadOnly);
@@ -115,18 +144,28 @@ export function NotificationsInboxView({
         <p className="text-sm text-foreground-muted">
           {result.unreadCount} unread · {result.totalCount} total
         </p>
-        <label className="flex items-center gap-2 text-sm text-foreground-muted">
-          <input
-            type="checkbox"
-            checked={unreadOnly}
-            onChange={(event) => {
-              setUnreadOnly(event.target.checked);
-              void loadList(1, event.target.checked);
-            }}
-            className="rounded border-border"
-          />
-          Unread only
-        </label>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={result.unreadCount === 0 || markingAllRead || loading}
+            onClick={() => void markAllRead()}
+          >
+            {markingAllRead ? "Marking…" : "Mark all as read"}
+          </Button>
+          <label className="flex items-center gap-2 text-sm text-foreground-muted">
+            <input
+              type="checkbox"
+              checked={unreadOnly}
+              onChange={(event) => {
+                setUnreadOnly(event.target.checked);
+                void loadList(1, event.target.checked);
+              }}
+              className="rounded border-border"
+            />
+            Unread only
+          </label>
+        </div>
       </div>
 
       <div className="mt-4 grid gap-6 lg:grid-cols-2">

@@ -1,4 +1,5 @@
 export type AdminNavIcon =
+  | "dashboard"
   | "audit"
   | "users"
   | "email-settings"
@@ -22,9 +23,16 @@ export type AdminNavItem = {
   children?: AdminNavItem[];
 };
 
-export const ADMIN_DEFAULT_ROUTE = "/admin/users";
+export const ADMIN_DEFAULT_ROUTE = "/admin";
 
 export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
+  {
+    label: "Dashboard",
+    href: "/admin",
+    icon: "dashboard",
+    description: "Platform overview and recent activity.",
+    section: "main",
+  },
   {
     label: "Audit logs",
     href: "/admin/audit-logs",
@@ -75,10 +83,10 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     section: "main",
   },
   {
-    label: "Currencies & USD rates",
+    label: "Currencies & KWD rates",
     href: "/admin/currencies",
     icon: "currencies",
-    description: "Manage currencies and monthly USD exchange rates.",
+    description: "Manage currencies and monthly KWD exchange rates.",
     section: "main",
   },
   {
@@ -142,6 +150,10 @@ export function getAdminNavItemForPath(pathname: string): AdminNavItem | undefin
 export function isAdminNavActive(pathname: string, href: string): boolean {
   if (href === "#") {
     return false;
+  }
+
+  if (href === "/admin") {
+    return pathname === "/admin";
   }
 
   return pathname === href || pathname.startsWith(`${href}/`);

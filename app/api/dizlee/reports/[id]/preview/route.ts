@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { requireDizleeSession } from "@/lib/dizlee/auth";
+import { buildStoredFilePreviewResponse } from "@/lib/platform/reports/preview-stored-file";
 import { prisma } from "@/lib/prisma";
 
 type RouteContext = {
@@ -15,9 +16,13 @@ export async function GET(_request: Request, context: RouteContext) {
 
   const { id } = await context.params;
 
+  if (!/^\d+$/.test(id)) {
+    return NextResponse.json({ error: "Invalid report id" }, { status: 400 });
+  }
+
   try {
     const report = await prisma.report.findFirst({
-      where: { id: BigInt(id) },
+      where: { id: BigInt(id), isDeleted: false },
       include: { file: true },
     });
 
@@ -25,26 +30,9 @@ export async function GET(_request: Request, context: RouteContext) {
       return NextResponse.json({ error: "File not found" }, { status: 404 });
     }
 
-    if (!process.env.BLOB_READ_WRITE_TOKEN) {
-      return NextResponse.json(
-        {
-          error:
-            "File preview is not configured for local development (missing BLOB_READ_WRITE_TOKEN).",
-        },
-        { status: 503 },
-      );
-    }
-
-    return NextResponse.json({
-      data: {
-        filename: report.file.filename,
-        storageKey: report.file.storageKey,
-        mimeType: report.file.mimeType,
-      },
-    });
+    return buildStoredFilePreviewResponse(report.file);
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to load file preview";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("Dizlee report preview failed", error);
+    return NextResponse.json({ error: "Failed to load report file" }, { status: 500 });
   }
 }

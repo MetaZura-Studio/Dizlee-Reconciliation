@@ -1,57 +1,35 @@
 import { currentPeriod, type DashboardPeriod } from "@/lib/dizlee/dashboard";
+import { getLaneNotificationSummaries } from "@/lib/dizlee/lane-report-notifications";
 import {
   getReportFilterOptions,
   type ReportFilterOptions,
 } from "@/lib/dizlee/reports";
+import type {
+  LaneSubmission,
+  ReportMonitoringFilters,
+  ReportMonitoringLane,
+  ReportMonitoringResult,
+  ReportMonitoringSummary,
+} from "@/lib/dizlee/reports-monitoring.shared";
 import { ACTIVE_OPCO_PARTNER_LINK_FILTER } from "@/lib/platform/opco-partner-links";
 import { prisma } from "@/lib/prisma";
 
-export type MissingSideFilter = "opco" | "partner" | "any";
+export type {
+  LaneSubmission,
+  LaneSubmissionStatus,
+  MissingSideFilter,
+  ReportMonitoringFilters,
+  ReportMonitoringLane,
+  ReportMonitoringResult,
+  ReportMonitoringSortField,
+  ReportMonitoringSummary,
+  SortDirection,
+} from "@/lib/dizlee/reports-monitoring.shared";
 
-export type ReportMonitoringFilters = {
-  month: number;
-  year: number;
-  opcoId?: string;
-  partnerId?: string;
-  missing?: MissingSideFilter;
-  page: number;
-};
-
-export type LaneSubmissionStatus = "Submitted" | "Missing";
-
-export type LaneSubmission = {
-  status: LaneSubmissionStatus;
-  uploadedAt: string | null;
-  reportId: string | null;
-};
-
-export type ReportMonitoringLane = {
-  laneKey: string;
-  period: DashboardPeriod;
-  opcoId: string;
-  opcoName: string;
-  partnerId: string;
-  partnerName: string;
-  opcoReport: LaneSubmission;
-  partnerReport: LaneSubmission;
-};
-
-export type ReportMonitoringSummary = {
-  linkedLanes: number;
-  opcoMissing: number;
-  partnerMissing: number;
-  reportsSubmitted: number;
-};
-
-export type ReportMonitoringResult = {
-  items: ReportMonitoringLane[];
-  summary: ReportMonitoringSummary;
-  page: number;
-  pageSize: number;
-  totalPages: number;
-  totalCount: number;
-  filters: ReportMonitoringFilters;
-};
+export {
+  monitoringLaneNeedsReminder,
+  monitoringLaneToCompareLane,
+} from "@/lib/dizlee/reports-monitoring.shared";
 
 const PAGE_SIZE = 10;
 
@@ -88,6 +66,8 @@ export function parseReportMonitoringFilters(
   const year = Number(searchParams.get("year"));
   const page = Number(searchParams.get("page"));
   const missing = searchParams.get("missing");
+  const sortBy = searchParams.get("sortBy");
+  const sortDir = searchParams.get("sortDir");
 
   return {
     month:
@@ -101,6 +81,11 @@ export function parseReportMonitoringFilters(
         ? missing
         : undefined,
     page: Number.isInteger(page) && page >= 1 ? page : 1,
+    sortBy:
+      sortBy === "period" || sortBy === "opco" || sortBy === "partner"
+        ? sortBy
+        : "opco",
+    sortDir: sortDir === "desc" ? "desc" : "asc",
   };
 }
 
@@ -164,8 +149,18 @@ export async function listReportMonitoringLanes(
     }
   }
 
+  const notificationSummaries = await getLaneNotificationSummaries({
+    month: filters.month,
+    year: filters.year,
+    lanes: links.map((link) => ({
+      opcoId: link.opco.id.toString(),
+      partnerId: link.partner.id.toString(),
+    })),
+  });
+
   let lanes: ReportMonitoringLane[] = links.map((link) => {
     const laneKey = `${link.opcoId.toString()}-${link.partnerId.toString()}`;
+    const notificationSummary = notificationSummaries.get(laneKey);
 
     return {
       laneKey,
@@ -176,6 +171,11 @@ export async function listReportMonitoringLanes(
       partnerName: link.partner.name,
       opcoReport: laneSubmission(opcoReports.get(laneKey)),
       partnerReport: laneSubmission(partnerReports.get(laneKey)),
+      lastOpcoReminderAt: notificationSummary?.lastOpcoReminderAt ?? null,
+      lastPartnerReminderAt: notificationSummary?.lastPartnerReminderAt ?? null,
+      lastOpcoIntimationAt: notificationSummary?.lastOpcoIntimationAt ?? null,
+      lastPartnerIntimationAt: notificationSummary?.lastPartnerIntimationAt ?? null,
+      notificationCount: notificationSummary?.totalCount ?? 0,
     };
   });
 
@@ -198,6 +198,29 @@ export async function listReportMonitoringLanes(
         lane.partnerReport.status === "Missing",
     );
   }
+
+  const dir = filters.sortDir === "asc" ? 1 : -1;
+  lanes = [...lanes].sort((a, b) => {
+    if (filters.sortBy === "period") {
+      const av = a.period.year * 100 + a.period.month;
+      const bv = b.period.year * 100 + b.period.month;
+      if (av !== bv) {
+        return (av - bv) * dir;
+      }
+    }
+    if (filters.sortBy === "partner") {
+      const byPartner = a.partnerName.localeCompare(b.partnerName) * dir;
+      if (byPartner !== 0) {
+        return byPartner;
+      }
+      return a.opcoName.localeCompare(b.opcoName) * dir;
+    }
+    const byOpco = a.opcoName.localeCompare(b.opcoName) * dir;
+    if (byOpco !== 0) {
+      return byOpco;
+    }
+    return a.partnerName.localeCompare(b.partnerName) * dir;
+  });
 
   const totalCount = lanes.length;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));

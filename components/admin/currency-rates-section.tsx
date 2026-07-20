@@ -27,7 +27,7 @@ type RateFormRow = {
   isoCode: string;
   symbol: string | null;
   rateInput: string;
-  isUsd: boolean;
+  isBase: boolean;
 };
 
 type RateStatusFilter = "all" | "set" | "missing";
@@ -41,7 +41,7 @@ function toFormRows(rates: MonthlyRateRow[]): RateFormRow[] {
       rate.rateToUsd === null || rate.rateToUsd === undefined
         ? ""
         : String(rate.rateToUsd),
-    isUsd: rate.isUsd,
+    isBase: rate.isBase,
   }));
 }
 
@@ -50,7 +50,7 @@ function periodKey(month: number, year: number): string {
 }
 
 function rowHasRate(row: RateFormRow): boolean {
-  return row.isUsd || row.rateInput.trim() !== "";
+  return row.isBase || row.rateInput.trim() !== "";
 }
 
 function rowsEqual(a: RateFormRow[], b: RateFormRow[]): boolean {
@@ -190,7 +190,7 @@ export function CurrencyRatesSection({
 
     try {
       const rates = rows.map((row) => {
-        if (row.isUsd) {
+        if (row.isBase) {
           return { currencyId: row.currencyId, rateToUsd: 1 };
         }
 
@@ -374,8 +374,8 @@ export function CurrencyRatesSection({
               ) : null}
             </div>
             <p className="text-sm text-foreground-muted">
-              Enter how many USD equal <strong>1 unit</strong> of each currency
-              (example: 1 EUR = 1.085 USD).
+              Enter how many KWD equal <strong>1 unit</strong> of each currency
+              (example: 1 USD = 0.308 KWD).
             </p>
           </div>
 
@@ -490,7 +490,7 @@ export function CurrencyRatesSection({
                   <DataTableHead>
                     <tr>
                       <DataTableTh>Currency</DataTableTh>
-                      <DataTableTh>1 unit = ? USD</DataTableTh>
+                      <DataTableTh>1 unit = ? KWD</DataTableTh>
                       <DataTableTh>Status</DataTableTh>
                     </tr>
                   </DataTableHead>
@@ -511,9 +511,9 @@ export function CurrencyRatesSection({
                             ) : null}
                           </DataTableTd>
                           <DataTableTd>
-                            {row.isUsd ? (
+                            {row.isBase ? (
                               <span className="text-foreground-muted">
-                                1.00 (USD locked)
+                                1.00 (KWD locked)
                               </span>
                             ) : isCurrent ? (
                               <div className="flex max-w-xs items-center gap-2">
@@ -541,19 +541,19 @@ export function CurrencyRatesSection({
                                   className={ui.input}
                                 />
                                 <span className="shrink-0 text-xs text-foreground-subtle">
-                                  USD
+                                  KWD
                                 </span>
                               </div>
                             ) : (
                               <span className="tabular-nums text-foreground-muted">
                                 {row.rateInput === ""
                                   ? "—"
-                                  : `1 ${row.isoCode} = ${row.rateInput} USD`}
+                                  : `1 ${row.isoCode} = ${row.rateInput} KWD`}
                               </span>
                             )}
                           </DataTableTd>
                           <DataTableTd>
-                            {row.isUsd ? (
+                            {row.isBase ? (
                               <StatusPill tone="neutral">Locked</StatusPill>
                             ) : missing ? (
                               <StatusPill tone="warning">Missing</StatusPill>

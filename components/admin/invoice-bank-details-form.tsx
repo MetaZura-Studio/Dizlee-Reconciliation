@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { FieldLegend } from "@/components/ui/field";
 import type { InvoiceBankDetailsListView } from "@/lib/admin/invoice-bank-details.shared";
 import { ui } from "@/lib/ui/classes";
 
@@ -158,14 +159,7 @@ export function InvoiceBankDetailsForm({
       {success ? <p className={ui.alertSuccess}>{success}</p> : null}
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-foreground-muted">
-            {accounts.length === 0
-              ? "No bank accounts yet."
-              : accounts.length === 1
-                ? "1 account — used automatically on invoices."
-                : `${accounts.length} accounts — invoice create will ask which to use.`}
-          </p>
+        <div className="flex flex-wrap items-center justify-end gap-3">
           <Button
             type="button"
             variant="secondary"
@@ -204,7 +198,7 @@ export function InvoiceBankDetailsForm({
                 </div>
 
                 <label className="block text-sm sm:max-w-md">
-                  <span className={ui.label}>Label</span>
+                  <FieldLegend required>Label</FieldLegend>
                   <input
                     type="text"
                     value={account.label}
@@ -236,11 +230,6 @@ export function InvoiceBankDetailsForm({
             ))}
           </div>
         )}
-
-        <p className={`${ui.cardPadding} text-sm text-foreground-muted`}>
-          Selected bank details are saved onto each new Dizlee → OpCo invoice when
-          it is created.
-        </p>
 
         <div className="flex flex-wrap gap-3">
           <Button type="submit" disabled={saving || reloading}>

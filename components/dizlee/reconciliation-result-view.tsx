@@ -3,10 +3,15 @@
 import Link from "next/link";
 import { useState } from "react";
 
-import { ReportDetailModal } from "@/components/dizlee/report-detail-modal";
 import { ReportFilenameLink } from "@/components/shared/report-filename-link";
+import {
+  attachmentFileIds,
+  NotificationAttachmentPicker,
+  type PendingAttachment,
+} from "@/components/shared/notification-attachment-picker";
+import { ModalCloseButton } from "@/components/ui/modal-close-button";
 import type { ReconciliationDetail } from "@/lib/dizlee/reconciliation";
-import type { ReportDetail } from "@/lib/dizlee/reports";
+import { reportRawFilePreviewUrl } from "@/lib/platform/reports/preview-url";
 
 function formatDateTime(value: string): string {
   return new Date(value).toLocaleString("en-US", {
@@ -26,10 +31,10 @@ function formatUsd(value: number | null): string {
   if (value === null) {
     return "—";
   }
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat("en-KW", {
     style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 2,
+    currency: "KWD",
+    maximumFractionDigits: 3,
   }).format(value);
 }
 
@@ -90,36 +95,13 @@ export function ReconciliationResultView({
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [reportDetailOpen, setReportDetailOpen] = useState(false);
-  const [reportDetailLoading, setReportDetailLoading] = useState(false);
-  const [reportDetail, setReportDetail] = useState<ReportDetail | null>(null);
   const [alertOpen, setAlertOpen] = useState(false);
   const [alerting, setAlerting] = useState(false);
   const [alertSubject, setAlertSubject] = useState("");
   const [alertBody, setAlertBody] = useState("");
-
-  async function openReportDetail(reportId: string) {
-    setReportDetailOpen(true);
-    setReportDetailLoading(true);
-    setReportDetail(null);
-    try {
-      const response = await fetch(`/api/dizlee/reports/${reportId}`);
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to load report");
-      }
-      setReportDetail(payload.data as ReportDetail);
-    } catch (detailError) {
-      setError(
-        detailError instanceof Error
-          ? detailError.message
-          : "Failed to load report",
-      );
-      setReportDetailOpen(false);
-    } finally {
-      setReportDetailLoading(false);
-    }
-  }
+  const [alertAttachments, setAlertAttachments] = useState<PendingAttachment[]>(
+    [],
+  );
 
   async function confirmReconciliation() {
     setConfirming(true);
@@ -156,6 +138,7 @@ export function ReconciliationResultView({
     const next = buildDefaultAlert(detail);
     setAlertSubject(next.subject);
     setAlertBody(next.body);
+    setAlertAttachments([]);
     setAlertOpen(true);
   }
 
@@ -177,6 +160,7 @@ export function ReconciliationResultView({
           subject: alertSubject,
           body: alertBody,
           priority: detail.unmatchedCount > 0 ? "HIGH" : "NORMAL",
+          attachmentFileIds: attachmentFileIds(alertAttachments),
         }),
       });
       const payload = await response.json();
@@ -185,6 +169,7 @@ export function ReconciliationResultView({
       }
       setMessage(payload.data?.message ?? "Alert sent.");
       setAlertOpen(false);
+      setAlertAttachments([]);
     } catch (alertError) {
       setError(
         alertError instanceof Error ? alertError.message : "Failed to send alert",
@@ -217,12 +202,12 @@ export function ReconciliationResultView({
             OpCo file:{" "}
             <ReportFilenameLink
               filename={detail.opcoReportFilename}
-              onClick={() => void openReportDetail(detail.opcoReportId)}
+              href={reportRawFilePreviewUrl("dizlee", detail.opcoReportId)}
             />{" "}
             · Partner file:{" "}
             <ReportFilenameLink
               filename={detail.partnerReportFilename}
-              onClick={() => void openReportDetail(detail.partnerReportId)}
+              href={reportRawFilePreviewUrl("dizlee", detail.partnerReportId)}
             />
           </p>
         </div>
@@ -286,10 +271,10 @@ export function ReconciliationResultView({
                 Service
               </th>
               <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                OpCo (USD)
+                OpCo (KWD)
               </th>
               <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                Partner (USD)
+                Partner (KWD)
               </th>
               <th className="px-4 py-3 text-left font-medium text-foreground-muted">
                 Variance
@@ -348,13 +333,7 @@ export function ReconciliationResultView({
                   reconciliation outcome.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => setAlertOpen(false)}
-                className="text-sm text-foreground-subtle hover:text-foreground"
-              >
-                Close
-              </button>
+              <ModalCloseButton onClick={() => setAlertOpen(false)} />
             </div>
 
             <div className="mt-4 space-y-3">
@@ -377,6 +356,11 @@ export function ReconciliationResultView({
                   className="mt-1 w-full rounded border border-border-strong px-3 py-2"
                 />
               </label>
+              <NotificationAttachmentPicker
+                attachments={alertAttachments}
+                onChange={setAlertAttachments}
+                disabled={alerting}
+              />
               <div className="flex flex-wrap justify-end gap-2 pt-2">
                 <button
                   type="button"
@@ -406,17 +390,6 @@ export function ReconciliationResultView({
             </div>
           </div>
         </div>
-      ) : null}
-
-      {reportDetailOpen ? (
-        <ReportDetailModal
-          detail={reportDetail}
-          loading={reportDetailLoading}
-          onClose={() => {
-            setReportDetailOpen(false);
-            setReportDetail(null);
-          }}
-        />
       ) : null}
     </div>
   );

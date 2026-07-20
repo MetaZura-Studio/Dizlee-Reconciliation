@@ -1,21 +1,25 @@
 import type { Prisma } from "@prisma/client";
 
+import {
+  parseInvoiceBankDetailsJson,
+  parseInvoiceSignatoriesJson,
+  type InvoiceBankDetails,
+} from "@/lib/dizlee/invoice-bank-details";
 import { getOpcoLookupId } from "@/lib/opco/lookups";
 import { shouldAutoAcknowledgeOpcoInvoice } from "@/lib/opco/invoices/acknowledgement";
 import { formatPeriodLabel } from "@/lib/opco/period";
-import { getLinkedPartnersForOpco } from "@/lib/opco/queries/partners";
 import prisma from "@/lib/prisma";
 
-export type OpcoInvoiceSortField = "uploaded" | "period" | "partner";
+export type OpcoInvoiceSortField = "uploaded" | "period";
 export type OpcoSortDirection = "asc" | "desc";
 export type OpcoInvoicePaymentFilter = "all" | "paid" | "pending";
 
 export type OpcoInvoiceListFilters = {
   year?: number;
   month?: number;
-  partnerId?: string;
   statusCode?: string;
   paymentStatus: OpcoInvoicePaymentFilter;
+  search?: string;
   sortBy: OpcoInvoiceSortField;
   sortDir: OpcoSortDirection;
   page: number;
@@ -67,11 +71,13 @@ export type OpcoInvoiceDetail = {
   currencyCode: string;
   issuedAt: string;
   acknowledgedAt: string | null;
+  bankDetails: InvoiceBankDetails | null;
+  preparedBy: string | null;
+  approvedBy: string | null;
   lineItems: OpcoInvoiceLineItem[];
 };
 
 export type OpcoInvoiceFilterOptions = {
-  partners: Array<{ id: string; name: string }>;
   statuses: Array<{ code: string; label: string }>;
 };
 
@@ -92,8 +98,6 @@ function buildOrderBy(
   switch (sortBy) {
     case "period":
       return [{ year: sortDir }, { month: sortDir }, { createdAt: "desc" }];
-    case "partner":
-      return { partner: { name: sortDir } };
     case "uploaded":
     default:
       return { createdAt: sortDir };
@@ -115,9 +119,6 @@ function buildWhere(
   if (filters.month !== undefined) {
     where.month = filters.month;
   }
-  if (filters.partnerId) {
-    where.partnerId = BigInt(filters.partnerId);
-  }
   if (filters.statusCode) {
     where.invoiceStatus = { code: filters.statusCode };
   }
@@ -129,6 +130,9 @@ function buildWhere(
       { paymentStatus: { code: "OVERDUE" } },
       { paymentStatusId: null },
     ];
+  }
+  if (filters.search) {
+    where.invoiceNumber = { contains: filters.search };
   }
 
   return where;
@@ -154,6 +158,7 @@ function mapInvoiceDetail(
     };
   }>,
 ): OpcoInvoiceDetail {
+  const signatories = parseInvoiceSignatoriesJson(invoice.bankDetailsJson);
   return {
     id: invoice.id.toString(),
     invoiceNumber: invoice.invoiceNumber,
@@ -169,6 +174,9 @@ function mapInvoiceDetail(
     currencyCode: invoice.currency.isoCode,
     issuedAt: (invoice.sentAt ?? invoice.createdAt).toISOString(),
     acknowledgedAt: invoice.acknowledgedAt?.toISOString() ?? null,
+    bankDetails: parseInvoiceBankDetailsJson(invoice.bankDetailsJson),
+    preparedBy: signatories.preparedBy,
+    approvedBy: signatories.approvedBy,
     lineItems: invoice.items.map((item) => ({
       description: item.description,
       quantity: toNumber(item.quantity),
@@ -205,38 +213,30 @@ export function parseOpcoInvoiceListFilters(
     }
   }
 
-  const partnerId = searchParams.get("partnerId")?.trim();
   const statusCode = searchParams.get("status")?.trim();
+  const search = searchParams.get("search")?.trim();
 
   return {
     year,
     month,
-    partnerId: partnerId || undefined,
     statusCode: statusCode || undefined,
     paymentStatus:
       paymentStatus === "paid" || paymentStatus === "pending" ? paymentStatus : "all",
-    sortBy:
-      sortBy === "period" || sortBy === "uploaded" || sortBy === "partner"
-        ? sortBy
-        : "uploaded",
+    search: search || undefined,
+    sortBy: sortBy === "period" || sortBy === "uploaded" ? sortBy : "uploaded",
     sortDir: sortDir === "asc" ? "asc" : "desc",
     page: Number.isInteger(page) && page >= 1 ? page : 1,
   };
 }
 
-export async function getOpcoInvoiceFilterOptions(
-  opcoId: bigint,
-): Promise<OpcoInvoiceFilterOptions> {
-  const [partners, statuses] = await Promise.all([
-    getLinkedPartnersForOpco(opcoId),
-    prisma.lookup.findMany({
-      where: { lookupType: { code: "INVOICE_STATUS" } },
-      orderBy: { label: "asc" },
-      select: { code: true, label: true },
-    }),
-  ]);
+export async function getOpcoInvoiceFilterOptions(): Promise<OpcoInvoiceFilterOptions> {
+  const statuses = await prisma.lookup.findMany({
+    where: { lookupType: { code: "INVOICE_STATUS" } },
+    orderBy: { label: "asc" },
+    select: { code: true, label: true },
+  });
 
-  return { partners, statuses };
+  return { statuses };
 }
 
 export async function searchInvoicesForOpco(

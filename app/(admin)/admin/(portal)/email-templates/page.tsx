@@ -12,10 +12,13 @@ export default async function AdminEmailTemplatesPage() {
   try {
     pageData = await getEmailTemplatesPageData();
   } catch (error) {
+    console.error("[admin/email-templates]", error);
     errorMessage =
       error instanceof EmailTemplateError
         ? error.message
-        : "Email templates could not be loaded.";
+        : error instanceof Error
+          ? error.message
+          : "Email templates could not be loaded.";
   }
 
   if (errorMessage) {
@@ -35,8 +38,8 @@ export default async function AdminEmailTemplatesPage() {
         <h1 className="text-2xl font-semibold tracking-tight">Email templates</h1>
         <p className="text-sm text-foreground-muted">
           Generic monthly notices and reminders for OpCos and Partners. Password
-          emails are hardcoded in the app and are not edited here. Each save
-          creates a new version.
+          invite and reset emails are editable under Other. Each save creates a
+          new version.
         </p>
       </div>
 

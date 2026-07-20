@@ -1,0 +1,32 @@
+---
+description: Pending ERD/schema-doc sync after applied DB changes — do not update ERD until the user asks
+alwaysApply: true
+---
+
+# Pending ERD update (do not apply until asked)
+
+When the user later asks to update the ERD / [`04_DATABASE_SCHEMA_FOR_CURSOR.md`](04_DATABASE_SCHEMA_FOR_CURSOR.md), bring schema docs in line with **live Prisma** + migrations. Do **not** rewrite the ERD unprompted.
+
+## Known drift to merge (accumulated)
+
+### Applied migration — email template category
+- Migration: `prisma/migrations/20260715100000_email_template_category`
+- Table `notification_templates`: add column `category VARCHAR(32) NOT NULL DEFAULT 'OTHER'`
+- Index: `idx_notification_templates_category`
+- **Updated values (app convention):** `INTIMATION` | `REMINDER` | `OTHER` (was `REPORTS` | `INVOICES` | `OTHER`)
+- Remap migration: `prisma/migrations/20260716170000_email_template_category_intimation_reminder`
+- Seed/data: intimations (`REPORT_SUBMISSION`, `INVOICE_SUBMISSION`), reminders (`REPORT_REMINDER`, `INVOICE_REMINDER`), Other (`PASSWORD_INVITE`, `PASSWORD_FORGOT`)
+- Dizlee broadcast picker uses `INTIMATION` + `REMINDER` (excludes Other/password)
+
+### Other schema already in Prisma (verify ERD/doc vs `prisma/schema.prisma`)
+- `invoices.bank_details_json` (`bankDetailsJson`) — bank + signatories snapshot for Dizlee→OpCo invoices
+- Lookup seed: `INVOICE_STATUS` includes **PAID** (Settled → Paid lifecycle)
+- Soft-delete and audit patterns as in current Prisma models
+- Auth password emails are **DB-backed templates** under Other (not “hardcoded only” in ERD notes)
+
+## Source of truth until ERD is refreshed
+1. [`prisma/schema.prisma`](prisma/schema.prisma)
+2. Files under [`prisma/migrations/`](prisma/migrations/)
+3. [`prisma/seed-data/`](prisma/seed-data/) (lookups + notification templates)
+
+When syncing ERD: update table DDL, relationship notes, seed inventories, and any “FIX APPLIED” / changelog rows for the above.

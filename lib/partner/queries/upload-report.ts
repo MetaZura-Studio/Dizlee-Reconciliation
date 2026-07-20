@@ -8,6 +8,8 @@ import {
   laneReportWhere,
 } from "@/lib/platform/reports/sides";
 import { writePlatformAuditLog } from "@/lib/platform/audit-log";
+import { notifyDizleeUsers } from "@/lib/platform/notify-dizlee";
+import { formatPeriodLabel } from "@/lib/partner/period";
 import prisma from "@/lib/prisma";
 
 export class ReportUploadError extends Error {
@@ -145,6 +147,13 @@ export async function createReportUpload(
         year: input.year,
         filename: input.filename,
       },
+    });
+
+    const periodLabel = formatPeriodLabel(input.year, input.month);
+    await notifyDizleeUsers({
+      fromUserId: input.userId,
+      subject: "Partner report uploaded",
+      body: `${report.partner.name} uploaded a report for ${report.opco.name} (${periodLabel}).`,
     });
 
     return { reportId: report.id.toString() };
