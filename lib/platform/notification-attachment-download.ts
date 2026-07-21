@@ -1,11 +1,9 @@
 import "server-only";
 
-import { readFile } from "node:fs/promises";
-import path from "node:path";
-
 import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
+import { readStoredObject } from "@/lib/platform/storage/object-storage";
 
 export async function buildNotificationAttachmentDownloadResponse(params: {
   notificationId: bigint;
@@ -71,15 +69,9 @@ export async function buildNotificationAttachmentDownloadResponse(params: {
     return NextResponse.json({ error: "Attachment not found." }, { status: 404 });
   }
 
-  const absolutePath = path.join(
-    process.cwd(),
-    ".uploads",
-    attachment.file.storageKey,
-  );
-
   try {
-    const buffer = await readFile(absolutePath);
-    return new NextResponse(buffer, {
+    const buffer = await readStoredObject(attachment.file.storageKey);
+    return new NextResponse(new Uint8Array(buffer), {
       headers: {
         "Content-Type": attachment.file.mimeType ?? "application/octet-stream",
         "Content-Disposition": `attachment; filename="${attachment.file.filename}"`,

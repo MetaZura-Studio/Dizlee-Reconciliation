@@ -1,6 +1,7 @@
-import { createHash, randomUUID } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
+import {
+  saveStoredObject,
+  type SaveStoredObjectResult,
+} from "@/lib/platform/storage/object-storage";
 
 type SaveNotificationFileInput = {
   buffer: Buffer;
@@ -8,29 +9,13 @@ type SaveNotificationFileInput = {
   mimeType: string;
 };
 
-type SaveNotificationFileResult = {
-  storageKey: string;
-  checksum: string;
-  sizeBytes: bigint;
-};
-
 export async function saveNotificationFileLocally(
   input: SaveNotificationFileInput,
-): Promise<SaveNotificationFileResult> {
-  const checksum = createHash("sha256").update(input.buffer).digest("hex");
-  const storageKey = path.posix.join(
-    "notifications",
-    randomUUID(),
-    input.filename,
-  );
-  const absolutePath = path.join(process.cwd(), ".uploads", storageKey);
-
-  await mkdir(path.dirname(absolutePath), { recursive: true });
-  await writeFile(absolutePath, input.buffer);
-
-  return {
-    storageKey,
-    checksum,
-    sizeBytes: BigInt(input.buffer.byteLength),
-  };
+): Promise<SaveStoredObjectResult> {
+  return saveStoredObject({
+    folder: "notifications",
+    buffer: input.buffer,
+    filename: input.filename,
+    mimeType: input.mimeType,
+  });
 }
