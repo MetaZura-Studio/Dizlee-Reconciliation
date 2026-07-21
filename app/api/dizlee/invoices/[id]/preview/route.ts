@@ -1,10 +1,8 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
-
 import { NextResponse } from "next/server";
 
 import { requireDizleeSession } from "@/lib/dizlee/auth";
 import { prisma } from "@/lib/prisma";
+import { readStoredObject } from "@/lib/platform/storage/object-storage";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -28,11 +26,9 @@ export async function GET(_request: Request, context: RouteContext) {
       return NextResponse.json({ error: "File not found" }, { status: 404 });
     }
 
-    const absolutePath = path.join(process.cwd(), ".uploads", invoice.file.storageKey);
-
     try {
-      const buffer = await readFile(absolutePath);
-      return new NextResponse(buffer, {
+      const buffer = await readStoredObject(invoice.file.storageKey);
+      return new NextResponse(new Uint8Array(buffer), {
         headers: {
           "Content-Type": invoice.file.mimeType ?? "application/octet-stream",
           "Content-Disposition": `inline; filename="${invoice.file.filename}"`,
@@ -40,7 +36,7 @@ export async function GET(_request: Request, context: RouteContext) {
       });
     } catch {
       return NextResponse.json(
-        { error: "Invoice file is not available in local storage." },
+        { error: "Invoice file is not available in storage." },
         { status: 404 },
       );
     }

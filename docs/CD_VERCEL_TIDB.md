@@ -90,7 +90,17 @@ Set for **Preview** and **Production** as appropriate:
 | `CRON_SECRET` | Random secret; Vercel Cron sends `Authorization: Bearer <CRON_SECRET>` |
 | `EMAIL_ENABLED` | `true` when SMTP ready |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` / `SMTP_FROM` | Mail |
-| `BLOB_READ_WRITE_TOKEN` | If using Vercel Blob for files |
+| `BLOB_READ_WRITE_TOKEN` | **Required for uploads on Vercel** — create a Private Blob store (Storage → Blob), connect to this project, include the read-write token. Without it, file uploads fail (no durable disk). |
+
+Locally, if `BLOB_READ_WRITE_TOKEN` is unset, the app still writes to `.uploads/` on disk.
+
+### Blob store checklist
+
+1. Vercel → **Storage** → create **Private** Blob store (e.g. `dizlee-uploads`)
+2. Connect to this project (Production + Preview)
+3. Enable **read-write token** → env `BLOB_READ_WRITE_TOKEN` (prefix `BLOB`)
+4. Redeploy after env is present
+5. App code uses `@vercel/blob` via `lib/platform/storage/object-storage.ts`
 | `SYSTEM_USER_ID` | Optional; else seed `admin@dizlee.com` |
 
 After first deploy, update `NEXTAUTH_URL` to the final domain (custom domain or `*.vercel.app`).

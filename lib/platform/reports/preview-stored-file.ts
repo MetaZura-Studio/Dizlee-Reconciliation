@@ -1,9 +1,8 @@
 import "server-only";
 
-import { readFile } from "node:fs/promises";
-import path from "node:path";
-
 import { NextResponse } from "next/server";
+
+import { readStoredObject } from "@/lib/platform/storage/object-storage";
 
 export type StoredFileRecord = {
   filename: string;
@@ -17,11 +16,9 @@ const DEFAULT_REPORT_MIME =
 export async function buildStoredFilePreviewResponse(
   file: StoredFileRecord,
 ): Promise<NextResponse> {
-  const absolutePath = path.join(process.cwd(), ".uploads", file.storageKey);
-
   try {
-    const buffer = await readFile(absolutePath);
-    return new NextResponse(buffer, {
+    const buffer = await readStoredObject(file.storageKey);
+    return new NextResponse(new Uint8Array(buffer), {
       headers: {
         "Content-Type": file.mimeType ?? DEFAULT_REPORT_MIME,
         "Content-Disposition": `inline; filename="${file.filename}"`,
@@ -29,7 +26,7 @@ export async function buildStoredFilePreviewResponse(
     });
   } catch {
     return NextResponse.json(
-      { error: "Report file is not available in local storage." },
+      { error: "Report file is not available in storage." },
       { status: 404 },
     );
   }
