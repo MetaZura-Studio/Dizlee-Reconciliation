@@ -25,7 +25,7 @@ export type SaveStoredObjectResult = {
  * Prefer Vercel Blob when a store is connected; otherwise write under `.uploads/`
  * for local development.
  */
-export function useBlobStorage(): boolean {
+function isBlobStorageEnabled(): boolean {
   if (process.env.BLOB_READ_WRITE_TOKEN) {
     return true;
   }
@@ -39,7 +39,7 @@ export async function saveStoredObject(
   const checksum = createHash("sha256").update(input.buffer).digest("hex");
   const storageKey = path.posix.join(input.folder, randomUUID(), input.filename);
 
-  if (useBlobStorage()) {
+  if (isBlobStorageEnabled()) {
     await put(storageKey, input.buffer, {
       access: "private",
       addRandomSuffix: false,
@@ -63,7 +63,7 @@ export async function readStoredObject(storageKey: string): Promise<Buffer> {
     return readBlobObject(storageKey);
   }
 
-  if (useBlobStorage()) {
+  if (isBlobStorageEnabled()) {
     return readBlobObject(storageKey);
   }
 
