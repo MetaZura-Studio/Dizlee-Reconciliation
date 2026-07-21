@@ -7,6 +7,10 @@ import {
   reuploadCorrectedReport,
 } from "@/lib/opco/queries/reupload-report";
 import { validateReportUploadFile } from "@/lib/opco/validation/report-upload";
+import {
+  ObjectStorageError,
+  storageDiagnostics,
+} from "@/lib/platform/storage/object-storage";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -64,7 +68,23 @@ export async function POST(request: Request, context: RouteContext) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
 
+    if (error instanceof ObjectStorageError) {
+      return NextResponse.json(
+        { error: error.message, storage: storageDiagnostics() },
+        { status: 503 },
+      );
+    }
+
     console.error("Report reupload failed", error);
-    return NextResponse.json({ error: "Failed to reupload report" }, { status: 500 });
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error
+            ? `Failed to reupload report: ${error.message}`
+            : "Failed to reupload report",
+        storage: storageDiagnostics(),
+      },
+      { status: 500 },
+    );
   }
 }

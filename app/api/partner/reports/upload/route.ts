@@ -10,6 +10,10 @@ import {
   reportUploadMetadataSchema,
   validateReportUploadFile,
 } from "@/lib/partner/validation/report-upload";
+import {
+  ObjectStorageError,
+  storageDiagnostics,
+} from "@/lib/platform/storage/object-storage";
 
 export async function POST(request: Request) {
   const session = await getPartnerSession();
@@ -75,7 +79,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
 
+    if (error instanceof ObjectStorageError) {
+      return NextResponse.json(
+        { error: error.message, storage: storageDiagnostics() },
+        { status: 503 },
+      );
+    }
+
     console.error("Partner report upload failed", error);
-    return NextResponse.json({ error: "Failed to upload report" }, { status: 500 });
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error
+            ? `Failed to upload report: ${error.message}`
+            : "Failed to upload report",
+        storage: storageDiagnostics(),
+      },
+      { status: 500 },
+    );
   }
 }
