@@ -79,13 +79,11 @@ export async function saveStoredObject(
 
   if (isBlobStorageEnabled()) {
     try {
-      // Uint8Array avoids rare Buffer/BodyInit issues in serverless runtimes
-      const body = new Uint8Array(input.buffer);
-      await put(storageKey, body, {
+      await put(storageKey, input.buffer, {
         access: "private",
         addRandomSuffix: false,
         contentType: input.mimeType || undefined,
-        multipart: body.byteLength > 4 * 1024 * 1024,
+        multipart: input.buffer.byteLength > 4 * 1024 * 1024,
         ...(token ? { token } : {}),
       });
     } catch (error) {
