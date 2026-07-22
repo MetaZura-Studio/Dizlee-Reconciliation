@@ -14,7 +14,7 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
-import { LoadingBar } from "@/components/ui/loading";
+import { LoadingOverlay } from "@/components/ui/loading";
 import { cn, ui } from "@/lib/ui/classes";
 import { invoiceStatusTone } from "@/lib/ui/status-tones";
 import type { InvoiceFilterOptions } from "@/lib/dizlee/invoices";
@@ -276,15 +276,11 @@ export function InvoicesLifecycleView({
         </div>
       </FilterToolbar>
 
-      {loading ? (
-        <div className="mt-4">
-          <LoadingBar active />
-        </div>
-      ) : null}
       {error ? <div className={`mt-4 ${ui.alertError}`}>{error}</div> : null}
 
-      {!loading && !error ? (
-        result.items.length > 0 ? (
+      {!error ? (
+        <LoadingOverlay active={loading} className="mt-6 min-h-[12rem]">
+        {result.items.length > 0 ? (
           <div className="mt-6 grid gap-6 lg:grid-cols-2">
             <div className="space-y-3">
               <DataTableFrame>
@@ -435,7 +431,8 @@ export function InvoicesLifecycleView({
             title="No invoices"
             description="Try adjusting filters or create an invoice for this period."
           />
-        )
+        )}
+        </LoadingOverlay>
       ) : null}
     </PageCard>
   );

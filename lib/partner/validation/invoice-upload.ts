@@ -8,21 +8,11 @@ export const ALLOWED_INVOICE_MIME_TYPES = ["application/pdf"] as const;
 
 export const ALLOWED_INVOICE_EXTENSIONS = [".pdf"] as const;
 
-export const invoiceUploadLineItemSchema = z.object({
-  description: z.string().trim().min(1, "Description is required"),
-  quantity: z.coerce.number().positive("Quantity must be greater than 0"),
-  unitPrice: z.coerce.number().min(0, "Unit price must be 0 or greater"),
-});
-
 export const partnerInvoiceUploadMetadataSchema = z
   .object({
-    opcoId: z.string().trim().min(1, "OpCo is required"),
     year: z.coerce.number().int().min(2000).max(2100),
     month: z.coerce.number().int().min(1).max(12),
     invoiceNumber: z.string().trim().max(64).optional(),
-    lineItems: z
-      .array(invoiceUploadLineItemSchema)
-      .min(1, "At least one line item is required"),
   })
   .superRefine((data, ctx) => {
     const current = getCurrentPeriod();
@@ -76,12 +66,4 @@ export function validateInvoiceUploadFile(file: File | null): string | null {
   }
 
   return null;
-}
-
-export function parseInvoiceLineItemsJson(value: string | null): unknown {
-  if (!value) {
-    return [];
-  }
-
-  return JSON.parse(value) as unknown;
 }

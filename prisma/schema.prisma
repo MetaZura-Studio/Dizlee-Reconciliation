@@ -618,7 +618,7 @@ model Invoice {
   invoiceNumber     String?   @unique @map("invoice_number") @db.VarChar(64)
   month             Int
   year              Int
-  opcoId            BigInt    @map("opco_id")
+  opcoId            BigInt?   @map("opco_id")
   partnerId         BigInt?   @map("partner_id")
   invoiceTypeId     Int       @map("invoice_type_id")
   fileId            BigInt?   @map("file_id")
@@ -639,7 +639,7 @@ model Invoice {
   deletedByUserId   BigInt?   @map("deleted_by_user_id")
   deletedAt         DateTime? @map("deleted_at")
 
-  opco           Opco                 @relation(fields: [opcoId], references: [id])
+  opco           Opco?                @relation(fields: [opcoId], references: [id])
   partner        Partner?             @relation(fields: [partnerId], references: [id])
   invoiceType    Lookup               @relation("InvoiceType", fields: [invoiceTypeId], references: [id])
   file           File?                @relation(fields: [fileId], references: [id])
@@ -650,7 +650,8 @@ model Invoice {
   items          InvoiceItem[]
   activityLogs   InvoiceActivityLog[]
 
-  @@unique([opcoId, partnerId, month, year, invoiceTypeId], map: "uq_invoices_business_key")
+  @@unique([partnerId, month, year, invoiceTypeId], map: "uq_partner_period_invoices")
+  @@unique([opcoId, month, year, invoiceTypeId], map: "uq_client_period_invoices")
   @@map("invoices")
 }
 

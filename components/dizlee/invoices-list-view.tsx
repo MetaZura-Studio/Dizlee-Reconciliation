@@ -22,7 +22,7 @@ import { IconEye, IconPrint } from "@/components/ui/icons";
 import { ListSearch, OrFiltersDivider } from "@/components/ui/list-search";
 import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
-import { LoadingBar } from "@/components/ui/loading";
+import { LoadingOverlay } from "@/components/ui/loading";
 import { ui } from "@/lib/ui/classes";
 import { nextSortState } from "@/lib/ui/sort";
 import { useDebouncedValue } from "@/lib/ui/use-debounced-value";
@@ -450,15 +450,11 @@ export function InvoicesListView({
         </div>
       </FilterToolbar>
 
-      {loading ? (
-        <div className="mt-4">
-          <LoadingBar active />
-        </div>
-      ) : null}
       {error ? <div className={`mt-4 ${ui.alertError}`}>{error}</div> : null}
 
-      {!loading && !error ? (
-        items.length > 0 ? (
+      {!error ? (
+        <LoadingOverlay active={loading} className="mt-6 min-h-[12rem]">
+        {items.length > 0 ? (
           <div className="mt-6 space-y-4">
             <DataTableFrame>
               <DataTable>
@@ -581,7 +577,8 @@ export function InvoicesListView({
             title="No invoices"
             description="Try adjusting filters or upload an invoice as OpCo/Partner."
           />
-        )
+        )}
+        </LoadingOverlay>
       ) : null}
 
       {detailOpen ? (

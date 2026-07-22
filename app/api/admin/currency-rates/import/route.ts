@@ -48,22 +48,33 @@ export async function POST(request: Request) {
       );
     }
 
-    const { month, year } = currentCalendarPeriod();
-    const [currencies, currentView] = await Promise.all([
+    const current = currentCalendarPeriod();
+    const monthRaw = formData.get("month");
+    const yearRaw = formData.get("year");
+    const month =
+      typeof monthRaw === "string" && monthRaw.trim() !== ""
+        ? Number(monthRaw)
+        : current.month;
+    const year =
+      typeof yearRaw === "string" && yearRaw.trim() !== ""
+        ? Number(yearRaw)
+        : current.year;
+
+    const [currencies, periodView] = await Promise.all([
       listCurrencies(),
       getRatesForPeriod(month, year),
     ]);
 
     const merged = mergeParsedRatesIntoDraft({
       currencies,
-      existingRates: currentView.rates.map((rate) => ({
+      existingRates: periodView.rates.map((rate) => ({
         currencyId: rate.currencyId,
         rateToUsd: rate.rateToUsd,
       })),
       parsedRows: parsed.rows,
     });
 
-    const rates = currentView.rates.map((rate) => {
+    const rates = periodView.rates.map((rate) => {
       const draft = merged.rates.find((item) => item.currencyId === rate.currencyId);
       const rateToUsd = rate.isBase ? 1 : (draft?.rateToUsd ?? rate.rateToUsd);
       return {
@@ -75,10 +86,10 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       data: {
-        month,
-        year,
-        periodLabel: currentView.periodLabel,
-        isCurrent: true,
+        month: periodView.month,
+        year: periodView.year,
+        periodLabel: periodView.periodLabel,
+        isCurrent: periodView.isCurrent,
         rates,
         setCount: rates.filter((rate) => rate.hasRate).length,
         totalCurrencies: rates.length,

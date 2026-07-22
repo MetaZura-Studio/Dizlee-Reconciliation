@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 
 import { FieldLabel } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/toast";
 import type { ReconciliationToleranceView } from "@/lib/admin/reconciliation-tolerance";
 import { ui } from "@/lib/ui/classes";
 
@@ -26,10 +27,10 @@ function formatPercent(value: number): string {
 export function ReconciliationToleranceForm({
   initialSettings,
 }: ReconciliationToleranceFormProps) {
+  const toast = useToast();
   const [form, setForm] = useState(() => toFormState(initialSettings));
   const [savedSettings, setSavedSettings] = useState(initialSettings);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [reloading, setReloading] = useState(false);
 
@@ -40,7 +41,6 @@ export function ReconciliationToleranceForm({
 
   const reloadSettings = async () => {
     setError(null);
-    setSuccess(null);
     setReloading(true);
 
     try {
@@ -66,7 +66,6 @@ export function ReconciliationToleranceForm({
   const saveSettings = async (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
-    setSuccess(null);
     setSaving(true);
 
     try {
@@ -93,7 +92,7 @@ export function ReconciliationToleranceForm({
       }
 
       applySettings(body.data as ReconciliationToleranceView);
-      setSuccess("Reconciliation tolerance saved.");
+      toast.success("Reconciliation tolerance saved.");
     } catch (saveError) {
       setError(
         saveError instanceof Error
@@ -108,7 +107,6 @@ export function ReconciliationToleranceForm({
   return (
     <div className="space-y-6">
       {error ? <p className={ui.alertError}>{error}</p> : null}
-      {success ? <p className={ui.alertSuccess}>{success}</p> : null}
 
       <form onSubmit={(event) => void saveSettings(event)} className="space-y-6">
         <div className="space-y-1">

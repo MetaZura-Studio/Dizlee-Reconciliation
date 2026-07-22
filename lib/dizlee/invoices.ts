@@ -673,7 +673,7 @@ export async function listInvoices(
       id: row.id.toString(),
       invoiceNumber: row.invoiceNumber,
       period: periodFromParts(row.month, row.year),
-      opcoName: row.opco.name,
+      opcoName: row.opco?.name ?? "—",
       partnerName: row.partner?.name ?? null,
       direction: directionLabel(row.invoiceType.code),
       invoiceStatus: formatStatusLabel(
@@ -843,7 +843,7 @@ function mapInvoiceDetail(
     id: invoice.id.toString(),
     invoiceNumber: invoice.invoiceNumber,
     period: periodFromParts(invoice.month, invoice.year),
-    opcoName: invoice.opco.name,
+    opcoName: invoice.opco?.name ?? "—",
     partnerName: invoice.partner?.name ?? null,
     direction: directionLabel(invoice.invoiceType.code),
     invoiceTypeCode: invoice.invoiceType.code,

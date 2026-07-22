@@ -1,9 +1,9 @@
 import { getPartnerLookupId } from "@/lib/partner/lookups";
 import { formatPeriodLabel } from "@/lib/partner/period";
-import { isOpcoLinkedToPartner } from "@/lib/partner/queries/opcos";
 import { saveInvoiceFileLocally } from "@/lib/partner/storage/save-invoice-file";
 import type { PartnerInvoiceUploadMetadata } from "@/lib/partner/validation/invoice-upload";
 import { writePlatformAuditLog } from "@/lib/platform/audit-log";
+import { BASE_CURRENCY_ISO_CODE } from "@/lib/platform/currency-rates";
 import { notifyDizleeUsers } from "@/lib/platform/notify-dizlee";
 import prisma from "@/lib/prisma";
 
@@ -26,60 +26,52 @@ type CreatePartnerInvoiceInput = {
   buffer: Buffer;
 };
 
-function roundMoney(value: number): number {
-  return Math.round(value * 100) / 100;
-}
-
 function buildInvoiceNumber(
   partnerId: bigint,
-  opcoId: bigint,
   month: number,
   year: number,
 ): string {
-  return `PINV-${year}${String(month).padStart(2, "0")}-${partnerId.toString()}-${opcoId.toString()}-${Date.now()}`;
+  return `PINV-${year}${String(month).padStart(2, "0")}-${partnerId.toString()}-${Date.now()}`;
 }
 
 export async function createPartnerInvoice(
   input: CreatePartnerInvoiceInput,
 ): Promise<{ invoiceId: string }> {
-  const linked = await isOpcoLinkedToPartner(
-    input.partnerId,
-    BigInt(input.metadata.opcoId),
-  );
-
-  if (!linked) {
-    throw new InvoiceUploadError("OpCo is not linked to this partner", 403);
-  }
-
-  const opcoId = BigInt(input.metadata.opcoId);
-
-  const [opco, partner, invoiceTypeId, sentStatusId, unpaidStatusId, actionId] =
-    await Promise.all([
-      prisma.opco.findFirst({
-        where: { id: opcoId },
-        select: { defaultCurrencyId: true, name: true },
-      }),
-      prisma.partner.findFirst({
-        where: { id: input.partnerId },
-        select: { name: true },
-      }),
-      getPartnerLookupId("INVOICE_TYPE", "PARTNER_TO_CLIENT"),
-      getPartnerLookupId("INVOICE_STATUS", "SENT"),
-      getPartnerLookupId("PAYMENT_STATUS", "UNPAID"),
-      getPartnerLookupId("AUDIT_ACTION", "INVOICE_STATUS_UPDATED"),
-    ]);
-
-  if (!opco) {
-    throw new InvoiceUploadError("OpCo not found", 404);
-  }
+  const [
+    partner,
+    baseCurrency,
+    invoiceTypeId,
+    sentStatusId,
+    unpaidStatusId,
+    actionId,
+  ] = await Promise.all([
+    prisma.partner.findFirst({
+      where: { id: input.partnerId },
+      select: { name: true },
+    }),
+    prisma.currency.findFirst({
+      where: { isoCode: BASE_CURRENCY_ISO_CODE, isDeleted: false },
+      select: { id: true },
+    }),
+    getPartnerLookupId("INVOICE_TYPE", "PARTNER_TO_CLIENT"),
+    getPartnerLookupId("INVOICE_STATUS", "SENT"),
+    getPartnerLookupId("PAYMENT_STATUS", "UNPAID"),
+    getPartnerLookupId("AUDIT_ACTION", "INVOICE_STATUS_UPDATED"),
+  ]);
 
   if (!partner) {
     throw new InvoiceUploadError("Partner not found", 404);
   }
 
+  if (!baseCurrency) {
+    throw new InvoiceUploadError(
+      `${BASE_CURRENCY_ISO_CODE} currency is not configured`,
+      500,
+    );
+  }
+
   const duplicate = await prisma.invoice.findFirst({
     where: {
-      opcoId,
       partnerId: input.partnerId,
       month: input.metadata.month,
       year: input.metadata.year,
@@ -91,7 +83,7 @@ export async function createPartnerInvoice(
 
   if (duplicate) {
     throw new InvoiceUploadError(
-      "An invoice already exists for this OpCo and period",
+      "An invoice already exists for this period",
       409,
     );
   }
@@ -118,7 +110,6 @@ export async function createPartnerInvoice(
     input.metadata.invoiceNumber?.trim() ||
     buildInvoiceNumber(
       input.partnerId,
-      opcoId,
       input.metadata.month,
       input.metadata.year,
     );
@@ -139,28 +130,17 @@ export async function createPartnerInvoice(
       invoiceNumber,
       month: input.metadata.month,
       year: input.metadata.year,
-      opcoId,
+      opcoId: null,
       partnerId: input.partnerId,
       invoiceTypeId,
       fileId: file.id,
-      currencyId: opco.defaultCurrencyId,
+      currencyId: baseCurrency.id,
       invoiceStatusId: sentStatusId,
       paymentStatusId: unpaidStatusId,
       sentAt: now,
       createdByUserId: input.userId,
       uploadedByUserId: input.userId,
       updatedByUserId: input.userId,
-      items: {
-        create: input.metadata.lineItems.map((item, index) => ({
-          description: item.description,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          lineTotal: roundMoney(item.quantity * item.unitPrice),
-          sortOrder: index,
-          createdByUserId: input.userId,
-          updatedByUserId: input.userId,
-        })),
-      },
     },
     select: { id: true },
   });
@@ -184,7 +164,6 @@ export async function createPartnerInvoice(
     message: `Partner submitted invoice ${invoiceNumber} to Dizlee (${input.metadata.year}-${String(input.metadata.month).padStart(2, "0")})`,
     metadata: {
       partnerId: input.partnerId.toString(),
-      opcoId: opcoId.toString(),
       month: input.metadata.month,
       year: input.metadata.year,
     },
@@ -197,7 +176,7 @@ export async function createPartnerInvoice(
   await notifyDizleeUsers({
     fromUserId: input.userId,
     subject: "Partner invoice uploaded",
-    body: `${partner.name} uploaded invoice ${invoiceNumber} for ${opco.name} (${periodLabel}).`,
+    body: `${partner.name} uploaded invoice ${invoiceNumber} for ${periodLabel}.`,
   });
 
   return { invoiceId: invoice.id.toString() };

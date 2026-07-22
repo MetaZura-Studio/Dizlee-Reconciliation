@@ -18,7 +18,7 @@ import { ListSearch } from "@/components/ui/list-search";
 import { ListPagination } from "@/components/ui/list-pagination";
 import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
-import { LoadingBar } from "@/components/ui/loading";
+import { LoadingOverlay } from "@/components/ui/loading";
 import { cn, ui } from "@/lib/ui/classes";
 import { paginateItems } from "@/lib/ui/list-pagination";
 import { useDebouncedValue } from "@/lib/ui/use-debounced-value";
@@ -389,12 +389,7 @@ export function ReportingView({
         </div>
       </FilterToolbar>
 
-      {loading ? (
-        <div className="mt-4">
-          <LoadingBar active />
-        </div>
-      ) : null}
-
+      <LoadingOverlay active={loading} className="mt-4 min-h-[12rem]">
       <p className="mt-5 text-sm text-foreground-muted">
         Showing <span className="font-semibold text-foreground">{overview.period.label}</span>
         {" · "}
@@ -694,6 +689,7 @@ export function ReportingView({
           </div>
         )}
       </section>
+      </LoadingOverlay>
     </PageCard>
   );
 }

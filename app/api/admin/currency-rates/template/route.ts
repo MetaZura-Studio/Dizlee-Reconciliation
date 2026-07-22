@@ -8,14 +8,22 @@ import {
 } from "@/lib/admin/currency-rates";
 import { buildCurrencyRatesTemplateBuffer } from "@/lib/admin/currency-rates-excel";
 
-export async function GET() {
+export async function GET(request: Request) {
   const user = await requireAdminApiSession();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
-    const { month, year } = currentCalendarPeriod();
+    const { searchParams } = new URL(request.url);
+    const current = currentCalendarPeriod();
+    const monthRaw = searchParams.get("month");
+    const yearRaw = searchParams.get("year");
+    const month =
+      monthRaw && monthRaw.trim() !== "" ? Number(monthRaw) : current.month;
+    const year =
+      yearRaw && yearRaw.trim() !== "" ? Number(yearRaw) : current.year;
+
     const view = await getRatesForPeriod(month, year);
     const buffer = await buildCurrencyRatesTemplateBuffer(
       view.rates.map((rate) => ({
@@ -29,7 +37,7 @@ export async function GET() {
       headers: {
         "Content-Type":
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "Content-Disposition": `attachment; filename="currency-rates-${year}-${String(month).padStart(2, "0")}-template.xlsx"`,
+        "Content-Disposition": `attachment; filename="currency-rates-${view.year}-${String(view.month).padStart(2, "0")}-template.xlsx"`,
       },
     });
   } catch (error) {

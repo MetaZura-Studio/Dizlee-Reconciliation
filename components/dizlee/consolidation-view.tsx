@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { FieldLegend } from "@/components/ui/field";
@@ -17,16 +17,21 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { IconButton } from "@/components/ui/icon-button";
 import { IconDownload, IconEye } from "@/components/ui/icons";
+import { ListPagination } from "@/components/ui/list-pagination";
 import { ListSearch, OrFiltersDivider } from "@/components/ui/list-search";
+import { LoadingOverlay } from "@/components/ui/loading";
 import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
+import { useToast } from "@/components/ui/toast";
 import { cn, ui } from "@/lib/ui/classes";
+import { paginateItems } from "@/lib/ui/list-pagination";
 import { nextSortState } from "@/lib/ui/sort";
 import { useDebouncedValue } from "@/lib/ui/use-debounced-value";
 import type {
   ConsolidationHistoryResult,
   ConsolidationHistorySortField,
   ConsolidationReadiness,
+  ConsolidationReadinessPartner,
   SortDirection,
 } from "@/lib/dizlee/consolidation";
 import type { ReportFilterOptions } from "@/lib/dizlee/reports";
@@ -75,6 +80,34 @@ function formatUsd(value: number | null): string {
   }).format(value);
 }
 
+type PartnerSortField = "partner" | "report";
+
+function sortReadinessPartners(
+  partners: ConsolidationReadinessPartner[],
+  sortBy: PartnerSortField,
+  sortDir: SortDirection,
+): ConsolidationReadinessPartner[] {
+  const direction = sortDir === "asc" ? 1 : -1;
+  return [...partners].sort((left, right) => {
+    let result = 0;
+    if (sortBy === "partner") {
+      result = left.partnerName.localeCompare(right.partnerName, undefined, {
+        sensitivity: "base",
+      });
+    } else {
+      const leftSubmitted = left.hasReport && left.lineItemCount > 0 ? 1 : 0;
+      const rightSubmitted = right.hasReport && right.lineItemCount > 0 ? 1 : 0;
+      result = leftSubmitted - rightSubmitted;
+      if (result === 0) {
+        result = left.partnerName.localeCompare(right.partnerName, undefined, {
+          sensitivity: "base",
+        });
+      }
+    }
+    return result * direction;
+  });
+}
+
 function buildReadinessQuery(month: number, year: number, opcoId: string): string {
   return new URLSearchParams({
     month: String(month),
@@ -103,6 +136,7 @@ export function ConsolidationView({
   initialHistory,
 }: ConsolidationViewProps) {
   const router = useRouter();
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState<"generate" | "history">(initialTab);
   const [month, setMonth] = useState(initialMonth);
   const [year, setYear] = useState(initialYear);
@@ -122,6 +156,9 @@ export function ConsolidationView({
   const [readiness, setReadiness] = useState<ConsolidationReadiness | null>(
     initialReadiness,
   );
+  const [partnerPage, setPartnerPage] = useState(1);
+  const [partnerSortBy, setPartnerSortBy] = useState<PartnerSortField>("partner");
+  const [partnerSortDir, setPartnerSortDir] = useState<SortDirection>("asc");
   const [history, setHistory] = useState(initialHistory);
   const [appliedHistoryFilters, setAppliedHistoryFilters] = useState<{
     month?: number;
@@ -132,7 +169,6 @@ export function ConsolidationView({
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
 
   const openConsolidationResult = (id: number | string) => {
     router.push(`/dizlee/consolidation/${id}`);
@@ -156,6 +192,9 @@ export function ConsolidationView({
           throw new Error(payload.error ?? "Failed to load readiness");
         }
         setReadiness(payload.data as ConsolidationReadiness);
+        setPartnerPage(1);
+        setPartnerSortBy("partner");
+        setPartnerSortDir("asc");
         if (payload.filterOptions) {
           setFilterOptions(payload.filterOptions as ReportFilterOptions);
         }
@@ -164,6 +203,9 @@ export function ConsolidationView({
           loadError instanceof Error ? loadError.message : "Failed to load readiness",
         );
         setReadiness(null);
+        setPartnerPage(1);
+        setPartnerSortBy("partner");
+        setPartnerSortDir("asc");
       } finally {
         setLoading(false);
       }
@@ -275,7 +317,6 @@ export function ConsolidationView({
 
     setGenerating(true);
     setError(null);
-    setMessage(null);
     try {
       const response = await fetch("/api/dizlee/consolidation/generate", {
         method: "POST",
@@ -287,6 +328,10 @@ export function ConsolidationView({
         throw new Error(payload.error ?? "Failed to generate consolidation");
       }
 
+      toast.success(
+        (payload.data?.message as string | undefined) ??
+          "Consolidation generated successfully.",
+      );
       openConsolidationResult(payload.data.id as number);
     } catch (generateError) {
       setError(
@@ -320,6 +365,23 @@ export function ConsolidationView({
 
   const canGenerate = Boolean(readiness?.ready && opcoId);
   const isRegenerate = Boolean(readiness?.existingConsolidationId);
+  const sortedPartners = useMemo(
+    () =>
+      sortReadinessPartners(
+        readiness?.partners ?? [],
+        partnerSortBy,
+        partnerSortDir,
+      ),
+    [readiness?.partners, partnerSortBy, partnerSortDir],
+  );
+  const pagedPartners = paginateItems(sortedPartners, partnerPage);
+
+  const applyPartnerSort = (field: PartnerSortField) => {
+    const next = nextSortState(partnerSortBy, partnerSortDir, field);
+    setPartnerSortBy(next.sortBy);
+    setPartnerSortDir(next.sortDir);
+    setPartnerPage(1);
+  };
 
   return (
     <PageCard>
@@ -360,8 +422,6 @@ export function ConsolidationView({
       </div>
 
       {error ? <div className={cn("mt-4", ui.alertError)}>{error}</div> : null}
-
-      {message ? <div className={cn("mt-4", ui.alertSuccess)}>{message}</div> : null}
 
       {activeTab === "generate" ? (
         <div className="mt-6 space-y-6">
@@ -420,13 +480,16 @@ export function ConsolidationView({
             </div>
 
             <div className="flex w-full flex-wrap gap-3">
-              <Button onClick={applyGenerateFilters} disabled={!opcoId || loading}>
-                Check readiness
-              </Button>
               <Button
                 variant="secondary"
+                onClick={applyGenerateFilters}
+                disabled={!opcoId || loading}
+              >
+                Apply filters
+              </Button>
+              <Button
                 onClick={() => void runGenerate()}
-                disabled={!canGenerate || generating}
+                disabled={!canGenerate || generating || loading}
               >
                 {generating
                   ? "Working…"
@@ -437,6 +500,7 @@ export function ConsolidationView({
             </div>
           </FilterToolbar>
 
+          <LoadingOverlay active={loading} className="min-h-[12rem]" label="Updating readiness…">
           {readiness ? (
             <div className={ui.cardPaddingLg}>
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -464,35 +528,59 @@ export function ConsolidationView({
               ) : null}
 
               {readiness.linkedCount > 0 ? (
-                <DataTableFrame className="mt-4">
-                  <DataTable>
-                    <DataTableHead>
-                      <tr>
-                        <DataTableTh>Partner</DataTableTh>
-                        <DataTableTh>OpCo report</DataTableTh>
-                      </tr>
-                    </DataTableHead>
-                    <tbody>
-                      {readiness.partners.map((partner) => {
-                        const submitted =
-                          partner.hasReport && partner.lineItemCount > 0;
-                        return (
-                          <DataTableRow key={partner.partnerId}>
-                            <DataTableTd>{partner.partnerName}</DataTableTd>
-                            <DataTableTd>
-                              <StatusPill tone={submitted ? "success" : "warning"}>
-                                {submitted ? "Submitted" : "Missing"}
-                              </StatusPill>
-                            </DataTableTd>
-                          </DataTableRow>
-                        );
-                      })}
-                    </tbody>
-                  </DataTable>
-                </DataTableFrame>
+                <div className="mt-4 space-y-4">
+                  <DataTableFrame>
+                    <DataTable>
+                      <DataTableHead>
+                        <tr>
+                          <SortableDataTableTh
+                            label="Partner"
+                            active={partnerSortBy === "partner"}
+                            direction={partnerSortDir}
+                            onSort={() => applyPartnerSort("partner")}
+                          />
+                          <SortableDataTableTh
+                            label="OpCo report"
+                            active={partnerSortBy === "report"}
+                            direction={partnerSortDir}
+                            onSort={() => applyPartnerSort("report")}
+                          />
+                        </tr>
+                      </DataTableHead>
+                      <tbody>
+                        {pagedPartners.items.map((partner) => {
+                          const submitted =
+                            partner.hasReport && partner.lineItemCount > 0;
+                          return (
+                            <DataTableRow key={partner.partnerId}>
+                              <DataTableTd>{partner.partnerName}</DataTableTd>
+                              <DataTableTd>
+                                <StatusPill tone={submitted ? "success" : "warning"}>
+                                  {submitted ? "Submitted" : "Missing"}
+                                </StatusPill>
+                              </DataTableTd>
+                            </DataTableRow>
+                          );
+                        })}
+                      </tbody>
+                    </DataTable>
+                  </DataTableFrame>
+
+                  <ListPagination
+                    total={pagedPartners.total}
+                    page={pagedPartners.page}
+                    totalPages={pagedPartners.totalPages}
+                    noun="partner"
+                    onPageChange={setPartnerPage}
+                    loading={loading}
+                  />
+                </div>
               ) : null}
             </div>
-          ) : null}
+          ) : (
+            <div className="min-h-[8rem]" aria-hidden={!loading} />
+          )}
+          </LoadingOverlay>
         </div>
       ) : (
         <div className="mt-6 space-y-4">
@@ -566,6 +654,7 @@ export function ConsolidationView({
             </Button>
           </FilterToolbar>
 
+          <LoadingOverlay active={loading} className="min-h-[12rem]">
           {history.items.length === 0 ? (
             <EmptyState
               title="No consolidations found"
@@ -651,31 +740,17 @@ export function ConsolidationView({
                 </DataTable>
               </DataTableFrame>
 
-              {history.totalPages > 1 ? (
-                <div className="flex items-center justify-between text-sm text-foreground-muted">
-                  <span>
-                    Page {history.page} of {history.totalPages}
-                  </span>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="secondary"
-                      disabled={history.page <= 1 || loading}
-                      onClick={() => void loadHistory(history.page - 1)}
-                    >
-                      Previous
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      disabled={history.page >= history.totalPages || loading}
-                      onClick={() => void loadHistory(history.page + 1)}
-                    >
-                      Next
-                    </Button>
-                  </div>
-                </div>
-              ) : null}
+              <ListPagination
+                total={history.totalCount}
+                page={history.page}
+                totalPages={history.totalPages}
+                noun="consolidation"
+                onPageChange={(page) => void loadHistory(page)}
+                loading={loading}
+              />
             </>
           )}
+          </LoadingOverlay>
         </div>
       )}
     </PageCard>

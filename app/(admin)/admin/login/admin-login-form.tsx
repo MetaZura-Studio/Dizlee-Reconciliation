@@ -3,10 +3,13 @@
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { PasswordInput } from "@/components/auth/password-input";
 import { FieldLabel } from "@/components/ui/field";
+import { FullPageLoading } from "@/components/ui/loading";
+import { startNavigationProgress } from "@/components/ui/navigation-progress";
+import { useToast } from "@/components/ui/toast";
 import { ADMIN_DEFAULT_ROUTE } from "@/lib/admin/navigation";
 import { ui } from "@/lib/ui/classes";
 
@@ -22,6 +25,7 @@ export function AdminLoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const toast = useToast();
 
   const queryError = searchParams.get("error");
   const callbackUrl = searchParams.get("callbackUrl");
@@ -43,6 +47,7 @@ export function AdminLoginForm() {
 
       if (!result?.ok) {
         setError(ERROR_MESSAGES.CredentialsSignin);
+        setIsSubmitting(false);
         return;
       }
 
@@ -53,6 +58,7 @@ export function AdminLoginForm() {
 
       if (session.user?.role !== "admin") {
         setError(ERROR_MESSAGES.CredentialsSignin);
+        setIsSubmitting(false);
         return;
       }
 
@@ -61,11 +67,12 @@ export function AdminLoginForm() {
           ? callbackUrl
           : ADMIN_DEFAULT_ROUTE;
 
+      startNavigationProgress();
       router.push(destination);
       router.refresh();
+      // Keep FullPageLoading until this page unmounts after navigation.
     } catch {
       setError("Something went wrong. Please try again.");
-    } finally {
       setIsSubmitting(false);
     }
   }
@@ -81,60 +88,74 @@ export function AdminLoginForm() {
         ? "Password reset. You can sign in with your new password."
         : null;
 
+  useEffect(() => {
+    if (!displaySuccess) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      toast.success(displaySuccess);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [displaySuccess, toast]);
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {displaySuccess ? (
-        <p className={ui.alertSuccess}>{displaySuccess}</p>
+    <>
+      {isSubmitting ? (
+        <FullPageLoading
+          label="Signing in…"
+          description="Verifying your credentials and opening Admin."
+        />
       ) : null}
-      {displayError ? <p className={ui.alertError}>{displayError}</p> : null}
 
-      <div className="space-y-1">
-        <FieldLabel htmlFor="email">
-          Email
-        </FieldLabel>
-        <input
-          id="email"
-          name="email"
-          type="email"
-          autoComplete="email"
-          required
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          className={ui.input}
-        />
-      </div>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {displayError ? <p className={ui.alertError}>{displayError}</p> : null}
 
-      <div className="space-y-1">
-        <FieldLabel htmlFor="password">
-          Password
-        </FieldLabel>
-        <PasswordInput
-          id="password"
-          name="password"
-          autoComplete="current-password"
-          required
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          className={ui.input}
-        />
-      </div>
+        <div className="space-y-1">
+          <FieldLabel htmlFor="email">Email</FieldLabel>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            required
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            className={ui.input}
+            disabled={isSubmitting}
+          />
+        </div>
 
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        className={`w-full ${ui.btnPrimary}`}
-      >
-        {isSubmitting ? "Signing in..." : "Sign in to Admin"}
-      </button>
+        <div className="space-y-1">
+          <FieldLabel htmlFor="password">Password</FieldLabel>
+          <PasswordInput
+            id="password"
+            name="password"
+            autoComplete="current-password"
+            required
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            className={ui.input}
+            disabled={isSubmitting}
+          />
+        </div>
 
-      <p className="text-center text-sm">
-        <Link
-          href="/forgot-password"
-          className="text-foreground-muted underline hover:text-foreground"
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className={`w-full ${ui.btnPrimary}`}
         >
-          Forgot password?
-        </Link>
-      </p>
-    </form>
+          {isSubmitting ? "Signing in..." : "Sign in to Admin"}
+        </button>
+
+        <p className="text-center text-sm">
+          <Link
+            href="/forgot-password"
+            className="text-foreground-muted underline hover:text-foreground"
+          >
+            Forgot password?
+          </Link>
+        </p>
+      </form>
+    </>
   );
 }

@@ -1,5 +1,6 @@
 import "server-only";
 
+import { resolveDownloadMimeType } from "@/lib/platform/file-response-headers";
 import { saveNotificationFileLocally } from "@/lib/platform/storage/save-notification-file";
 import { prisma } from "@/lib/prisma";
 
@@ -34,7 +35,7 @@ export function validateNotificationAttachmentFile(
 
   return {
     filename,
-    mimeType: file.type || "application/octet-stream",
+    mimeType: resolveDownloadMimeType(filename, file.type),
   };
 }
 

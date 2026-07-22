@@ -41,7 +41,7 @@ export default async function PartnerInvoicesPage({
 
   const [result, filterOptions] = await Promise.all([
     searchInvoicesForPartner(partnerId, filters),
-    getPartnerInvoiceFilterOptions(partnerId),
+    getPartnerInvoiceFilterOptions(),
   ]);
 
   return (

@@ -1,17 +1,15 @@
 import type { Prisma } from "@prisma/client";
 
 import { formatPeriodLabel } from "@/lib/partner/period";
-import { getLinkedOpcosForPartner } from "@/lib/partner/queries/opcos";
 import prisma from "@/lib/prisma";
 
-export type PartnerInvoiceSortField = "uploaded" | "period" | "opco";
+export type PartnerInvoiceSortField = "uploaded" | "period";
 export type PartnerSortDirection = "asc" | "desc";
 export type PartnerInvoicePaymentFilter = "all" | "paid" | "pending";
 
 export type PartnerInvoiceListFilters = {
   year?: number;
   month?: number;
-  opcoId?: string;
   statusCode?: string;
   paymentStatus: PartnerInvoicePaymentFilter;
   sortBy: PartnerInvoiceSortField;
@@ -22,7 +20,6 @@ export type PartnerInvoiceListFilters = {
 export type PartnerInvoiceListItem = {
   id: string;
   invoiceNumber: string | null;
-  opcoName: string;
   year: number;
   month: number;
   statusLabel: string;
@@ -53,7 +50,6 @@ export type PartnerInvoiceLineItem = {
 export type PartnerInvoiceDetail = {
   id: string;
   invoiceNumber: string | null;
-  opcoName: string;
   year: number;
   month: number;
   periodLabel: string;
@@ -70,7 +66,6 @@ export type PartnerInvoiceDetail = {
 };
 
 export type PartnerInvoiceFilterOptions = {
-  opcos: Array<{ id: string; name: string }>;
   statuses: Array<{ code: string; label: string }>;
 };
 
@@ -91,8 +86,6 @@ function buildOrderBy(
   switch (sortBy) {
     case "period":
       return [{ year: sortDir }, { month: sortDir }, { createdAt: "desc" }];
-    case "opco":
-      return { opco: { name: sortDir } };
     case "uploaded":
     default:
       return { createdAt: sortDir };
@@ -115,9 +108,6 @@ function buildWhere(
   if (filters.month !== undefined) {
     where.month = filters.month;
   }
-  if (filters.opcoId) {
-    where.opcoId = BigInt(filters.opcoId);
-  }
   if (filters.statusCode) {
     where.invoiceStatus = { code: filters.statusCode };
   }
@@ -135,7 +125,6 @@ function buildWhere(
 }
 
 const invoiceDetailInclude = {
-  opco: { select: { name: true } },
   invoiceStatus: { select: { code: true, label: true } },
   paymentStatus: { select: { code: true, label: true } },
   currency: { select: { isoCode: true } },
@@ -159,7 +148,6 @@ function mapInvoiceDetail(
   return {
     id: invoiceId,
     invoiceNumber: invoice.invoiceNumber,
-    opcoName: invoice.opco.name,
     year: invoice.year,
     month: invoice.month,
     periodLabel: formatPeriodLabel(invoice.year, invoice.month),
@@ -208,38 +196,28 @@ export function parsePartnerInvoiceListFilters(
     }
   }
 
-  const opcoId = searchParams.get("opcoId")?.trim();
   const statusCode = searchParams.get("status")?.trim();
 
   return {
     year,
     month,
-    opcoId: opcoId || undefined,
     statusCode: statusCode || undefined,
     paymentStatus:
       paymentStatus === "paid" || paymentStatus === "pending" ? paymentStatus : "all",
-    sortBy:
-      sortBy === "period" || sortBy === "uploaded" || sortBy === "opco"
-        ? sortBy
-        : "uploaded",
+    sortBy: sortBy === "period" || sortBy === "uploaded" ? sortBy : "uploaded",
     sortDir: sortDir === "asc" ? "asc" : "desc",
     page: Number.isInteger(page) && page >= 1 ? page : 1,
   };
 }
 
-export async function getPartnerInvoiceFilterOptions(
-  partnerId: bigint,
-): Promise<PartnerInvoiceFilterOptions> {
-  const [opcos, statuses] = await Promise.all([
-    getLinkedOpcosForPartner(partnerId),
-    prisma.lookup.findMany({
-      where: { lookupType: { code: "INVOICE_STATUS" } },
-      orderBy: { label: "asc" },
-      select: { code: true, label: true },
-    }),
-  ]);
+export async function getPartnerInvoiceFilterOptions(): Promise<PartnerInvoiceFilterOptions> {
+  const statuses = await prisma.lookup.findMany({
+    where: { lookupType: { code: "INVOICE_STATUS" } },
+    orderBy: { label: "asc" },
+    select: { code: true, label: true },
+  });
 
-  return { opcos, statuses };
+  return { statuses };
 }
 
 export async function searchInvoicesForPartner(
@@ -256,7 +234,6 @@ export async function searchInvoicesForPartner(
       skip: (filters.page - 1) * PARTNER_INVOICES_PAGE_SIZE,
       take: PARTNER_INVOICES_PAGE_SIZE,
       include: {
-        opco: { select: { name: true } },
         invoiceStatus: { select: { code: true, label: true } },
         paymentStatus: { select: { code: true, label: true } },
         currency: { select: { isoCode: true } },
@@ -271,7 +248,6 @@ export async function searchInvoicesForPartner(
     items: rows.map((invoice) => ({
       id: invoice.id.toString(),
       invoiceNumber: invoice.invoiceNumber,
-      opcoName: invoice.opco.name,
       year: invoice.year,
       month: invoice.month,
       statusLabel: invoice.invoiceStatus.label,

@@ -18,7 +18,9 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { IconButton } from "@/components/ui/icon-button";
 import { IconPencil, IconTrash } from "@/components/ui/icons";
 import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
+import { LoadingOverlay } from "@/components/ui/loading";
 import { StatusPill } from "@/components/ui/status-pill";
+import { useToast } from "@/components/ui/toast";
 import type {
   AdminUserRole,
   AdminUserStatus,
@@ -93,14 +95,12 @@ export function UsersView({ initialResult }: UsersViewProps) {
   const [result, setResult] = useState<UserListResult>(initialResult);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const toast = useToast();
 
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [selectedUser, setSelectedUser] = useState<UserListItem | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
-
-  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const currentFilters: UserListResult["filters"] = {
     search,
@@ -158,20 +158,8 @@ export function UsersView({ initialResult }: UsersViewProps) {
     return () => clearTimeout(timer);
   }, [search, role, status, sortBy, sortDir, result.pageSize, loadUsers]);
 
-  useEffect(() => {
-    return () => {
-      if (successTimerRef.current) {
-        clearTimeout(successTimerRef.current);
-      }
-    };
-  }, []);
-
   const showSuccess = (message: string) => {
-    setSuccessMessage(message);
-    if (successTimerRef.current) {
-      clearTimeout(successTimerRef.current);
-    }
-    successTimerRef.current = setTimeout(() => setSuccessMessage(null), 4000);
+    toast.success(message);
     void loadUsers(currentFilters);
   };
 
@@ -210,10 +198,6 @@ export function UsersView({ initialResult }: UsersViewProps) {
         description="Create, edit, and manage portal user accounts. Admin accounts are not listed here."
         actions={<Button onClick={openCreate}>Create user</Button>}
       />
-
-      {successMessage ? (
-        <p className={ui.alertSuccess}>{successMessage}</p>
-      ) : null}
 
       {error ? <p className={ui.alertError}>{error}</p> : null}
 
@@ -263,9 +247,8 @@ export function UsersView({ initialResult }: UsersViewProps) {
       </FilterToolbar>
 
       <div className="mt-6 space-y-4">
-        {loading ? (
-          <p className="text-sm text-foreground-subtle">Loading users…</p>
-        ) : result.items.length === 0 ? (
+        <LoadingOverlay active={loading} className="min-h-[12rem]">
+        {result.items.length === 0 ? (
           <EmptyState
             title="No users found"
             description="No users match your filters."
@@ -352,10 +335,11 @@ export function UsersView({ initialResult }: UsersViewProps) {
           </DataTableFrame>
         )}
 
+        </LoadingOverlay>
+
         <div className="flex items-center justify-between text-sm text-foreground-muted">
           <p>
             {result.total} user{result.total === 1 ? "" : "s"}
-            {loading ? " · refreshing…" : ""}
           </p>
           <div className="flex items-center gap-2">
             <Button

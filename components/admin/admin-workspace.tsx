@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { AppShell, type AppShellNavItem } from "@/components/layout/app-shell";
+import { IconChevronLeft, IconChevronRight } from "@/components/ui/icons";
 import {
   ADMIN_FOOTER_NAV_ITEMS,
   ADMIN_MAIN_NAV_ITEMS,
@@ -65,9 +66,11 @@ type AdminWorkspaceProps = {
 function AdminProfileMenu({
   user,
   collapsed,
+  onToggleCollapse,
 }: {
   user: AdminSessionUser;
   collapsed: boolean;
+  onToggleCollapse: () => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -85,12 +88,18 @@ function AdminProfileMenu({
   }, []);
 
   return (
-    <div className="relative w-full min-w-0" ref={menuRef}>
+    <div
+      className={cn(
+        "relative flex w-full min-w-0 items-center gap-1",
+        collapsed && "flex-col gap-2",
+      )}
+      ref={menuRef}
+    >
       <button
         type="button"
         onClick={() => setMenuOpen((open) => !open)}
         className={cn(
-          "flex w-full min-w-0 items-center gap-3 rounded-2xl px-3 py-2 text-left transition-colors hover:bg-surface-muted",
+          "flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-3 py-2 text-left transition-colors hover:bg-surface-muted",
           collapsed && "justify-center px-2",
         )}
         aria-expanded={menuOpen}
@@ -111,6 +120,15 @@ function AdminProfileMenu({
             </span>
           </span>
         ) : null}
+      </button>
+      <button
+        type="button"
+        onClick={onToggleCollapse}
+        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-foreground-muted transition-colors hover:bg-surface-muted hover:text-foreground"
+        title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+      >
+        {collapsed ? <IconChevronRight /> : <IconChevronLeft />}
       </button>
       {menuOpen ? (
         <div
@@ -133,7 +151,7 @@ function AdminProfileMenu({
             Change password
           </Link>
           <div className="border-t border-border px-2 py-1">
-            <SignOutButton />
+            <SignOutButton callbackUrl="/admin/login" />
           </div>
         </div>
       ) : null}
@@ -148,8 +166,12 @@ export function AdminWorkspace({ user, children }: AdminWorkspaceProps) {
       subtitle="Admin workspace"
       storageKey="admin-sidebar-collapsed"
       navItems={NAV}
-      footerSlot={(collapsed) => (
-        <AdminProfileMenu user={user} collapsed={collapsed} />
+      footerSlot={(collapsed, toggleCollapsed) => (
+        <AdminProfileMenu
+          user={user}
+          collapsed={collapsed}
+          onToggleCollapse={toggleCollapsed}
+        />
       )}
     >
       {children}

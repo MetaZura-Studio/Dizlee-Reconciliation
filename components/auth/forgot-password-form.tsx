@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { FieldLabel } from "@/components/ui/field";
+import { useToast } from "@/components/ui/toast";
 import { ui } from "@/lib/ui/classes";
 
 export function ForgotPasswordForm() {
@@ -12,6 +13,7 @@ export function ForgotPasswordForm() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const toast = useToast();
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -30,6 +32,7 @@ export function ForgotPasswordForm() {
         throw new Error(body.error ?? "Failed to send reset link");
       }
       setMessage(body.message as string);
+      toast.success(body.message as string);
       setSubmitted(true);
     } catch (submitError) {
       setError(
@@ -51,7 +54,7 @@ export function ForgotPasswordForm() {
   if (submitted && message) {
     return (
       <div className="space-y-4">
-        <div className={`${ui.alertSuccess} px-4 py-4`}>
+        <div className="rounded-md border border-border bg-surface-muted/50 px-4 py-4">
           <p className="text-sm font-medium">Check your email</p>
           <p className="mt-2 text-sm">{message}</p>
           <p className="mt-3 text-sm">

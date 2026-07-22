@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { SignOutButton } from "@/components/auth/sign-out-button";
+import { NotificationsBell } from "@/components/dizlee/notifications-bell";
 import { AppShell, type AppShellNavItem } from "@/components/layout/app-shell";
+import { IconChevronLeft, IconChevronRight } from "@/components/ui/icons";
 import { DIZLEE_NAV_ITEMS } from "@/lib/dizlee/navigation";
 import { cn, ui } from "@/lib/ui/classes";
 
@@ -42,10 +44,12 @@ function DizleeProfileMenu({
   name,
   email,
   collapsed,
+  onToggleCollapse,
 }: {
   name: string | null;
   email: string;
   collapsed: boolean;
+  onToggleCollapse: () => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -63,12 +67,18 @@ function DizleeProfileMenu({
   }, []);
 
   return (
-    <div className="relative w-full min-w-0" ref={menuRef}>
+    <div
+      className={cn(
+        "relative flex w-full min-w-0 items-center gap-1",
+        collapsed && "flex-col gap-2",
+      )}
+      ref={menuRef}
+    >
       <button
         type="button"
         onClick={() => setMenuOpen((open) => !open)}
         className={cn(
-          "flex w-full min-w-0 items-center gap-3 rounded-2xl px-3 py-2 text-left transition-colors hover:bg-surface-muted",
+          "flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-3 py-2 text-left transition-colors hover:bg-surface-muted",
           collapsed && "justify-center px-2",
         )}
         aria-expanded={menuOpen}
@@ -89,6 +99,15 @@ function DizleeProfileMenu({
             </span>
           </span>
         ) : null}
+      </button>
+      <button
+        type="button"
+        onClick={onToggleCollapse}
+        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-foreground-muted transition-colors hover:bg-surface-muted hover:text-foreground"
+        title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+      >
+        {collapsed ? <IconChevronRight /> : <IconChevronLeft />}
       </button>
       {menuOpen ? (
         <div
@@ -179,8 +198,14 @@ export function DizleeWorkspace({
       subtitle="Reconciliation Platform"
       storageKey="dizlee-sidebar-collapsed"
       navItems={navItems}
-      footerSlot={(collapsed) => (
-        <DizleeProfileMenu name={name} email={email} collapsed={collapsed} />
+      headerRight={<NotificationsBell initialUnreadCount={unreadCount} />}
+      footerSlot={(collapsed, toggleCollapsed) => (
+        <DizleeProfileMenu
+          name={name}
+          email={email}
+          collapsed={collapsed}
+          onToggleCollapse={toggleCollapsed}
+        />
       )}
     >
       {children}

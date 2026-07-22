@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { NotificationsTabs } from "@/components/dizlee/notifications-tabs";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { LoadingOverlay } from "@/components/ui/loading";
 import { PageCard, PageHeader } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
 import { cn, ui } from "@/lib/ui/classes";
@@ -169,7 +170,7 @@ export function NotificationsInboxView({
       </div>
 
       <div className="mt-4 grid gap-6 lg:grid-cols-2">
-        <div className={ui.tableWrap}>
+        <LoadingOverlay active={loading} className={cn(ui.tableWrap, "min-h-[16rem]")}>
           <div className="border-b border-border px-4 py-3">
             <h2 className="font-medium text-foreground">Inbox</h2>
           </div>
@@ -237,13 +238,11 @@ export function NotificationsInboxView({
               </div>
             </div>
           ) : null}
-        </div>
+        </LoadingOverlay>
 
-        <div className={ui.cardPadding}>
+        <LoadingOverlay active={detailLoading} className={cn(ui.cardPadding, "min-h-[12rem]")}>
           <h2 className="font-medium text-foreground">Message</h2>
-          {detailLoading ? (
-            <p className="mt-4 text-sm text-foreground-subtle">Loading…</p>
-          ) : detail ? (
+          {detail ? (
             <div className="mt-4 space-y-4">
               <div>
                 <h3 className="text-lg font-medium text-foreground">{detail.subject}</h3>
@@ -263,7 +262,7 @@ export function NotificationsInboxView({
               Select a message to read. Opening marks it as read.
             </p>
           )}
-        </div>
+        </LoadingOverlay>
       </div>
     </PageCard>
   );

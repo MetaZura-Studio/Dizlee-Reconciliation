@@ -18,7 +18,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { IconButton } from "@/components/ui/icon-button";
 import { IconEye, IconPrint } from "@/components/ui/icons";
 import { ListSearch, OrFiltersDivider } from "@/components/ui/list-search";
-import { LoadingBar } from "@/components/ui/loading";
+import { LoadingOverlay } from "@/components/ui/loading";
 import { FilterToolbar } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
 import { formatPeriodLabel, getDefaultPeriod } from "@/lib/opco/period";
@@ -366,14 +366,11 @@ export function InvoicesTable({
         </div>
       </FilterToolbar>
 
-      <div className="mt-4">
-        <LoadingBar active={loading} />
-      </div>
-
       {error ? <div className={ui.alertError}>{error}</div> : null}
 
-      {!loading && !error ? (
-        result.items.length > 0 ? (
+      {!error ? (
+        <LoadingOverlay active={loading} className="mt-6 min-h-[12rem]">
+        {result.items.length > 0 ? (
           <div className="mt-6 space-y-4">
             <DataTableFrame>
               <DataTable>
@@ -480,7 +477,8 @@ export function InvoicesTable({
           </div>
         ) : (
           <EmptyState title="No Dizlee → OpCo invoices match your filters" />
-        )
+        )}
+        </LoadingOverlay>
       ) : null}
 
       {detailOpen ? (

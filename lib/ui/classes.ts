@@ -19,6 +19,8 @@ export const ui = {
     "inline-flex h-10 items-center justify-center rounded-2xl border border-border bg-surface px-4 text-sm font-semibold text-foreground transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] disabled:opacity-60",
   btnDanger:
     "inline-flex h-10 items-center justify-center rounded-2xl border border-danger-border bg-surface px-4 text-sm font-semibold text-danger transition-colors hover:bg-danger-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] disabled:opacity-60",
+  btnDangerSolid:
+    "inline-flex h-10 items-center justify-center rounded-2xl bg-danger px-4 text-sm font-semibold text-white transition-colors hover:bg-danger/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger/30 disabled:opacity-60",
   btnGhost:
     "inline-flex h-10 items-center justify-center rounded-2xl px-3 text-sm font-medium text-foreground-muted transition-colors hover:bg-surface-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]",
   iconButton:

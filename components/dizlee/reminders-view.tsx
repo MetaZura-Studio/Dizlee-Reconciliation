@@ -14,8 +14,10 @@ import {
   DataTableTh,
 } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
+import { LoadingOverlay } from "@/components/ui/loading";
 import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
+import { useToast } from "@/components/ui/toast";
 import { cn, ui } from "@/lib/ui/classes";
 import {
   attachmentFileIds,
@@ -143,7 +145,7 @@ export function RemindersView({
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const toast = useToast();
 
   const loadData = useCallback(
     async (page = 1) => {
@@ -212,7 +214,6 @@ export function RemindersView({
   const sendReminders = async (target: SendReportRemindersInput["target"]) => {
     setSending(true);
     setError(null);
-    setMessage(null);
     try {
       const response = await fetch("/api/dizlee/notifications/reminders", {
         method: "POST",
@@ -232,7 +233,7 @@ export function RemindersView({
       if (!response.ok) {
         throw new Error(payload.error ?? "Failed to send reminders");
       }
-      setMessage(payload.data.message as string);
+      toast.success(payload.data.message as string);
       setSelectedLaneKeys([]);
       setAttachments([]);
       await loadData(result.page);
@@ -263,8 +264,6 @@ export function RemindersView({
       <NotificationsTabs active="reminders" />
 
       {error ? <div className={`mt-4 ${ui.alertError}`}>{error}</div> : null}
-      {message ? <div className={`mt-4 ${ui.alertSuccess}`}>{message}</div> : null}
-
       <div className={cn(ui.cardPadding, "mt-4 text-sm text-foreground-muted")}>
         <p>
           <span className="font-medium">Automatic reminders (admin):</span>{" "}
@@ -399,14 +398,17 @@ export function RemindersView({
           </div>
 
           {result.items.length === 0 ? (
+            <LoadingOverlay active={loading} className="mt-4 min-h-[12rem]">
             <EmptyState
-              className="mt-4"
+              className="mt-0"
               title="No pairs match filters"
               description="No OpCo–Partner pairs match the selected filters."
             />
+            </LoadingOverlay>
           ) : (
+            <LoadingOverlay active={loading} className="mt-4 min-h-[12rem]">
             <>
-              <DataTableFrame className="mt-4">
+              <DataTableFrame className="mt-0">
                 <DataTable>
                   <DataTableHead>
                     <tr>
@@ -484,6 +486,7 @@ export function RemindersView({
                 </div>
               ) : null}
             </>
+            </LoadingOverlay>
           )}
         </div>
 

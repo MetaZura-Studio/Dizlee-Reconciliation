@@ -1,13 +1,37 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import {
+  DataTable,
+  DataTableFrame,
+  DataTableHead,
+  DataTableRow,
+  DataTableTd,
+  SortableDataTableTh,
+} from "@/components/ui/data-table";
+import { ListPagination } from "@/components/ui/list-pagination";
 import { PageCard } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
-import type { ConsolidationDetail } from "@/lib/dizlee/consolidation";
+import type {
+  ConsolidationDetail,
+  ConsolidationItemView,
+} from "@/lib/dizlee/consolidation";
 import { ui } from "@/lib/ui/classes";
+import { paginateItems } from "@/lib/ui/list-pagination";
+import { nextSortState, type SortDirection } from "@/lib/ui/sort";
+
+type ItemSortField =
+  | "partner"
+  | "service"
+  | "description"
+  | "usage"
+  | "unit"
+  | "kwd"
+  | "exchangeRate"
+  | "revenueBasis";
 
 function formatDateTime(value: string): string {
   return new Date(value).toLocaleString("en-US", {
@@ -47,6 +71,57 @@ function statusTone(status: string): "success" | "info" | "warning" | "neutral" 
   return "info";
 }
 
+function compareText(a: string | null | undefined, b: string | null | undefined): number {
+  return (a ?? "").localeCompare(b ?? "", undefined, { sensitivity: "base" });
+}
+
+function compareNumber(a: number | null | undefined, b: number | null | undefined): number {
+  const left = a ?? Number.NEGATIVE_INFINITY;
+  const right = b ?? Number.NEGATIVE_INFINITY;
+  return left - right;
+}
+
+function sortItems(
+  items: ConsolidationItemView[],
+  sortBy: ItemSortField,
+  sortDir: SortDirection,
+): ConsolidationItemView[] {
+  const direction = sortDir === "asc" ? 1 : -1;
+  return [...items].sort((left, right) => {
+    let result = 0;
+    switch (sortBy) {
+      case "partner":
+        result = compareText(left.partnerName, right.partnerName);
+        break;
+      case "service":
+        result = compareText(left.serviceCode, right.serviceCode);
+        break;
+      case "description":
+        result = compareText(left.description, right.description);
+        break;
+      case "usage":
+        result = compareNumber(left.usageAmount, right.usageAmount);
+        break;
+      case "unit":
+        result = compareText(left.usageUnit, right.usageUnit);
+        break;
+      case "kwd":
+        result = compareNumber(left.usageUsd, right.usageUsd);
+        break;
+      case "exchangeRate":
+        result = compareNumber(left.exchangeRate, right.exchangeRate);
+        break;
+      case "revenueBasis":
+        result = compareText(left.revenueBasis, right.revenueBasis);
+        break;
+    }
+    if (result === 0) {
+      result = compareText(left.partnerName, right.partnerName);
+    }
+    return result * direction;
+  });
+}
+
 type ConsolidationResultViewProps = {
   initialDetail: ConsolidationDetail;
 };
@@ -56,6 +131,22 @@ export function ConsolidationResultView({
 }: ConsolidationResultViewProps) {
   const [detail] = useState(initialDetail);
   const [downloading, setDownloading] = useState(false);
+  const [itemPage, setItemPage] = useState(1);
+  const [sortBy, setSortBy] = useState<ItemSortField>("partner");
+  const [sortDir, setSortDir] = useState<SortDirection>("asc");
+
+  const sortedItems = useMemo(
+    () => sortItems(detail.items, sortBy, sortDir),
+    [detail.items, sortBy, sortDir],
+  );
+  const pagedItems = paginateItems(sortedItems, itemPage);
+
+  function applySort(field: ItemSortField) {
+    const next = nextSortState(sortBy, sortDir, field);
+    setSortBy(next.sortBy);
+    setSortDir(next.sortDir);
+    setItemPage(1);
+  }
 
   function downloadExcel() {
     setDownloading(true);
@@ -113,58 +204,111 @@ export function ConsolidationResultView({
         </div>
       </div>
 
-      <div className="mt-6 overflow-x-auto rounded-[28px] border border-border bg-surface shadow-[var(--shadow-md)]">
-        <table className="min-w-[64rem] w-full border-separate border-spacing-0 text-sm">
-          <thead className="bg-surface-muted text-left text-xs font-semibold tracking-wide text-foreground-muted">
-            <tr>
-              <th className="whitespace-nowrap px-4 py-3.5">Partner</th>
-              <th className="whitespace-nowrap px-4 py-3.5">Service</th>
-              <th className="whitespace-nowrap px-4 py-3.5">Description</th>
-              <th className="whitespace-nowrap px-4 py-3.5 text-right">Usage</th>
-              <th className="whitespace-nowrap px-4 py-3.5 text-right">Unit</th>
-              <th className="whitespace-nowrap px-4 py-3.5 text-right">KWD</th>
-              <th className="whitespace-nowrap px-4 py-3.5 text-right">
-                Exchange rate
-              </th>
-              <th className="whitespace-nowrap px-4 py-3.5">Revenue basis</th>
-            </tr>
-          </thead>
-          <tbody>
-            {detail.items.map((item, index) => (
-              <tr key={`${item.partnerName}-${item.serviceCode}-${index}`}>
-                <td className="whitespace-nowrap border-t border-border px-4 py-3.5 text-foreground">
-                  {item.partnerName}
-                </td>
-                <td className="whitespace-nowrap border-t border-border px-4 py-3.5 text-foreground-muted">
-                  {item.serviceCode ?? "—"}
-                </td>
-                <td className="min-w-[14rem] border-t border-border px-4 py-3.5 text-foreground-muted">
-                  {item.description || "—"}
-                </td>
-                <td className="whitespace-nowrap border-t border-border px-4 py-3.5 text-right text-foreground-muted">
-                  {formatNumber(item.usageAmount)}
-                </td>
-                <td className="whitespace-nowrap border-t border-border px-4 py-3.5 text-right text-foreground-muted">
-                  {item.usageUnit ?? "—"}
-                </td>
-                <td className="whitespace-nowrap border-t border-border px-4 py-3.5 text-right text-foreground-muted">
-                  {formatUsd(item.usageUsd)}
-                </td>
-                <td className="whitespace-nowrap border-t border-border px-4 py-3.5 text-right text-foreground-muted">
-                  {formatNumber(item.exchangeRate)}
-                </td>
-                <td className="whitespace-nowrap border-t border-border px-4 py-3.5 text-foreground-muted">
-                  {item.revenueBasis ?? "—"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {detail.items.length > 0 ? (
+        <div className="mt-6 space-y-4">
+          <DataTableFrame>
+            <DataTable className="min-w-[64rem]">
+              <DataTableHead>
+                <tr>
+                  <SortableDataTableTh
+                    label="Partner"
+                    active={sortBy === "partner"}
+                    direction={sortDir}
+                    onSort={() => applySort("partner")}
+                  />
+                  <SortableDataTableTh
+                    label="Service"
+                    active={sortBy === "service"}
+                    direction={sortDir}
+                    onSort={() => applySort("service")}
+                  />
+                  <SortableDataTableTh
+                    label="Description"
+                    active={sortBy === "description"}
+                    direction={sortDir}
+                    onSort={() => applySort("description")}
+                  />
+                  <SortableDataTableTh
+                    label="Usage"
+                    active={sortBy === "usage"}
+                    direction={sortDir}
+                    onSort={() => applySort("usage")}
+                    align="right"
+                  />
+                  <SortableDataTableTh
+                    label="Unit"
+                    active={sortBy === "unit"}
+                    direction={sortDir}
+                    onSort={() => applySort("unit")}
+                    align="right"
+                  />
+                  <SortableDataTableTh
+                    label="KWD"
+                    active={sortBy === "kwd"}
+                    direction={sortDir}
+                    onSort={() => applySort("kwd")}
+                    align="right"
+                  />
+                  <SortableDataTableTh
+                    label="Exchange rate"
+                    active={sortBy === "exchangeRate"}
+                    direction={sortDir}
+                    onSort={() => applySort("exchangeRate")}
+                    align="right"
+                  />
+                  <SortableDataTableTh
+                    label="Revenue basis"
+                    active={sortBy === "revenueBasis"}
+                    direction={sortDir}
+                    onSort={() => applySort("revenueBasis")}
+                  />
+                </tr>
+              </DataTableHead>
+              <tbody>
+                {pagedItems.items.map((item, index) => (
+                  <DataTableRow
+                    key={`${item.partnerName}-${item.serviceCode}-${pagedItems.page}-${index}`}
+                  >
+                    <DataTableTd>{item.partnerName}</DataTableTd>
+                    <DataTableTd className="text-foreground-muted">
+                      {item.serviceCode ?? "—"}
+                    </DataTableTd>
+                    <DataTableTd className="min-w-[14rem] text-foreground-muted">
+                      {item.description || "—"}
+                    </DataTableTd>
+                    <DataTableTd align="right" className="text-foreground-muted">
+                      {formatNumber(item.usageAmount)}
+                    </DataTableTd>
+                    <DataTableTd align="right" className="text-foreground-muted">
+                      {item.usageUnit ?? "—"}
+                    </DataTableTd>
+                    <DataTableTd align="right" className="text-foreground-muted">
+                      {formatUsd(item.usageUsd)}
+                    </DataTableTd>
+                    <DataTableTd align="right" className="text-foreground-muted">
+                      {formatNumber(item.exchangeRate)}
+                    </DataTableTd>
+                    <DataTableTd className="text-foreground-muted">
+                      {item.revenueBasis ?? "—"}
+                    </DataTableTd>
+                  </DataTableRow>
+                ))}
+              </tbody>
+            </DataTable>
+          </DataTableFrame>
 
-      {detail.items.length === 0 ? (
+          <ListPagination
+            total={pagedItems.total}
+            page={pagedItems.page}
+            totalPages={pagedItems.totalPages}
+            noun="line item"
+            nounPlural="line items"
+            onPageChange={setItemPage}
+          />
+        </div>
+      ) : (
         <p className={`mt-4 ${ui.hint}`}>No consolidation line items.</p>
-      ) : null}
+      )}
     </PageCard>
   );
 }

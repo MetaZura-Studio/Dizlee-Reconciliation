@@ -21,8 +21,11 @@ import { IconButton } from "@/components/ui/icon-button";
 import { IconBell, IconEye } from "@/components/ui/icons";
 import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
+import { useToast } from "@/components/ui/toast";
 import { ListPagination } from "@/components/ui/list-pagination";
 import { ListSearch, OrFiltersDivider } from "@/components/ui/list-search";
+import { LoadingOverlay } from "@/components/ui/loading";
+import { SuccessDialog } from "@/components/ui/success-dialog";
 import type { ReportFilterOptions } from "@/lib/dizlee/reports";
 import type {
   CompareLaneFilters,
@@ -195,9 +198,13 @@ export function ReconciliationView({
   const [loading, setLoading] = useState(false);
   const [actionId, setActionId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const toast = useToast();
   const [remindLane, setRemindLane] = useState<CompareLaneRow | null>(null);
   const [reconcilingLabel, setReconcilingLabel] = useState<string | null>(null);
+  const [runSuccess, setRunSuccess] = useState<{
+    id: number;
+    message: string;
+  } | null>(null);
 
   const loadLanes = useCallback(async (filters: CompareLaneFilters) => {
     setLoading(true);
@@ -343,7 +350,6 @@ export function ReconciliationView({
     setActionId(key);
     setReconcilingLabel(`${lane.opcoName} / ${lane.partnerName}`);
     setError(null);
-    setMessage(null);
     try {
       const response = await fetch("/api/dizlee/reconciliation/run", {
         method: "POST",
@@ -359,7 +365,6 @@ export function ReconciliationView({
       if (!response.ok) {
         throw new Error(payload.error ?? "Failed to run reconciliation");
       }
-      setMessage(payload.data.message as string);
       await loadLanes({
         month,
         year,
@@ -370,7 +375,12 @@ export function ReconciliationView({
         sortBy: compareSortBy,
         sortDir: compareSortDir,
       });
-      openReconciliationResult(payload.data.id as number);
+      setRunSuccess({
+        id: payload.data.id as number,
+        message:
+          (payload.data.message as string | undefined) ??
+          "Reconciliation completed successfully.",
+      });
     } catch (runError) {
       setError(
         runError instanceof Error ? runError.message : "Failed to run reconciliation",
@@ -481,7 +491,6 @@ export function ReconciliationView({
           </nav>
         </div>
 
-        {message ? <p className={`mt-6 ${ui.alertSuccess}`}>{message}</p> : null}
         {error ? <p className={`mt-6 ${ui.alertError}`}>{error}</p> : null}
 
         {activeTab === "compare" ? (
@@ -580,13 +589,9 @@ export function ReconciliationView({
               <Button onClick={applyCompareFilters}>Apply filters</Button>
             </FilterToolbar>
 
-            {loading ? (
-              <p className="mt-4 text-sm text-foreground-subtle">Loading pairs…</p>
-            ) : null}
-
-            {!loading ? (
-              pagedLanes.total > 0 ? (
-                <div className="mt-6 space-y-4">
+            <LoadingOverlay active={loading} className="mt-6 min-h-[12rem]" label="Loading pairs…">
+              {pagedLanes.total > 0 ? (
+                <div className="space-y-4">
                   <DataTableFrame>
                     <DataTable>
                       <DataTableHead>
@@ -716,12 +721,11 @@ export function ReconciliationView({
                 </div>
               ) : (
                 <EmptyState
-                  className="mt-6"
                   title="No pairs found"
                   description="Adjust period, status, or search filters to see linked OpCo–Partner pairs."
                 />
-              )
-            ) : null}
+              )}
+            </LoadingOverlay>
           </>
         ) : (
           <>
@@ -732,11 +736,9 @@ export function ReconciliationView({
               placeholder="OpCo, Partner, status, or run by"
             />
 
-            {loading ? (
-              <p className="mt-6 text-sm text-foreground-subtle">Loading history…</p>
-            ) : null}
-            {!loading && history.items.length > 0 ? (
-              <div className="mt-6 space-y-4">
+            <LoadingOverlay active={loading} className="mt-6 min-h-[12rem]" label="Loading history…">
+            {history.items.length > 0 ? (
+              <div className="space-y-4">
                 <DataTableFrame>
                   <DataTable>
                     <DataTableHead>
@@ -813,13 +815,13 @@ export function ReconciliationView({
                   loading={loading}
                 />
               </div>
-            ) : !loading ? (
+            ) : (
               <EmptyState
-                className="mt-6"
                 title="No reconciliation history"
                 description="Run reconciliation on a ready pair to see results here."
               />
-            ) : null}
+            )}
+            </LoadingOverlay>
           </>
         )}
       </PageCard>
@@ -831,7 +833,7 @@ export function ReconciliationView({
           year={year}
           onClose={() => setRemindLane(null)}
           onSent={(sentMessage) => {
-            setMessage(sentMessage);
+            toast.success(sentMessage);
             void loadLanes({
               month,
               year,
@@ -847,6 +849,22 @@ export function ReconciliationView({
           }}
         />
       ) : null}
+
+      <SuccessDialog
+        open={runSuccess !== null}
+        title="Reconciliation complete"
+        message={
+          runSuccess?.message ?? "Reconciliation completed successfully."
+        }
+        actionLabel="View result"
+        onAction={() => {
+          const id = runSuccess?.id;
+          setRunSuccess(null);
+          if (id != null) {
+            openReconciliationResult(id);
+          }
+        }}
+      />
     </div>
   );
 }

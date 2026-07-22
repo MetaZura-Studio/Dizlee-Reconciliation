@@ -224,7 +224,7 @@ export async function getDashboardData(
       invoicesPaid += 1;
     }
 
-    if (typeCode === "CLIENT_TO_OPCO") {
+    if (typeCode === "CLIENT_TO_OPCO" && invoice.opcoId && invoice.opco) {
       const opcoKey = invoice.opcoId.toString();
       opcoInvoiced.add(opcoKey);
       if (isPaid) {

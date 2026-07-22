@@ -162,7 +162,7 @@ function mapInvoiceDetail(
   return {
     id: invoice.id.toString(),
     invoiceNumber: invoice.invoiceNumber,
-    opcoName: invoice.opco.name,
+    opcoName: invoice.opco?.name ?? "—",
     partnerName: invoice.partner?.name ?? null,
     year: invoice.year,
     month: invoice.month,

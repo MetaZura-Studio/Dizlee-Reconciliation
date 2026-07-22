@@ -5,6 +5,7 @@ import { useCallback, useState } from "react";
 import { NotificationsTabs } from "@/components/dizlee/notifications-tabs";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { LoadingOverlay } from "@/components/ui/loading";
 import { PageCard, PageHeader } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
 import { cn, ui } from "@/lib/ui/classes";
@@ -102,7 +103,7 @@ export function NotificationHistoryView({
       {error ? <div className={`mt-4 ${ui.alertError}`}>{error}</div> : null}
 
       <div className="mt-4 grid gap-6 lg:grid-cols-2">
-        <div className={ui.tableWrap}>
+        <LoadingOverlay active={loading} className={cn(ui.tableWrap, "min-h-[16rem]")}>
           <div className="border-b border-border px-4 py-3">
             <h2 className="font-medium text-foreground">Sent notifications</h2>
             <p className="text-sm text-foreground-subtle">{result.totalCount} total</p>
@@ -168,13 +169,11 @@ export function NotificationHistoryView({
               </div>
             </div>
           ) : null}
-        </div>
+        </LoadingOverlay>
 
-        <div className={ui.cardPadding}>
+        <LoadingOverlay active={detailLoading} className={cn(ui.cardPadding, "min-h-[12rem]")}>
           <h2 className="font-medium text-foreground">Detail</h2>
-          {detailLoading ? (
-            <p className="mt-4 text-sm text-foreground-subtle">Loading…</p>
-          ) : detail ? (
+          {detail ? (
             <div className="mt-4 space-y-4">
               <div>
                 <h3 className="text-lg font-medium text-foreground">{detail.subject}</h3>
@@ -199,7 +198,7 @@ export function NotificationHistoryView({
               Select a notification to view details.
             </p>
           )}
-        </div>
+        </LoadingOverlay>
       </div>
     </PageCard>
   );

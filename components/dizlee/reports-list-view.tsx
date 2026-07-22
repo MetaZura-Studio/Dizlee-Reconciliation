@@ -19,7 +19,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { IconButton } from "@/components/ui/icon-button";
 import { IconEye } from "@/components/ui/icons";
 import { ListSearch, OrFiltersDivider } from "@/components/ui/list-search";
-import { LoadingBar } from "@/components/ui/loading";
+import { LoadingOverlay } from "@/components/ui/loading";
 import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
 import { ui } from "@/lib/ui/classes";
 import { nextSortState } from "@/lib/ui/sort";
@@ -354,13 +354,11 @@ export function ReportsListView({
         </div>
       </FilterToolbar>
 
-      <div className="mt-4">
-        <LoadingBar active={loading} />
-      </div>
       {error ? <div className={`mt-4 ${ui.alertError}`}>{error}</div> : null}
 
-      {!loading && !error ? (
-        items.length > 0 ? (
+      {!error ? (
+        <LoadingOverlay active={loading} className="mt-6 min-h-[12rem]">
+        {items.length > 0 ? (
           <div className="mt-6 space-y-4">
             <DataTableFrame>
               <DataTable>
@@ -462,7 +460,8 @@ export function ReportsListView({
             title="No reports"
             description="Try adjusting filters or upload a report as OpCo/Partner."
           />
-        )
+        )}
+        </LoadingOverlay>
       ) : null}
 
       {detailOpen ? (

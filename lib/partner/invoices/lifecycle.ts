@@ -21,7 +21,6 @@ export type LifecycleActivityEntry = {
 export type PartnerInvoiceLifecycleDetail = {
   invoiceId: string;
   invoiceNumber: string | null;
-  opcoName: string;
   periodLabel: string;
   statusLabel: string;
   paymentStatusLabel: string;
@@ -111,7 +110,6 @@ export async function getPartnerInvoiceLifecycle(
       isDeleted: false,
     },
     include: {
-      opco: { select: { name: true } },
       invoiceStatus: { select: { code: true, label: true } },
       paymentStatus: { select: { code: true, label: true } },
       activityLogs: {
@@ -131,7 +129,6 @@ export async function getPartnerInvoiceLifecycle(
   return {
     invoiceId: invoice.id.toString(),
     invoiceNumber: invoice.invoiceNumber,
-    opcoName: invoice.opco.name,
     periodLabel: formatPeriodLabel(invoice.month, invoice.year),
     statusLabel: invoice.invoiceStatus.label,
     paymentStatusLabel: invoice.paymentStatus?.label ?? "—",

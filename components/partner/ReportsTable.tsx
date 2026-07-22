@@ -21,9 +21,10 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { IconButton } from "@/components/ui/icon-button";
 import { IconEye, IconRefresh, IconUpload } from "@/components/ui/icons";
 import { ListSearch, OrFiltersDivider } from "@/components/ui/list-search";
-import { LoadingBar } from "@/components/ui/loading";
+import { LoadingOverlay } from "@/components/ui/loading";
 import { FilterToolbar } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
+import { useToast } from "@/components/ui/toast";
 import { formatPeriodLabel, getDefaultPeriod } from "@/lib/partner/period";
 import { reportRawFilePreviewUrl } from "@/lib/platform/reports/preview-url";
 import {
@@ -129,7 +130,7 @@ export function ReportsTable({
   const [reuploadReport, setReuploadReport] = useState<PartnerReportListItem | null>(
     null,
   );
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const toast = useToast();
 
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -269,12 +270,12 @@ export function ReportsTable({
   }
 
   function handleRequestSuccess() {
-    setSuccessMessage("Reupload request submitted. Dizlee has been notified.");
+    toast.success("Reupload request submitted. Dizlee has been notified.");
     void loadReports({ ...result.filters });
   }
 
   function handleReuploadSuccess() {
-    setSuccessMessage("Corrected report uploaded successfully.");
+    toast.success("Corrected report uploaded successfully.");
     void loadReports({ ...result.filters });
   }
 
@@ -376,15 +377,11 @@ export function ReportsTable({
         </div>
       </FilterToolbar>
 
-      <div className="mt-4">
-        <LoadingBar active={loading} />
-      </div>
-
-      {successMessage ? <p className={ui.alertSuccess}>{successMessage}</p> : null}
       {error ? <div className={ui.alertError}>{error}</div> : null}
 
-      {!loading && !error ? (
-        result.items.length > 0 ? (
+      {!error ? (
+        <LoadingOverlay active={loading} className="mt-6 min-h-[12rem]">
+        {result.items.length > 0 ? (
           <div className="mt-6 space-y-4">
             <DataTableFrame>
               <DataTable>
@@ -519,7 +516,8 @@ export function ReportsTable({
               </Link>
             }
           />
-        )
+        )}
+        </LoadingOverlay>
       ) : null}
 
       {changeRequestReport ? (

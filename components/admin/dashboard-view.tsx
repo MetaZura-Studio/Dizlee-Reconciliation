@@ -157,7 +157,6 @@ export function DashboardView({ data }: DashboardViewProps) {
               label="Admin users"
               value={usersByRole.admin}
               tone="purple"
-              href="/admin/users?role=admin"
             />
             <StatCard
               label="Dizlee users"

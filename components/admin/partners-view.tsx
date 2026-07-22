@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { PartnerDeleteModal } from "@/components/admin/partner-delete-modal";
 import { PartnerFormModal } from "@/components/admin/partner-form-modal";
@@ -20,6 +20,7 @@ import { IconPencil, IconTrash } from "@/components/ui/icons";
 import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
 import { ListPagination } from "@/components/ui/list-pagination";
 import { StatusPill } from "@/components/ui/status-pill";
+import { useToast } from "@/components/ui/toast";
 import type { AdminEntityStatus, PartnerListItem } from "@/lib/admin/partners.shared";
 import { formatEntityStatusLabel } from "@/lib/admin/partners.shared";
 import { paginateItems } from "@/lib/ui/list-pagination";
@@ -63,15 +64,13 @@ export function PartnersView({ initialPartners }: PartnersViewProps) {
   const [sortDir, setSortDir] = useState<SortDirection>("asc");
   const [page, setPage] = useState(1);
   const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const toast = useToast();
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [selectedPartner, setSelectedPartner] = useState<PartnerListItem | null>(
     null,
   );
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   const filteredPartners = useMemo(() => {
     const query = search.trim().toLowerCase();
     return partners
@@ -98,15 +97,6 @@ export function PartnersView({ initialPartners }: PartnersViewProps) {
     setSortDir(next.sortDir);
     setPage(1);
   };
-
-  const showSuccess = useCallback((message: string) => {
-    setSuccessMessage(message);
-    setError(null);
-    if (successTimerRef.current) {
-      clearTimeout(successTimerRef.current);
-    }
-    successTimerRef.current = setTimeout(() => setSuccessMessage(null), 4000);
-  }, []);
 
   const reload = async () => {
     const response = await fetch("/api/admin/partners");
@@ -137,7 +127,8 @@ export function PartnersView({ initialPartners }: PartnersViewProps) {
   const handleSaved = async (_partner: PartnerListItem, message: string) => {
     try {
       await reload();
-      showSuccess(message);
+      setError(null);
+      toast.success(message);
     } catch (reloadError) {
       setError(
         reloadError instanceof Error
@@ -150,7 +141,8 @@ export function PartnersView({ initialPartners }: PartnersViewProps) {
   const handleDeleted = async (message: string) => {
     try {
       await reload();
-      showSuccess(message);
+      setError(null);
+      toast.success(message);
     } catch (reloadError) {
       setError(
         reloadError instanceof Error
@@ -168,9 +160,6 @@ export function PartnersView({ initialPartners }: PartnersViewProps) {
         actions={<Button onClick={openCreate}>Create Partner</Button>}
       />
 
-      {successMessage ? (
-        <p className={ui.alertSuccess}>{successMessage}</p>
-      ) : null}
       {error ? <p className={ui.alertError}>{error}</p> : null}
 
       <FilterToolbar className="mt-6">

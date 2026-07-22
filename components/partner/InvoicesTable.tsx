@@ -47,7 +47,6 @@ import type {
 } from "@/lib/partner/queries/invoices";
 
 const SORTABLE_COLUMNS: Record<string, PartnerInvoiceSortField> = {
-  opcoName: "opco",
   period: "period",
   uploadedAt: "uploaded",
 };
@@ -88,9 +87,6 @@ function buildInvoicesQuery(filters: PartnerInvoiceListFilters): string {
   if (filters.month !== undefined) {
     params.set("month", String(filters.month));
   }
-  if (filters.opcoId) {
-    params.set("opcoId", filters.opcoId);
-  }
   if (filters.statusCode) {
     params.set("status", filters.statusCode);
   }
@@ -109,7 +105,6 @@ export function InvoicesTable({ initialResult, filterOptions }: InvoicesTablePro
 
   const [year, setYear] = useState(filters.year?.toString() ?? "");
   const [month, setMonth] = useState(filters.month?.toString() ?? "");
-  const [opcoId, setOpcoId] = useState(filters.opcoId ?? "");
   const [statusCode, setStatusCode] = useState(filters.statusCode ?? "");
   const [paymentStatus, setPaymentStatus] = useState<PartnerInvoicePaymentFilter>(
     filters.paymentStatus,
@@ -129,7 +124,6 @@ export function InvoicesTable({ initialResult, filterOptions }: InvoicesTablePro
     navigateWithFilters({
       year: year ? Number(year) : undefined,
       month: month ? Number(month) : undefined,
-      opcoId: opcoId || undefined,
       statusCode: statusCode || undefined,
       paymentStatus,
       sortBy,
@@ -145,7 +139,6 @@ export function InvoicesTable({ initialResult, filterOptions }: InvoicesTablePro
     navigateWithFilters({
       year: year ? Number(year) : undefined,
       month: month ? Number(month) : undefined,
-      opcoId: opcoId || undefined,
       statusCode: statusCode || undefined,
       paymentStatus,
       sortBy: next.sortBy,
@@ -157,7 +150,6 @@ export function InvoicesTable({ initialResult, filterOptions }: InvoicesTablePro
   function clearFilters() {
     setYear("");
     setMonth("");
-    setOpcoId("");
     setStatusCode("");
     setPaymentStatus("all");
     setSortBy("uploaded");
@@ -204,10 +196,6 @@ export function InvoicesTable({ initialResult, filterOptions }: InvoicesTablePro
         id: "period",
         header: "Period",
         cell: ({ row }) => formatPeriodLabel(row.original.year, row.original.month),
-      }),
-      columnHelper.accessor("opcoName", {
-        header: "OpCo",
-        cell: (info) => info.getValue(),
       }),
       columnHelper.accessor("statusLabel", {
         header: "Status",
@@ -319,21 +307,6 @@ export function InvoicesTable({ initialResult, filterOptions }: InvoicesTablePro
                 {MONTHS.filter((item) => item.value <= maxMonth).map((item) => (
                   <option key={item.value} value={item.value}>
                     {item.label}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            <div>
-              <FieldLabel htmlFor="invoices-opco">OpCo</FieldLabel>
-              <Select
-                id="invoices-opco"
-                value={opcoId}
-                onChange={(event) => setOpcoId(event.target.value)}
-              >
-                <option value="">All OpCos</option>
-                {filterOptions.opcos.map((opco) => (
-                  <option key={opco.id} value={opco.id}>
-                    {opco.name}
                   </option>
                 ))}
               </Select>

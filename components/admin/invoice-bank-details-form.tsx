@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { FieldLegend } from "@/components/ui/field";
+import { useToast } from "@/components/ui/toast";
 import type { InvoiceBankDetailsListView } from "@/lib/admin/invoice-bank-details.shared";
 import { ui } from "@/lib/ui/classes";
 
@@ -63,9 +64,9 @@ function emptyAccount(): AccountForm {
 export function InvoiceBankDetailsForm({
   initialSettings,
 }: InvoiceBankDetailsFormProps) {
+  const toast = useToast();
   const [accounts, setAccounts] = useState(() => toFormAccounts(initialSettings));
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [reloading, setReloading] = useState(false);
 
@@ -75,7 +76,6 @@ export function InvoiceBankDetailsForm({
 
   const reloadSettings = async () => {
     setError(null);
-    setSuccess(null);
     setReloading(true);
 
     try {
@@ -98,7 +98,6 @@ export function InvoiceBankDetailsForm({
 
   const saveSettings = async (nextAccounts: AccountForm[]) => {
     setError(null);
-    setSuccess(null);
     setSaving(true);
 
     try {
@@ -124,7 +123,7 @@ export function InvoiceBankDetailsForm({
       }
 
       applySettings(body.data as InvoiceBankDetailsListView);
-      setSuccess("Invoice bank details saved.");
+      toast.success("Invoice bank details saved.");
     } catch (saveError) {
       setError(
         saveError instanceof Error
@@ -156,7 +155,6 @@ export function InvoiceBankDetailsForm({
   return (
     <div className="space-y-6">
       {error ? <p className={ui.alertError}>{error}</p> : null}
-      {success ? <p className={ui.alertSuccess}>{success}</p> : null}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="flex flex-wrap items-center justify-end gap-3">

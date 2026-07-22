@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { ReportFilenameLink } from "@/components/shared/report-filename-link";
@@ -9,7 +10,10 @@ import {
   NotificationAttachmentPicker,
   type PendingAttachment,
 } from "@/components/shared/notification-attachment-picker";
+import { Button } from "@/components/ui/button";
 import { ModalCloseButton } from "@/components/ui/modal-close-button";
+import { SuccessDialog } from "@/components/ui/success-dialog";
+import { useToast } from "@/components/ui/toast";
 import type { ReconciliationDetail } from "@/lib/dizlee/reconciliation";
 import { reportRawFilePreviewUrl } from "@/lib/platform/reports/preview-url";
 
@@ -91,10 +95,15 @@ type ReconciliationResultViewProps = {
 export function ReconciliationResultView({
   initialDetail,
 }: ReconciliationResultViewProps) {
-  const [detail, setDetail] = useState(initialDetail);
+  const router = useRouter();
+  const toast = useToast();
+  const [detail] = useState(initialDetail);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const [confirmSuccessOpen, setConfirmSuccessOpen] = useState(false);
+  const [confirmSuccessMessage, setConfirmSuccessMessage] = useState(
+    "Reconciliation confirmed.",
+  );
   const [alertOpen, setAlertOpen] = useState(false);
   const [alerting, setAlerting] = useState(false);
   const [alertSubject, setAlertSubject] = useState("");
@@ -106,7 +115,6 @@ export function ReconciliationResultView({
   async function confirmReconciliation() {
     setConfirming(true);
     setError(null);
-    setMessage(null);
     try {
       const response = await fetch(
         `/api/dizlee/reconciliation/${detail.id}/confirm`,
@@ -116,13 +124,11 @@ export function ReconciliationResultView({
       if (!response.ok) {
         throw new Error(payload.error ?? "Failed to confirm reconciliation");
       }
-      setMessage(payload.data?.message ?? "Reconciliation confirmed.");
-
-      const refresh = await fetch(`/api/dizlee/reconciliation/${detail.id}`);
-      const refreshPayload = await refresh.json();
-      if (refresh.ok) {
-        setDetail(refreshPayload.data as ReconciliationDetail);
-      }
+      setConfirmSuccessMessage(
+        (payload.data?.message as string | undefined) ??
+          "Reconciliation confirmed.",
+      );
+      setConfirmSuccessOpen(true);
     } catch (confirmError) {
       setError(
         confirmError instanceof Error
@@ -132,6 +138,11 @@ export function ReconciliationResultView({
     } finally {
       setConfirming(false);
     }
+  }
+
+  function goToHistory() {
+    setConfirmSuccessOpen(false);
+    router.push("/dizlee/reconciliation?tab=history");
   }
 
   function openAlertModal() {
@@ -145,7 +156,6 @@ export function ReconciliationResultView({
   async function sendAlert(audience: "opco" | "partner" | "both") {
     setAlerting(true);
     setError(null);
-    setMessage(null);
     try {
       const response = await fetch("/api/dizlee/notifications/intimations", {
         method: "POST",
@@ -167,7 +177,7 @@ export function ReconciliationResultView({
       if (!response.ok) {
         throw new Error(payload.error ?? "Failed to send alert");
       }
-      setMessage(payload.data?.message ?? "Alert sent.");
+      toast.success(payload.data?.message ?? "Alert sent.");
       setAlertOpen(false);
       setAlertAttachments([]);
     } catch (alertError) {
@@ -211,23 +221,14 @@ export function ReconciliationResultView({
             />
           </p>
         </div>
-        <button
-          type="button"
-          onClick={openAlertModal}
-          className="rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium text-foreground hover:bg-surface-muted"
-        >
+        <Button variant="dangerSolid" onClick={openAlertModal}>
           Alert OpCo / Partner
-        </button>
+        </Button>
       </div>
 
       {error ? (
         <div className="rounded-md border border-danger-border bg-danger-muted p-4 text-sm text-danger">
           {error}
-        </div>
-      ) : null}
-      {message ? (
-        <div className="rounded-md border border-success-border bg-success-muted p-4 text-sm text-success">
-          {message}
         </div>
       ) : null}
 
@@ -361,36 +362,50 @@ export function ReconciliationResultView({
                 onChange={setAlertAttachments}
                 disabled={alerting}
               />
-              <div className="flex flex-wrap justify-end gap-2 pt-2">
-                <button
-                  type="button"
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+                <Button
+                  variant="secondary"
                   disabled={alerting}
-                  onClick={() => void sendAlert("opco")}
-                  className="rounded border border-border-strong px-3 py-2 text-sm font-medium text-foreground hover:bg-surface-muted disabled:opacity-40"
+                  onClick={() => setAlertOpen(false)}
                 >
-                  Alert OpCo
-                </button>
-                <button
-                  type="button"
-                  disabled={alerting}
-                  onClick={() => void sendAlert("partner")}
-                  className="rounded border border-border-strong px-3 py-2 text-sm font-medium text-foreground hover:bg-surface-muted disabled:opacity-40"
-                >
-                  Alert Partner
-                </button>
-                <button
-                  type="button"
-                  disabled={alerting}
-                  onClick={() => void sendAlert("both")}
-                  className="rounded bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-40"
-                >
-                  {alerting ? "Sending…" : "Alert both"}
-                </button>
+                  Cancel
+                </Button>
+                <div className="flex flex-wrap justify-end gap-2">
+                  <Button
+                    variant="danger"
+                    disabled={alerting}
+                    onClick={() => void sendAlert("opco")}
+                  >
+                    Alert OpCo
+                  </Button>
+                  <Button
+                    variant="danger"
+                    disabled={alerting}
+                    onClick={() => void sendAlert("partner")}
+                  >
+                    Alert Partner
+                  </Button>
+                  <Button
+                    variant="dangerSolid"
+                    disabled={alerting}
+                    onClick={() => void sendAlert("both")}
+                  >
+                    {alerting ? "Sending…" : "Alert both"}
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
         </div>
       ) : null}
+
+      <SuccessDialog
+        open={confirmSuccessOpen}
+        title="Reconciliation confirmed"
+        message={confirmSuccessMessage}
+        actionLabel="Back to history"
+        onAction={goToHistory}
+      />
     </div>
   );
 }

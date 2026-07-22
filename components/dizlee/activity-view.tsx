@@ -5,7 +5,7 @@ import { useCallback, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { LoadingBar } from "@/components/ui/loading";
+import { LoadingOverlay } from "@/components/ui/loading";
 import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
 import type {
@@ -270,15 +270,11 @@ export function ActivityView({
         </p>
       </FilterToolbar>
 
-      {loading ? (
-        <div className="mt-4">
-          <LoadingBar active />
-        </div>
-      ) : null}
       {error ? <div className={`mt-4 ${ui.alertError}`}>{error}</div> : null}
 
-      {!loading && !error ? (
-        result.requiresEntity || !hasEntity ? (
+      {!error ? (
+        <LoadingOverlay active={loading} className="mt-6 min-h-[12rem]">
+        {result.requiresEntity || !hasEntity ? (
           <EmptyState
             className="mt-6"
             title="Choose an OpCo or Partner"
@@ -348,7 +344,8 @@ export function ActivityView({
             title="No activity for this period"
             description="Nothing was recorded for the selected OpCo/Partner in this month yet."
           />
-        )
+        )}
+        </LoadingOverlay>
       ) : null}
     </PageCard>
   );
