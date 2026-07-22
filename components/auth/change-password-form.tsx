@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { PASSWORD_MIN_LENGTH, validatePasswordMatch } from "@/lib/auth/password-policy";
 import { FieldLegend } from "@/components/ui/field";
+import { useToast } from "@/components/ui/toast";
 import { ui } from "@/lib/ui/classes";
 
 export function ChangePasswordForm() {
@@ -13,13 +14,12 @@ export function ChangePasswordForm() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const toast = useToast();
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
-    setSuccess(null);
 
     const mismatch = validatePasswordMatch(password, confirmPassword);
     if (mismatch) {
@@ -39,7 +39,7 @@ export function ChangePasswordForm() {
         throw new Error(body.error ?? "Failed to change password");
       }
 
-      setSuccess("Password updated.");
+      toast.success("Password updated.");
       setCurrentPassword("");
       setPassword("");
       setConfirmPassword("");
@@ -58,7 +58,6 @@ export function ChangePasswordForm() {
   return (
     <form onSubmit={(event) => void submit(event)} className="space-y-4">
       {error ? <p className={ui.alertError}>{error}</p> : null}
-      {success ? <p className={ui.alertSuccess}>{success}</p> : null}
 
       <label className="block text-sm">
         <FieldLegend required>Current password</FieldLegend>

@@ -5,6 +5,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { AppShell, type AppShellNavItem } from "@/components/layout/app-shell";
+import { NotificationsBell } from "@/components/opco/NotificationsBell";
+import { IconChevronLeft, IconChevronRight } from "@/components/ui/icons";
 import { cn, ui } from "@/lib/ui/classes";
 
 type OpcoWorkspaceProps = {
@@ -18,10 +20,12 @@ function OpcoProfileMenu({
   name,
   email,
   collapsed,
+  onToggleCollapse,
 }: {
   name?: string | null;
   email: string;
   collapsed: boolean;
+  onToggleCollapse: () => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -39,12 +43,18 @@ function OpcoProfileMenu({
   }, []);
 
   return (
-    <div className="relative w-full min-w-0" ref={menuRef}>
+    <div
+      className={cn(
+        "relative flex w-full min-w-0 items-center gap-1",
+        collapsed && "flex-col gap-2",
+      )}
+      ref={menuRef}
+    >
       <button
         type="button"
         onClick={() => setMenuOpen((open) => !open)}
         className={cn(
-          "flex w-full min-w-0 items-center gap-3 rounded-2xl px-3 py-2 text-left transition-colors hover:bg-surface-muted",
+          "flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-3 py-2 text-left transition-colors hover:bg-surface-muted",
           collapsed && "justify-center px-2",
         )}
         aria-expanded={menuOpen}
@@ -65,6 +75,15 @@ function OpcoProfileMenu({
             </span>
           </span>
         ) : null}
+      </button>
+      <button
+        type="button"
+        onClick={onToggleCollapse}
+        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-foreground-muted transition-colors hover:bg-surface-muted hover:text-foreground"
+        title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+      >
+        {collapsed ? <IconChevronRight /> : <IconChevronLeft />}
       </button>
       {menuOpen ? (
         <div
@@ -124,8 +143,14 @@ export function OpcoWorkspace({
       subtitle="Dizlee Reconciliation"
       storageKey="opco-sidebar-collapsed"
       navItems={navItems}
-      footerSlot={(collapsed) => (
-        <OpcoProfileMenu name={name} email={email} collapsed={collapsed} />
+      headerRight={<NotificationsBell initialUnreadCount={unreadCount} />}
+      footerSlot={(collapsed, toggleCollapsed) => (
+        <OpcoProfileMenu
+          name={name}
+          email={email}
+          collapsed={collapsed}
+          onToggleCollapse={toggleCollapsed}
+        />
       )}
     >
       {children}

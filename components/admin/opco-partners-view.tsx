@@ -5,8 +5,10 @@ import { useCallback, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FieldLegend } from "@/components/ui/field";
 import { EmptyState } from "@/components/ui/empty-state";
+import { LoadingOverlay } from "@/components/ui/loading";
 import { ListPagination } from "@/components/ui/list-pagination";
 import { FilterToolbar, PageCard } from "@/components/ui/page";
+import { useToast } from "@/components/ui/toast";
 import type {
   OpcoListItem,
   OpcoPartnerLinksPageData,
@@ -22,6 +24,7 @@ type OpcoPartnersViewProps = {
 };
 
 export function OpcoPartnersView({ initialData }: OpcoPartnersViewProps) {
+  const toast = useToast();
   const [opcos] = useState(initialData.opcos);
   const [selectedOpcoId, setSelectedOpcoId] = useState(
     initialData.links?.opco.id ?? initialData.opcos[0]?.id ?? "",
@@ -41,7 +44,6 @@ export function OpcoPartnersView({ initialData }: OpcoPartnersViewProps) {
   const [linkStatus, setLinkStatus] = useState<LinkStatusFilter>("all");
   const [page, setPage] = useState(1);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -56,7 +58,6 @@ export function OpcoPartnersView({ initialData }: OpcoPartnersViewProps) {
 
   const loadOpcoLinks = async (opcoId: string) => {
     setError(null);
-    setSuccess(null);
     setLoading(true);
 
     try {
@@ -114,7 +115,6 @@ export function OpcoPartnersView({ initialData }: OpcoPartnersViewProps) {
     }
 
     setError(null);
-    setSuccess(null);
     setSaving(true);
 
     try {
@@ -132,7 +132,7 @@ export function OpcoPartnersView({ initialData }: OpcoPartnersViewProps) {
       }
 
       applyLinksView(body.data as OpcoPartnerLinksView);
-      setSuccess((body.message as string) ?? "Partner links saved.");
+      toast.success((body.message as string) ?? "Partner links saved.");
     } catch (saveError) {
       setError(
         saveError instanceof Error
@@ -182,7 +182,6 @@ export function OpcoPartnersView({ initialData }: OpcoPartnersViewProps) {
   return (
     <PageCard>
       {error ? <p className={ui.alertError}>{error}</p> : null}
-      {success ? <p className={ui.alertSuccess}>{success}</p> : null}
 
       <p className={`mt-4 ${ui.cardPadding} text-sm text-foreground-muted`}>
         Linked partners control upload dropdowns, monitoring pairs, consolidation
@@ -242,13 +241,12 @@ export function OpcoPartnersView({ initialData }: OpcoPartnersViewProps) {
           </div>
         </FilterToolbar>
 
+        <LoadingOverlay active={loading} className="min-h-[12rem]">
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-4">
             <h2 className="text-sm font-semibold text-foreground">Partners</h2>
             <p className="text-sm text-foreground-subtle">
-              {loading
-                ? "Loading…"
-                : `${linkedCount} of ${totalPartners} partners linked`}
+              {`${linkedCount} of ${totalPartners} partners linked`}
             </p>
           </div>
 
@@ -289,6 +287,7 @@ export function OpcoPartnersView({ initialData }: OpcoPartnersViewProps) {
             </>
           )}
         </div>
+        </LoadingOverlay>
 
         <div className="flex flex-wrap gap-3">
           <Button type="submit" disabled={loading || saving || !selectedOpcoId}>

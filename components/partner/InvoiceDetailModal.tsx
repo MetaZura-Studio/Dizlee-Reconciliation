@@ -125,10 +125,6 @@ export function InvoiceDetailModal({
             <div className="space-y-6">
               <dl className="grid gap-4 text-sm sm:grid-cols-2">
                 <div>
-                  <dt className="text-foreground-subtle">OpCo</dt>
-                  <dd className="font-medium text-foreground">{detail.opcoName}</dd>
-                </div>
-                <div>
                   <dt className="text-foreground-subtle">Status</dt>
                   <dd className="font-medium text-foreground">{detail.statusLabel}</dd>
                 </div>
@@ -170,35 +166,37 @@ export function InvoiceDetailModal({
                 </div>
               ) : null}
 
-              <div>
-                <h3 className="text-sm font-semibold text-foreground">Line items</h3>
-                <div className="mt-3 overflow-x-auto rounded-lg border border-border">
-                  <table className="min-w-full divide-y divide-border text-sm">
-                    <thead className="bg-surface-muted text-left text-foreground-muted">
-                      <tr>
-                        <th className="px-3 py-2 font-medium">Description</th>
-                        <th className="px-3 py-2 font-medium">Qty</th>
-                        <th className="px-3 py-2 font-medium">Unit price</th>
-                        <th className="px-3 py-2 font-medium">Line total</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
-                      {detail.lineItems.map((item, index) => (
-                        <tr key={`${item.description}-${index}`}>
-                          <td className="px-3 py-2 text-foreground">{item.description}</td>
-                          <td className="px-3 py-2 text-foreground-muted">{item.quantity}</td>
-                          <td className="px-3 py-2 text-foreground-muted">
-                            {formatCurrency(item.unitPrice, detail.currencyCode)}
-                          </td>
-                          <td className="px-3 py-2 text-foreground-muted">
-                            {formatCurrency(item.lineTotal, detail.currencyCode)}
-                          </td>
+              {detail.lineItems.length > 0 ? (
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">Line items</h3>
+                  <div className="mt-3 overflow-x-auto rounded-lg border border-border">
+                    <table className="min-w-full divide-y divide-border text-sm">
+                      <thead className="bg-surface-muted text-left text-foreground-muted">
+                        <tr>
+                          <th className="px-3 py-2 font-medium">Description</th>
+                          <th className="px-3 py-2 font-medium">Qty</th>
+                          <th className="px-3 py-2 font-medium">Unit price</th>
+                          <th className="px-3 py-2 font-medium">Line total</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {detail.lineItems.map((item, index) => (
+                          <tr key={`${item.description}-${index}`}>
+                            <td className="px-3 py-2 text-foreground">{item.description}</td>
+                            <td className="px-3 py-2 text-foreground-muted">{item.quantity}</td>
+                            <td className="px-3 py-2 text-foreground-muted">
+                              {formatCurrency(item.unitPrice, detail.currencyCode)}
+                            </td>
+                            <td className="px-3 py-2 text-foreground-muted">
+                              {formatCurrency(item.lineTotal, detail.currencyCode)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
+              ) : null}
             </div>
           ) : activeTab === "lifecycle" ? (
             lifecycleLoading ? (

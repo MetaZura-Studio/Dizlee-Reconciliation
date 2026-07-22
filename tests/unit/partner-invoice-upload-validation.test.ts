@@ -8,30 +8,30 @@ import {
 describe("partner invoice upload validation", () => {
   it("accepts valid upload metadata", () => {
     const result = partnerInvoiceUploadMetadataSchema.safeParse({
-      opcoId: "1",
       year: "2026",
       month: "7",
-      lineItems: [{ description: "Platform fees", quantity: 1, unitPrice: 1500 }],
+      invoiceNumber: "INV-1",
     });
 
     expect(result.success).toBe(true);
     expect(result.data).toEqual({
-      opcoId: "1",
       year: 2026,
       month: 7,
-      lineItems: [{ description: "Platform fees", quantity: 1, unitPrice: 1500 }],
+      invoiceNumber: "INV-1",
     });
   });
 
-  it("rejects empty line items", () => {
+  it("accepts metadata without invoice number", () => {
     const result = partnerInvoiceUploadMetadataSchema.safeParse({
-      opcoId: "1",
       year: 2026,
       month: 7,
-      lineItems: [],
     });
 
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
+    expect(result.data).toEqual({
+      year: 2026,
+      month: 7,
+    });
   });
 
   it("rejects non-pdf files", () => {

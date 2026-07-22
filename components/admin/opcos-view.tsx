@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { OpcoDeleteModal } from "@/components/admin/opco-delete-modal";
 import { OpcoFormModal } from "@/components/admin/opco-form-modal";
@@ -20,6 +20,7 @@ import { IconPencil, IconTrash } from "@/components/ui/icons";
 import { ListPagination } from "@/components/ui/list-pagination";
 import { PageCard, PageHeader, FilterToolbar } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
+import { useToast } from "@/components/ui/toast";
 import type { CurrencyListItem } from "@/lib/admin/currencies.shared";
 import type { AdminEntityStatus, OpcoListItem } from "@/lib/admin/opcos.shared";
 import { formatEntityStatusLabel } from "@/lib/admin/opcos.shared";
@@ -68,13 +69,11 @@ export function OpcosView({ initialOpcos, currencies }: OpcosViewProps) {
   const [sortDir, setSortDir] = useState<SortDirection>("asc");
   const [page, setPage] = useState(1);
   const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const toast = useToast();
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [selectedOpco, setSelectedOpco] = useState<OpcoListItem | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   const currencyOptions = useMemo(() => {
     const codes = new Set(opcos.map((opco) => opco.defaultCurrencyIso));
     return [...codes].sort((a, b) => a.localeCompare(b));
@@ -113,15 +112,6 @@ export function OpcosView({ initialOpcos, currencies }: OpcosViewProps) {
     setPage(1);
   };
 
-  const showSuccess = useCallback((message: string) => {
-    setSuccessMessage(message);
-    setError(null);
-    if (successTimerRef.current) {
-      clearTimeout(successTimerRef.current);
-    }
-    successTimerRef.current = setTimeout(() => setSuccessMessage(null), 4000);
-  }, []);
-
   const reload = async () => {
     const response = await fetch("/api/admin/opcos");
     const body = await response.json();
@@ -151,7 +141,8 @@ export function OpcosView({ initialOpcos, currencies }: OpcosViewProps) {
   const handleSaved = async (_opco: OpcoListItem, message: string) => {
     try {
       await reload();
-      showSuccess(message);
+      setError(null);
+      toast.success(message);
     } catch (reloadError) {
       setError(
         reloadError instanceof Error
@@ -164,7 +155,8 @@ export function OpcosView({ initialOpcos, currencies }: OpcosViewProps) {
   const handleDeleted = async (message: string) => {
     try {
       await reload();
-      showSuccess(message);
+      setError(null);
+      toast.success(message);
     } catch (reloadError) {
       setError(
         reloadError instanceof Error
@@ -182,9 +174,6 @@ export function OpcosView({ initialOpcos, currencies }: OpcosViewProps) {
         actions={<Button onClick={openCreate}>Create OpCo</Button>}
       />
 
-      {successMessage ? (
-        <p className={ui.alertSuccess}>{successMessage}</p>
-      ) : null}
       {error ? <p className={ui.alertError}>{error}</p> : null}
 
       <FilterToolbar className="mt-6">

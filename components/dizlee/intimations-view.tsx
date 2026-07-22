@@ -6,8 +6,10 @@ import { NotificationsTabs } from "@/components/dizlee/notifications-tabs";
 import { Button } from "@/components/ui/button";
 import { FieldLegend } from "@/components/ui/field";
 import { EmptyState } from "@/components/ui/empty-state";
+import { LoadingOverlay } from "@/components/ui/loading";
 import { PageCard, PageHeader } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
+import { useToast } from "@/components/ui/toast";
 import { cn, ui } from "@/lib/ui/classes";
 import {
   getMaxMonthForYear,
@@ -104,7 +106,7 @@ export function IntimationsView({
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const toast = useToast();
 
   const showOpcos = audience === "opco" || audience === "both";
   const showPartners = audience === "partner" || audience === "both";
@@ -218,7 +220,6 @@ export function IntimationsView({
   const sendIntimation = async () => {
     setSending(true);
     setError(null);
-    setMessage(null);
     try {
       const response = await fetch("/api/dizlee/notifications/intimations", {
         method: "POST",
@@ -241,7 +242,7 @@ export function IntimationsView({
         throw new Error(payload.error ?? "Failed to send notification");
       }
 
-      setMessage(payload.data.message as string);
+      toast.success(payload.data.message as string);
       setSubject("");
       setBody("");
       setPriority("");
@@ -269,8 +270,6 @@ export function IntimationsView({
       <NotificationsTabs active="intimations" />
 
       {error ? <div className={`mt-4 ${ui.alertError}`}>{error}</div> : null}
-      {message ? <div className={`mt-4 ${ui.alertSuccess}`}>{message}</div> : null}
-
       <div className="mt-4 grid gap-6 lg:grid-cols-2">
         <div className={ui.cardPaddingLg}>
           <h2 className="text-lg font-medium text-foreground">Compose intimation</h2>
@@ -536,6 +535,7 @@ export function IntimationsView({
           </p>
 
           <div className="mt-4 space-y-3">
+            <LoadingOverlay active={loading} className="min-h-[12rem]">
             {result.items.length === 0 ? (
               <EmptyState
                 title="No intimations sent yet"
@@ -565,6 +565,7 @@ export function IntimationsView({
                 </article>
               ))
             )}
+            </LoadingOverlay>
           </div>
 
           {result.totalPages > 1 ? (

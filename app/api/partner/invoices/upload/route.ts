@@ -6,7 +6,6 @@ import {
   createPartnerInvoice,
 } from "@/lib/partner/queries/upload-invoice";
 import {
-  parseInvoiceLineItemsJson,
   partnerInvoiceUploadMetadataSchema,
   validateInvoiceUploadFile,
 } from "@/lib/partner/validation/invoice-upload";
@@ -26,23 +25,10 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const file = formData.get("file");
 
-    let lineItems: unknown = [];
-    const lineItemsRaw = formData.get("lineItems");
-
-    if (typeof lineItemsRaw === "string" && lineItemsRaw.length > 0) {
-      try {
-        lineItems = parseInvoiceLineItemsJson(lineItemsRaw);
-      } catch {
-        return NextResponse.json({ error: "Invalid line items JSON" }, { status: 400 });
-      }
-    }
-
     const metadataResult = partnerInvoiceUploadMetadataSchema.safeParse({
-      opcoId: formData.get("opcoId"),
       year: formData.get("year"),
       month: formData.get("month"),
       invoiceNumber: formData.get("invoiceNumber") || undefined,
-      lineItems,
     });
 
     if (!metadataResult.success) {

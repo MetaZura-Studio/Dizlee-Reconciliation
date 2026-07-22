@@ -58,6 +58,10 @@ function startOfDay(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
+function todayStart(): Date {
+  return startOfDay(new Date());
+}
+
 function toYmd(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -112,8 +116,26 @@ export function formatDateRangeLabel(value: DateRangeValue): string {
   return `Until ${formatLongDate(value.dateTo)}`;
 }
 
-function addMonths(date: Date, count: number): Date {
-  return new Date(date.getFullYear(), date.getMonth() + count, 1);
+function monthStart(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+/** Keep calendar month views on or before the current calendar month. */
+function clampViewToPresent(view: Date, today = todayStart()): Date {
+  const maxMonthStart = monthStart(today);
+  const next = monthStart(view);
+  return next > maxMonthStart ? maxMonthStart : next;
+}
+
+function clampYmdToPresent(ymd: string, today = todayStart()): string {
+  const date = parseYmd(ymd);
+  if (!date) {
+    return "";
+  }
+  if (date > today) {
+    return toYmd(today);
+  }
+  return ymd;
 }
 
 function daysInMonth(year: number, month: number): number {
@@ -121,7 +143,7 @@ function daysInMonth(year: number, month: number): number {
 }
 
 function presetRange(id: Exclude<PresetId, "custom">): DateRangeValue {
-  const today = startOfDay(new Date());
+  const today = todayStart();
   const end = today;
   const start = new Date(today);
 
@@ -176,6 +198,7 @@ type CalendarPanelProps = {
   draftFrom: string;
   draftTo: string;
   onSelectDay: (ymd: string) => void;
+  maxDate: Date;
 };
 
 function CalendarPanel({
@@ -185,14 +208,17 @@ function CalendarPanel({
   draftFrom,
   draftTo,
   onSelectDay,
+  maxDate,
 }: CalendarPanelProps) {
-  const year = view.getFullYear();
-  const month = view.getMonth();
+  const clampedView = clampViewToPresent(view, maxDate);
+  const year = clampedView.getFullYear();
+  const month = clampedView.getMonth();
   const firstWeekday = new Date(year, month, 1).getDay();
   const totalDays = daysInMonth(year, month);
-  const currentYear = new Date().getFullYear();
+  const currentYear = maxDate.getFullYear();
   const years = Array.from({ length: 9 }, (_, index) => currentYear - 8 + index);
-  const maxMonth = getMaxMonthForYear(year);
+  const maxMonth = getMaxMonthForYear(year, maxDate);
+  const monthOptions = MONTHS.slice(0, Math.max(maxMonth, 1));
 
   const cells: Array<{ ymd: string; day: number } | null> = [];
   for (let i = 0; i < firstWeekday; i += 1) {
@@ -205,6 +231,17 @@ function CalendarPanel({
   const from = parseYmd(draftFrom);
   const to = parseYmd(draftTo);
 
+  const setYear = (nextYear: number) => {
+    const cappedMonth = Math.min(month, getMaxMonthForYear(nextYear, maxDate) - 1);
+    onViewChange(
+      clampViewToPresent(new Date(nextYear, Math.max(0, cappedMonth), 1), maxDate),
+    );
+  };
+
+  const setMonth = (nextMonth: number) => {
+    onViewChange(clampViewToPresent(new Date(year, nextMonth, 1), maxDate));
+  };
+
   return (
     <div className="min-w-[240px] flex-1">
       <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-foreground-subtle">
@@ -215,11 +252,9 @@ function CalendarPanel({
           aria-label={`${label} month`}
           className="h-9 flex-1 rounded-xl border border-border bg-surface px-2 text-sm"
           value={month}
-          onChange={(event) =>
-            onViewChange(new Date(year, Number(event.target.value), 1))
-          }
+          onChange={(event) => setMonth(Number(event.target.value))}
         >
-          {MONTHS.slice(0, maxMonth).map((name, index) => (
+          {monthOptions.map((name, index) => (
             <option key={name} value={index}>
               {name}
             </option>
@@ -229,9 +264,7 @@ function CalendarPanel({
           aria-label={`${label} year`}
           className="h-9 w-24 rounded-xl border border-border bg-surface px-2 text-sm"
           value={year}
-          onChange={(event) =>
-            onViewChange(new Date(Number(event.target.value), month, 1))
-          }
+          onChange={(event) => setYear(Number(event.target.value))}
         >
           {years.map((item) => (
             <option key={item} value={item}>
@@ -256,6 +289,7 @@ function CalendarPanel({
           }
 
           const date = parseYmd(cell.ymd)!;
+          const isFuture = date > maxDate;
           const isStart = Boolean(from && toYmd(from) === cell.ymd);
           const isEnd = Boolean(to && toYmd(to) === cell.ymd);
           const inRange = Boolean(
@@ -266,13 +300,17 @@ function CalendarPanel({
             <button
               key={cell.ymd}
               type="button"
+              disabled={isFuture}
               onClick={() => onSelectDay(cell.ymd)}
               className={cn(
                 "h-9 rounded-lg text-sm transition-colors",
-                inRange && "bg-primary-muted text-primary",
-                (isStart || isEnd) &&
+                isFuture && "cursor-not-allowed text-foreground-subtle/40",
+                !isFuture && inRange && "bg-primary-muted text-primary",
+                !isFuture &&
+                  (isStart || isEnd) &&
                   "bg-primary font-semibold text-primary-foreground",
-                !isStart &&
+                !isFuture &&
+                  !isStart &&
                   !isEnd &&
                   !inRange &&
                   "text-foreground hover:bg-surface-muted",
@@ -319,20 +357,18 @@ export function DateRangePicker({
   onApply,
   disabled,
 }: DateRangePickerProps) {
+  const maxDate = todayStart();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<DateRangeValue>(value);
   const [selecting, setSelecting] = useState<"from" | "to">("from");
   const [activePreset, setActivePreset] = useState<PresetId>(detectPreset(value));
   const [leftView, setLeftView] = useState(() => {
-    const from = parseYmd(value.dateFrom) ?? new Date();
-    return new Date(from.getFullYear(), from.getMonth(), 1);
+    const from = parseYmd(value.dateFrom) ?? maxDate;
+    return clampViewToPresent(new Date(from.getFullYear(), from.getMonth(), 1), maxDate);
   });
   const [rightView, setRightView] = useState(() => {
-    const to = parseYmd(value.dateTo);
-    if (to) {
-      return new Date(to.getFullYear(), to.getMonth(), 1);
-    }
-    return addMonths(new Date(), 1);
+    const to = parseYmd(value.dateTo) ?? maxDate;
+    return clampViewToPresent(new Date(to.getFullYear(), to.getMonth(), 1), maxDate);
   });
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -361,16 +397,21 @@ export function DateRangePicker({
     if (disabled) {
       return;
     }
-    setDraft(value);
-    setActivePreset(detectPreset(value));
+    const today = todayStart();
+    const nextDraft = {
+      dateFrom: clampYmdToPresent(value.dateFrom, today),
+      dateTo: clampYmdToPresent(value.dateTo, today),
+    };
+    setDraft(nextDraft);
+    setActivePreset(detectPreset(nextDraft));
     setSelecting("from");
-    const from = parseYmd(value.dateFrom) ?? new Date();
-    const to = parseYmd(value.dateTo);
-    setLeftView(new Date(from.getFullYear(), from.getMonth(), 1));
+    const from = parseYmd(nextDraft.dateFrom) ?? today;
+    const to = parseYmd(nextDraft.dateTo) ?? from;
+    setLeftView(
+      clampViewToPresent(new Date(from.getFullYear(), from.getMonth(), 1), today),
+    );
     setRightView(
-      to
-        ? new Date(to.getFullYear(), to.getMonth(), 1)
-        : addMonths(new Date(from.getFullYear(), from.getMonth(), 1), 1),
+      clampViewToPresent(new Date(to.getFullYear(), to.getMonth(), 1), today),
     );
     setOpen(true);
   };
@@ -386,11 +427,21 @@ export function DateRangePicker({
     setSelecting("from");
     const from = parseYmd(range.dateFrom)!;
     const to = parseYmd(range.dateTo)!;
-    setLeftView(new Date(from.getFullYear(), from.getMonth(), 1));
-    setRightView(new Date(to.getFullYear(), to.getMonth(), 1));
+    setLeftView(
+      clampViewToPresent(new Date(from.getFullYear(), from.getMonth(), 1), maxDate),
+    );
+    setRightView(
+      clampViewToPresent(new Date(to.getFullYear(), to.getMonth(), 1), maxDate),
+    );
   };
 
   const selectDay = (ymd: string) => {
+    const today = todayStart();
+    const next = parseYmd(ymd);
+    if (!next || next > today) {
+      return;
+    }
+
     setActivePreset("custom");
     if (selecting === "from" || !draft.dateFrom || (draft.dateFrom && draft.dateTo)) {
       setDraft({ dateFrom: ymd, dateTo: "" });
@@ -399,7 +450,6 @@ export function DateRangePicker({
     }
 
     const from = parseYmd(draft.dateFrom)!;
-    const next = parseYmd(ymd)!;
     if (next < from) {
       setDraft({ dateFrom: ymd, dateTo: draft.dateFrom });
     } else {
@@ -415,13 +465,17 @@ export function DateRangePicker({
   };
 
   const handleApply = () => {
-    onApply(draft);
+    const today = todayStart();
+    onApply({
+      dateFrom: clampYmdToPresent(draft.dateFrom, today),
+      dateTo: clampYmdToPresent(draft.dateTo, today),
+    });
     setOpen(false);
   };
 
   const triggerActive = Boolean(value.dateFrom || value.dateTo);
 
-return (
+  return (
     <>
       <button
         type="button"
@@ -513,6 +567,7 @@ return (
                     draftFrom={draft.dateFrom}
                     draftTo={draft.dateTo}
                     onSelectDay={selectDay}
+                    maxDate={maxDate}
                   />
                   <CalendarPanel
                     label="To"
@@ -521,6 +576,7 @@ return (
                     draftFrom={draft.dateFrom}
                     draftTo={draft.dateTo}
                     onSelectDay={selectDay}
+                    maxDate={maxDate}
                   />
                 </div>
               </div>

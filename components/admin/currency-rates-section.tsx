@@ -10,10 +10,13 @@ import {
   DataTableRow,
   DataTableTd,
   DataTableTh,
+  SortableDataTableTh,
 } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
+import { LoadingOverlay } from "@/components/ui/loading";
 import { ListPagination } from "@/components/ui/list-pagination";
 import { StatusPill } from "@/components/ui/status-pill";
+import { useToast } from "@/components/ui/toast";
 import type {
   CurrencyRatePeriodOption,
   CurrencyRatesPeriodView,
@@ -21,6 +24,7 @@ import type {
 } from "@/lib/admin/currencies.shared";
 import { paginateItems } from "@/lib/ui/list-pagination";
 import { cn, ui } from "@/lib/ui/classes";
+import { nextSortState, type SortDirection } from "@/lib/ui/sort";
 
 type RateFormRow = {
   currencyId: string;
@@ -81,6 +85,7 @@ export function CurrencyRatesSection({
   onRatesChange,
   onNotice,
 }: CurrencyRatesSectionProps) {
+  const toast = useToast();
   const [periodView, setPeriodView] = useState(initialRates);
   const [periods, setPeriods] = useState<CurrencyRatePeriodOption[]>(initialPeriods);
   const [selectedKey, setSelectedKey] = useState(
@@ -90,19 +95,27 @@ export function CurrencyRatesSection({
   const [baseline, setBaseline] = useState(() => toFormRows(initialRates.rates));
   const [search, setSearch] = useState("");
   const [rateStatus, setRateStatus] = useState<RateStatusFilter>("all");
+  const [sortBy, setSortBy] = useState<"currency">("currency");
+  const [sortDir, setSortDir] = useState<SortDirection>("asc");
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importDraft, setImportDraft] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isCurrent = periodView.isCurrent;
   const month = periodView.month;
   const year = periodView.year;
   const isDirty = !rowsEqual(rows, baseline);
+
+  const applyCurrencySort = () => {
+    const next = nextSortState(sortBy, sortDir, "currency");
+    setSortBy(next.sortBy);
+    setSortDir(next.sortDir);
+    setPage(1);
+  };
 
   const applyPeriodView = useCallback(
     (view: CurrencyRatesPeriodView, options?: { draft?: boolean }) => {
@@ -137,7 +150,6 @@ export function CurrencyRatesSection({
 
   const loadPeriod = async (targetMonth: number, targetYear: number) => {
     setError(null);
-    setSuccess(null);
     setLoading(true);
 
     try {
@@ -181,11 +193,7 @@ export function CurrencyRatesSection({
 
   const saveRates = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!isCurrent) {
-      return;
-    }
     setError(null);
-    setSuccess(null);
     setSaving(true);
 
     try {
@@ -219,8 +227,7 @@ export function CurrencyRatesSection({
 
       applyPeriodView(body.data as CurrencyRatesPeriodView);
       const message = "Monthly rates saved.";
-      setSuccess(message);
-      onNotice?.(message, null);
+      toast.success(message);
       void refreshPeriods();
     } catch (saveError) {
       const message =
@@ -238,20 +245,17 @@ export function CurrencyRatesSection({
     setRows(baseline.map((row) => ({ ...row })));
     setImportDraft(false);
     setError(null);
-    setSuccess(null);
   };
 
   const importExcel = async (file: File) => {
-    if (!isCurrent) {
-      return;
-    }
     setError(null);
-    setSuccess(null);
     setImporting(true);
 
     try {
       const formData = new FormData();
       formData.set("file", file);
+      formData.set("month", String(month));
+      formData.set("year", String(year));
       const response = await fetch("/api/admin/currency-rates/import", {
         method: "POST",
         body: formData,
@@ -275,7 +279,7 @@ export function CurrencyRatesSection({
           rates: data.rates,
           setCount: data.setCount,
           totalCurrencies: data.totalCurrencies,
-          isCurrent: true,
+          isCurrent: data.isCurrent,
         },
         { draft: true },
       );
@@ -291,8 +295,7 @@ export function CurrencyRatesSection({
         parts.push(`${data.issues.length} row warning(s).`);
       }
       const message = parts.join(" ");
-      setSuccess(message);
-      onNotice?.(message, null);
+      toast.success(message);
     } catch (importError) {
       const message =
         importError instanceof Error
@@ -340,15 +343,15 @@ export function CurrencyRatesSection({
       );
     });
 
+    const direction = sortDir === "asc" ? 1 : -1;
     return [...filtered].sort((a, b) => {
-      const aMissing = !rowHasRate(a) ? 0 : 1;
-      const bMissing = !rowHasRate(b) ? 0 : 1;
-      if (aMissing !== bMissing) {
-        return aMissing - bMissing;
+      const byCode = a.isoCode.localeCompare(b.isoCode) * direction;
+      if (byCode !== 0) {
+        return byCode;
       }
-      return a.isoCode.localeCompare(b.isoCode);
+      return (a.symbol ?? "").localeCompare(b.symbol ?? "") * direction;
     });
-  }, [rows, search, rateStatus]);
+  }, [rows, search, rateStatus, sortDir]);
 
   const pagedRows = useMemo(
     () => paginateItems(filteredRows, page),
@@ -365,10 +368,8 @@ export function CurrencyRatesSection({
                 {periodView.periodLabel}
               </h2>
               {isCurrent ? (
-                <StatusPill tone="success">Current · editable</StatusPill>
-              ) : (
-                <StatusPill tone="neutral">Read-only</StatusPill>
-              )}
+                <StatusPill tone="success">Current</StatusPill>
+              ) : null}
               {isDirty || importDraft ? (
                 <StatusPill tone="warning">Unsaved changes</StatusPill>
               ) : null}
@@ -401,12 +402,6 @@ export function CurrencyRatesSection({
           </label>
         </div>
 
-        {!isCurrent ? (
-          <p className={ui.alertWarning}>
-            Past months are locked. Switch to the current month to edit rates or
-            import Excel.
-          </p>
-        ) : null}
         {importDraft ? (
           <p className={ui.alertWarning}>
             Excel values are loaded into this form only. Click{" "}
@@ -417,8 +412,6 @@ export function CurrencyRatesSection({
 
       <div className="space-y-4 p-5 sm:p-6">
         {error ? <p className={ui.alertError}>{error}</p> : null}
-        {success ? <p className={ui.alertSuccess}>{success}</p> : null}
-
         <div className="flex flex-wrap items-end gap-3">
           <label className="min-w-[12rem] flex-1 text-sm">
             <span className={ui.label}>Search</span>
@@ -463,12 +456,9 @@ export function CurrencyRatesSection({
           </div>
         </div>
 
-        {loading ? (
-          <p className="text-sm text-foreground-muted">Loading rates…</p>
-        ) : null}
-
+        <LoadingOverlay active={loading} className="min-h-[12rem]">
         <form onSubmit={(event) => void saveRates(event)} className="space-y-4">
-          {!loading && filteredRows.length === 0 ? (
+          {filteredRows.length === 0 ? (
             <EmptyState
               title={
                 rows.length === 0
@@ -483,13 +473,18 @@ export function CurrencyRatesSection({
             />
           ) : null}
 
-          {!loading && filteredRows.length > 0 ? (
+          {filteredRows.length > 0 ? (
             <>
               <DataTableFrame>
                 <DataTable>
                   <DataTableHead>
                     <tr>
-                      <DataTableTh>Currency</DataTableTh>
+                      <SortableDataTableTh
+                        label="Currency"
+                        active={sortBy === "currency"}
+                        direction={sortDir}
+                        onSort={applyCurrencySort}
+                      />
                       <DataTableTh>1 unit = ? KWD</DataTableTh>
                       <DataTableTh>Status</DataTableTh>
                     </tr>
@@ -515,7 +510,7 @@ export function CurrencyRatesSection({
                               <span className="text-foreground-muted">
                                 1.00 (KWD locked)
                               </span>
-                            ) : isCurrent ? (
+                            ) : (
                               <div className="flex max-w-xs items-center gap-2">
                                 <span className="shrink-0 text-xs text-foreground-subtle">
                                   1 {row.isoCode} =
@@ -539,17 +534,12 @@ export function CurrencyRatesSection({
                                   }
                                   placeholder="Not set"
                                   className={ui.input}
+                                  disabled={busy}
                                 />
                                 <span className="shrink-0 text-xs text-foreground-subtle">
                                   KWD
                                 </span>
                               </div>
-                            ) : (
-                              <span className="tabular-nums text-foreground-muted">
-                                {row.rateInput === ""
-                                  ? "—"
-                                  : `1 ${row.isoCode} = ${row.rateInput} KWD`}
-                              </span>
                             )}
                           </DataTableTd>
                           <DataTableTd>
@@ -578,8 +568,7 @@ export function CurrencyRatesSection({
             </>
           ) : null}
 
-          {isCurrent ? (
-            <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">
+          <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">
               <Button type="submit" disabled={busy || (!isDirty && !importDraft)}>
                 {saving ? "Saving…" : "Save rates"}
               </Button>
@@ -592,7 +581,7 @@ export function CurrencyRatesSection({
                 Discard
               </Button>
               <a
-                href="/api/admin/currency-rates/template"
+                href={`/api/admin/currency-rates/template?month=${month}&year=${year}`}
                 className={ui.btnSecondary}
               >
                 Download template
@@ -621,8 +610,8 @@ export function CurrencyRatesSection({
                 Import fills the form — you still need to Save.
               </p>
             </div>
-          ) : null}
         </form>
+        </LoadingOverlay>
       </div>
     </section>
   );

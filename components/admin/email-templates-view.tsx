@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { FieldLabel } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
 import { StatusPill } from "@/components/ui/status-pill";
+import { useToast } from "@/components/ui/toast";
 import {
   categoryLabel,
   EMAIL_TEMPLATE_CATEGORIES,
@@ -118,7 +119,7 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
   const [createForm, setCreateForm] = useState<CreateFormState>(defaultCreateForm);
   const [revertingVersion, setRevertingVersion] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const toast = useToast();
   const [previewVersion, setPreviewVersion] =
     useState<EmailTemplateVersionItem | null>(null);
   const [confirmRevertVersion, setConfirmRevertVersion] = useState<number | null>(
@@ -211,7 +212,6 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
 
   const loadTemplate = async (code: string) => {
     setError(null);
-    setSuccess(null);
     setLoading(true);
 
     try {
@@ -260,7 +260,6 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
   const createTemplate = async (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
-    setSuccess(null);
     setCreating(true);
 
     const code =
@@ -288,7 +287,7 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
       setCreateOpen(false);
       setCreateForm(defaultCreateForm());
       setTab("edit");
-      setSuccess(`Created ${created.name}.`);
+      toast.success(`Created ${created.name}.`);
     } catch (createError) {
       setError(
         createError instanceof Error
@@ -331,7 +330,6 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
       return;
     }
     setForm(toFormState(detail));
-    setSuccess(null);
     setError(null);
   };
 
@@ -342,7 +340,6 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
     }
 
     setError(null);
-    setSuccess(null);
     setSaving(true);
 
     try {
@@ -364,7 +361,7 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
       }
 
       applyDetail(body.data as EmailTemplateDetail);
-      setSuccess("Saved as a new version.");
+      toast.success("Saved as a new version.");
     } catch (saveError) {
       setError(
         saveError instanceof Error
@@ -382,7 +379,6 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
     }
 
     setError(null);
-    setSuccess(null);
     setRevertingVersion(version);
     setConfirmRevertVersion(null);
     setPreviewVersion(null);
@@ -403,7 +399,7 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
 
       applyDetail(body.data as EmailTemplateDetail);
       setTab("edit");
-      setSuccess(`Restored version ${version} as the live version.`);
+      toast.success(`Restored version ${version} as the live version.`);
     } catch (revertError) {
       setError(
         revertError instanceof Error
@@ -444,7 +440,6 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
   return (
     <div className="space-y-4">
       {error ? <p className={ui.alertError}>{error}</p> : null}
-      {success ? <p className={ui.alertSuccess}>{success}</p> : null}
 
       <div className="grid min-h-[32rem] gap-4 lg:grid-cols-[18rem_minmax(0,1fr)] xl:grid-cols-[20rem_minmax(0,1fr)]">
         <aside className={cn(ui.card, "flex min-h-0 flex-col overflow-hidden")}>

@@ -3,10 +3,13 @@
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { PasswordInput } from "@/components/auth/password-input";
 import { FieldLabel } from "@/components/ui/field";
+import { FullPageLoading } from "@/components/ui/loading";
+import { startNavigationProgress } from "@/components/ui/navigation-progress";
+import { useToast } from "@/components/ui/toast";
 import { getMainPortalHomePath } from "@/lib/auth/roles";
 import { isMainPortalRole } from "@/lib/auth/scopes";
 import { ui } from "@/lib/ui/classes";
@@ -25,6 +28,7 @@ export function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const toast = useToast();
 
   const queryError = searchParams.get("error");
   const callbackUrl = searchParams.get("callbackUrl");
@@ -45,6 +49,7 @@ export function LoginForm() {
 
       if (!result?.ok) {
         setError(ERROR_MESSAGES.CredentialsSignin);
+        setIsSubmitting(false);
         return;
       }
 
@@ -56,6 +61,7 @@ export function LoginForm() {
       const role = session.user?.role;
       if (!role || !isMainPortalRole(role)) {
         setError(ERROR_MESSAGES.CredentialsSignin);
+        setIsSubmitting(false);
         return;
       }
 
@@ -64,11 +70,12 @@ export function LoginForm() {
           ? callbackUrl
           : getMainPortalHomePath(role);
 
+      startNavigationProgress();
       router.push(destination);
       router.refresh();
+      // Keep FullPageLoading until this page unmounts after navigation.
     } catch {
       setError("Something went wrong. Please try again.");
-    } finally {
       setIsSubmitting(false);
     }
   }
@@ -84,61 +91,75 @@ export function LoginForm() {
         ? "Password reset. You can sign in with your new password."
         : null;
 
+  useEffect(() => {
+    if (!displaySuccess) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      toast.success(displaySuccess);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [displaySuccess, toast]);
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {displaySuccess ? (
-        <p className={ui.alertSuccess}>{displaySuccess}</p>
+    <>
+      {isSubmitting ? (
+        <FullPageLoading
+          label="Signing in…"
+          description="Verifying your credentials and opening your workspace."
+        />
       ) : null}
-      {displayError ? <p className={ui.alertError}>{displayError}</p> : null}
 
-      <div className="space-y-1">
-        <FieldLabel htmlFor="email">
-          Email
-        </FieldLabel>
-        <input
-          id="email"
-          name="email"
-          type="email"
-          autoComplete="email"
-          required
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          className={ui.input}
-        />
-      </div>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {displayError ? <p className={ui.alertError}>{displayError}</p> : null}
 
-      <div className="space-y-1">
-        <FieldLabel htmlFor="password">
-          Password
-        </FieldLabel>
-        <PasswordInput
-          id="password"
-          name="password"
-          autoComplete="current-password"
-          required
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          className={ui.input}
-        />
-      </div>
+        <div className="space-y-1">
+          <FieldLabel htmlFor="email">Email</FieldLabel>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            required
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            className={ui.input}
+            disabled={isSubmitting}
+          />
+        </div>
 
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        className={`w-full ${ui.btnPrimary}`}
-      >
-        {isSubmitting ? "Signing in..." : "Sign in"}
-      </button>
+        <div className="space-y-1">
+          <FieldLabel htmlFor="password">Password</FieldLabel>
+          <PasswordInput
+            id="password"
+            name="password"
+            autoComplete="current-password"
+            required
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            className={ui.input}
+            disabled={isSubmitting}
+          />
+        </div>
 
-      <p className="text-center text-sm">
-        <Link
-          href="/forgot-password"
-          className="text-foreground-muted underline hover:text-foreground"
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className={`w-full ${ui.btnPrimary}`}
         >
-          Forgot password?
-        </Link>
-      </p>
-    </form>
+          {isSubmitting ? "Signing in..." : "Sign in"}
+        </button>
+
+        <p className="text-center text-sm">
+          <Link
+            href="/forgot-password"
+            className="text-foreground-muted underline hover:text-foreground"
+          >
+            Forgot password?
+          </Link>
+        </p>
+      </form>
+    </>
   );
 }
 

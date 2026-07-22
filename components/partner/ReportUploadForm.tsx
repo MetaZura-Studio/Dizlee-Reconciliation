@@ -18,6 +18,7 @@ import {
   getUploadYearOptions,
 } from "@/lib/platform/period";
 import { cn, ui } from "@/lib/ui/classes";
+import { useToast } from "@/components/ui/toast";
 
 type ReportUploadFormProps = {
   opcos: LinkedOpco[];
@@ -60,11 +61,13 @@ export function ReportUploadForm({ opcos }: ReportUploadFormProps) {
   const [month, setMonth] = useState(defaultPeriod.month);
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
   const [success, setSuccess] = useState<UploadSuccess | null>(null);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const [review, setReview] = useState<ReviewState | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const toast = useToast();
 
   const selectedOpcoName = opcos.find((opco) => opco.id === opcoId)?.name ?? "OpCo";
 
@@ -82,6 +85,7 @@ export function ReportUploadForm({ opcos }: ReportUploadFormProps) {
 
   async function openRawPreview(selectedFile: File) {
     setError(null);
+    setConfirmError(null);
     setSuccess(null);
     setReview(null);
 
@@ -125,6 +129,7 @@ export function ReportUploadForm({ opcos }: ReportUploadFormProps) {
     if (!selectedFile) {
       setFile(null);
       setReview(null);
+      setConfirmError(null);
       return;
     }
     void openRawPreview(selectedFile);
@@ -136,6 +141,7 @@ export function ReportUploadForm({ opcos }: ReportUploadFormProps) {
 
   function handleChooseDifferentFile() {
     setReview(null);
+    setConfirmError(null);
     setFile(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -160,7 +166,7 @@ export function ReportUploadForm({ opcos }: ReportUploadFormProps) {
       return;
     }
 
-    setError(null);
+    setConfirmError(null);
     setIsConfirming(true);
 
     const formData = new FormData();
@@ -182,7 +188,7 @@ export function ReportUploadForm({ opcos }: ReportUploadFormProps) {
       };
 
       if (!response.ok) {
-        setError(payload.error ?? "Failed to upload report");
+        setConfirmError(payload.error ?? "Failed to upload report");
         return;
       }
 
@@ -190,13 +196,17 @@ export function ReportUploadForm({ opcos }: ReportUploadFormProps) {
         reportId: payload.reportId ?? "",
         lineItemCount: payload.lineItemCount ?? 0,
       });
+      toast.success(
+        `Report uploaded successfully with ${payload.lineItemCount ?? 0} line items.`,
+      );
       setReview(null);
+      setConfirmError(null);
       setFile(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
     } catch {
-      setError("Failed to upload report");
+      setConfirmError("Failed to upload report");
     } finally {
       setIsConfirming(false);
     }
@@ -345,12 +355,8 @@ export function ReportUploadForm({ opcos }: ReportUploadFormProps) {
           {error ? <p className={ui.alertError}>{error}</p> : null}
 
           {success ? (
-            <div className={ui.alertSuccess}>
-              <p>
-                Report uploaded successfully with {success.lineItemCount} line
-                items.
-              </p>
-              <div className="mt-3 flex flex-wrap gap-3">
+            <div className="rounded-md border border-border bg-surface-muted/50 p-4 text-sm">
+              <div className="flex flex-wrap gap-3">
                 <Link href="/partner/reports" className={ui.btnSecondary}>
                   View reports history
                 </Link>
@@ -403,11 +409,13 @@ export function ReportUploadForm({ opcos }: ReportUploadFormProps) {
           rawTruncated={review.truncated}
           rawTotalRows={review.totalRows}
           confirming={isConfirming}
+          confirmError={confirmError}
           onReupload={handleChooseDifferentFile}
           onConfirm={() => void handleConfirmUpload()}
           onClose={() => {
             if (!isConfirming) {
               setReview(null);
+              setConfirmError(null);
             }
           }}
         />

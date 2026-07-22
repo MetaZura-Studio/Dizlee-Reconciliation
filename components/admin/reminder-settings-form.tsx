@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { FieldLegend } from "@/components/ui/field";
+import { useToast } from "@/components/ui/toast";
 import {
   audienceLabel,
   canAddIntimation,
@@ -60,6 +61,7 @@ function dayOptions(min: number, max: number): number[] {
 export function ReminderSettingsForm({
   initialSettings,
 }: ReminderSettingsFormProps) {
+  const toast = useToast();
   const [remindersEnabled, setRemindersEnabled] = useState(
     initialSettings.remindersEnabled,
   );
@@ -70,7 +72,6 @@ export function ReminderSettingsForm({
     initialSettings.templateOptions,
   );
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [reloading, setReloading] = useState(false);
 
@@ -97,7 +98,6 @@ export function ReminderSettingsForm({
 
   const reloadSettings = async () => {
     setError(null);
-    setSuccess(null);
     setReloading(true);
 
     try {
@@ -107,7 +107,7 @@ export function ReminderSettingsForm({
         throw new Error(body.error ?? "Failed to reload reminder settings");
       }
       applySettings(body.data as ReminderSettingsView);
-      setSuccess("Reminder settings reloaded.");
+      toast.success("Reminder settings reloaded.");
     } catch (reloadError) {
       setError(
         reloadError instanceof Error
@@ -122,7 +122,6 @@ export function ReminderSettingsForm({
   const saveSettings = async (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
-    setSuccess(null);
     setSaving(true);
 
     try {
@@ -141,7 +140,7 @@ export function ReminderSettingsForm({
       }
 
       applySettings(body.data as ReminderSettingsView);
-      setSuccess("Reminder settings saved.");
+      toast.success("Reminder settings saved.");
     } catch (saveError) {
       setError(
         saveError instanceof Error
@@ -162,7 +161,6 @@ export function ReminderSettingsForm({
   return (
     <div className="space-y-6">
       {error ? <p className={ui.alertError}>{error}</p> : null}
-      {success ? <p className={ui.alertSuccess}>{success}</p> : null}
 
       <form onSubmit={(event) => void saveSettings(event)} className="space-y-6">
         <div className="space-y-1">

@@ -2,12 +2,13 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 import { cn, ui } from "@/lib/ui/classes";
 
-type ButtonVariant = "primary" | "secondary" | "danger" | "ghost";
+type ButtonVariant = "primary" | "secondary" | "danger" | "dangerSolid" | "ghost";
 
 const variantClass: Record<ButtonVariant, string> = {
   primary: ui.btnPrimary,
   secondary: ui.btnSecondary,
   danger: ui.btnDanger,
+  dangerSolid: ui.btnDangerSolid,
   ghost: ui.btnGhost,
 };
 

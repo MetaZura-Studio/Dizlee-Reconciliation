@@ -219,7 +219,7 @@ export async function listLifecycleInvoices(
       id: row.id.toString(),
       invoiceNumber: row.invoiceNumber,
       period: periodFromParts(row.month, row.year),
-      opcoName: row.opco.name,
+      opcoName: row.opco?.name ?? "—",
       partnerName: row.partner?.name ?? null,
       direction: directionLabel(row.invoiceType.code),
       invoiceStatus: formatStatusLabel(
@@ -293,7 +293,7 @@ export async function getInvoiceLifecycleDetail(
     id: refreshed.id.toString(),
     invoiceNumber: refreshed.invoiceNumber,
     period: periodFromParts(refreshed.month, refreshed.year),
-    opcoName: refreshed.opco.name,
+    opcoName: refreshed.opco?.name ?? "—",
     partnerName: refreshed.partner?.name ?? null,
     direction: directionLabel(refreshed.invoiceType.code),
     invoiceStatus: formatStatusLabel(

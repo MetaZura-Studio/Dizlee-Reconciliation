@@ -153,12 +153,6 @@ export async function saveRatesForPeriod(
   }
 
   const { month, year } = parsePeriod(parsed.data.month, parsed.data.year);
-  const current = currentCalendarPeriod();
-  if (!isSameCalendarPeriod(month, year, current)) {
-    throw new CurrencyRatesError(
-      "Only the current calendar month can be edited. Past months are read-only.",
-    );
-  }
 
   const currencies = await listCurrencies();
   const currencyIdSet = new Set(currencies.map((currency) => currency.id));

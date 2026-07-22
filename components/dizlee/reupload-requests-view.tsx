@@ -18,7 +18,7 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { Modal } from "@/components/ui/modal";
 import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
-import { LoadingBar } from "@/components/ui/loading";
+import { LoadingOverlay } from "@/components/ui/loading";
 import { cn, ui } from "@/lib/ui/classes";
 import { nextSortState, type SortDirection } from "@/lib/ui/sort";
 import type { ReportFilterOptions } from "@/lib/dizlee/reports";
@@ -330,15 +330,11 @@ export function ReuploadRequestsView({
         </div>
       </FilterToolbar>
 
-      {loading ? (
-        <div className="mt-4">
-          <LoadingBar active />
-        </div>
-      ) : null}
       {error ? <div className={`mt-4 ${ui.alertError}`}>{error}</div> : null}
 
-      {!loading && !error ? (
-        items.length > 0 ? (
+      {!error ? (
+        <LoadingOverlay active={loading} className="mt-6 min-h-[12rem]">
+        {items.length > 0 ? (
           <div className="mt-6 space-y-4">
             <DataTableFrame>
               <DataTable>
@@ -456,7 +452,8 @@ export function ReuploadRequestsView({
             title="No pending reupload requests"
             description="Pending change requests from OpCos and Partners will appear here."
           />
-        )
+        )}
+        </LoadingOverlay>
       ) : null}
 
       <Modal

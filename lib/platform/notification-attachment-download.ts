@@ -2,6 +2,7 @@ import "server-only";
 
 import { NextResponse } from "next/server";
 
+import { buildFileResponseHeaders } from "@/lib/platform/file-response-headers";
 import { prisma } from "@/lib/prisma";
 import { readStoredObject } from "@/lib/platform/storage/object-storage";
 
@@ -69,18 +70,20 @@ export async function buildNotificationAttachmentDownloadResponse(params: {
     return NextResponse.json({ error: "Attachment not found." }, { status: 404 });
   }
 
+  let buffer: Buffer;
   try {
-    const buffer = await readStoredObject(attachment.file.storageKey);
-    return new NextResponse(new Uint8Array(buffer), {
-      headers: {
-        "Content-Type": attachment.file.mimeType ?? "application/octet-stream",
-        "Content-Disposition": `attachment; filename="${attachment.file.filename}"`,
-      },
-    });
+    buffer = await readStoredObject(attachment.file.storageKey);
   } catch {
     return NextResponse.json(
       { error: "Attachment file is not available." },
       { status: 404 },
     );
   }
+
+  return new NextResponse(new Uint8Array(buffer), {
+    headers: buildFileResponseHeaders({
+      filename: attachment.file.filename,
+      mimeType: attachment.file.mimeType,
+    }),
+  });
 }

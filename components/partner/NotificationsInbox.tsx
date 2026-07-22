@@ -305,6 +305,8 @@ export function NotificationsInbox({ initialResult }: NotificationsInboxProps) {
                             detail.id,
                             attachment.id,
                           )}
+                          target="_blank"
+                          rel="noopener noreferrer"
                           className="underline hover:text-foreground"
                         >
                           {attachment.filename}

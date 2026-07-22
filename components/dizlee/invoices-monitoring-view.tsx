@@ -19,7 +19,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { IconEye } from "@/components/ui/icons";
 import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
-import { LoadingBar } from "@/components/ui/loading";
+import { LoadingOverlay } from "@/components/ui/loading";
 import { ui } from "@/lib/ui/classes";
 import { nextSortState, type SortDirection } from "@/lib/ui/sort";
 import type { InvoiceFilterOptions } from "@/lib/dizlee/invoices";
@@ -284,15 +284,11 @@ export function InvoicesMonitoringView({
         </div>
       </FilterToolbar>
 
-      {loading ? (
-        <div className="mt-4">
-          <LoadingBar active />
-        </div>
-      ) : null}
       {error ? <div className={`mt-4 ${ui.alertError}`}>{error}</div> : null}
 
-      {!loading && !error ? (
-        result.items.length > 0 ? (
+      {!error ? (
+        <LoadingOverlay active={loading} className="mt-6 min-h-[12rem]">
+        {result.items.length > 0 ? (
           <div className="mt-6 space-y-4">
             <DataTableFrame>
               <DataTable>
@@ -393,7 +389,8 @@ export function InvoicesMonitoringView({
                 : "Try adjusting filters or select a different period."
             }
           />
-        )
+        )}
+        </LoadingOverlay>
       ) : null}
     </PageCard>
   );

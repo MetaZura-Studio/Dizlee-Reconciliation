@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import { KpiCard } from "@/components/dizlee/kpi-card";
@@ -18,10 +19,11 @@ import {
 } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { IconButton } from "@/components/ui/icon-button";
-import { IconBell, IconEye } from "@/components/ui/icons";
+import { IconBell, IconCompare, IconEye } from "@/components/ui/icons";
 import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
-import { LoadingBar } from "@/components/ui/loading";
+import { useToast } from "@/components/ui/toast";
+import { LoadingOverlay } from "@/components/ui/loading";
 import { ui } from "@/lib/ui/classes";
 import { nextSortState, type SortDirection } from "@/lib/ui/sort";
 import type { ReportDetail, ReportFilterOptions } from "@/lib/dizlee/reports";
@@ -79,6 +81,54 @@ function reportMonitoringStatusTone(
   return status === "Submitted" ? "success" : "warning";
 }
 
+function monitoringLaneReadyToReconcile(lane: ReportMonitoringLane): boolean {
+  return (
+    lane.opcoReport.status === "Submitted" &&
+    lane.partnerReport.status === "Submitted"
+  );
+}
+
+function reconciliationHref(lane: ReportMonitoringLane): string {
+  const params = new URLSearchParams({
+    month: String(lane.period.month),
+    year: String(lane.period.year),
+    searchBy: "opco",
+    entityId: lane.opcoId,
+    search: lane.partnerName,
+    status: "READY",
+  });
+  return `/dizlee/reconciliation?${params.toString()}`;
+}
+
+function ReportSubmissionCell({
+  status,
+  uploadedAt,
+  reportId,
+  onView,
+}: {
+  status: "Submitted" | "Missing";
+  uploadedAt: string | null;
+  reportId: string | null;
+  onView: (reportId: string) => void;
+}) {
+  return (
+    <div className="space-y-1">
+      <div className="flex flex-wrap items-center gap-2">
+        {reportId ? (
+          <IconButton
+            label="View report data"
+            onClick={() => onView(reportId)}
+          >
+            <IconEye />
+          </IconButton>
+        ) : null}
+        <StatusPill tone={reportMonitoringStatusTone(status)}>{status}</StatusPill>
+      </div>
+      <p className="text-xs text-foreground-subtle">{formatDateTime(uploadedAt)}</p>
+    </div>
+  );
+}
+
 function lastReminderLabel(lane: ReportMonitoringLane): string {
   const times = [
     lane.lastOpcoReminderAt,
@@ -126,6 +176,7 @@ export function ReportsMonitoringView({
   initialFilterOptions,
   fromDashboard = false,
 }: ReportsMonitoringViewProps) {
+  const router = useRouter();
   const [month, setMonth] = useState(initialResult.filters.month);
   const [year, setYear] = useState(initialResult.filters.year);
   const [opcoId, setOpcoId] = useState(initialResult.filters.opcoId ?? "");
@@ -147,7 +198,7 @@ export function ReportsMonitoringView({
     useState<ReportFilterOptions>(initialFilterOptions);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const toast = useToast();
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detail, setDetail] = useState<ReportDetail | null>(null);
@@ -361,16 +412,10 @@ export function ReportsMonitoringView({
         </div>
       </FilterToolbar>
 
-      {loading ? (
-        <div className="mt-4">
-          <LoadingBar active />
-        </div>
-      ) : null}
       {error ? <div className={`mt-4 ${ui.alertError}`}>{error}</div> : null}
-      {message ? <p className={`mt-4 ${ui.alertSuccess}`}>{message}</p> : null}
-
-      {!loading && !error ? (
-        items.length > 0 ? (
+      {!error ? (
+        <LoadingOverlay active={loading} className="mt-6 min-h-[12rem]">
+        {items.length > 0 ? (
           <div className="mt-6 space-y-4">
             <DataTableFrame>
               <DataTable>
@@ -408,58 +453,45 @@ export function ReportsMonitoringView({
                       <DataTableTd>{row.opcoName}</DataTableTd>
                       <DataTableTd>{row.partnerName}</DataTableTd>
                       <DataTableTd>
-                        <StatusPill
-                          tone={reportMonitoringStatusTone(row.opcoReport.status)}
-                        >
-                          {row.opcoReport.status}
-                        </StatusPill>
-                        <p className="mt-1 text-xs text-foreground-subtle">
-                          {formatDateTime(row.opcoReport.uploadedAt)}
-                        </p>
-                        {row.opcoReport.reportId ? (
-                          <IconButton
-                            label="View report data"
-                            onClick={() =>
-                              void openDetail(row.opcoReport.reportId as string)
-                            }
-                          >
-                            <IconEye />
-                          </IconButton>
-                        ) : null}
+                        <ReportSubmissionCell
+                          status={row.opcoReport.status}
+                          uploadedAt={row.opcoReport.uploadedAt}
+                          reportId={row.opcoReport.reportId}
+                          onView={(reportId) => void openDetail(reportId)}
+                        />
                       </DataTableTd>
                       <DataTableTd>
-                        <StatusPill
-                          tone={reportMonitoringStatusTone(row.partnerReport.status)}
-                        >
-                          {row.partnerReport.status}
-                        </StatusPill>
-                        <p className="mt-1 text-xs text-foreground-subtle">
-                          {formatDateTime(row.partnerReport.uploadedAt)}
-                        </p>
-                        {row.partnerReport.reportId ? (
-                          <IconButton
-                            label="View report data"
-                            onClick={() =>
-                              void openDetail(row.partnerReport.reportId as string)
-                            }
-                          >
-                            <IconEye />
-                          </IconButton>
-                        ) : null}
+                        <ReportSubmissionCell
+                          status={row.partnerReport.status}
+                          uploadedAt={row.partnerReport.uploadedAt}
+                          reportId={row.partnerReport.reportId}
+                          onView={(reportId) => void openDetail(reportId)}
+                        />
                       </DataTableTd>
                       <DataTableTd>
-                        {monitoringLaneNeedsReminder(row) ? (
-                          <IconButton
-                            label={
-                              row.notificationCount > 0
-                                ? `Remind… · ${lastReminderLabel(row)} · ${row.notificationCount} prior notice${row.notificationCount === 1 ? "" : "s"}`
-                                : `Remind… · ${lastReminderLabel(row)}`
-                            }
-                            onClick={() => setRemindLane(row)}
-                          >
-                            <IconBell />
-                          </IconButton>
-                        ) : null}
+                        <div className="flex flex-wrap items-center gap-2">
+                          {monitoringLaneNeedsReminder(row) ? (
+                            <IconButton
+                              label={
+                                row.notificationCount > 0
+                                  ? `Remind… · ${lastReminderLabel(row)} · ${row.notificationCount} prior notice${row.notificationCount === 1 ? "" : "s"}`
+                                  : `Remind… · ${lastReminderLabel(row)}`
+                              }
+                              onClick={() => setRemindLane(row)}
+                            >
+                              <IconBell />
+                            </IconButton>
+                          ) : null}
+                          {monitoringLaneReadyToReconcile(row) ? (
+                            <IconButton
+                              label="Open reconciliation"
+                              variant="primary"
+                              onClick={() => router.push(reconciliationHref(row))}
+                            >
+                              <IconCompare />
+                            </IconButton>
+                          ) : null}
+                        </div>
                       </DataTableTd>
                     </DataTableRow>
                   ))}
@@ -500,7 +532,8 @@ export function ReportsMonitoringView({
                 : "Try adjusting filters or select a different period."
             }
           />
-        )
+        )}
+        </LoadingOverlay>
       ) : null}
 
       {detailOpen ? (
@@ -521,7 +554,7 @@ export function ReportsMonitoringView({
           year={remindLane.period.year}
           onClose={() => setRemindLane(null)}
           onSent={(sentMessage) => {
-            setMessage(sentMessage);
+            toast.success(sentMessage);
             void loadMonitoring({ ...result.filters, sortBy, sortDir });
           }}
         />

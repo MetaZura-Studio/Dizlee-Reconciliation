@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { FieldLabel, FieldLegend } from "@/components/ui/field";
+import { useToast } from "@/components/ui/toast";
 import type { EmailSettingsView } from "@/lib/admin/email-settings";
 import { ui } from "@/lib/ui/classes";
 
@@ -24,11 +25,11 @@ function toFormState(settings: EmailSettingsView) {
 }
 
 export function EmailSettingsForm({ initialSettings }: EmailSettingsFormProps) {
+  const toast = useToast();
   const [form, setForm] = useState(() => toFormState(initialSettings));
   const [savedSettings, setSavedSettings] = useState(initialSettings);
   const [testRecipient, setTestRecipient] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [reloading, setReloading] = useState(false);
   const [sendingTest, setSendingTest] = useState(false);
@@ -40,7 +41,6 @@ export function EmailSettingsForm({ initialSettings }: EmailSettingsFormProps) {
 
   const reloadSettings = async () => {
     setError(null);
-    setSuccess(null);
     setReloading(true);
 
     try {
@@ -50,7 +50,7 @@ export function EmailSettingsForm({ initialSettings }: EmailSettingsFormProps) {
         throw new Error(body.error ?? "Failed to reload email settings");
       }
       applySettings(body.data as EmailSettingsView);
-      setSuccess("Settings reloaded (DB values, with .env fallback when empty).");
+      toast.success("Settings reloaded (DB values, with .env fallback when empty).");
     } catch (reloadError) {
       setError(
         reloadError instanceof Error
@@ -65,7 +65,6 @@ export function EmailSettingsForm({ initialSettings }: EmailSettingsFormProps) {
   const saveSettings = async (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
-    setSuccess(null);
     setSaving(true);
 
     try {
@@ -90,7 +89,7 @@ export function EmailSettingsForm({ initialSettings }: EmailSettingsFormProps) {
       }
 
       applySettings(body.data as EmailSettingsView);
-      setSuccess("Email settings saved.");
+      toast.success("Email settings saved.");
     } catch (saveError) {
       setError(
         saveError instanceof Error
@@ -104,7 +103,6 @@ export function EmailSettingsForm({ initialSettings }: EmailSettingsFormProps) {
 
   const sendTest = async () => {
     setError(null);
-    setSuccess(null);
 
     if (!testRecipient.trim()) {
       setError("Enter the email address to receive the test.");
@@ -122,7 +120,7 @@ export function EmailSettingsForm({ initialSettings }: EmailSettingsFormProps) {
       if (!response.ok) {
         throw new Error(body.error ?? "Failed to send test email");
       }
-      setSuccess(body.message as string);
+      toast.success(body.message as string);
     } catch (testError) {
       setError(
         testError instanceof Error
@@ -145,7 +143,6 @@ export function EmailSettingsForm({ initialSettings }: EmailSettingsFormProps) {
   return (
     <div className="space-y-8">
       {error ? <p className={ui.alertError}>{error}</p> : null}
-      {success ? <p className={ui.alertSuccess}>{success}</p> : null}
 
       <form onSubmit={(event) => void saveSettings(event)} className="space-y-4">
         <div className="space-y-1">

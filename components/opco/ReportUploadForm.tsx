@@ -18,6 +18,7 @@ import {
   getUploadYearOptions,
 } from "@/lib/platform/period";
 import { cn, ui } from "@/lib/ui/classes";
+import { useToast } from "@/components/ui/toast";
 
 type ReportUploadFormProps = {
   partners: LinkedPartner[];
@@ -60,11 +61,13 @@ export function ReportUploadForm({ partners }: ReportUploadFormProps) {
   const [month, setMonth] = useState(defaultPeriod.month);
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
   const [success, setSuccess] = useState<UploadSuccess | null>(null);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const [review, setReview] = useState<ReviewState | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const toast = useToast();
 
   const selectedPartnerName =
     partners.find((partner) => partner.id === partnerId)?.name ?? "Partner";
@@ -83,6 +86,7 @@ export function ReportUploadForm({ partners }: ReportUploadFormProps) {
 
   async function openRawPreview(selectedFile: File) {
     setError(null);
+    setConfirmError(null);
     setSuccess(null);
     setReview(null);
 
@@ -126,6 +130,7 @@ export function ReportUploadForm({ partners }: ReportUploadFormProps) {
     if (!selectedFile) {
       setFile(null);
       setReview(null);
+      setConfirmError(null);
       return;
     }
     void openRawPreview(selectedFile);
@@ -137,6 +142,7 @@ export function ReportUploadForm({ partners }: ReportUploadFormProps) {
 
   function handleChooseDifferentFile() {
     setReview(null);
+    setConfirmError(null);
     setFile(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -161,7 +167,7 @@ export function ReportUploadForm({ partners }: ReportUploadFormProps) {
       return;
     }
 
-    setError(null);
+    setConfirmError(null);
     setIsConfirming(true);
 
     const formData = new FormData();
@@ -183,7 +189,7 @@ export function ReportUploadForm({ partners }: ReportUploadFormProps) {
       };
 
       if (!response.ok) {
-        setError(payload.error ?? "Failed to upload report");
+        setConfirmError(payload.error ?? "Failed to upload report");
         return;
       }
 
@@ -191,13 +197,17 @@ export function ReportUploadForm({ partners }: ReportUploadFormProps) {
         reportId: payload.reportId ?? "",
         lineItemCount: payload.lineItemCount ?? 0,
       });
+      toast.success(
+        `Report uploaded successfully with ${payload.lineItemCount ?? 0} line items.`,
+      );
       setReview(null);
+      setConfirmError(null);
       setFile(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
     } catch {
-      setError("Failed to upload report");
+      setConfirmError("Failed to upload report");
     } finally {
       setIsConfirming(false);
     }
@@ -346,12 +356,8 @@ export function ReportUploadForm({ partners }: ReportUploadFormProps) {
           {error ? <p className={ui.alertError}>{error}</p> : null}
 
           {success ? (
-            <div className={ui.alertSuccess}>
-              <p>
-                Report uploaded successfully with {success.lineItemCount} line
-                items.
-              </p>
-              <div className="mt-3 flex flex-wrap gap-3">
+            <div className="rounded-md border border-border bg-surface-muted/50 p-4 text-sm">
+              <div className="flex flex-wrap gap-3">
                 <Link href="/opco/reports" className={ui.btnSecondary}>
                   View reports history
                 </Link>
@@ -404,11 +410,13 @@ export function ReportUploadForm({ partners }: ReportUploadFormProps) {
           rawTruncated={review.truncated}
           rawTotalRows={review.totalRows}
           confirming={isConfirming}
+          confirmError={confirmError}
           onReupload={handleChooseDifferentFile}
           onConfirm={() => void handleConfirmUpload()}
           onClose={() => {
             if (!isConfirming) {
               setReview(null);
+              setConfirmError(null);
             }
           }}
         />

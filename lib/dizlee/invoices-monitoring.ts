@@ -160,14 +160,15 @@ export async function listInvoiceMonitoringLanes(
 
   for (const invoice of invoices) {
     const typeCode = invoice.invoiceType.code;
-    if (typeCode === "CLIENT_TO_OPCO") {
+    if (typeCode === "CLIENT_TO_OPCO" && invoice.opcoId) {
       opcoInvoices.set(invoice.opcoId.toString(), {
         id: invoice.id,
         createdAt: invoice.createdAt,
       });
     } else if (typeCode === "PARTNER_TO_CLIENT" && invoice.partnerId) {
-      const laneKey = `${invoice.opcoId.toString()}-${invoice.partnerId.toString()}`;
-      partnerInvoices.set(laneKey, {
+      // SRS: Partner → Dizlee invoices are period-scoped (no OpCo). Mark all
+      // lanes for that partner in this period as invoiced.
+      partnerInvoices.set(invoice.partnerId.toString(), {
         id: invoice.id,
         createdAt: invoice.createdAt,
       });
@@ -185,7 +186,9 @@ export async function listInvoiceMonitoringLanes(
       partnerId: link.partner.id.toString(),
       partnerName: link.partner.name,
       opcoInvoice: laneSubmission(opcoInvoices.get(link.opcoId.toString())),
-      partnerInvoice: laneSubmission(partnerInvoices.get(laneKey)),
+      partnerInvoice: laneSubmission(
+        partnerInvoices.get(link.partnerId.toString()),
+      ),
     };
   });
 

@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { CurrenciesView } from "@/components/admin/currencies-view";
 import { CurrencyRatesSection } from "@/components/admin/currency-rates-section";
+import { useToast } from "@/components/ui/toast";
 import type { CurrenciesPageData } from "@/lib/admin/currencies.shared";
 import { cn, ui } from "@/lib/ui/classes";
 
@@ -15,18 +16,19 @@ type CurrenciesPageClientProps = {
 
 export function CurrenciesPageClient({ initialData }: CurrenciesPageClientProps) {
   const [tab, setTab] = useState<PageTab>("rates");
-  const [notice, setNotice] = useState<string | null>(null);
   const [noticeError, setNoticeError] = useState<string | null>(null);
+  const toast = useToast();
 
   const handleNotice = (message: string | null, error?: string | null) => {
-    setNotice(message);
+    if (message) {
+      toast.success(message);
+    }
     setNoticeError(error ?? null);
   };
 
   return (
     <div className="space-y-4">
       {noticeError ? <p className={ui.alertError}>{noticeError}</p> : null}
-      {notice ? <p className={ui.alertSuccess}>{notice}</p> : null}
 
       <div className="flex rounded-2xl border border-border bg-surface-muted/50 p-1">
         {(

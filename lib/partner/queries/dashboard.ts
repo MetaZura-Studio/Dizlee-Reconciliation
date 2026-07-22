@@ -135,14 +135,12 @@ export async function getPartnerDashboard(
           invoiceType: { code: "PARTNER_TO_CLIENT" },
           isDeleted: false,
         },
-        select: { opcoId: true },
+        select: { id: true },
       }),
     ]);
 
   const latestReportsByOpco = getLatestReportsByOpco(periodReports);
-  const opcosWithInvoice = new Set(
-    periodInvoices.map((invoice) => invoice.opcoId.toString()),
-  );
+  const hasPeriodInvoice = periodInvoices.length > 0;
 
   const opcoSummaries: OpcoSubmissionSummary[] = opcoLinks.map((link) => {
     const report = latestReportsByOpco.get(link.opcoId.toString());
@@ -170,9 +168,7 @@ export async function getPartnerDashboard(
   const pendingCount = opcoSummaries.filter(
     (item) => item.status === "pending",
   ).length;
-  const invoicesNotUploaded = opcoLinks.filter(
-    (link) => !opcosWithInvoice.has(link.opcoId.toString()),
-  ).length;
+  const invoicesNotUploaded = hasPeriodInvoice ? 0 : 1;
 
   return {
     year,

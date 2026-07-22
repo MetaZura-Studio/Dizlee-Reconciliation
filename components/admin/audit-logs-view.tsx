@@ -17,6 +17,7 @@ import {
   SortableDataTableTh,
 } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
+import { LoadingOverlay } from "@/components/ui/loading";
 import { PageCard } from "@/components/ui/page";
 import {
   buildAuditLogQuery,
@@ -327,9 +328,8 @@ export function AuditLogsView({
       </div>
 
       <div className="mt-6 space-y-4">
-        {loading ? (
-          <p className="text-sm text-foreground-subtle">Loading audit logs…</p>
-        ) : result.items.length === 0 ? (
+        <LoadingOverlay active={loading} className="min-h-[12rem]">
+        {result.items.length === 0 ? (
           <EmptyState
             title="No audit entries"
             description="No audit log entries match the current filters."
@@ -397,6 +397,8 @@ export function AuditLogsView({
             </DataTable>
           </DataTableFrame>
         )}
+
+        </LoadingOverlay>
 
         <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-foreground-muted">
           <p>

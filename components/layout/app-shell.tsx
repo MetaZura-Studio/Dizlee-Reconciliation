@@ -53,7 +53,9 @@ type AppShellProps = {
   userLabel?: string;
   headerLeft?: ReactNode;
   headerRight?: ReactNode;
-  footerSlot?: ReactNode | ((collapsed: boolean) => ReactNode);
+  footerSlot?:
+    | ReactNode
+    | ((collapsed: boolean, toggleCollapsed: () => void) => ReactNode);
   children: ReactNode;
 };
 
@@ -403,19 +405,22 @@ export function AppShell({
                 )}
               >
                 {typeof footerSlot === "function"
-                  ? footerSlot(collapsed)
+                  ? footerSlot(collapsed, () =>
+                      store.setCollapsed(!collapsed),
+                    )
                   : footerSlot}
               </div>
-            ) : null}
-            <button
-              type="button"
-              onClick={() => store.setCollapsed(!collapsed)}
-              className={cn(ui.navItem, collapsed && "justify-center px-2")}
-              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            >
-              {collapsed ? <IconChevronRight /> : <IconChevronLeft />}
-            </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => store.setCollapsed(!collapsed)}
+                className={cn(ui.navItem, collapsed && "justify-center px-2")}
+                title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+                aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              >
+                {collapsed ? <IconChevronRight /> : <IconChevronLeft />}
+              </button>
+            )}
           </div>
         </aside>
 
