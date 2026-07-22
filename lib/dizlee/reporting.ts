@@ -188,7 +188,7 @@ export async function getReportingOverview(
   const opcoInvoices = new Set<string>();
   const partnerInvoices = new Set<string>();
   for (const invoice of invoices) {
-    if (!invoice.partnerId) {
+    if (!invoice.partnerId || !invoice.opcoId) {
       continue;
     }
     const laneKey = `${invoice.opcoId.toString()}-${invoice.partnerId.toString()}`;

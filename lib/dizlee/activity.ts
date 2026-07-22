@@ -664,16 +664,20 @@ async function loadInvoiceEvents(
     const paymentStatus = invoice.paymentStatus
       ? formatStatus(invoice.paymentStatus.code)
       : "—";
-    const lane: ActivityLane | undefined = invoice.partner
-      ? {
-          opcoId: invoice.opco.id.toString(),
-          opcoName: invoice.opco.name,
-          partnerId: invoice.partner.id.toString(),
-          partnerName: invoice.partner.name,
-        }
-      : undefined;
+    const lane: ActivityLane | undefined =
+      invoice.opco && invoice.partner
+        ? {
+            opcoId: invoice.opco.id.toString(),
+            opcoName: invoice.opco.name,
+            partnerId: invoice.partner.id.toString(),
+            partnerName: invoice.partner.name,
+          }
+        : undefined;
 
-    const href = `/dizlee/invoices?month=${filters.month}&year=${filters.year}&opcoId=${invoice.opco.id.toString()}${invoice.partner ? `&partnerId=${invoice.partner.id.toString()}` : ""}`;
+    const opcoLabel = invoice.opco?.name ?? "—";
+    const href = `/dizlee/invoices?month=${filters.month}&year=${filters.year}${
+      invoice.opco ? `&opcoId=${invoice.opco.id.toString()}` : ""
+    }${invoice.partner ? `&partnerId=${invoice.partner.id.toString()}` : ""}`;
 
     const sentAt = invoice.sentAt ?? invoice.createdAt;
     events.push({
@@ -681,7 +685,7 @@ async function loadInvoiceEvents(
       type: "INVOICE_SENT",
       occurredAt: sentAt.toISOString(),
       title: "Invoice created / sent",
-      summary: `${number} · ${direction} · ${invoice.opco.name}${invoice.partner ? ` / ${invoice.partner.name}` : ""} · status ${invoiceStatus}`,
+      summary: `${number} · ${direction} · ${opcoLabel}${invoice.partner ? ` / ${invoice.partner.name}` : ""} · status ${invoiceStatus}`,
       lane,
       href,
       meta: {
@@ -699,7 +703,7 @@ async function loadInvoiceEvents(
         type: "INVOICE_ACKNOWLEDGED",
         occurredAt: invoice.acknowledgedAt.toISOString(),
         title: "Invoice acknowledged",
-        summary: `${number} · ${direction} · ${invoice.opco.name}`,
+        summary: `${number} · ${direction} · ${opcoLabel}`,
         lane,
         href,
         meta: {
