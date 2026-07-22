@@ -13,6 +13,13 @@ export function NotificationsBell({
   initialUnreadCount = 0,
 }: NotificationsBellProps) {
   const [unreadCount, setUnreadCount] = useState(initialUnreadCount);
+  const [prevInitialUnreadCount, setPrevInitialUnreadCount] =
+    useState(initialUnreadCount);
+
+  if (initialUnreadCount !== prevInitialUnreadCount) {
+    setPrevInitialUnreadCount(initialUnreadCount);
+    setUnreadCount(initialUnreadCount);
+  }
 
   const refreshCount = useCallback(async () => {
     try {
@@ -25,10 +32,6 @@ export function NotificationsBell({
       // Ignore bell refresh errors silently.
     }
   }, []);
-
-  useEffect(() => {
-    setUnreadCount(initialUnreadCount);
-  }, [initialUnreadCount]);
 
   useEffect(() => {
     const handleFocus = () => {

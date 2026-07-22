@@ -19,7 +19,7 @@ export async function GET(request: Request) {
 
   const [result, filterOptions] = await Promise.all([
     searchInvoicesForPartner(partnerId, filters),
-    getPartnerInvoiceFilterOptions(partnerId),
+    getPartnerInvoiceFilterOptions(),
   ]);
 
   return NextResponse.json({ result, filterOptions });
