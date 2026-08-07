@@ -187,16 +187,6 @@ export function OpcoPartnersView({ initialData }: OpcoPartnersViewProps) {
     [filteredPartners, page],
   );
 
-  if (opcos.length === 0) {
-    return (
-      <p className={ui.alertWarning}>
-        No OpCos are available. Add OpCo master data before configuring partner
-        links.
-      </p>
-    );
-  }
-
-  const linkedCount = selectedPartnerIds.size;
   const savedLinkedIds = useMemo(
     () =>
       new Set(
@@ -217,6 +207,16 @@ export function OpcoPartnersView({ initialData }: OpcoPartnersViewProps) {
     return false;
   }, [selectedPartnerIds, savedLinkedIds]);
 
+  if (opcos.length === 0) {
+    return (
+      <p className={ui.alertWarning}>
+        No OpCos are available. Add OpCo master data before configuring partner
+        links.
+      </p>
+    );
+  }
+
+  const linkedCount = selectedPartnerIds.size;
   const totalPartners = linksView?.totalPartners ?? linksView?.partners.length ?? 0;
 
   return (

@@ -24,11 +24,11 @@ describe("seed data validation", () => {
   it("dedupes links without changing count", () => {
     const deduped = dedupeLinks(OPCO_PARTNER_LINK_SEEDS);
     expect(deduped).toHaveLength(OPCO_PARTNER_LINK_SEEDS.length);
-    expect(deduped).toHaveLength(74);
+    expect(deduped).toHaveLength(109);
   });
 
   it("seeds expected entity counts", () => {
     expect(OPCO_SEEDS).toHaveLength(7);
-    expect(PARTNER_SEEDS).toHaveLength(35);
+    expect(PARTNER_SEEDS).toHaveLength(51);
   });
 });
