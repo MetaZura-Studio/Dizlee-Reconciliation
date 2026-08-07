@@ -1,3 +1,8 @@
+/**
+ * Dizlee reports history: paginated listing, sorting, and filter option loaders.
+ * Consumed by reports UI, reupload requests, reporting, and report monitoring flows.
+ */
+
 import type { Prisma } from "@prisma/client";
 
 import { currentPeriod, type DashboardPeriod } from "@/lib/dizlee/dashboard";

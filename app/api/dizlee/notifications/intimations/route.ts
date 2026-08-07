@@ -1,3 +1,8 @@
+/**
+ * GET, POST — Dizlee portal.
+ * List or send submission intimation emails to OpCos and partners.
+ */
+
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 

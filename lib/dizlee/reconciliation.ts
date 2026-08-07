@@ -1,3 +1,9 @@
+/**
+ * OpCo–partner lane reconciliation: compare grid, run engine, history, and confirmation.
+ * Consumed by reconciliation UI and activity timeline event sources.
+ * Uses platform tolerance percent; lane state derives from report presence and last run outcome.
+ */
+
 import { currentPeriod, type DashboardPeriod } from "@/lib/dizlee/dashboard";
 import { getLookupId } from "@/lib/dizlee/lookups";
 import { getLaneNotificationSummaries } from "@/lib/dizlee/lane-report-notifications";
@@ -441,6 +447,7 @@ function sortCompareLanes(
   });
 }
 
+/** Creates or replaces an in-progress reconciliation run for one OpCo–partner lane. */
 export async function runReconciliation(params: {
   month: number;
   year: number;
@@ -766,6 +773,7 @@ export async function getReconciliationDetail(
   };
 }
 
+/** Marks a reconciliation complete after operator review; no-op when not IN_PROGRESS. */
 export async function confirmReconciliation(
   id: number,
   userId: string,

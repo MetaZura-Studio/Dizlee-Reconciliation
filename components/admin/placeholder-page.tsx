@@ -1,3 +1,8 @@
+/**
+ * Generic placeholder screen for admin routes not yet implemented.
+ * Shows a consistent empty or coming-soon state within the admin shell.
+ */
+
 type AdminPlaceholderPageProps = {
   title: string;
   description: string;

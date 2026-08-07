@@ -1,3 +1,8 @@
+/**
+ * Outbound notification history sent by Dizlee operators (audit-style sent log).
+ * Consumed by notifications history UI with recipient summaries and detail views.
+ */
+
 import {
   formatRecipientSummary,
   summarizeRecipients,

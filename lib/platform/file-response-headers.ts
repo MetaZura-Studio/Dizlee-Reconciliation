@@ -1,4 +1,7 @@
-/** Build safe Content-Disposition and resolve preview MIME types. */
+/**
+ * HTTP file response helpers — Content-Disposition safety and MIME resolution from extension.
+ * Used by attachment downloads and stored-file preview routes.
+ */
 
 const EXT_MIME: Record<string, string> = {
   png: "image/png",

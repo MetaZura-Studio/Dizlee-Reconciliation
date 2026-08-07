@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { ReconciliationResultView } from "@/components/dizlee/reconciliation-result-view";
+import { loadReconciliationAlertTemplates } from "@/lib/dizlee/notifications/reconciliation-alerts";
 import { getReconciliationDetail } from "@/lib/dizlee/reconciliation";
 
 type ReconciliationResultPageProps = {
@@ -22,5 +23,12 @@ export default async function ReconciliationResultPage({
     notFound();
   }
 
-  return <ReconciliationResultView initialDetail={detail} />;
+  const initialAlertTemplates = await loadReconciliationAlertTemplates(detail);
+
+  return (
+    <ReconciliationResultView
+      initialDetail={detail}
+      initialAlertTemplates={initialAlertTemplates}
+    />
+  );
 }

@@ -1,3 +1,8 @@
+/**
+ * Upload and validate a new report file for the selected billing period.
+ * Runs parse preview before confirming submission to Dizlee.
+ */
+
 "use client";
 
 import Link from "next/link";

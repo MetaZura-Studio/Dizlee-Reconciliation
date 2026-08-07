@@ -1,3 +1,6 @@
+/**
+ * Zod schemas for Admin currency create/update forms and server actions.
+ */
 import { z } from "zod";
 
 const isoCodeSchema = z

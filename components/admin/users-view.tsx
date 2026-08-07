@@ -1,3 +1,8 @@
+/**
+ * Manage platform user accounts: list, filter, invite, edit, and deactivate users.
+ * Used by administrators to control access across all portals.
+ */
+
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -191,6 +196,25 @@ export function UsersView({ initialResult }: UsersViewProps) {
     void loadUsers({ ...currentFilters, page: nextPage });
   };
 
+  const clearFilters = () => {
+    skipInitialFetchRef.current = true;
+    setSearch("");
+    setRole("all");
+    setStatus("all");
+    setSortBy("name");
+    setSortDir("asc");
+    setPage(1);
+    void loadUsers({
+      search: "",
+      role: "all",
+      status: "all",
+      sortBy: "name",
+      sortDir: "asc",
+      page: 1,
+      pageSize: result.pageSize,
+    });
+  };
+
   return (
     <PageCard>
       <PageHeader
@@ -244,6 +268,9 @@ export function UsersView({ initialResult }: UsersViewProps) {
             </select>
           </label>
         </div>
+        <Button type="button" variant="secondary" onClick={clearFilters}>
+          Clear filters
+        </Button>
       </FilterToolbar>
 
       <div className="mt-6 space-y-4">
@@ -276,7 +303,7 @@ export function UsersView({ initialResult }: UsersViewProps) {
                     direction={sortDir}
                     onSort={() => toggleSort("role")}
                   />
-                  <DataTableTh>Assignment</DataTableTh>
+                  <DataTableTh>Organization</DataTableTh>
                   <SortableDataTableTh
                     label="Status"
                     active={sortBy === "status"}

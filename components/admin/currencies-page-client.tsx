@@ -1,3 +1,8 @@
+/**
+ * Client wrapper for the admin Currencies area combining currency list and FX rates.
+ * Coordinates tabs or sections between currency master data and period rates.
+ */
+
 "use client";
 
 import { useState } from "react";

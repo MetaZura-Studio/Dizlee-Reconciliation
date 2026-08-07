@@ -1,3 +1,9 @@
+/**
+ * Per-lane notification history and last-sent summaries for reports workflows.
+ * Consumed by reconciliation compare rows and report monitoring lanes.
+ * Distinguishes intimations vs reminders via notification template categories.
+ */
+
 import { getLookupId } from "@/lib/dizlee/lookups";
 import { getBroadcastTemplateOptions } from "@/lib/dizlee/notifications/intimations";
 import type { BroadcastTemplateOption } from "@/lib/dizlee/notifications/broadcast.shared";

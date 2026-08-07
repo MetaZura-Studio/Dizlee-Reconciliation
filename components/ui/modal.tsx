@@ -1,3 +1,7 @@
+/**
+ * Focus-trapped modal dialog portaled to `document.body` with title bar and shared close control.
+ */
+
 "use client";
 
 import { useEffect, type ReactNode } from "react";

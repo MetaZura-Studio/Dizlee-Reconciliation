@@ -1,3 +1,7 @@
+/**
+ * Reminder eligibility duration helpers — days/weeks after period start (UC-07).
+ * Used by Admin reminder settings UI and automatic submission reminder cron.
+ */
 export const REMINDER_UNITS = ["days", "weeks"] as const;
 
 export type ReminderUnit = (typeof REMINDER_UNITS)[number];

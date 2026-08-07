@@ -1,3 +1,7 @@
+/**
+ * Top-of-viewport navigation progress indicator for App Router client transitions.
+ */
+
 "use client";
 
 import { usePathname, useSearchParams } from "next/navigation";

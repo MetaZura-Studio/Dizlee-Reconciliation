@@ -1,3 +1,8 @@
+/**
+ * GET, PATCH — Admin portal.
+ * Read or update Dizlee invoice bank and signatory details.
+ */
+
 import { NextResponse } from "next/server";
 
 import { requireAdminApiSession } from "@/lib/admin/api-auth";

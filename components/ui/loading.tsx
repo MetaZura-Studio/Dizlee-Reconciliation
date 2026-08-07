@@ -1,3 +1,7 @@
+/**
+ * Loading and skeleton helpers for route fallbacks, full-viewport blocking states, and in-view refetch overlays.
+ */
+
 import type { ReactNode } from "react";
 
 import { cn } from "@/lib/ui/classes";

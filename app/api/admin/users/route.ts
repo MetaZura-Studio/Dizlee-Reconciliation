@@ -1,3 +1,8 @@
+/**
+ * GET, POST — Admin portal.
+ * List platform users or invite/create a new user.
+ */
+
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 

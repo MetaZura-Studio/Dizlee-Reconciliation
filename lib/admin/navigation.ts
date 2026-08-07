@@ -1,7 +1,12 @@
+/**
+ * Admin sidebar navigation model — routes, icons, and section grouping.
+ * Consumed by Admin layout and workspace shell only; hrefs must match app routes.
+ */
 export type AdminNavIcon =
   | "dashboard"
   | "audit"
   | "users"
+  | "organization"
   | "email-settings"
   | "email-templates"
   | "reminder"
@@ -34,13 +39,6 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     section: "main",
   },
   {
-    label: "Audit logs",
-    href: "/admin/audit-logs",
-    icon: "audit",
-    description: "View and export platform audit events.",
-    section: "main",
-  },
-  {
     label: "Users",
     href: "/admin/users",
     icon: "users",
@@ -48,61 +46,77 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     section: "main",
   },
   {
-    label: "OpCos",
+    label: "Organization",
     href: "/admin/opcos",
-    icon: "opcos",
-    description: "Create and manage OpCo organizations.",
+    icon: "organization",
+    description: "Manage OpCos, Partners, and their relationships.",
     section: "main",
+    children: [
+      {
+        label: "OpCos",
+        href: "/admin/opcos",
+        icon: "opcos",
+        description: "Create and manage OpCo organizations.",
+        section: "main",
+      },
+      {
+        label: "Partners",
+        href: "/admin/partners",
+        icon: "partners",
+        description: "Create and manage Partner organizations.",
+        section: "main",
+      },
+      {
+        label: "OpCo partners",
+        href: "/admin/opco-partners",
+        icon: "opco-partners",
+        description: "Configure OpCo and Partner relationships.",
+        section: "main",
+      },
+    ],
   },
   {
-    label: "Partners",
-    href: "/admin/partners",
-    icon: "partners",
-    description: "Create and manage Partner organizations.",
-    section: "main",
-  },
-  {
-    label: "Email Templates",
-    href: "/admin/email-templates",
-    icon: "email-templates",
-    description: "Manage email templates and version history.",
-    section: "main",
-  },
-  {
-    label: "OpCo partners",
-    href: "/admin/opco-partners",
-    icon: "opco-partners",
-    description: "Configure OpCo and Partner relationships.",
-    section: "main",
-  },
-  {
-    label: "Reconciliation tolerance",
-    href: "/admin/reconciliation-tolerance",
-    icon: "tolerance",
-    description: "Set the negligible reconciliation difference threshold.",
-    section: "main",
-  },
-  {
-    label: "Currencies & KWD rates",
-    href: "/admin/currencies",
-    icon: "currencies",
-    description: "Manage currencies and monthly KWD exchange rates.",
-    section: "main",
-  },
-  {
-    label: "Invoice bank details",
-    href: "/admin/invoice-bank-details",
-    icon: "bank",
-    description: "Set default invoice bank account details.",
+    label: "Audit logs",
+    href: "/admin/audit-logs",
+    icon: "audit",
+    description: "View and export platform audit events.",
     section: "main",
   },
   {
     label: "Settings",
     href: "/admin/email-settings",
     icon: "settings",
-    description: "Email and reminder configuration.",
+    description: "Platform configuration and templates.",
     section: "main",
     children: [
+      {
+        label: "Email Templates",
+        href: "/admin/email-templates",
+        icon: "email-templates",
+        description: "Manage email templates and version history.",
+        section: "main",
+      },
+      {
+        label: "Reconciliation tolerance",
+        href: "/admin/reconciliation-tolerance",
+        icon: "tolerance",
+        description: "Set the negligible reconciliation difference threshold.",
+        section: "main",
+      },
+      {
+        label: "Currencies & USD rates",
+        href: "/admin/currencies",
+        icon: "currencies",
+        description: "Manage currencies and monthly USD exchange rates.",
+        section: "main",
+      },
+      {
+        label: "Invoice bank details",
+        href: "/admin/invoice-bank-details",
+        icon: "bank",
+        description: "Set default invoice bank account details.",
+        section: "main",
+      },
       {
         label: "Email Settings",
         href: "/admin/email-settings",

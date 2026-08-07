@@ -1,3 +1,6 @@
+/**
+ * Admin users list filters, sort fields, and pagination defaults for the Users UI.
+ */
 export type AdminUserRole = "client" | "opco" | "partner";
 export type AdminUserStatus = "ACTIVE" | "INACTIVE" | "SUSPENDED";
 export type UserSortField = "name" | "email" | "role" | "status";

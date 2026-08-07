@@ -1,3 +1,7 @@
+/**
+ * Audit log list filters, query string builders, CSV export, and row DTOs.
+ * Used by Admin audit UI and dashboard recent-activity snippet.
+ */
 export type AuditLogActorRole = "ADMIN" | "CLIENT" | "OPCO" | "PARTNER";
 
 export type AuditLogListItem = {

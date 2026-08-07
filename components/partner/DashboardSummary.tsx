@@ -1,3 +1,8 @@
+/**
+ * Partner home dashboard with submission KPIs for reports and invoices.
+ * Period selector drives summary metrics and deep links.
+ */
+
 import { OpcoSubmissionsTable } from "@/components/partner/OpcoSubmissionsTable";
 import { PeriodSelector } from "@/components/partner/PeriodSelector";
 import { EmptyState } from "@/components/ui/empty-state";

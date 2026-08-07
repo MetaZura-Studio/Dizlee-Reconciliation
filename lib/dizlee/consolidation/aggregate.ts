@@ -1,3 +1,10 @@
+/**
+ * Partner/OpCo report line aggregation for OpCo consolidation totals.
+ * Consumed by consolidation generation; merges lines by normalized service code.
+ *
+ * Billable amount prefers `amount` (OpCo Original Amount / Partner Gross), not Zain share.
+ */
+
 import { normalizeServiceName } from "@/lib/dizlee/reconciliation/compare";
 
 export type ConsolidationLineInput = {
@@ -22,21 +29,18 @@ export type AggregatedConsolidationItem = {
   revenueBasis: string | null;
 };
 
-function lineUsageAmount(line: ConsolidationLineInput): number {
-  if (line.usageAmount !== null && line.usageAmount !== undefined) {
-    return line.usageAmount;
-  }
+/** Billable total for consolidation — Original/Gross amount, not usage volume or Zain share. */
+export function lineBillableAmount(line: ConsolidationLineInput): number {
   if (line.amount !== null && line.amount !== undefined) {
     return line.amount;
   }
-  return 0;
-}
-
-function lineUsageUsd(line: ConsolidationLineInput): number {
+  if (line.usageAmount !== null && line.usageAmount !== undefined) {
+    return line.usageAmount;
+  }
   if (line.usageUsd !== null && line.usageUsd !== undefined) {
     return line.usageUsd;
   }
-  return lineUsageAmount(line);
+  return 0;
 }
 
 export function extractServiceCode(line: ConsolidationLineInput): string {
@@ -56,6 +60,7 @@ export function extractServiceCode(line: ConsolidationLineInput): string {
   return normalizeServiceName(line.description, line.lineNumber).slice(0, 128);
 }
 
+/** Rolls up report lines by service code, summing billable amounts. */
 export function aggregatePartnerLines(
   lines: ConsolidationLineInput[],
 ): AggregatedConsolidationItem[] {
@@ -63,13 +68,12 @@ export function aggregatePartnerLines(
 
   for (const line of lines) {
     const serviceCode = extractServiceCode(line);
-    const usageAmount = lineUsageAmount(line);
-    const usageUsd = lineUsageUsd(line);
+    const billable = lineBillableAmount(line);
     const existing = map.get(serviceCode);
 
     if (existing) {
-      existing.usageAmount += usageAmount;
-      existing.usageUsd += usageUsd;
+      existing.usageAmount += billable;
+      existing.usageUsd += billable;
       if (!existing.description && line.description) {
         existing.description = line.description;
       }
@@ -87,10 +91,9 @@ export function aggregatePartnerLines(
 
     map.set(serviceCode, {
       serviceCode,
-      description:
-        line.description?.trim() || serviceCode.slice(0, 255),
-      usageAmount,
-      usageUsd,
+      description: line.description?.trim() || serviceCode.slice(0, 255),
+      usageAmount: billable,
+      usageUsd: billable,
       exchangeRate: line.exchangeRate,
       usageUnit: line.usageUnit,
       revenueBasis: line.reconciliationBasis,

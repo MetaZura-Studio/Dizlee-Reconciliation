@@ -1,3 +1,8 @@
+/**
+ * Admin monthly FX rates — load/save per (currencyId, month, year) with soft-delete diffs.
+ * Delegates period math and save planning to lib/platform/currency-rates; audits rate changes.
+ * Base currency row is always present at rate 1 for the selected period.
+ */
 import type { Prisma } from "@prisma/client";
 
 import { writeCurrencyAuditLog } from "@/lib/admin/audit";
@@ -170,7 +175,7 @@ export async function saveRatesForPeriod(
       entry.rateToUsd !== null &&
       entry.rateToUsd !== BASE_CURRENCY_RATE
     ) {
-      throw new CurrencyRatesError("KWD rate must be 1");
+      throw new CurrencyRatesError(`${BASE_CURRENCY_ISO_CODE} rate must be 1`);
     }
   }
 

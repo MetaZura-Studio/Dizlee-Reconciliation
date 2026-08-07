@@ -1,3 +1,8 @@
+/**
+ * POST — Admin portal.
+ * Send a test email using the configured SMTP settings.
+ */
+
 import { NextResponse } from "next/server";
 
 import { requireAdminApiSession } from "@/lib/admin/api-auth";

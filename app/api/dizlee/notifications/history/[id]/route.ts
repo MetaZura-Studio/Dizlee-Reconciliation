@@ -1,3 +1,8 @@
+/**
+ * GET — Dizlee portal.
+ * Return detail for a sent notification history record.
+ */
+
 import { NextResponse } from "next/server";
 
 import { requireDizleeSession } from "@/lib/dizlee/auth";

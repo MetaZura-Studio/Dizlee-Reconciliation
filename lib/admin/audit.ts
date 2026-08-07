@@ -1,3 +1,8 @@
+/**
+ * Admin settings audit log writers — maps domain actions to AUDIT_ACTION lookups.
+ * Called from Admin server modules after successful mutations (users, currencies, org, etc.).
+ * Each helper fixes entity type and action code for consistent Admin audit log filtering.
+ */
 import type { Prisma } from "@prisma/client";
 
 import { getLookupId } from "@/lib/admin/lookups";

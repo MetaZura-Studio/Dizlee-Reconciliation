@@ -1,3 +1,8 @@
+/**
+ * POST — Dizlee portal.
+ * Upload an attachment for use in Dizlee broadcast notifications.
+ */
+
 import { NextResponse } from "next/server";
 
 import { requireDizleeSession } from "@/lib/dizlee/auth";

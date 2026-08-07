@@ -1,3 +1,6 @@
+/**
+ * Persists notification broadcast attachments via the shared object-storage layer.
+ */
 import {
   saveStoredObject,
   type SaveStoredObjectResult,

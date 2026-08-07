@@ -1,3 +1,8 @@
+/**
+ * POST — Auth portal.
+ * Change the authenticated user's password after verifying the current one.
+ */
+
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 

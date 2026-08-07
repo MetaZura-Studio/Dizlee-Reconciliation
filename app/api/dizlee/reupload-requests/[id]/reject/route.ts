@@ -1,3 +1,8 @@
+/**
+ * PATCH — Dizlee portal.
+ * Reject a partner or OpCo file re-upload request.
+ */
+
 import { NextResponse } from "next/server";
 
 import { requireDizleeSession } from "@/lib/dizlee/auth";

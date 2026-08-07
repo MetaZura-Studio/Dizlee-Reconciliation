@@ -1,3 +1,8 @@
+/**
+ * GET — Dizlee portal.
+ * List available reconciliation lanes and their readiness.
+ */
+
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 

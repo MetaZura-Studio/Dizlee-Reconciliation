@@ -1,3 +1,8 @@
+/**
+ * GET, PATCH — Admin portal.
+ * Load or update currency exchange rates for a selected period.
+ */
+
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 

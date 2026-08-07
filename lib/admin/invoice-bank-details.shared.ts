@@ -1,3 +1,7 @@
+/**
+ * Admin invoice bank details list view types (legacy flat shape deprecated).
+ * Active model is multi-account JSON edited in Admin and snapshotted on issued invoices.
+ */
 import type { InvoiceBankAccount } from "@/lib/dizlee/invoice-bank-details";
 
 export type InvoiceBankAccountView = InvoiceBankAccount;

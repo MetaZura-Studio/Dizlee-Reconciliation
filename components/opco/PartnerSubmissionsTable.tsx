@@ -1,3 +1,8 @@
+/**
+ * Table of partner report submissions visible to the OpCo for a period.
+ * Lets OpCo users monitor partner compliance alongside their own files.
+ */
+
 "use client";
 
 import { useMemo, useState } from "react";

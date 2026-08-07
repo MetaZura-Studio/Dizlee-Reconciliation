@@ -1,3 +1,8 @@
+/**
+ * Admin home dashboard summarizing organizations, users, and recent audit activity.
+ * Entry point after sign-in for high-level platform health.
+ */
+
 import type { ReactNode } from "react";
 import Link from "next/link";
 

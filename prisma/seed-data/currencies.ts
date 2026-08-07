@@ -1,3 +1,8 @@
+/**
+ * ISO currency catalog seeded before monthly rates and OpCo default-currency links.
+ * Precision matches platform rounding rules for reconciliation and invoicing.
+ */
+
 export type CurrencySeed = {
   isoCode: string;
   symbol: string;

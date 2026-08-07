@@ -1,3 +1,8 @@
+/**
+ * Compose and send submission intimation emails to OpCos and partners.
+ * Uses DB-backed templates from the intimations category.
+ */
+
 "use client";
 
 import { useCallback, useMemo, useState } from "react";

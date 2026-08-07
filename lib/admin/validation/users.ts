@@ -1,3 +1,6 @@
+/**
+ * Zod schemas for Admin user create/update — role, org assignment, and status rules.
+ */
 import { z } from "zod";
 
 export const ADMIN_ASSIGNABLE_ROLES = ["client", "opco", "partner"] as const;

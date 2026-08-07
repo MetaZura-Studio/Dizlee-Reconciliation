@@ -1,3 +1,8 @@
+/**
+ * POST — OpCo portal.
+ * Request a correction or change to a submitted report period.
+ */
+
 import { NextResponse } from "next/server";
 
 import { getOpcoSession } from "@/lib/opco/auth";

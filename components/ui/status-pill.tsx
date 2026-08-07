@@ -1,3 +1,7 @@
+/**
+ * Compact status chip mapping semantic tones (success, warning, info, danger, neutral) to border/background tokens.
+ */
+
 import type { ReactNode } from "react";
 
 import { cn, ui } from "@/lib/ui/classes";

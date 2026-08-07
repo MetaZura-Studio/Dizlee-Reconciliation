@@ -68,4 +68,35 @@ describe("compareReportLines", () => {
     expect(rows[0]?.matchStatus).toBe("MISSING_IN_PARTNER");
     expect(rows[0]?.confirmedValue).toBe(50);
   });
+
+  it("compares OpCo original amount to Partner gross, not Zain share", () => {
+    const rows = compareReportLines(
+      [
+        {
+          lineId: BigInt(1),
+          description: "Games",
+          lineNumber: 1,
+          amount: 50,
+          usageUsd: 10,
+          usageAmount: null,
+        },
+      ],
+      [
+        {
+          lineId: BigInt(2),
+          description: "Games",
+          lineNumber: 1,
+          amount: 50,
+          usageUsd: null,
+          usageAmount: null,
+        },
+      ],
+      1,
+    );
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.matchStatus).toBe("MATCHED");
+    expect(rows[0]?.opcoAmount).toBe(50);
+    expect(rows[0]?.partnerAmount).toBe(50);
+  });
 });

@@ -1,3 +1,8 @@
+/**
+ * GET — Partner portal.
+ * Return the unread partner inbox notification count.
+ */
+
 import { NextResponse } from "next/server";
 
 import { getPartnerSession } from "@/lib/partner/auth";

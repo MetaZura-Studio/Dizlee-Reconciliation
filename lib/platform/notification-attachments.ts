@@ -1,3 +1,7 @@
+/**
+ * Notification attachment validation, file records, and Prisma create helpers.
+ * Limits: 10 MB per file, five attachments; stored under notifications folder in object storage.
+ */
 import "server-only";
 
 import { resolveDownloadMimeType } from "@/lib/platform/file-response-headers";

@@ -1,3 +1,8 @@
+/**
+ * Queue of partner and OpCo file re-upload requests awaiting Dizlee approval.
+ * Operators approve or reject replacements for already submitted files.
+ */
+
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
@@ -23,6 +28,7 @@ import { cn, ui } from "@/lib/ui/classes";
 import { nextSortState, type SortDirection } from "@/lib/ui/sort";
 import type { ReportFilterOptions } from "@/lib/dizlee/reports";
 import {
+  getCurrentPeriod,
   getMaxMonthForYear,
   getPeriodYearOptions,
 } from "@/lib/platform/period";
@@ -167,6 +173,23 @@ export function ReuploadRequestsView({
 
   const refresh = () => {
     void loadRequests({ ...result.filters, sortBy, sortDir, page: 1 });
+  };
+
+  const clearFilters = () => {
+    const period = getCurrentPeriod();
+    setMonth(period.month);
+    setYear(period.year);
+    setOpcoId("");
+    setPartnerId("");
+    setSortBy(initialResult.filters.sortBy);
+    setSortDir(initialResult.filters.sortDir);
+    void loadRequests({
+      month: period.month,
+      year: period.year,
+      page: 1,
+      sortBy: initialResult.filters.sortBy,
+      sortDir: initialResult.filters.sortDir,
+    });
   };
 
   useEffect(() => {
@@ -326,6 +349,9 @@ export function ReuploadRequestsView({
           <Button onClick={applyFilters}>Apply</Button>
           <Button variant="secondary" onClick={refresh}>
             Refresh
+          </Button>
+          <Button variant="secondary" onClick={clearFilters}>
+            Clear filters
           </Button>
         </div>
       </FilterToolbar>

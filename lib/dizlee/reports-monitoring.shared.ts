@@ -1,7 +1,12 @@
+/**
+ * Shared report monitoring types and lane→reconciliation compare adapters.
+ * Consumed by reports-monitoring server module and reminder orchestration.
+ */
+
 import type { DashboardPeriod } from "@/lib/dizlee/dashboard";
 import type { CompareLaneRow, LaneState } from "@/lib/dizlee/reconciliation";
 
-export type MissingSideFilter = "opco" | "partner" | "any";
+export type MissingSideFilter = "opco" | "partner" | "any" | "both";
 
 export type ReportMonitoringFilters = {
   month: number;
@@ -77,6 +82,7 @@ function laneReminderState(
   return "READY";
 }
 
+/** True when either side has not submitted a report for the lane period. */
 export function monitoringLaneNeedsReminder(lane: ReportMonitoringLane): boolean {
   const state = laneReminderState(lane);
   return (
@@ -86,6 +92,7 @@ export function monitoringLaneNeedsReminder(lane: ReportMonitoringLane): boolean
   );
 }
 
+/** Maps a monitoring lane row into the reconciliation compare grid shape. */
 export function monitoringLaneToCompareLane(
   lane: ReportMonitoringLane,
 ): CompareLaneRow {

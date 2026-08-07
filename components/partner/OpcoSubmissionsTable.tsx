@@ -1,3 +1,8 @@
+/**
+ * Cross-OpCo view of where the partner must submit for the active period.
+ * Highlights submission status per linked OpCo relationship.
+ */
+
 "use client";
 
 import { useMemo, useState } from "react";

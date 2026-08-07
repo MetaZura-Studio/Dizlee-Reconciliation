@@ -1,3 +1,8 @@
+/**
+ * Report reupload request queue for Dizlee review and OpCo/Partner resubmission.
+ * Consumed by reupload requests UI; writes platform audit entries on decisions.
+ */
+
 import type { Prisma } from "@prisma/client";
 
 import { currentPeriod, type DashboardPeriod } from "@/lib/dizlee/dashboard";

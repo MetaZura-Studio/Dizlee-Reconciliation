@@ -1,3 +1,7 @@
+/**
+ * Centered empty-list placeholder with title, optional description, and action slot.
+ */
+
 import type { ReactNode } from "react";
 
 import { cn, ui } from "@/lib/ui/classes";

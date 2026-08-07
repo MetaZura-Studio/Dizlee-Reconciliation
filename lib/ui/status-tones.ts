@@ -1,3 +1,10 @@
+/**
+ * Maps domain status codes and labels to badge / alert tone tokens.
+ *
+ * Portal-agnostic UI. Codes are normalized to uppercase where applicable; unknown
+ * values map to `neutral` so badges never throw at render time.
+ */
+
 type StatusTone = "success" | "warning" | "info" | "danger" | "neutral";
 
 export function reportStatusTone(code: string): StatusTone {

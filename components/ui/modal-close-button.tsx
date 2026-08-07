@@ -1,3 +1,7 @@
+/**
+ * Shared modal dismiss control — branded red circle with white close icon.
+ */
+
 "use client";
 
 import { IconClose } from "@/components/ui/icons";

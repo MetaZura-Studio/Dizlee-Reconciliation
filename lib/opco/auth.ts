@@ -1,6 +1,9 @@
 /**
- * OpCo-scoped auth helpers.
- * Shahrukh owns this module — reads shared JWT via lib/auth/options only.
+ * OpCo portal session resolution and route guards.
+ *
+ * Portal: OpCo. Consumes the shared NextAuth JWT from `@/lib/auth/options`; do not
+ * issue or verify tokens here. All OpCo server actions and RSC loaders must scope
+ * data by `opcoId` from `requireOpcoSession()` / `getOpcoSession()`.
  */
 
 import { getServerSession } from "next-auth";

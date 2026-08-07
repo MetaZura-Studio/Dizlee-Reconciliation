@@ -1,3 +1,8 @@
+/**
+ * GET — Dizlee portal.
+ * Return metadata and status for a single report.
+ */
+
 import { NextResponse } from "next/server";
 
 import { requireDizleeSession } from "@/lib/dizlee/auth";

@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FieldLabel, Select } from "@/components/ui/field";
 import { FilterToolbar } from "@/components/ui/page";
+import { getDefaultPeriod } from "@/lib/opco/period";
 import {
   clampPeriodToPresent,
   getMaxMonthForYear,
@@ -47,6 +48,14 @@ export function PeriodSelector({ year, month }: PeriodSelectorProps) {
     if (selectedMonth > capped) {
       setSelectedMonth(capped);
     }
+  }
+
+  function clearFilters() {
+    const defaults = getDefaultPeriod();
+    setSelectedYear(defaults.year);
+    setSelectedMonth(defaults.month);
+    const next = clampPeriodToPresent(defaults.year, defaults.month);
+    router.push(`/opco?year=${next.year}&month=${next.month}`);
   }
 
   return (
@@ -92,6 +101,9 @@ export function PeriodSelector({ year, month }: PeriodSelectorProps) {
           </Select>
         </div>
         <Button type="submit">Apply</Button>
+        <Button type="button" variant="secondary" onClick={clearFilters}>
+          Clear filters
+        </Button>
       </FilterToolbar>
     </form>
   );

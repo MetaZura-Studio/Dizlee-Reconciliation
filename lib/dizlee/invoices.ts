@@ -1,3 +1,9 @@
+/**
+ * Dizlee invoice operations: list/detail queries, digital send to OpCo, and status semantics.
+ * Consumed by invoices UI, lifecycle monitoring, and dashboard billing sections.
+ * Paid payment status overrides display status; legacy SETTLED maps to PAID for operators.
+ */
+
 import type { Prisma } from "@prisma/client";
 
 import { currentPeriod, type DashboardPeriod } from "@/lib/dizlee/dashboard";
@@ -537,8 +543,13 @@ export async function markInvoicePaymentDone(
   if (!invoice) {
     throw new InvoiceActionError("Invoice not found.", 404);
   }
-  if (invoice.invoiceType.code !== "CLIENT_TO_OPCO") {
-    throw new InvoiceActionError("Only Dizlee → OpCo invoices can be marked paid.");
+  if (
+    invoice.invoiceType.code !== "CLIENT_TO_OPCO" &&
+    invoice.invoiceType.code !== "PARTNER_TO_CLIENT"
+  ) {
+    throw new InvoiceActionError(
+      "Only Dizlee → OpCo or Partner → Dizlee invoices can be marked paid.",
+    );
   }
   if (invoice.paymentStatus?.code === "PAID") {
     throw new InvoiceActionError("Invoice is already marked as paid.");
@@ -866,7 +877,9 @@ function mapInvoiceDetail(
     preparedBy: signatories.preparedBy,
     approvedBy: signatories.approvedBy,
     canMarkPayment:
-      invoice.invoiceType.code === "CLIENT_TO_OPCO" && paymentCode !== "PAID",
+      (invoice.invoiceType.code === "CLIENT_TO_OPCO" ||
+        invoice.invoiceType.code === "PARTNER_TO_CLIENT") &&
+      paymentCode !== "PAID",
     lineItems: invoice.items.map((item) => ({
       description: item.description,
       quantity: toNumber(item.quantity),

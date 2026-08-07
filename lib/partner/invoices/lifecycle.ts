@@ -1,3 +1,10 @@
+/**
+ * Partner invoice lifecycle timeline and activity log for detail views.
+ *
+ * Portal: Partner. Steps are derived from current invoice and payment status ranks;
+ * activities come from `invoiceActivityLog` ordered newest first.
+ */
+
 import { formatPeriodLabel } from "@/lib/partner/period";
 import prisma from "@/lib/prisma";
 
@@ -98,6 +105,7 @@ function buildSteps(params: {
   });
 }
 
+/** Builds lifecycle steps and activity feed for a partner-owned invoice detail page. */
 export async function getPartnerInvoiceLifecycle(
   partnerId: bigint,
   invoiceId: bigint,

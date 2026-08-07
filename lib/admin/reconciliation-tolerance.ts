@@ -1,3 +1,7 @@
+/**
+ * Admin reconciliation negligible-variance percent — read/update app_settings row id 1.
+ * Display value mirrors lib/platform/reconciliation-tolerance for Dizlee reconciliation runs.
+ */
 import { writeSettingsAuditLog } from "@/lib/admin/audit";
 import {
   updateReconciliationToleranceSchema,

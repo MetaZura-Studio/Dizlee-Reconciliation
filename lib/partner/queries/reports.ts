@@ -1,3 +1,10 @@
+/**
+ * Partner report list, detail, and URL filter parsing.
+ *
+ * Portal: Partner. All queries filter `version: PARTNER_REPORT_VERSION` and `partnerId`.
+ * Reupload eligibility is derived from change-request workflow, not status alone.
+ */
+
 import type { Prisma } from "@prisma/client";
 
 import { formatPeriodLabel } from "@/lib/partner/period";

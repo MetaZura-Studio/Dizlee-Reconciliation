@@ -1,3 +1,9 @@
+/**
+ * Partner PDF invoice upload validation: metadata schema and client file checks.
+ *
+ * Portal: Partner. Accepts `.pdf` only; period must not exceed current calendar month.
+ */
+
 import { z } from "zod";
 
 import { getCurrentPeriod, isFuturePeriod } from "@/lib/platform/period";

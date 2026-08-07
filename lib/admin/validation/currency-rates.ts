@@ -1,3 +1,6 @@
+/**
+ * Zod schemas for Admin monthly currency rate save payloads (per-period grid).
+ */
 import { z } from "zod";
 
 function hasAtMostEightDecimalPlaces(value: number): boolean {

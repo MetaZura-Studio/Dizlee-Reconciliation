@@ -1,3 +1,8 @@
+/**
+ * GET, POST — Admin portal.
+ * List notification templates or create a new template.
+ */
+
 import { NextResponse } from "next/server";
 
 import { requireAdminApiSession } from "@/lib/admin/api-auth";

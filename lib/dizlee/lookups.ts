@@ -1,3 +1,9 @@
+/**
+ * Thin lookup resolver for Dizlee server modules.
+ * Consumed across invoices, reconciliation, activity, and notifications.
+ * Throws when a type/code pair is absent from seeded `lookups` data.
+ */
+
 import { prisma } from "@/lib/prisma";
 
 export async function getLookupId(

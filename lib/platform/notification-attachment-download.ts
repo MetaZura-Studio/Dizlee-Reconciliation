@@ -1,3 +1,6 @@
+/**
+ * Authorized notification attachment download response — verifies recipient OpCo/Partner scope.
+ */
 import "server-only";
 
 import { NextResponse } from "next/server";

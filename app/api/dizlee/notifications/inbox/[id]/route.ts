@@ -1,3 +1,8 @@
+/**
+ * GET — Dizlee portal.
+ * Mark a notification read and return its detail for the Dizlee inbox.
+ */
+
 import { NextResponse } from "next/server";
 
 import { requireDizleeSession } from "@/lib/dizlee/auth";

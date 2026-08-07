@@ -1,3 +1,8 @@
+/**
+ * OpCo portal shell with navigation, notifications bell, and sign-out.
+ * Frames dashboard, reports, invoices, and inbox routes for OpCo users.
+ */
+
 "use client";
 
 import Link from "next/link";

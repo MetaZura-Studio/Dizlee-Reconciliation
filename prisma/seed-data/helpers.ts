@@ -1,3 +1,8 @@
+/**
+ * Shared seed types and integrity helpers for OpCo, partner, and link datasets.
+ * Derives portal login emails from slugs and validates referential consistency before `seed.ts` runs.
+ */
+
 export type SeedEntity = {
   slug: string;
   name: string;

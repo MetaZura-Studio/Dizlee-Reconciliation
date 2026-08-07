@@ -1,3 +1,8 @@
+/**
+ * Login scope constants and role eligibility for main vs admin portals.
+ * Consumed by NextAuth authorize and middleware; admin scope is admin-only.
+ */
+
 import type { AppRole } from "@/lib/auth/types";
 
 export const AUTH_LOGIN_SCOPES = ["main", "admin"] as const;

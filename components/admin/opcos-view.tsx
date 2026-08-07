@@ -1,3 +1,8 @@
+/**
+ * Maintain OpCo organizations: create, edit, and retire operating companies.
+ * Central master data for OpCo portal access and submissions.
+ */
+
 "use client";
 
 import { useMemo, useState } from "react";
@@ -152,6 +157,15 @@ export function OpcosView({ initialOpcos, currencies }: OpcosViewProps) {
     }
   };
 
+  const clearFilters = () => {
+    setSearch("");
+    setStatus("all");
+    setCurrencyIso("all");
+    setSortBy("name");
+    setSortDir("asc");
+    setPage(1);
+  };
+
   const handleDeleted = async (message: string) => {
     try {
       await reload();
@@ -225,6 +239,9 @@ export function OpcosView({ initialOpcos, currencies }: OpcosViewProps) {
             </select>
           </label>
         </div>
+        <Button type="button" variant="secondary" onClick={clearFilters}>
+          Clear filters
+        </Button>
       </FilterToolbar>
 
       <div className="mt-6 space-y-4">

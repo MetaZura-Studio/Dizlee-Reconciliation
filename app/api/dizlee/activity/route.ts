@@ -1,3 +1,8 @@
+/**
+ * GET — Dizlee portal.
+ * Return recent platform activity events for the Dizlee operations feed.
+ */
+
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 

@@ -1,3 +1,7 @@
+/**
+ * Debounced keyword search bar and filter-section divider for admin and portal list views.
+ */
+
 "use client";
 
 import { ui } from "@/lib/ui/classes";

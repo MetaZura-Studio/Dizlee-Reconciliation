@@ -1,3 +1,8 @@
+/**
+ * End-to-end password invite, reset, change, and forgot flows with persistence.
+ * Consumed by auth API routes and admin user actions; throws PasswordFlowError with HTTP status.
+ */
+
 import { z } from "zod";
 
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
@@ -63,6 +68,7 @@ const forgotPasswordSchema = z.object({
   email: z.string().trim().email("Enter a valid email address"),
 });
 
+/** Issues a one-time token, persists hash, and sends the purpose-specific email. */
 export async function issuePasswordResetForUser(
   userId: bigint,
   purpose: PasswordResetPurpose,

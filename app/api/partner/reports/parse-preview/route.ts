@@ -1,3 +1,8 @@
+/**
+ * POST — Partner portal.
+ * Parse an uploaded report file and return validation preview before submit.
+ */
+
 import { NextResponse } from "next/server";
 
 import { ReportParseError, parseReportWorkbook } from "@/lib/partner/excel/parse-report";

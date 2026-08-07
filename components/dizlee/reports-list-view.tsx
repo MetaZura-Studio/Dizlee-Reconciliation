@@ -1,3 +1,8 @@
+/**
+ * Searchable list of submitted report files with preview and status.
+ * Main Dizlee index for partner and OpCo report submissions.
+ */
+
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -25,6 +30,7 @@ import { ui } from "@/lib/ui/classes";
 import { nextSortState } from "@/lib/ui/sort";
 import { useDebouncedValue } from "@/lib/ui/use-debounced-value";
 import {
+  getCurrentPeriod,
   getMaxMonthForYear,
   getPeriodYearOptions,
 } from "@/lib/platform/period";
@@ -186,6 +192,25 @@ export function ReportsListView({
 
   const refresh = () => {
     void loadReports({ ...result.filters, page: 1 });
+  };
+
+  const clearFilters = () => {
+    const period = getCurrentPeriod();
+    skipSearchEffect.current = true;
+    setSearch("");
+    setMonth(period.month);
+    setYear(period.year);
+    setOpcoId("");
+    setPartnerId("");
+    setSortBy(initialResult.filters.sortBy);
+    setSortDir(initialResult.filters.sortDir);
+    void loadReports({
+      month: period.month,
+      year: period.year,
+      sortBy: initialResult.filters.sortBy,
+      sortDir: initialResult.filters.sortDir,
+      page: 1,
+    });
   };
 
   useEffect(() => {
@@ -350,6 +375,9 @@ export function ReportsListView({
           <Button onClick={applyFilters}>Apply filters</Button>
           <Button variant="secondary" onClick={refresh}>
             Refresh
+          </Button>
+          <Button variant="secondary" onClick={clearFilters}>
+            Clear filters
           </Button>
         </div>
       </FilterToolbar>

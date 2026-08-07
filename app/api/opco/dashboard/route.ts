@@ -1,3 +1,8 @@
+/**
+ * GET — OpCo portal.
+ * Return summary metrics for the signed-in OpCo portal dashboard.
+ */
+
 import { NextResponse } from "next/server";
 
 import { getOpcoSession } from "@/lib/opco/auth";

@@ -1,3 +1,8 @@
+/**
+ * Platform monthly FX rates — DB reads, rolling periods, and save-plan diff for Admin UI.
+ * Base currency USD at rate 1; `rateToUsd` is units of USD per one unit of currency (legacy column name).
+ * Used by Admin Currencies and Dizlee dashboard FX conversion.
+ */
 import { prisma } from "@/lib/prisma";
 
 function toNumber(value: unknown): number {
@@ -71,7 +76,7 @@ export function buildRollingPeriods(
 }
 
 /** Platform base currency. Stored FX values (`rate_to_usd`) mean rate toward this ISO. */
-export const BASE_CURRENCY_ISO_CODE = "KWD" as const;
+export const BASE_CURRENCY_ISO_CODE = "USD" as const;
 export const BASE_CURRENCY_RATE = 1;
 
 export type RateSavePlan = {
@@ -81,6 +86,7 @@ export type RateSavePlan = {
   cleared: number;
 };
 
+/** Diff submitted grid against catalog — null rate soft-deletes; base ISO always upserts at 1. */
 export function computeRateSavePlan(params: {
   currencies: Array<{ id: string; isoCode: string }>;
   submittedRates: Array<{ currencyId: string; rateToUsd: number | null }>;

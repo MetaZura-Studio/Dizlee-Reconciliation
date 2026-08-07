@@ -1,3 +1,8 @@
+/**
+ * POST — Dizlee portal.
+ * Record payment/settlement for Dizlee → OpCo or Partner → Dizlee invoices.
+ */
+
 import { NextResponse } from "next/server";
 
 import { requireDizleeSession } from "@/lib/dizlee/auth";

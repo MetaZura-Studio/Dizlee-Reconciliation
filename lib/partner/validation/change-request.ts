@@ -1,3 +1,9 @@
+/**
+ * Zod schema for Partner report change-request (reupload) form payloads.
+ *
+ * Portal: Partner. Reason length bounds align with Dizlee review UI and audit metadata.
+ */
+
 import { z } from "zod";
 
 export const reportChangeRequestSchema = z.object({

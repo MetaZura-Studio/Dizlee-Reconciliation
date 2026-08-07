@@ -1,3 +1,9 @@
+/**
+ * Prisma database seed entrypoint (`pnpm db:seed`). Upserts lookups, currencies and rates,
+ * app settings, notification templates, OpCos/partners/links, and portal users (shared dev password).
+ * Retires legacy demo emails/templates; validates slug uniqueness and link integrity up front.
+ */
+
 import { PrismaClient } from "@prisma/client";
 
 import { hashPassword } from "../lib/auth/password";
@@ -357,6 +363,27 @@ async function seedUsers(
   for (const email of RETIRED_USER_EMAILS) {
     await prisma.user.updateMany({
       where: { email },
+      data: { isDeleted: true },
+    });
+  }
+
+  const keepEmails = new Set<string>([
+    ...platformUsers.map((user) => user.email),
+    ...OPCO_SEEDS.map((opco) => portalEmail(opco.slug)),
+    ...PARTNER_SEEDS.map((partner) => portalEmail(partner.slug)),
+  ]);
+
+  const staleUsers = await prisma.user.findMany({
+    where: { isDeleted: false },
+    select: { id: true, email: true },
+  });
+  const staleIds = staleUsers
+    .filter((user) => !keepEmails.has(user.email))
+    .map((user) => user.id);
+
+  if (staleIds.length > 0) {
+    await prisma.user.updateMany({
+      where: { id: { in: staleIds } },
       data: { isDeleted: true },
     });
   }

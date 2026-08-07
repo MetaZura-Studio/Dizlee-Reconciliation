@@ -1,3 +1,8 @@
+/**
+ * Partner portal shell with navigation, notifications, and sign-out.
+ * Frames dashboard, reports, invoices, and inbox for partner users.
+ */
+
 "use client";
 
 import Link from "next/link";

@@ -1,3 +1,10 @@
+/**
+ * Client-side table sort state toggling for list views.
+ *
+ * Portal-agnostic UI helper. First click on a column sets ascending; repeated clicks
+ * on the same column flip direction.
+ */
+
 export type SortDirection = "asc" | "desc";
 
 /** Next sort field + direction when a column header is clicked. */

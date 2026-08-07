@@ -1,3 +1,8 @@
+/**
+ * Analytic reporting across OpCo–partner pairs with filters and export-oriented tables.
+ * Supports operational analysis beyond raw submission lists.
+ */
+
 "use client";
 
 import Link from "next/link";
@@ -24,6 +29,7 @@ import { paginateItems } from "@/lib/ui/list-pagination";
 import { useDebouncedValue } from "@/lib/ui/use-debounced-value";
 import type { ReportFilterOptions } from "@/lib/dizlee/reports";
 import {
+  getCurrentPeriod,
   getMaxMonthForYear,
   getPeriodYearOptions,
 } from "@/lib/platform/period";
@@ -48,10 +54,11 @@ const MONTHS = [
   "December",
 ];
 
-const kwdFormatter = new Intl.NumberFormat("en-KW", {
+const usdFormatter = new Intl.NumberFormat("en-US", {
   style: "currency",
-  currency: "KWD",
-  maximumFractionDigits: 3,
+  currency: "USD",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
 });
 
 type StatusFilter = "all" | ReportingLaneStatus;
@@ -221,31 +228,61 @@ export function ReportingView({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadOverview = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetch(
-        `/api/dizlee/reporting?${buildQuery(month, year, opcoId, partnerId)}`,
-      );
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to load reporting");
+  const loadOverview = useCallback(
+    async (overrides?: {
+      month?: number;
+      year?: number;
+      opcoId?: string;
+      partnerId?: string;
+    }) => {
+      const nextMonth = overrides?.month ?? month;
+      const nextYear = overrides?.year ?? year;
+      const nextOpcoId = overrides?.opcoId ?? opcoId;
+      const nextPartnerId = overrides?.partnerId ?? partnerId;
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await fetch(
+          `/api/dizlee/reporting?${buildQuery(nextMonth, nextYear, nextOpcoId, nextPartnerId)}`,
+        );
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.error ?? "Failed to load reporting");
+        }
+        setOverview(payload.data as ReportingOverview);
+        setFilterOptions(payload.filterOptions as ReportFilterOptions);
+        setLanePage(1);
+        setConsolPage(1);
+        setStatusFilter("all");
+        setSearch("");
+      } catch (loadError) {
+        setError(
+          loadError instanceof Error ? loadError.message : "Failed to load reporting",
+        );
+      } finally {
+        setLoading(false);
       }
-      setOverview(payload.data as ReportingOverview);
-      setFilterOptions(payload.filterOptions as ReportFilterOptions);
-      setLanePage(1);
-      setConsolPage(1);
-      setStatusFilter("all");
-      setSearch("");
-    } catch (loadError) {
-      setError(
-        loadError instanceof Error ? loadError.message : "Failed to load reporting",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [month, opcoId, partnerId, year]);
+    },
+    [month, opcoId, partnerId, year],
+  );
+
+  const clearFilters = () => {
+    const period = getCurrentPeriod();
+    setMonth(period.month);
+    setYear(period.year);
+    setOpcoId("");
+    setPartnerId("");
+    setStatusFilter("all");
+    setSearch("");
+    setLanePage(1);
+    setConsolPage(1);
+    void loadOverview({
+      month: period.month,
+      year: period.year,
+      opcoId: "",
+      partnerId: "",
+    });
+  };
 
   const yearOptions = getPeriodYearOptions();
   const maxMonth = getMaxMonthForYear(year);
@@ -386,6 +423,9 @@ export function ReportingView({
           >
             Refresh
           </Button>
+          <Button variant="secondary" onClick={clearFilters} disabled={loading}>
+            Clear filters
+          </Button>
         </div>
       </FilterToolbar>
 
@@ -463,8 +503,8 @@ export function ReportingView({
             tone="teal"
           />
           <KpiCard
-            label="Revenue paid (KWD)"
-            value={kwdFormatter.format(summary.totalRevenuePaidUsd)}
+            label="Revenue paid (USD)"
+            value={usdFormatter.format(summary.totalRevenuePaidUsd)}
             tone="amber"
           />
         </div>
@@ -649,7 +689,7 @@ export function ReportingView({
                     <DataTableTh>OpCo</DataTableTh>
                     <DataTableTh>Status</DataTableTh>
                     <DataTableTh>Generated at</DataTableTh>
-                    <DataTableTh className="text-right">Total KWD</DataTableTh>
+                    <DataTableTh className="text-right">Total USD</DataTableTh>
                   </tr>
                 </DataTableHead>
                 <tbody>
@@ -668,7 +708,7 @@ export function ReportingView({
                       </DataTableTd>
                       <DataTableTd className="text-right text-foreground-muted">
                         {row.totalAmountUsd !== null
-                          ? kwdFormatter.format(row.totalAmountUsd)
+                          ? usdFormatter.format(row.totalAmountUsd)
                           : "—"}
                       </DataTableTd>
                     </DataTableRow>

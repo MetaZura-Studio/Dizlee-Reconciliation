@@ -1,3 +1,8 @@
+/**
+ * POST — Partner portal.
+ * Request a correction or change to a submitted report period.
+ */
+
 import { NextResponse } from "next/server";
 
 import { getPartnerSession } from "@/lib/partner/auth";

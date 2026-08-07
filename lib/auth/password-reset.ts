@@ -1,3 +1,8 @@
+/**
+ * Password reset token lifecycle, TTL policy, and action URL construction.
+ * Consumed by invite and forgot-password flows; tokens are stored hashed (SHA-256).
+ */
+
 import { createHash, randomBytes } from "crypto";
 
 /** Admin invite link — industry common: 1 hour */

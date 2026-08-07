@@ -1,8 +1,17 @@
-export type EmailTemplateCategory = "INTIMATION" | "REMINDER" | "OTHER";
+/**
+ * Email template categories, list/detail DTOs, placeholder docs, and category normalization.
+ * Shared by Admin template editor and Dizlee notification pickers (INTIMATION/REMINDER/ALERT).
+ */
+export type EmailTemplateCategory =
+  | "INTIMATION"
+  | "REMINDER"
+  | "ALERT"
+  | "OTHER";
 
 export const EMAIL_TEMPLATE_CATEGORIES: EmailTemplateCategory[] = [
   "INTIMATION",
   "REMINDER",
+  "ALERT",
   "OTHER",
 ];
 
@@ -44,6 +53,28 @@ export const EMAIL_TEMPLATE_PLACEHOLDERS: Record<string, string[]> = {
   REPORT_REMINDER: ["period"],
   INVOICE_SUBMISSION: ["period"],
   INVOICE_REMINDER: ["period"],
+  RECONCILIATION_ALERT_OPCO: [
+    "period",
+    "opcoName",
+    "partnerName",
+    "status",
+    "matchedCount",
+    "unmatchedCount",
+    "totalVariance",
+    "tolerancePercent",
+    "outcome",
+  ],
+  RECONCILIATION_ALERT_PARTNER: [
+    "period",
+    "opcoName",
+    "partnerName",
+    "status",
+    "matchedCount",
+    "unmatchedCount",
+    "totalVariance",
+    "tolerancePercent",
+    "outcome",
+  ],
   PASSWORD_INVITE: ["name", "link", "expiryHours"],
   PASSWORD_FORGOT: ["name", "link", "expiryHours"],
 };
@@ -60,6 +91,8 @@ export function categoryLabel(category: EmailTemplateCategory): string {
       return "Intimation";
     case "REMINDER":
       return "Reminder";
+    case "ALERT":
+      return "Alert";
     case "OTHER":
       return "Other";
   }
@@ -68,6 +101,9 @@ export function categoryLabel(category: EmailTemplateCategory): string {
 /** Map legacy domain categories / codes to communication-type categories. */
 export function inferCategoryFromCode(code: string): EmailTemplateCategory {
   const normalized = code.trim().toUpperCase();
+  if (normalized.includes("ALERT")) {
+    return "ALERT";
+  }
   if (normalized.includes("REMINDER")) {
     return "REMINDER";
   }
@@ -122,6 +158,19 @@ export function getPlaceholdersForTemplate(
     return ["name", "link", "expiryHours"];
   }
   const resolved = category ?? inferCategoryFromCode(code);
+  if (resolved === "ALERT") {
+    return [
+      "period",
+      "opcoName",
+      "partnerName",
+      "status",
+      "matchedCount",
+      "unmatchedCount",
+      "totalVariance",
+      "tolerancePercent",
+      "outcome",
+    ];
+  }
   if (resolved === "INTIMATION" || resolved === "REMINDER") {
     return ["period"];
   }

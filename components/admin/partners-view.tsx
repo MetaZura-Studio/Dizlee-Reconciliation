@@ -1,3 +1,8 @@
+/**
+ * Maintain partner organizations linked to OpCos for reporting and invoicing.
+ * Create, edit, and soft-delete partner records.
+ */
+
 "use client";
 
 import { useMemo, useState } from "react";
@@ -138,6 +143,14 @@ export function PartnersView({ initialPartners }: PartnersViewProps) {
     }
   };
 
+  const clearFilters = () => {
+    setSearch("");
+    setStatus("all");
+    setSortBy("name");
+    setSortDir("asc");
+    setPage(1);
+  };
+
   const handleDeleted = async (message: string) => {
     try {
       await reload();
@@ -193,6 +206,9 @@ export function PartnersView({ initialPartners }: PartnersViewProps) {
             </select>
           </label>
         </div>
+        <Button type="button" variant="secondary" onClick={clearFilters}>
+          Clear filters
+        </Button>
       </FilterToolbar>
 
       <div className="mt-6 space-y-4">

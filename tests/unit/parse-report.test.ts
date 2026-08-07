@@ -73,9 +73,25 @@ describe("parse report workbook", () => {
     expect(lines.length).toBeGreaterThan(0);
     expect(lines[0]).toMatchObject({
       description: "UHD",
-      usageAmount: 50,
       usageUsd: 10,
       amount: 50,
+    });
+    // ORIGINALAMOUNT is the billable amount — not usage volume.
+    expect(lines[0]?.usageAmount).toBeNull();
+  });
+
+  it("maps Original Amount header to amount even when Amount also exists", async () => {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Report");
+    worksheet.addRow(["Service name", "Amount", "Original Amount", "Zain amount"]);
+    worksheet.addRow(["Games", 99, 50, 10]);
+    const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
+
+    const lines = await parseReportWorkbook(buffer);
+    expect(lines[0]).toMatchObject({
+      description: "Games",
+      amount: 50,
+      usageUsd: 10,
     });
   });
 });

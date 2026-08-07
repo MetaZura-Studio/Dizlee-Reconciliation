@@ -1,3 +1,6 @@
+/**
+ * Admin Partner CRUD — ACTIVE/INACTIVE status, soft delete, user counts, audit trail.
+ */
 import { writePartnerAuditLog } from "@/lib/admin/audit";
 import { getLookupId } from "@/lib/admin/lookups";
 import type {

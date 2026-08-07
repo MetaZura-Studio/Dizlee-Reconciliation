@@ -127,9 +127,23 @@ describe("email template helpers", () => {
       "link",
       "expiryHours",
     ]);
+    expect(getPlaceholdersForTemplate("RECONCILIATION_ALERT_OPCO")).toEqual([
+      "period",
+      "opcoName",
+      "partnerName",
+      "status",
+      "matchedCount",
+      "unmatchedCount",
+      "totalVariance",
+      "tolerancePercent",
+      "outcome",
+    ]);
     expect(getPlaceholdersForTemplate("CUSTOM_X", "REMINDER")).toEqual([
       "period",
     ]);
+    expect(getPlaceholdersForTemplate("CUSTOM_ALERT", "ALERT")).toContain(
+      "opcoName",
+    );
     expect(getPlaceholdersForTemplate("CUSTOM_Y", "OTHER")).toEqual([]);
     expect(formatPlaceholderTokens(["period"])).toBe("{{period}}");
   });
@@ -137,7 +151,19 @@ describe("email template helpers", () => {
   it("labels categories and suggests codes", () => {
     expect(categoryLabel("INTIMATION")).toBe("Intimation");
     expect(categoryLabel("REMINDER")).toBe("Reminder");
+    expect(categoryLabel("ALERT")).toBe("Alert");
     expect(categoryLabel("OTHER")).toBe("Other");
     expect(suggestTemplateCodeFromName("Custom notice!")).toBe("CUSTOM_NOTICE");
+  });
+
+  it("accepts ALERT category on create", () => {
+    const result = createEmailTemplateSchema.safeParse({
+      name: "Reconciliation alert",
+      code: "RECONCILIATION_ALERT_CUSTOM",
+      category: "ALERT",
+      subject: "Alert {{period}}",
+      body: "Body for {{opcoName}}",
+    });
+    expect(result.success).toBe(true);
   });
 });

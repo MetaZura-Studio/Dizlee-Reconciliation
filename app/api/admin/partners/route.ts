@@ -1,3 +1,8 @@
+/**
+ * GET, POST — Admin portal.
+ * List partners or create a new partner organization.
+ */
+
 import { NextResponse } from "next/server";
 
 import { requireAdminApiSession } from "@/lib/admin/api-auth";

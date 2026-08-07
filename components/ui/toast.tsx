@@ -1,3 +1,7 @@
+/**
+ * Global toast stack: context provider, imperative `toast()` API, and portaled dismissible messages.
+ */
+
 "use client";
 
 import {

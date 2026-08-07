@@ -1,3 +1,8 @@
+/**
+ * GET — Dizlee portal.
+ * List unread and read notifications in the Dizlee inbox.
+ */
+
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 

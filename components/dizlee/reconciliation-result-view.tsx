@@ -1,3 +1,8 @@
+/**
+ * Line-level reconciliation outcome for one run, including variances and confirm step.
+ * Used to validate matches before finalizing a reconciliation.
+ */
+
 "use client";
 
 import Link from "next/link";
@@ -14,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { ModalCloseButton } from "@/components/ui/modal-close-button";
 import { SuccessDialog } from "@/components/ui/success-dialog";
 import { useToast } from "@/components/ui/toast";
+import type { ReconciliationAlertTemplates } from "@/lib/dizlee/notifications/reconciliation-alerts";
 import type { ReconciliationDetail } from "@/lib/dizlee/reconciliation";
 import { reportRawFilePreviewUrl } from "@/lib/platform/reports/preview-url";
 
@@ -35,10 +41,11 @@ function formatUsd(value: number | null): string {
   if (value === null) {
     return "—";
   }
-  return new Intl.NumberFormat("en-KW", {
+  return new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: "KWD",
-    maximumFractionDigits: 3,
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(value);
 }
 
@@ -58,42 +65,14 @@ function statusBadgeClass(status: string): string {
     : "rounded-full bg-danger-muted px-2 py-0.5 text-xs font-medium text-danger";
 }
 
-function buildDefaultAlert(detail: ReconciliationDetail): {
-  subject: string;
-  body: string;
-} {
-  const period = formatPeriod(detail.period.month, detail.period.year);
-  const outcome =
-    detail.unmatchedCount === 0
-      ? "all line items matched"
-      : `${detail.unmatchedCount} mismatched / unmatched line item(s)`;
-
-  return {
-    subject: `Reconciliation update — ${detail.opcoName} / ${detail.partnerName} (${period})`,
-    body: [
-      `Hello,`,
-      ``,
-      `Reconciliation results for ${detail.opcoName} / ${detail.partnerName} (${period}):`,
-      ``,
-      `- Status: ${detail.status}`,
-      `- Matched: ${detail.matchedCount}`,
-      `- Unmatched: ${detail.unmatchedCount}`,
-      `- Total variance: ${formatUsd(detail.totalVariance)}`,
-      `- Tolerance: ${detail.tolerancePercent}%`,
-      ``,
-      `Outcome: ${outcome}.`,
-      ``,
-      `Please review the reconciliation result in Dizlee.`,
-    ].join("\n"),
-  };
-}
-
 type ReconciliationResultViewProps = {
   initialDetail: ReconciliationDetail;
+  initialAlertTemplates: ReconciliationAlertTemplates;
 };
 
 export function ReconciliationResultView({
   initialDetail,
+  initialAlertTemplates,
 }: ReconciliationResultViewProps) {
   const router = useRouter();
   const toast = useToast();
@@ -106,8 +85,16 @@ export function ReconciliationResultView({
   );
   const [alertOpen, setAlertOpen] = useState(false);
   const [alerting, setAlerting] = useState(false);
-  const [alertSubject, setAlertSubject] = useState("");
-  const [alertBody, setAlertBody] = useState("");
+  const [opcoSubject, setOpcoSubject] = useState(
+    initialAlertTemplates.opco.subject,
+  );
+  const [opcoBody, setOpcoBody] = useState(initialAlertTemplates.opco.body);
+  const [partnerSubject, setPartnerSubject] = useState(
+    initialAlertTemplates.partner.subject,
+  );
+  const [partnerBody, setPartnerBody] = useState(
+    initialAlertTemplates.partner.body,
+  );
   const [alertAttachments, setAlertAttachments] = useState<PendingAttachment[]>(
     [],
   );
@@ -146,38 +133,57 @@ export function ReconciliationResultView({
   }
 
   function openAlertModal() {
-    const next = buildDefaultAlert(detail);
-    setAlertSubject(next.subject);
-    setAlertBody(next.body);
+    setOpcoSubject(initialAlertTemplates.opco.subject);
+    setOpcoBody(initialAlertTemplates.opco.body);
+    setPartnerSubject(initialAlertTemplates.partner.subject);
+    setPartnerBody(initialAlertTemplates.partner.body);
     setAlertAttachments([]);
     setAlertOpen(true);
+  }
+
+  async function postAlert(
+    audience: "opco" | "partner",
+    subject: string,
+    body: string,
+  ) {
+    const response = await fetch("/api/dizlee/notifications/intimations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        audience,
+        messageSource: "custom",
+        opcoIds: audience === "opco" ? [detail.opcoId] : [],
+        partnerIds: audience === "partner" ? [detail.partnerId] : [],
+        month: detail.period.month,
+        year: detail.period.year,
+        subject,
+        body,
+        priority: detail.unmatchedCount > 0 ? "HIGH" : "NORMAL",
+        attachmentFileIds: attachmentFileIds(alertAttachments),
+      }),
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload.error ?? "Failed to send alert");
+    }
+    return payload.data?.message as string | undefined;
   }
 
   async function sendAlert(audience: "opco" | "partner" | "both") {
     setAlerting(true);
     setError(null);
     try {
-      const response = await fetch("/api/dizlee/notifications/intimations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          audience,
-          messageSource: "custom",
-          opcoIds: audience === "partner" ? [] : [detail.opcoId],
-          partnerIds: audience === "opco" ? [] : [detail.partnerId],
-          month: detail.period.month,
-          year: detail.period.year,
-          subject: alertSubject,
-          body: alertBody,
-          priority: detail.unmatchedCount > 0 ? "HIGH" : "NORMAL",
-          attachmentFileIds: attachmentFileIds(alertAttachments),
-        }),
-      });
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to send alert");
+      if (audience === "opco") {
+        const message = await postAlert("opco", opcoSubject, opcoBody);
+        toast.success(message ?? "Alert sent to OpCo.");
+      } else if (audience === "partner") {
+        const message = await postAlert("partner", partnerSubject, partnerBody);
+        toast.success(message ?? "Alert sent to Partner.");
+      } else {
+        await postAlert("opco", opcoSubject, opcoBody);
+        await postAlert("partner", partnerSubject, partnerBody);
+        toast.success("Alerts sent to OpCo and Partner.");
       }
-      toast.success(payload.data?.message ?? "Alert sent.");
       setAlertOpen(false);
       setAlertAttachments([]);
     } catch (alertError) {
@@ -272,10 +278,10 @@ export function ReconciliationResultView({
                 Service
               </th>
               <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                OpCo (KWD)
+                OpCo (USD)
               </th>
               <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                Partner (KWD)
+                Partner (USD)
               </th>
               <th className="px-4 py-3 text-left font-medium text-foreground-muted">
                 Variance
@@ -316,7 +322,7 @@ export function ReconciliationResultView({
       {alertOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]">
           <div
-            className="w-full max-w-xl rounded-[28px] border border-border bg-surface p-6 shadow-[var(--shadow-md)]"
+            className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[28px] border border-border bg-surface p-6 shadow-[var(--shadow-md)]"
             role="dialog"
             aria-modal="true"
             aria-labelledby="recon-alert-title"
@@ -330,33 +336,65 @@ export function ReconciliationResultView({
                   Alert OpCo / Partner
                 </h2>
                 <p className="mt-1 text-sm text-foreground-muted">
-                  Notify {detail.opcoName} and/or {detail.partnerName} about this
-                  reconciliation outcome.
+                  Messages load from Admin Email Templates (Alert). OpCo-only uses
+                  the OpCo template, Partner-only uses the Partner template, and
+                  Alert both sends both.
                 </p>
               </div>
               <ModalCloseButton onClick={() => setAlertOpen(false)} />
             </div>
 
-            <div className="mt-4 space-y-3">
-              <label className="block text-sm">
-                <span className="text-foreground-muted">Subject</span>
-                <input
-                  type="text"
-                  value={alertSubject}
-                  onChange={(event) => setAlertSubject(event.target.value)}
-                  maxLength={255}
-                  className="mt-1 w-full rounded border border-border-strong px-3 py-2"
-                />
-              </label>
-              <label className="block text-sm">
-                <span className="text-foreground-muted">Message</span>
-                <textarea
-                  value={alertBody}
-                  onChange={(event) => setAlertBody(event.target.value)}
-                  rows={8}
-                  className="mt-1 w-full rounded border border-border-strong px-3 py-2"
-                />
-              </label>
+            <div className="mt-4 space-y-5">
+              <section className="space-y-3 rounded-2xl border border-border p-4">
+                <h3 className="text-sm font-semibold text-foreground">
+                  OpCo — {detail.opcoName}
+                </h3>
+                <label className="block text-sm">
+                  <span className="text-foreground-muted">Subject</span>
+                  <input
+                    type="text"
+                    value={opcoSubject}
+                    onChange={(event) => setOpcoSubject(event.target.value)}
+                    maxLength={255}
+                    className="mt-1 w-full rounded border border-border-strong px-3 py-2"
+                  />
+                </label>
+                <label className="block text-sm">
+                  <span className="text-foreground-muted">Message</span>
+                  <textarea
+                    value={opcoBody}
+                    onChange={(event) => setOpcoBody(event.target.value)}
+                    rows={7}
+                    className="mt-1 w-full rounded border border-border-strong px-3 py-2"
+                  />
+                </label>
+              </section>
+
+              <section className="space-y-3 rounded-2xl border border-border p-4">
+                <h3 className="text-sm font-semibold text-foreground">
+                  Partner — {detail.partnerName}
+                </h3>
+                <label className="block text-sm">
+                  <span className="text-foreground-muted">Subject</span>
+                  <input
+                    type="text"
+                    value={partnerSubject}
+                    onChange={(event) => setPartnerSubject(event.target.value)}
+                    maxLength={255}
+                    className="mt-1 w-full rounded border border-border-strong px-3 py-2"
+                  />
+                </label>
+                <label className="block text-sm">
+                  <span className="text-foreground-muted">Message</span>
+                  <textarea
+                    value={partnerBody}
+                    onChange={(event) => setPartnerBody(event.target.value)}
+                    rows={7}
+                    className="mt-1 w-full rounded border border-border-strong px-3 py-2"
+                  />
+                </label>
+              </section>
+
               <NotificationAttachmentPicker
                 attachments={alertAttachments}
                 onChange={setAlertAttachments}

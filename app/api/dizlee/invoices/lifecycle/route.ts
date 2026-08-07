@@ -1,3 +1,8 @@
+/**
+ * GET — Dizlee portal.
+ * List invoices grouped by lifecycle stage for pipeline monitoring.
+ */
+
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 

@@ -1,3 +1,6 @@
+/**
+ * Email template placeholder rendering — `{{key}}` substitution and period labels.
+ */
 export function periodLabel(month: number, year: number): string {
   return new Date(year, month - 1, 1).toLocaleString("en-US", {
     month: "long",
@@ -5,6 +8,7 @@ export function periodLabel(month: number, year: number): string {
   });
 }
 
+/** Replace `{{key}}` placeholders in template strings with supplied values. */
 export function applyTemplate(
   template: string,
   values: Record<string, string>,

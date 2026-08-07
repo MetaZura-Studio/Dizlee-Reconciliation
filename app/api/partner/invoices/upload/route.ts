@@ -1,3 +1,8 @@
+/**
+ * POST — Partner portal.
+ * Upload and register a new partner invoice file.
+ */
+
 import { NextResponse } from "next/server";
 
 import { getPartnerSession } from "@/lib/partner/auth";

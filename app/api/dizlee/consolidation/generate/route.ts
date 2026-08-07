@@ -1,3 +1,8 @@
+/**
+ * POST — Dizlee portal.
+ * Start generation of a new period consolidation package.
+ */
+
 import { NextResponse } from "next/server";
 
 import { requireDizleeSession } from "@/lib/dizlee/auth";

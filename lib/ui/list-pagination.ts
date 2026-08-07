@@ -1,3 +1,10 @@
+/**
+ * In-memory list pagination for client-side tables and filtered slices.
+ *
+ * Portal-agnostic UI. Clamps page to `[1, totalPages]`; empty lists still expose
+ * `totalPages: 1` for stable pager controls.
+ */
+
 export const LIST_PAGE_SIZE = 10;
 
 export type PaginatedSlice<T> = {

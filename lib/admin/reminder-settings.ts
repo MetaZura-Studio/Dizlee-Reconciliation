@@ -1,3 +1,7 @@
+/**
+ * Admin reminder settings — UC-07 duration, schedule JSON, and intimation/reminder templates.
+ * Persists to `app_settings`; schedule shape validated via notification-schedules.shared.
+ */
 import { writeSettingsAuditLog } from "@/lib/admin/audit";
 import {
   defaultNotificationSchedule,

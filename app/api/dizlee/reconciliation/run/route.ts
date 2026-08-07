@@ -1,3 +1,8 @@
+/**
+ * POST — Dizlee portal.
+ * Execute reconciliation for selected period and lane criteria.
+ */
+
 import { NextResponse } from "next/server";
 
 import { requireDizleeSession } from "@/lib/dizlee/auth";

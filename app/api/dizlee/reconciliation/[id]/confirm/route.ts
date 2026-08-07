@@ -1,3 +1,8 @@
+/**
+ * PATCH — Dizlee portal.
+ * Confirm and finalize a completed reconciliation run.
+ */
+
 import { NextResponse } from "next/server";
 
 import { requireDizleeSession } from "@/lib/dizlee/auth";

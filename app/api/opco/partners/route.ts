@@ -1,3 +1,8 @@
+/**
+ * GET — OpCo portal.
+ * List partners linked to the signed-in OpCo for submissions.
+ */
+
 import { NextResponse } from "next/server";
 
 import { getOpcoSession } from "@/lib/opco/auth";

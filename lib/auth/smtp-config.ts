@@ -1,3 +1,8 @@
+/**
+ * SMTP resolution from Admin Email Settings with .env credential fallback.
+ * Consumed by mail senders; DB controls host/port/from/enabled, env supplies auth secrets.
+ */
+
 import { prisma } from "@/lib/prisma";
 
 export type ResolvedSmtpConfig = {

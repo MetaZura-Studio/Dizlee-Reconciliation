@@ -1,3 +1,6 @@
+/**
+ * Relative API URLs for OpCo/Partner notification attachment downloads.
+ */
 export function notificationAttachmentDownloadUrl(
   portal: "opco" | "partner",
   notificationId: string,

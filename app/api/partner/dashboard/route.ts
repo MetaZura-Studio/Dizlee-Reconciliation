@@ -1,3 +1,8 @@
+/**
+ * GET — Partner portal.
+ * Return summary metrics for the signed-in partner portal dashboard.
+ */
+
 import { NextResponse } from "next/server";
 
 import { getPartnerSession } from "@/lib/partner/auth";

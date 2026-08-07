@@ -1,3 +1,6 @@
+/**
+ * Streams a stored report/invoice file inline from object storage for preview routes.
+ */
 import "server-only";
 
 import { NextResponse } from "next/server";

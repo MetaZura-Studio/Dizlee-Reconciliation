@@ -1,3 +1,9 @@
+/**
+ * Zod schema for OpCo report change-request (reupload) form payloads.
+ *
+ * Portal: OpCo. Reason length bounds align with Dizlee review UI and audit metadata.
+ */
+
 import { z } from "zod";
 
 export const reportChangeRequestSchema = z.object({

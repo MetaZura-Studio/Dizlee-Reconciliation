@@ -1,3 +1,8 @@
+/**
+ * GET, POST — Admin portal.
+ * List OpCos or create a new OpCo organization.
+ */
+
 import { NextResponse } from "next/server";
 
 import { requireAdminApiSession } from "@/lib/admin/api-auth";

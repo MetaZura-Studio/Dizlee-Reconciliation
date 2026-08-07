@@ -1,3 +1,10 @@
+/**
+ * OpCo report reupload eligibility from status and change-request workflow.
+ *
+ * Portal: OpCo. Reupload is allowed only when status is CHANGE_REQUESTED and an
+ * approved, not-yet-completed change request exists.
+ */
+
 export type ReuploadChangeRequestState = {
   decidedAt: string | null;
   completedAt: string | null;
@@ -20,6 +27,7 @@ export function isReportReuploadEligible(
   );
 }
 
+/** Adapts Prisma change-request rows to {@link isReportReuploadEligible}. */
 export function mapReuploadEligibility(
   reportStatusCode: string,
   changeRequests: Array<{

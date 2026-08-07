@@ -1,3 +1,8 @@
+/**
+ * GET, PATCH — Admin portal.
+ * Load or update a single notification email template by code.
+ */
+
 import { NextResponse } from "next/server";
 
 import { requireAdminApiSession } from "@/lib/admin/api-auth";

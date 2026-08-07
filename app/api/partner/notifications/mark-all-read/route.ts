@@ -1,3 +1,8 @@
+/**
+ * POST — Partner portal.
+ * Mark all partner inbox notifications as read.
+ */
+
 import { NextResponse } from "next/server";
 
 import { getPartnerSession } from "@/lib/partner/auth";

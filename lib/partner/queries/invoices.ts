@@ -1,3 +1,9 @@
+/**
+ * Partner invoice list and detail for PARTNER_TO_DIZLEE uploads and lifecycle views.
+ *
+ * Portal: Partner. Scoped to `partnerId`; payment filters treat missing status as pending.
+ */
+
 import type { Prisma } from "@prisma/client";
 
 import { formatPeriodLabel } from "@/lib/partner/period";

@@ -1,3 +1,8 @@
+/**
+ * Placeholder content for OpCo routes under construction.
+ * Keeps layout consistent within the OpCo workspace.
+ */
+
 type PlaceholderPageProps = {
   title: string;
   description: string;

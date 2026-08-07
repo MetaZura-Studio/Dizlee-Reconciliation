@@ -1,3 +1,6 @@
+/**
+ * Zod schemas for Admin SMTP settings and send-test-email actions.
+ */
 import { z } from "zod";
 
 export const sendTestEmailSchema = z.object({

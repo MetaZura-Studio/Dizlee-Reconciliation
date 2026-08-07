@@ -1,3 +1,8 @@
+/**
+ * GET — OpCo portal.
+ * Preview a report file submitted by the OpCo or its partners.
+ */
+
 import { NextResponse } from "next/server";
 
 import { getOpcoSession } from "@/lib/opco/auth";

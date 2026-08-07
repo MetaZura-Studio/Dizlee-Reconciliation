@@ -1,3 +1,7 @@
+/**
+ * Full-viewport dimmed overlay portaled to `document.body` (escapes AppShell overflow/stacking).
+ */
+
 "use client";
 
 import { useEffect, type ReactNode } from "react";

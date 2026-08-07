@@ -1,3 +1,8 @@
+/**
+ * POST — OpCo portal.
+ * Mark all OpCo inbox notifications as read.
+ */
+
 import { NextResponse } from "next/server";
 
 import { getOpcoSession } from "@/lib/opco/auth";

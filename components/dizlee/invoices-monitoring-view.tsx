@@ -1,3 +1,8 @@
+/**
+ * Monitoring dashboard for invoice submission and payment status by pair.
+ * Surfaces gaps and overdue items for a selected period.
+ */
+
 "use client";
 
 import Link from "next/link";
@@ -24,6 +29,7 @@ import { ui } from "@/lib/ui/classes";
 import { nextSortState, type SortDirection } from "@/lib/ui/sort";
 import type { InvoiceFilterOptions } from "@/lib/dizlee/invoices";
 import {
+  getCurrentPeriod,
   getMaxMonthForYear,
   getPeriodYearOptions,
 } from "@/lib/platform/period";
@@ -182,6 +188,25 @@ export function InvoicesMonitoringView({
     });
   };
 
+  const clearFilters = () => {
+    const period = getCurrentPeriod();
+    skipAutoReload.current = true;
+    setMonth(period.month);
+    setYear(period.year);
+    setOpcoId("");
+    setPartnerId("");
+    setMissing("");
+    setSortBy(initialResult.filters.sortBy);
+    setSortDir(initialResult.filters.sortDir);
+    void loadMonitoring({
+      month: period.month,
+      year: period.year,
+      page: 1,
+      sortBy: initialResult.filters.sortBy,
+      sortDir: initialResult.filters.sortDir,
+    });
+  };
+
   const yearOptions = getPeriodYearOptions();
   const maxMonth = getMaxMonthForYear(year);
 
@@ -281,6 +306,11 @@ export function InvoicesMonitoringView({
               <option value="any">Any missing invoice</option>
             </select>
           </label>
+        </div>
+        <div className="flex w-full gap-3">
+          <Button variant="secondary" onClick={clearFilters}>
+            Clear filters
+          </Button>
         </div>
       </FilterToolbar>
 

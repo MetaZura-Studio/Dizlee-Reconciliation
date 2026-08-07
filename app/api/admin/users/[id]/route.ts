@@ -1,3 +1,8 @@
+/**
+ * PATCH, DELETE — Admin portal.
+ * Update or deactivate a platform user account.
+ */
+
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 

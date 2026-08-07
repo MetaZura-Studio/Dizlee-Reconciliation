@@ -1,3 +1,8 @@
+/**
+ * POST — Partner portal.
+ * Submit a replacement report file after an approved re-upload.
+ */
+
 import { NextResponse } from "next/server";
 
 import { ReportParseError, parseReportWorkbook } from "@/lib/partner/excel/parse-report";

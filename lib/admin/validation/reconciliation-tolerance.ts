@@ -1,3 +1,6 @@
+/**
+ * Zod schema for Admin reconciliation negligible-variance percent setting.
+ */
 import { z } from "zod";
 
 function hasAtMostTwoDecimalPlaces(value: number): boolean {

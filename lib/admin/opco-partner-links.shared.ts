@@ -1,3 +1,6 @@
+/**
+ * OpCo–Partner link editor view types for Admin organization screens.
+ */
 export type OpcoListItem = {
   id: string;
   name: string;

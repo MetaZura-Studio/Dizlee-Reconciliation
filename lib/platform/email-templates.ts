@@ -1,3 +1,7 @@
+/**
+ * Active notification template loader by code — subject/body for outbound and in-app mail.
+ * Used across Dizlee reminders, Admin test sends, and platform notification jobs.
+ */
 import { prisma } from "@/lib/prisma";
 
 export type ActiveEmailTemplate = {

@@ -1,3 +1,7 @@
+/**
+ * Admin currency rate Excel import/export — parses ISO + rate columns from uploaded workbooks.
+ * Validates against platform base currency; returns row-level issues without throwing on bad rows.
+ */
 import ExcelJS from "exceljs";
 
 import {
@@ -56,7 +60,7 @@ function parseRate(value: ExcelJS.CellValue): number | null {
 }
 
 /**
- * Parse currency rate Excel. Expected headers: ISO | RateToKWD (aliases accepted).
+ * Parse currency rate Excel. Expected headers: ISO | RateToUSD (aliases accepted).
  */
 export async function parseCurrencyRatesExcel(
   buffer: ArrayBuffer | Buffer | Uint8Array,
@@ -86,14 +90,14 @@ export async function parseCurrencyRatesExcel(
       isoCol = colNumber;
     }
     if (
-      header === "ratetokwd" ||
-      header === "rate" ||
-      header === "kwdrate" ||
-      header === "ratekwd" ||
-      // Legacy USD-based templates still accepted
       header === "ratetousd" ||
+      header === "rate" ||
       header === "usdrate" ||
-      header === "rateusd"
+      header === "rateusd" ||
+      // Legacy KWD-based templates still accepted
+      header === "ratetokwd" ||
+      header === "kwdrate" ||
+      header === "ratekwd"
     ) {
       rateCol = colNumber;
     }
@@ -105,7 +109,7 @@ export async function parseCurrencyRatesExcel(
       issues: [
         {
           rowNumber: 1,
-          message: "Missing required headers. Expected ISO and RateToKWD columns.",
+          message: "Missing required headers. Expected ISO and RateToUSD columns.",
         },
       ],
     };
@@ -153,7 +157,7 @@ export async function parseCurrencyRatesExcel(
     if (isoRaw === BASE_CURRENCY_ISO_CODE && rate !== BASE_CURRENCY_RATE) {
       issues.push({
         rowNumber,
-        message: "KWD rate must be 1 (row skipped; KWD stays locked)",
+        message: `${BASE_CURRENCY_ISO_CODE} rate must be 1 (row skipped; ${BASE_CURRENCY_ISO_CODE} stays locked)`,
       });
       return;
     }
@@ -183,7 +187,7 @@ export async function buildCurrencyRatesTemplateBuffer(
   const sheet = workbook.addWorksheet("Rates");
   sheet.columns = [
     { header: "ISO", key: "iso", width: 12 },
-    { header: "RateToKWD", key: "rate", width: 16 },
+    { header: "RateToUSD", key: "rate", width: 16 },
   ];
 
   for (const currency of currencies) {

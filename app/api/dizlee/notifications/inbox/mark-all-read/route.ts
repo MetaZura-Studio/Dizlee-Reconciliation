@@ -1,3 +1,8 @@
+/**
+ * POST — Dizlee portal.
+ * Mark all Dizlee inbox notifications as read.
+ */
+
 import { NextResponse } from "next/server";
 
 import { requireDizleeSession } from "@/lib/dizlee/auth";

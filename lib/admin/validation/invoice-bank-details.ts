@@ -1,3 +1,6 @@
+/**
+ * Zod schemas for Admin OpCo invoice bank account JSON updates.
+ */
 import { z } from "zod";
 
 const optionalBankField = z

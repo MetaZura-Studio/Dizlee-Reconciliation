@@ -1,3 +1,8 @@
+/**
+ * GET, PATCH — Admin portal.
+ * List OpCo–partner assignments or update linkage settings.
+ */
+
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 

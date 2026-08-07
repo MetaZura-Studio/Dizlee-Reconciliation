@@ -1,3 +1,7 @@
+/**
+ * Client-side list footer: total count, page noun, and previous/next controls with loading guard.
+ */
+
 "use client";
 
 import { Button } from "@/components/ui/button";

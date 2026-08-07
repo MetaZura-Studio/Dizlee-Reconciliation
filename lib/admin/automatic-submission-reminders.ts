@@ -1,13 +1,8 @@
 /**
- * UC-07 — Automatic submission intimations & reminders (cron-ready).
- *
- * External scheduler example:
- *   curl -H "Authorization: Bearer $CRON_SECRET" \
- *     http://localhost:3000/api/admin/cron/submission-reminders
- *
- * Fires schedule steps whose trigger day is today (per Admin → Reminder Settings).
+ * UC-07 automatic submission intimations and reminders — cron entry for schedule steps due today.
+ * Reads Admin Reminder Settings; sends Dizlee broadcast notifications to OpCo/Partner audiences.
+ * Invoke via `/api/admin/cron/submission-reminders` with CRON_SECRET.
  */
-
 import {
   getDueScheduleSteps,
   type DueScheduleStep,

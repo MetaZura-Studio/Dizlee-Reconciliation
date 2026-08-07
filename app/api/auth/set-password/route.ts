@@ -1,3 +1,8 @@
+/**
+ * POST — Auth portal.
+ * Set a new password using a valid invite or reset token.
+ */
+
 import { NextResponse } from "next/server";
 
 import {

@@ -1,3 +1,8 @@
+/**
+ * Searchable list of invoices with preview, lifecycle actions, and filters.
+ * Central Dizlee index for digital and uploaded invoices.
+ */
+
 "use client";
 
 import Link from "next/link";
@@ -27,6 +32,7 @@ import { ui } from "@/lib/ui/classes";
 import { nextSortState } from "@/lib/ui/sort";
 import { useDebouncedValue } from "@/lib/ui/use-debounced-value";
 import {
+  getCurrentPeriod,
   getMaxMonthForYear,
   getPeriodYearOptions,
 } from "@/lib/platform/period";
@@ -184,6 +190,27 @@ export function InvoicesListView({
 
   const refresh = () => {
     void loadInvoices({ ...currentFilters(), page: 1 });
+  };
+
+  const clearFilters = () => {
+    const period = getCurrentPeriod();
+    skipAutoReload.current = true;
+    setSearch("");
+    setMonth(period.month);
+    setYear(period.year);
+    setOpcoId("");
+    setPartnerId("");
+    setPaymentStatus("all");
+    setSortBy(initialResult.filters.sortBy);
+    setSortDir(initialResult.filters.sortDir);
+    void loadInvoices({
+      month: period.month,
+      year: period.year,
+      paymentStatus: "all",
+      sortBy: initialResult.filters.sortBy,
+      sortDir: initialResult.filters.sortDir,
+      page: 1,
+    });
   };
 
   const applySort = (field: InvoiceSortField) => {
@@ -442,9 +469,12 @@ export function InvoicesListView({
               <option value="pending">Pending</option>
             </select>
           </label>
-          <div className="flex items-end">
-            <Button variant="secondary" onClick={refresh} className="w-full">
+          <div className="flex items-end gap-3 2xl:col-span-2">
+            <Button variant="secondary" onClick={refresh} className="flex-1">
               Refresh
+            </Button>
+            <Button variant="secondary" onClick={clearFilters} className="flex-1">
+              Clear filters
             </Button>
           </div>
         </div>

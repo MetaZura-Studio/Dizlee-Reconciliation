@@ -1,3 +1,8 @@
+/**
+ * GET — Partner portal.
+ * Download a notification attachment for the partner inbox.
+ */
+
 import { NextResponse } from "next/server";
 
 import { getPartnerSession } from "@/lib/partner/auth";

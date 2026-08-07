@@ -1,3 +1,6 @@
+/**
+ * Zod schemas for Admin OpCo create/update server actions.
+ */
 import { z } from "zod";
 
 export const adminEntityStatusSchema = z.enum(["ACTIVE", "INACTIVE"]);

@@ -1,3 +1,8 @@
+/**
+ * Bcrypt password hashing and verification for credentials auth.
+ * Consumed by NextAuth authorize, password flows, and admin user provisioning.
+ */
+
 import { compare, hash } from "bcryptjs";
 
 const BCRYPT_ROUNDS = 12;

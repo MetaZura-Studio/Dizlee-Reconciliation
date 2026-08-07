@@ -1,3 +1,7 @@
+/**
+ * Confirmation-style modal preset for post-action success (title, message, single primary action).
+ */
+
 "use client";
 
 import { Button } from "@/components/ui/button";

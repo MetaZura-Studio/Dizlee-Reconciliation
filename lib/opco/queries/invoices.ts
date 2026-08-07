@@ -1,3 +1,10 @@
+/**
+ * OpCo invoice list and detail for CLIENT_TO_OPCO invoices issued by Dizlee.
+ *
+ * Portal: OpCo. Viewing a SENT invoice may auto-acknowledge via `getOpcoInvoiceDetailForViewer`.
+ * Payment filters treat missing payment status as pending.
+ */
+
 import type { Prisma } from "@prisma/client";
 
 import {
@@ -385,6 +392,10 @@ export async function getOpcoInvoiceDetailForOpco(
   return mapInvoiceDetail(invoice);
 }
 
+/**
+ * Loads invoice detail and optionally transitions SENT → ACKNOWLEDGED on first view.
+ * Returns whether an acknowledgment write occurred in this call.
+ */
 export async function getOpcoInvoiceDetailForViewer(
   opcoId: bigint,
   invoiceId: bigint,

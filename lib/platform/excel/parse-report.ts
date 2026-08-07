@@ -1,3 +1,7 @@
+/**
+ * Partner/OpCo report Excel parser — maps header aliases to reconciliation line fields.
+ * Throws ReportParseError on structural issues; skips blank rows.
+ */
 import ExcelJS from "exceljs";
 
 export type ParsedReportLine = {
@@ -28,7 +32,9 @@ const COLUMN_ALIASES: Record<
   service_name: "description",
   usage_amount: "usageAmount",
   usageamount: "usageAmount",
-  originalamount: "usageAmount",
+  // OpCo "Original Amount" is the billable total compared to Partner gross — not usage volume.
+  originalamount: "amount",
+  original_amount: "amount",
   usage_usd: "usageUsd",
   usageusd: "usageUsd",
   zain_amount: "usageUsd",
@@ -198,6 +204,14 @@ export async function parseReportWorkbook(
     });
 
     enrichSourceColumns(sourceColumns);
+
+    // Prefer Original Amount over a plain Amount column when both are present.
+    const originalAmount =
+      parseDecimal(sourceColumns.originalamount) ??
+      parseDecimal(sourceColumns.original_amount);
+    if (originalAmount !== null) {
+      parsedLine.amount = originalAmount;
+    }
 
     if (
       parsedLine.description ||

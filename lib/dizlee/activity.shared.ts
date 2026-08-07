@@ -1,3 +1,8 @@
+/**
+ * Shared types for the Dizlee monthly activity timeline (lanes and event taxonomy).
+ * Consumed by activity.server loaders and client timeline components.
+ */
+
 import type { DashboardPeriod } from "@/lib/dizlee/dashboard";
 
 export type ActivityFilters = {

@@ -1,3 +1,8 @@
+/**
+ * Partner report list with preview, re-upload, and change-request actions.
+ * Primary surface for managing report submissions per OpCo.
+ */
+
 "use client";
 
 import Link from "next/link";
@@ -216,6 +221,25 @@ export function ReportsTable({
     void loadReports({ ...result.filters, page: 1 });
   };
 
+  const clearFilters = () => {
+    const period = getDefaultPeriod();
+    skipSearchEffect.current = true;
+    setYear(String(period.year));
+    setMonth(String(period.month));
+    setOpcoId("");
+    setStatusCode("");
+    setSearch("");
+    setSortBy("uploaded");
+    setSortDir("desc");
+    void loadReports({
+      year: period.year,
+      month: period.month,
+      sortBy: "uploaded",
+      sortDir: "desc",
+      page: 1,
+    });
+  };
+
   useEffect(() => {
     if (skipSearchEffect.current) {
       skipSearchEffect.current = false;
@@ -371,6 +395,9 @@ export function ReportsTable({
         </div>
         <div className="flex w-full gap-3">
           <Button onClick={applyFilters}>Apply filters</Button>
+          <Button variant="secondary" onClick={clearFilters}>
+            Clear filters
+          </Button>
           <Button variant="secondary" onClick={refresh}>
             Refresh
           </Button>
