@@ -3,6 +3,9 @@ import { PageCard, PageHeader } from "@/components/ui/page";
 import { requireOpcoSession } from "@/lib/opco/auth";
 import { getLinkedPartnersForOpco } from "@/lib/opco/queries/partners";
 
+/** Always load current OpCo–Partner links (Admin changes must appear immediately). */
+export const dynamic = "force-dynamic";
+
 export default async function OpcoUploadPage() {
   const session = await requireOpcoSession();
   const partners = await getLinkedPartnersForOpco(BigInt(session.opcoId));

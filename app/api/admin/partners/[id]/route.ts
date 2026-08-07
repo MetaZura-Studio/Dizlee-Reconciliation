@@ -1,3 +1,8 @@
+/**
+ * PATCH, DELETE — Admin portal.
+ * Update or soft-delete a partner organization record.
+ */
+
 import { NextResponse } from "next/server";
 
 import { requireAdminApiSession } from "@/lib/admin/api-auth";

@@ -1,3 +1,8 @@
+/**
+ * GET — Dizlee portal.
+ * List past reconciliation runs for a period or lane.
+ */
+
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 

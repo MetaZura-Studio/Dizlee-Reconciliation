@@ -1,3 +1,8 @@
+/**
+ * POST — Auth portal.
+ * Request a password reset email for a registered email address.
+ */
+
 import { NextResponse } from "next/server";
 
 import {

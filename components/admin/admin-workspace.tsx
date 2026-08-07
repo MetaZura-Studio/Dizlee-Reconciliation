@@ -1,3 +1,8 @@
+/**
+ * Admin portal application shell with sidebar navigation and sign-out.
+ * Hosts routed configuration and master-data screens for platform operators.
+ */
+
 "use client";
 
 import Link from "next/link";
@@ -17,10 +22,10 @@ function mapIcon(icon: string): AppShellNavItem["icon"] {
   if (icon === "dashboard") {
     return "home";
   }
-  if (icon === "users" || icon === "partners" || icon === "opcos" || icon === "opco-partners") {
+  if (icon === "users" || icon === "partners" || icon === "opcos" || icon === "opco-partners" || icon === "organization") {
     return "users";
   }
-  if (icon === "settings" || icon === "email-settings" || icon === "reminder" || icon === "tolerance") {
+  if (icon === "settings" || icon === "email-settings" || icon === "reminder" || icon === "tolerance" || icon === "currencies" || icon === "bank" || icon === "email-templates") {
     return "settings";
   }
   if (icon === "audit") {

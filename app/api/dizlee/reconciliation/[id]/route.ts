@@ -1,3 +1,8 @@
+/**
+ * GET — Dizlee portal.
+ * Return detail and line-level results for a reconciliation run.
+ */
+
 import { NextResponse } from "next/server";
 
 import { requireDizleeSession } from "@/lib/dizlee/auth";

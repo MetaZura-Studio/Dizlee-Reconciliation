@@ -1,3 +1,8 @@
+/**
+ * GET — Dizlee portal.
+ * List submitted reports with filters and pagination.
+ */
+
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 

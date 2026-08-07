@@ -76,6 +76,7 @@ export function AdminNavIconGlyph({ name, className = "h-5 w-5" }: NavIconProps)
           />
         </svg>
       );
+    case "organization":
     case "opcos":
       return (
         <svg {...props}>

@@ -31,11 +31,12 @@ export default async function AdminReminderSettingsPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <div className="space-y-1">
+      <div className="space-y-2">
         <h1 className="text-2xl font-semibold tracking-tight">Reminder Settings</h1>
         <p className="text-sm text-foreground-muted">
-          Configure intimations (before due day) and reminders (after due day).
-          Each step picks a day of month, email template, and audience.
+          Monthly emails for report submission: pick a due day, then emails before
+          it (intimations) and after it (reminders). Example: due 10 → email on 7
+          and 11.
         </p>
       </div>
 

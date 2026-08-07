@@ -1,3 +1,7 @@
+/**
+ * Admin user lifecycle — list/filter, create, update, soft delete, password invite flow.
+ * Admin role users are managed separately; opco/partner/client scoped to org assignments.
+ */
 import type { Prisma } from "@prisma/client";
 
 import { issuePasswordResetForUser } from "@/lib/auth/password-flow";

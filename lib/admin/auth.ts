@@ -1,6 +1,7 @@
 /**
- * Admin-scoped auth helpers.
- * Hussnain owns this module — do not import from other developers' lib/ folders.
+ * Admin portal session guards — redirects unauthenticated or non-admin users.
+ * Used by Admin layout pages and re-exported types for Admin API routes.
+ * Invariant: only users with role `admin` pass `requireAdminUser`.
  */
 
 import { redirect } from "next/navigation";

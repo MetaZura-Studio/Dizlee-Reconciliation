@@ -1,3 +1,8 @@
+/**
+ * Timeline of submission and platform events for a chosen OpCo or partner.
+ * Helps operators investigate what changed during a billing period.
+ */
+
 "use client";
 
 import Link from "next/link";
@@ -16,6 +21,7 @@ import type {
 } from "@/lib/dizlee/activity.shared";
 import type { ReportFilterOptions } from "@/lib/dizlee/reports";
 import {
+  getCurrentPeriod,
   getMaxMonthForYear,
   getPeriodYearOptions,
 } from "@/lib/platform/period";
@@ -166,6 +172,18 @@ export function ActivityView({
     void loadTimeline(currentFilters());
   };
 
+  const clearFilters = () => {
+    const period = getCurrentPeriod();
+    setMonth(period.month);
+    setYear(period.year);
+    setOpcoId("");
+    setPartnerId("");
+    void loadTimeline({
+      month: period.month,
+      year: period.year,
+    });
+  };
+
   const yearOptions = getPeriodYearOptions();
   const maxMonth = getMaxMonthForYear(year);
   const events: ActivityEvent[] = result.events;
@@ -262,6 +280,9 @@ export function ActivityView({
             disabled={!hasEntity || loading}
           >
             Refresh
+          </Button>
+          <Button variant="secondary" onClick={clearFilters} disabled={loading}>
+            Clear filters
           </Button>
         </div>
         <p className={ui.hint}>

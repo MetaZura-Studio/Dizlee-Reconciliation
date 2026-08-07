@@ -1,3 +1,8 @@
+/**
+ * GET — Dizlee portal.
+ * Return HTML or document preview data for an invoice.
+ */
+
 import { NextResponse } from "next/server";
 
 import { requireDizleeSession } from "@/lib/dizlee/auth";

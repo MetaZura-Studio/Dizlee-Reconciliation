@@ -1,3 +1,8 @@
+/**
+ * Partner notification inbox with mark-read and attachment access.
+ * Surfaces intimation, reminder, and system messages from Dizlee.
+ */
+
 "use client";
 
 import { useRouter } from "next/navigation";

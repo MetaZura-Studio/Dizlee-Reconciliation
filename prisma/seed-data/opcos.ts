@@ -1,3 +1,7 @@
+/**
+ * Demo OpCo tenants (Zain operating companies) with fixed ids, slugs, and default settlement currencies.
+ */
+
 import type { SeedOpco } from "./helpers";
 
 export const OPCO_SEEDS: SeedOpco[] = [
@@ -10,7 +14,7 @@ export const OPCO_SEEDS: SeedOpco[] = [
   {
     id: 2,
     slug: "zain-ksa",
-    name: "Zain Saudi Arabia (Zain KSA)",
+    name: "Zain KSA",
     defaultCurrencyIso: "SAR",
   },
   {

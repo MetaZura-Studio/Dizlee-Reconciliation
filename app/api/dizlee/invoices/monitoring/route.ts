@@ -1,3 +1,8 @@
+/**
+ * GET — Dizlee portal.
+ * Return invoice submission and status metrics for monitoring views.
+ */
+
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 

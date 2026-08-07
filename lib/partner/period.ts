@@ -1,3 +1,10 @@
+/**
+ * Partner dashboard period parsing and display helpers.
+ *
+ * Portal: Partner. URL query params are sanitized with bounded fallbacks; selected
+ * year/month is clamped to the present via `@/lib/platform/period` (no future periods).
+ */
+
 import { clampPeriodToPresent } from "@/lib/platform/period";
 
 export type Period = {
@@ -31,6 +38,7 @@ export function parsePeriodParam(
   return parsed;
 }
 
+/** Parses dashboard `year` / `month` query params and clamps to the present period. */
 export function parseDashboardPeriod(
   yearParam?: string,
   monthParam?: string,

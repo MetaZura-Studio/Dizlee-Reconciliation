@@ -1,4 +1,7 @@
-/** Active OpCo–Partner links only (BR-1). Import from any portal read path. */
+/**
+ * OpCo–Partner link invariants — active-link filter (BR-1), reserved OpCo names, save diff planning.
+ * Imported by Admin link editor and portal read paths that must exclude soft-deleted links.
+ */
 export const ACTIVE_OPCO_PARTNER_LINK_FILTER = {
   isDeleted: false,
 } as const;

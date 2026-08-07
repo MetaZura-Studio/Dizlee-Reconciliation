@@ -1,3 +1,9 @@
+/**
+ * NextAuth configuration: credentials login, JWT sessions, and scoped role enforcement.
+ * Consumed by the auth route handler and all getServerSession callers.
+ * Login scope `admin` allows admin only; `main` allows opco, partner, and client roles.
+ */
+
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { z } from "zod";

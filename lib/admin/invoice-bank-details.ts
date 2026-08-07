@@ -1,3 +1,7 @@
+/**
+ * Admin OpCo invoice bank accounts — JSON snapshot on app_settings for digital Dizlee invoices.
+ * Uses shared parse/serialize helpers from dizlee invoice bank module.
+ */
 import { writeSettingsAuditLog } from "@/lib/admin/audit";
 import type { InvoiceBankDetailsListView } from "@/lib/admin/invoice-bank-details.shared";
 import {

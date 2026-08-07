@@ -1,3 +1,8 @@
+/**
+ * Invoice lifecycle board: status transitions visible to Dizlee operators by period and lane.
+ * Consumed by the invoices lifecycle view; reuses invoice list filters and effective status rules.
+ */
+
 import { currentPeriod, type DashboardPeriod } from "@/lib/dizlee/dashboard";
 import {
   effectiveInvoiceStatusCode,

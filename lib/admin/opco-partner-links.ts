@@ -1,3 +1,7 @@
+/**
+ * Admin OpCo–Partner link matrix — load and save many-to-many links with diff + audit.
+ * Reuses platform link diff; only linkable OpCos (non-reserved names) appear in Admin UI.
+ */
 import type { Prisma } from "@prisma/client";
 
 import { writeSettingsAuditLog } from "@/lib/admin/audit";

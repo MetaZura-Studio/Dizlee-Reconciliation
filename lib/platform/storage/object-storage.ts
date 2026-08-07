@@ -1,3 +1,7 @@
+/**
+ * Object storage abstraction — Vercel Blob when configured, otherwise local disk under uploads/.
+ * Folders partition reports, invoices, and notification attachments; checksums stored on file rows.
+ */
 import "server-only";
 
 import { createHash, randomUUID } from "node:crypto";

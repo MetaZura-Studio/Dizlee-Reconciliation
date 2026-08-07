@@ -1,3 +1,8 @@
+/**
+ * GET — Dizlee portal.
+ * List sent notification broadcasts and delivery history.
+ */
+
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 

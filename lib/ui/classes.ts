@@ -1,4 +1,9 @@
-/** Shared UI class strings — presentation only, no logic. */
+/**
+ * Shared Tailwind class tokens for OpCo, Partner, and Dizlee surfaces.
+ *
+ * Portal-agnostic presentation only — no business rules. Compose with `cn()` for
+ * conditional fragments; keep semantic colors via CSS variables, not hard-coded hex.
+ */
 
 export const ui = {
   page: "min-h-screen bg-canvas text-foreground antialiased",

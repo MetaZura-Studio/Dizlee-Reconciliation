@@ -1,3 +1,8 @@
+/**
+ * GET — Partner portal.
+ * List OpCos the signed-in partner may submit reports and invoices to.
+ */
+
 import { NextResponse } from "next/server";
 
 import { getPartnerSession } from "@/lib/partner/auth";

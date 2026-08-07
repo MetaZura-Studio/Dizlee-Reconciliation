@@ -1,3 +1,7 @@
+/**
+ * Admin API route authentication — returns session user or null (no redirect).
+ * Pair with 401 responses in `/api/admin/*` handlers.
+ */
 import { getServerSession } from "next-auth";
 
 import { isAdminRole } from "@/lib/admin/auth";

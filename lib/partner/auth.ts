@@ -1,6 +1,9 @@
 /**
- * Partner-scoped auth helpers.
- * Shahrukh owns this module — reads shared JWT via lib/auth/options only.
+ * Partner portal session resolution and route guards.
+ *
+ * Portal: Partner. Consumes the shared NextAuth JWT from `@/lib/auth/options`; do not
+ * issue or verify tokens here. All Partner server actions and RSC loaders must scope
+ * data by `partnerId` from `requirePartnerSession()` / `getPartnerSession()`.
  */
 
 import { getServerSession } from "next-auth";

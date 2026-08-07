@@ -1,3 +1,8 @@
+/**
+ * Lookup type → code lists for roles, workflow statuses, audit actions, and entity types.
+ * Upserted first in `seed.ts` so downstream seeds resolve stable lookup FKs.
+ */
+
 export const LOOKUP_SEEDS: Record<string, string[]> = {
   USER_ROLE: ["ADMIN", "CLIENT", "OPCO", "PARTNER"],
   USER_STATUS: ["ACTIVE", "INACTIVE", "SUSPENDED"],

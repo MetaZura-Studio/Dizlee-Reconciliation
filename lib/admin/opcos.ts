@@ -1,3 +1,7 @@
+/**
+ * Admin OpCo CRUD — default currency, ACTIVE/INACTIVE status, soft delete with audit.
+ * OpCo names reserved for linking rules are enforced at link layer, not here.
+ */
 import { writeOpcoAuditLog } from "@/lib/admin/audit";
 import { getLookupId } from "@/lib/admin/lookups";
 import type {

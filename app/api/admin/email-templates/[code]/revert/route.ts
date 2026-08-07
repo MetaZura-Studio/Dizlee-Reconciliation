@@ -1,3 +1,8 @@
+/**
+ * POST — Admin portal.
+ * Revert a notification template to its last saved default content.
+ */
+
 import { NextResponse } from "next/server";
 
 import { requireAdminApiSession } from "@/lib/admin/api-auth";

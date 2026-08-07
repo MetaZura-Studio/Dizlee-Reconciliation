@@ -1,3 +1,10 @@
+/**
+ * OpCo-initiated report reupload requests (change requests) pending Dizlee decision.
+ *
+ * Portal: OpCo. Only SUBMITTED / APPROVED / RESUBMITTED reports; one open request
+ * per report. Does not mutate report files — approval unlocks `reuploadCorrectedReport`.
+ */
+
 import { formatPeriodLabel } from "@/lib/opco/period";
 import { getOpcoLookupId } from "@/lib/opco/lookups";
 import { OPCO_REPORT_VERSION } from "@/lib/platform/reports/sides";

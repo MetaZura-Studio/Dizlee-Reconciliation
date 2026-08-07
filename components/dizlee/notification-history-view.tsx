@@ -1,3 +1,8 @@
+/**
+ * History of sent Dizlee notification broadcasts and delivery metadata.
+ * Allows reviewing past intimations, reminders, and attachments.
+ */
+
 "use client";
 
 import { useCallback, useState } from "react";

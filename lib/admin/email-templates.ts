@@ -1,3 +1,7 @@
+/**
+ * Admin notification template CRUD — versioned subject/body with category and revert.
+ * Templates drive Dizlee broadcasts, reminders, and auth emails via platform loaders.
+ */
 import type { Prisma } from "@prisma/client";
 
 import { writeNotificationAuditLog } from "@/lib/admin/audit";

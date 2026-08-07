@@ -1,3 +1,8 @@
+/**
+ * GET — Dizlee portal.
+ * List pending and historical file re-upload approval requests.
+ */
+
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 

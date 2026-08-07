@@ -1,3 +1,8 @@
+/**
+ * GET — Admin portal.
+ * List billing periods that have currency rate data.
+ */
+
 import { NextResponse } from "next/server";
 
 import { requireAdminApiSession } from "@/lib/admin/api-auth";

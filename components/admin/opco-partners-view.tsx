@@ -1,3 +1,8 @@
+/**
+ * Configure which partners are associated with each OpCo.
+ * Matrix view for enabling or adjusting OpCo–partner submission relationships.
+ */
+
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
@@ -108,6 +113,15 @@ export function OpcoPartnersView({ initialData }: OpcoPartnersViewProps) {
     });
   };
 
+  const selectAllPartners = () => {
+    const partners = linksView?.partners ?? [];
+    setSelectedPartnerIds(new Set(partners.map((partner) => partner.id)));
+  };
+
+  const unselectAllPartners = () => {
+    setSelectedPartnerIds(new Set());
+  };
+
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!selectedOpcoId) {
@@ -162,6 +176,12 @@ export function OpcoPartnersView({ initialData }: OpcoPartnersViewProps) {
     });
   }, [linksView?.partners, search, linkStatus, selectedPartnerIds]);
 
+  const clearFilters = () => {
+    setSearch("");
+    setLinkStatus("all");
+    setPage(1);
+  };
+
   const pagedPartners = useMemo(
     () => paginateItems(filteredPartners, page, 24),
     [filteredPartners, page],
@@ -177,6 +197,26 @@ export function OpcoPartnersView({ initialData }: OpcoPartnersViewProps) {
   }
 
   const linkedCount = selectedPartnerIds.size;
+  const savedLinkedIds = useMemo(
+    () =>
+      new Set(
+        linksView?.partners.filter((partner) => partner.linked).map((partner) => partner.id) ??
+          [],
+      ),
+    [linksView?.partners],
+  );
+  const hasUnsavedChanges = useMemo(() => {
+    if (selectedPartnerIds.size !== savedLinkedIds.size) {
+      return true;
+    }
+    for (const id of selectedPartnerIds) {
+      if (!savedLinkedIds.has(id)) {
+        return true;
+      }
+    }
+    return false;
+  }, [selectedPartnerIds, savedLinkedIds]);
+
   const totalPartners = linksView?.totalPartners ?? linksView?.partners.length ?? 0;
 
   return (
@@ -239,15 +279,53 @@ export function OpcoPartnersView({ initialData }: OpcoPartnersViewProps) {
               </select>
             </label>
           </div>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={clearFilters}
+            disabled={loading || saving}
+          >
+            Clear filters
+          </Button>
         </FilterToolbar>
 
         <LoadingOverlay active={loading} className="min-h-[12rem]">
         <div className="space-y-3">
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-sm font-semibold text-foreground">Partners</h2>
-            <p className="text-sm text-foreground-subtle">
-              {`${linkedCount} of ${totalPartners} partners linked`}
-            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <p className="text-sm text-foreground-subtle">
+                {`${linkedCount} of ${totalPartners} partners linked`}
+                {hasUnsavedChanges ? (
+                  <span className="ml-2 font-medium text-warning">
+                    · Unsaved changes — click Save
+                  </span>
+                ) : null}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={selectAllPartners}
+                  disabled={
+                    loading ||
+                    saving ||
+                    !linksView?.partners.length ||
+                    linkedCount === totalPartners
+                  }
+                >
+                  Select all
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={unselectAllPartners}
+                  disabled={loading || saving || linkedCount === 0}
+                >
+                  Unselect all
+                </Button>
+              </div>
+            </div>
           </div>
 
           {filteredPartners.length === 0 ? (
@@ -289,9 +367,9 @@ export function OpcoPartnersView({ initialData }: OpcoPartnersViewProps) {
         </div>
         </LoadingOverlay>
 
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <Button type="submit" disabled={loading || saving || !selectedOpcoId}>
-            {saving ? "Saving…" : "Save"}
+            {saving ? "Saving…" : hasUnsavedChanges ? "Save changes" : "Save"}
           </Button>
           <Button
             type="button"
@@ -301,6 +379,11 @@ export function OpcoPartnersView({ initialData }: OpcoPartnersViewProps) {
           >
             {loading ? "Reloading…" : "Reload"}
           </Button>
+          {hasUnsavedChanges ? (
+            <p className="text-sm text-warning">
+              Checkbox changes are not applied until you save.
+            </p>
+          ) : null}
         </div>
       </form>
     </PageCard>

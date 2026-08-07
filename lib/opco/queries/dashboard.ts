@@ -1,3 +1,10 @@
+/**
+ * OpCo dashboard aggregates: linked partners, submission posture, and recent activity.
+ *
+ * Portal: OpCo. Scoped by `opcoId`; partner reports use `OPCO_REPORT_VERSION` only.
+ * Submission buckets collapse several workflow codes into dashboard-friendly states.
+ */
+
 import { ACTIVE_OPCO_PARTNER_LINK_FILTER } from "@/lib/platform/opco-partner-links";
 import { OPCO_REPORT_VERSION } from "@/lib/platform/reports/sides";
 import prisma from "@/lib/prisma";
@@ -40,6 +47,7 @@ export type OpcoDashboardData = {
   recentUploads: RecentUploadSummary[];
 };
 
+/** Maps persisted report status codes to coarse dashboard submission states. */
 export function mapReportStatusToSubmissionStatus(
   statusCode: string | undefined,
 ): PartnerSubmissionStatus {

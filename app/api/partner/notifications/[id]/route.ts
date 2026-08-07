@@ -1,3 +1,8 @@
+/**
+ * GET, DELETE — Partner portal.
+ * Fetch or dismiss a single partner inbox notification.
+ */
+
 import { NextResponse } from "next/server";
 
 import { getPartnerSession } from "@/lib/partner/auth";

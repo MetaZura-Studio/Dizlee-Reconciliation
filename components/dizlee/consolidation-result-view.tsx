@@ -1,3 +1,8 @@
+/**
+ * Detail view for a single consolidation run including status and export actions.
+ * Displayed after generating or opening a consolidation from history.
+ */
+
 "use client";
 
 import Link from "next/link";
@@ -27,11 +32,17 @@ type ItemSortField =
   | "partner"
   | "service"
   | "description"
-  | "usage"
-  | "unit"
-  | "kwd"
-  | "exchangeRate"
+  | "amount"
   | "revenueBasis";
+
+type DisplayRow =
+  | { kind: "item"; item: ConsolidationItemView; key: string }
+  | {
+      kind: "partnerTotal";
+      partnerName: string;
+      total: number;
+      key: string;
+    };
 
 function formatDateTime(value: string): string {
   return new Date(value).toLocaleString("en-US", {
@@ -44,19 +55,11 @@ function formatUsd(value: number | null): string {
   if (value === null) {
     return "—";
   }
-  return new Intl.NumberFormat("en-KW", {
-    style: "currency",
-    currency: "KWD",
-    maximumFractionDigits: 3,
-  }).format(value);
-}
-
-function formatNumber(value: number | null): string {
-  if (value === null) {
-    return "—";
-  }
   return new Intl.NumberFormat("en-US", {
-    maximumFractionDigits: 4,
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(value);
 }
 
@@ -81,6 +84,10 @@ function compareNumber(a: number | null | undefined, b: number | null | undefine
   return left - right;
 }
 
+function itemAmount(item: ConsolidationItemView): number {
+  return item.usageUsd ?? item.usageAmount ?? 0;
+}
+
 function sortItems(
   items: ConsolidationItemView[],
   sortBy: ItemSortField,
@@ -88,10 +95,14 @@ function sortItems(
 ): ConsolidationItemView[] {
   const direction = sortDir === "asc" ? 1 : -1;
   return [...items].sort((left, right) => {
-    let result = 0;
+    let result = compareText(left.partnerName, right.partnerName);
+    if (result !== 0) {
+      return result * (sortBy === "partner" ? direction : 1);
+    }
+
     switch (sortBy) {
       case "partner":
-        result = compareText(left.partnerName, right.partnerName);
+        result = compareText(left.serviceCode, right.serviceCode);
         break;
       case "service":
         result = compareText(left.serviceCode, right.serviceCode);
@@ -99,27 +110,51 @@ function sortItems(
       case "description":
         result = compareText(left.description, right.description);
         break;
-      case "usage":
-        result = compareNumber(left.usageAmount, right.usageAmount);
-        break;
-      case "unit":
-        result = compareText(left.usageUnit, right.usageUnit);
-        break;
-      case "kwd":
-        result = compareNumber(left.usageUsd, right.usageUsd);
-        break;
-      case "exchangeRate":
-        result = compareNumber(left.exchangeRate, right.exchangeRate);
+      case "amount":
+        result = compareNumber(itemAmount(left), itemAmount(right));
         break;
       case "revenueBasis":
         result = compareText(left.revenueBasis, right.revenueBasis);
         break;
     }
     if (result === 0) {
-      result = compareText(left.partnerName, right.partnerName);
+      result = compareText(left.serviceCode, right.serviceCode);
     }
     return result * direction;
   });
+}
+
+/** Group items by partner and append a month total row after each partner. */
+function buildDisplayRows(items: ConsolidationItemView[]): DisplayRow[] {
+  const rows: DisplayRow[] = [];
+  let index = 0;
+
+  while (index < items.length) {
+    const partnerName = items[index]?.partnerName ?? "Partner";
+    const group: ConsolidationItemView[] = [];
+    while (index < items.length && items[index]?.partnerName === partnerName) {
+      group.push(items[index]!);
+      index += 1;
+    }
+
+    for (const [groupIndex, item] of group.entries()) {
+      rows.push({
+        kind: "item",
+        item,
+        key: `${partnerName}-${item.serviceCode}-${groupIndex}`,
+      });
+    }
+
+    const total = group.reduce((sum, item) => sum + itemAmount(item), 0);
+    rows.push({
+      kind: "partnerTotal",
+      partnerName,
+      total,
+      key: `total-${partnerName}`,
+    });
+  }
+
+  return rows;
 }
 
 type ConsolidationResultViewProps = {
@@ -135,11 +170,22 @@ export function ConsolidationResultView({
   const [sortBy, setSortBy] = useState<ItemSortField>("partner");
   const [sortDir, setSortDir] = useState<SortDirection>("asc");
 
+  const overallTotal = useMemo(() => {
+    if (detail.totalAmountUsd !== null) {
+      return detail.totalAmountUsd;
+    }
+    return detail.items.reduce((sum, item) => sum + itemAmount(item), 0);
+  }, [detail.items, detail.totalAmountUsd]);
+
   const sortedItems = useMemo(
     () => sortItems(detail.items, sortBy, sortDir),
     [detail.items, sortBy, sortDir],
   );
-  const pagedItems = paginateItems(sortedItems, itemPage);
+  const displayRows = useMemo(
+    () => buildDisplayRows(sortedItems),
+    [sortedItems],
+  );
+  const pagedRows = paginateItems(displayRows, itemPage);
 
   function applySort(field: ItemSortField) {
     const next = nextSortState(sortBy, sortDir, field);
@@ -187,16 +233,20 @@ export function ConsolidationResultView({
         </Button>
       </div>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-3">
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-md border border-border bg-surface p-3 text-sm">
-          <p className="text-xs text-foreground-subtle">Total KWD</p>
-          <p className="font-medium text-foreground">
-            {formatUsd(detail.totalAmountUsd)}
-          </p>
+          <p className="text-xs text-foreground-subtle">Overall total (USD)</p>
+          <p className="font-medium text-foreground">{formatUsd(overallTotal)}</p>
         </div>
         <div className="rounded-md border border-border bg-surface p-3 text-sm">
           <p className="text-xs text-foreground-subtle">Line items</p>
           <p className="font-medium text-foreground">{detail.items.length}</p>
+        </div>
+        <div className="rounded-md border border-border bg-surface p-3 text-sm">
+          <p className="text-xs text-foreground-subtle">Partners</p>
+          <p className="font-medium text-foreground">
+            {new Set(detail.items.map((item) => item.partnerName)).size}
+          </p>
         </div>
         <div className="rounded-md border border-border bg-surface p-3 text-sm">
           <p className="text-xs text-foreground-subtle">Period</p>
@@ -229,31 +279,10 @@ export function ConsolidationResultView({
                     onSort={() => applySort("description")}
                   />
                   <SortableDataTableTh
-                    label="Usage"
-                    active={sortBy === "usage"}
+                    label="Amount (USD)"
+                    active={sortBy === "amount"}
                     direction={sortDir}
-                    onSort={() => applySort("usage")}
-                    align="right"
-                  />
-                  <SortableDataTableTh
-                    label="Unit"
-                    active={sortBy === "unit"}
-                    direction={sortDir}
-                    onSort={() => applySort("unit")}
-                    align="right"
-                  />
-                  <SortableDataTableTh
-                    label="KWD"
-                    active={sortBy === "kwd"}
-                    direction={sortDir}
-                    onSort={() => applySort("kwd")}
-                    align="right"
-                  />
-                  <SortableDataTableTh
-                    label="Exchange rate"
-                    active={sortBy === "exchangeRate"}
-                    direction={sortDir}
-                    onSort={() => applySort("exchangeRate")}
+                    onSort={() => applySort("amount")}
                     align="right"
                   />
                   <SortableDataTableTh
@@ -265,44 +294,46 @@ export function ConsolidationResultView({
                 </tr>
               </DataTableHead>
               <tbody>
-                {pagedItems.items.map((item, index) => (
-                  <DataTableRow
-                    key={`${item.partnerName}-${item.serviceCode}-${pagedItems.page}-${index}`}
-                  >
-                    <DataTableTd>{item.partnerName}</DataTableTd>
-                    <DataTableTd className="text-foreground-muted">
-                      {item.serviceCode ?? "—"}
-                    </DataTableTd>
-                    <DataTableTd className="min-w-[14rem] text-foreground-muted">
-                      {item.description || "—"}
-                    </DataTableTd>
-                    <DataTableTd align="right" className="text-foreground-muted">
-                      {formatNumber(item.usageAmount)}
-                    </DataTableTd>
-                    <DataTableTd align="right" className="text-foreground-muted">
-                      {item.usageUnit ?? "—"}
-                    </DataTableTd>
-                    <DataTableTd align="right" className="text-foreground-muted">
-                      {formatUsd(item.usageUsd)}
-                    </DataTableTd>
-                    <DataTableTd align="right" className="text-foreground-muted">
-                      {formatNumber(item.exchangeRate)}
-                    </DataTableTd>
-                    <DataTableTd className="text-foreground-muted">
-                      {item.revenueBasis ?? "—"}
-                    </DataTableTd>
-                  </DataTableRow>
-                ))}
+                {pagedRows.items.map((row) =>
+                  row.kind === "partnerTotal" ? (
+                    <DataTableRow
+                      key={row.key}
+                      className="bg-surface-muted font-semibold"
+                    >
+                      <DataTableTd colSpan={3}>
+                        {row.partnerName} — {detail.period.label} total
+                      </DataTableTd>
+                      <DataTableTd align="right">{formatUsd(row.total)}</DataTableTd>
+                      <DataTableTd />
+                    </DataTableRow>
+                  ) : (
+                    <DataTableRow key={row.key}>
+                      <DataTableTd>{row.item.partnerName}</DataTableTd>
+                      <DataTableTd className="text-foreground-muted">
+                        {row.item.serviceCode ?? "—"}
+                      </DataTableTd>
+                      <DataTableTd className="min-w-[14rem] text-foreground-muted">
+                        {row.item.description || "—"}
+                      </DataTableTd>
+                      <DataTableTd align="right" className="text-foreground-muted">
+                        {formatUsd(itemAmount(row.item))}
+                      </DataTableTd>
+                      <DataTableTd className="text-foreground-muted">
+                        {row.item.revenueBasis ?? "—"}
+                      </DataTableTd>
+                    </DataTableRow>
+                  ),
+                )}
               </tbody>
             </DataTable>
           </DataTableFrame>
 
           <ListPagination
-            total={pagedItems.total}
-            page={pagedItems.page}
-            totalPages={pagedItems.totalPages}
-            noun="line item"
-            nounPlural="line items"
+            total={pagedRows.total}
+            page={pagedRows.page}
+            totalPages={pagedRows.totalPages}
+            noun="row"
+            nounPlural="rows"
             onPageChange={setItemPage}
           />
         </div>

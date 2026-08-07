@@ -1,3 +1,7 @@
+/**
+ * Primary action button primitive — variant map to shared `ui` token classes (primary, secondary, danger, ghost).
+ */
+
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 import { cn, ui } from "@/lib/ui/classes";

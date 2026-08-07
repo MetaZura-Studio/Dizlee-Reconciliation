@@ -1,3 +1,8 @@
+/**
+ * Singleton `app_settings` row (id 1): SMTP defaults, reminder toggles, JSON notification schedules,
+ * reconciliation negligible-percent tolerance, and Dizlee→OpCo invoice bank snapshot for local/dev.
+ */
+
 export const APP_SETTINGS_SEED = {
   emailEnabled: false,
   smtpHost: null,

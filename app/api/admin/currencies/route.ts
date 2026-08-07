@@ -1,3 +1,8 @@
+/**
+ * GET, POST — Admin portal.
+ * List currencies or create a new currency record.
+ */
+
 import { NextResponse } from "next/server";
 
 import { requireAdminApiSession } from "@/lib/admin/api-auth";

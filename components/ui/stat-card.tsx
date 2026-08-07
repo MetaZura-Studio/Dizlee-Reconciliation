@@ -1,3 +1,7 @@
+/**
+ * Dashboard metric card with tonal gradient wash and optional navigation link.
+ */
+
 import type { ReactNode } from "react";
 import Link from "next/link";
 

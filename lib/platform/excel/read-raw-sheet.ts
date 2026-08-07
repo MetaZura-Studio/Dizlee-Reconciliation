@@ -1,3 +1,6 @@
+/**
+ * Raw first-sheet Excel grid reader for upload preview (display strings, row/column caps).
+ */
 import ExcelJS from "exceljs";
 
 const MAX_PREVIEW_ROWS = 250;

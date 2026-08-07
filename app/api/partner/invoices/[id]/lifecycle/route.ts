@@ -1,3 +1,8 @@
+/**
+ * GET — Partner portal.
+ * Return invoice lifecycle events visible to the partner.
+ */
+
 import { NextResponse } from "next/server";
 
 import { getPartnerSession } from "@/lib/partner/auth";

@@ -1,3 +1,8 @@
+/**
+ * Manage currency lookup values used across invoices and FX rate tables.
+ * List, add, edit, and delete currencies with pagination and sorting.
+ */
+
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
@@ -146,6 +151,13 @@ export function CurrenciesView({
     }
   };
 
+  const clearFilters = () => {
+    setSearch("");
+    setSortBy("iso");
+    setSortDir("asc");
+    setPage(1);
+  };
+
   const handleDeleted = async (message: string) => {
     try {
       await reloadCurrencies();
@@ -167,26 +179,31 @@ export function CurrenciesView({
       />
 
       <div className="mt-6 space-y-4">
-        <label className="block max-w-md text-sm">
-          <span className={ui.label}>Search</span>
-          <input
-            type="search"
-            value={search}
-            onChange={(event) => {
-              setSearch(event.target.value);
-              setPage(1);
-            }}
-            placeholder="Search by code or symbol"
-            className={ui.input}
-          />
-        </label>
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="block min-w-[12rem] max-w-md flex-1 text-sm">
+            <span className={ui.label}>Search</span>
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setPage(1);
+              }}
+              placeholder="Search by code or symbol"
+              className={ui.input}
+            />
+          </label>
+          <Button type="button" variant="secondary" onClick={clearFilters}>
+            Clear filters
+          </Button>
+        </div>
 
         {filteredCurrencies.length === 0 ? (
           <EmptyState
             title={currencies.length === 0 ? "No currencies yet" : "No currencies found"}
             description={
               currencies.length === 0
-                ? "Add currencies here first, then set monthly KWD rates in the Monthly rates tab."
+                ? "Add currencies here first, then set monthly USD rates in the Monthly rates tab."
                 : "No currencies match your search."
             }
           />

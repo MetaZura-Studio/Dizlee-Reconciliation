@@ -1,3 +1,6 @@
+/**
+ * In-app notification delivery to all users of a single OpCo organization.
+ */
 import { prisma } from "@/lib/prisma";
 
 /**

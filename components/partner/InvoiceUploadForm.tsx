@@ -1,3 +1,8 @@
+/**
+ * Upload a partner invoice file for a selected OpCo and period.
+ * Validates input and registers the submission with the platform.
+ */
+
 "use client";
 
 import Link from "next/link";

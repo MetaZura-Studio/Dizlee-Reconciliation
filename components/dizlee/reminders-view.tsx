@@ -1,3 +1,8 @@
+/**
+ * Compose and send submission reminder emails to OpCos and partners.
+ * Pairs template selection with recipient filtering by reporting relationship.
+ */
+
 "use client";
 
 import { useCallback, useState } from "react";
@@ -35,6 +40,7 @@ import type {
   ReportMonitoringResult,
 } from "@/lib/dizlee/reports-monitoring";
 import {
+  getCurrentPeriod,
   getMaxMonthForYear,
   getPeriodYearOptions,
 } from "@/lib/platform/period";
@@ -147,18 +153,22 @@ export function RemindersView({
   const [error, setError] = useState<string | null>(null);
   const toast = useToast();
 
-  const loadData = useCallback(
-    async (page = 1) => {
+  type ReminderListFilters = {
+    month: number;
+    year: number;
+    opcoId: string;
+    partnerId: string;
+    missing: MissingSideFilter | "";
+  };
+
+  const fetchReminders = useCallback(
+    async (page: number, filters: ReminderListFilters) => {
       setLoading(true);
       setError(null);
       try {
         const response = await fetch(
           `/api/dizlee/notifications/reminders?${buildQuery({
-            month,
-            year,
-            opcoId,
-            partnerId,
-            missing,
+            ...filters,
             page,
           })}`,
         );
@@ -182,8 +192,37 @@ export function RemindersView({
         setLoading(false);
       }
     },
-    [messageSource, missing, month, opcoId, partnerId, year],
+    [messageSource],
   );
+
+  const loadData = useCallback(
+    async (page = 1, filterOverrides?: Partial<ReminderListFilters>) => {
+      await fetchReminders(page, {
+        month: filterOverrides?.month ?? month,
+        year: filterOverrides?.year ?? year,
+        opcoId: filterOverrides?.opcoId ?? opcoId,
+        partnerId: filterOverrides?.partnerId ?? partnerId,
+        missing: filterOverrides?.missing ?? missing,
+      });
+    },
+    [fetchReminders, missing, month, opcoId, partnerId, year],
+  );
+
+  const clearFilters = () => {
+    const period = getCurrentPeriod();
+    setMonth(period.month);
+    setYear(period.year);
+    setOpcoId("");
+    setPartnerId("");
+    setMissing("any");
+    void loadData(1, {
+      month: period.month,
+      year: period.year,
+      opcoId: "",
+      partnerId: "",
+      missing: "any",
+    });
+  };
 
   const handleMessageSourceChange = (source: string) => {
     setMessageSource(source);
@@ -369,6 +408,9 @@ export function RemindersView({
           </Button>
           <Button variant="secondary" onClick={() => void loadData(result.page)} disabled={loading}>
             Refresh
+          </Button>
+          <Button variant="secondary" onClick={clearFilters} disabled={loading}>
+            Clear filters
           </Button>
         </div>
       </FilterToolbar>

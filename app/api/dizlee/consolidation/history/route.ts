@@ -1,3 +1,8 @@
+/**
+ * GET — Dizlee portal.
+ * List past consolidation runs with status and metadata.
+ */
+
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 

@@ -1,3 +1,7 @@
+/**
+ * Admin audit log query — paginated list and CSV export cap for the Audit Logs screen.
+ * Filter parsing and CSV building live in audit-logs.shared.
+ */
 import type { Prisma } from "@prisma/client";
 
 import {

@@ -1,3 +1,8 @@
+/**
+ * Application session accessors built on NextAuth and authOptions.
+ * Consumed by server components and API routes that need the current user without portal guards.
+ */
+
 import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth/options";

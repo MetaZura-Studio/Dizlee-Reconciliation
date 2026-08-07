@@ -1,3 +1,8 @@
+/**
+ * Invoice submission monitoring by OpCo–partner lane and period.
+ * Consumed by invoices monitoring UI; treats direction-specific invoice presence as “Invoiced”.
+ */
+
 import { currentPeriod, type DashboardPeriod } from "@/lib/dizlee/dashboard";
 import {
   getInvoiceFilterOptions,

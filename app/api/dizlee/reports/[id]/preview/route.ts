@@ -1,3 +1,8 @@
+/**
+ * GET — Dizlee portal.
+ * Return preview content for a submitted partner or OpCo report file.
+ */
+
 import { NextResponse } from "next/server";
 
 import { requireDizleeSession } from "@/lib/dizlee/auth";

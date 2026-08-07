@@ -1,3 +1,8 @@
+/**
+ * GET, POST — Dizlee portal.
+ * List invoices or create a Dizlee digital invoice for an OpCo.
+ */
+
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 

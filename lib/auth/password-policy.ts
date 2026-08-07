@@ -1,6 +1,10 @@
+/**
+ * Zod password policy shared by admin resets and self-service password changes.
+ * Consumed by password-flow and admin user forms.
+ */
+
 import { z } from "zod";
 
-/** Shared rules for admin-set and user-changed passwords. */
 export const PASSWORD_MIN_LENGTH = 8;
 
 export const passwordSchema = z

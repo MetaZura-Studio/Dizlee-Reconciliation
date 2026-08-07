@@ -1,3 +1,8 @@
+/**
+ * Pipeline view of invoices grouped by lifecycle stage (draft through paid).
+ * Supports monitoring invoice progression across OpCos and partners.
+ */
+
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -19,6 +24,7 @@ import { cn, ui } from "@/lib/ui/classes";
 import { invoiceStatusTone } from "@/lib/ui/status-tones";
 import type { InvoiceFilterOptions } from "@/lib/dizlee/invoices";
 import {
+  getCurrentPeriod,
   getMaxMonthForYear,
   getPeriodYearOptions,
 } from "@/lib/platform/period";
@@ -196,6 +202,23 @@ export function InvoicesLifecycleView({
     );
   };
 
+  const clearFilters = () => {
+    const period = getCurrentPeriod();
+    skipAutoReload.current = true;
+    setMonth(period.month);
+    setYear(period.year);
+    setOpcoId("");
+    setPartnerId("");
+    void loadList(
+      {
+        month: period.month,
+        year: period.year,
+        page: 1,
+      },
+      null,
+    );
+  };
+
   const yearOptions = getPeriodYearOptions();
   const maxMonth = getMaxMonthForYear(year);
 
@@ -273,6 +296,11 @@ export function InvoicesLifecycleView({
               ))}
             </select>
           </label>
+        </div>
+        <div className="flex w-full gap-3">
+          <Button variant="secondary" onClick={clearFilters}>
+            Clear filters
+          </Button>
         </div>
       </FilterToolbar>
 

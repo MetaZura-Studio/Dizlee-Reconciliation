@@ -1,3 +1,7 @@
+/**
+ * Reporting period helpers — current month, future guard, and picker year/month bounds.
+ * Shared by OpCo, Partner, and Dizlee period selectors; never exposes future months.
+ */
 export type Period = {
   year: number;
   month: number;

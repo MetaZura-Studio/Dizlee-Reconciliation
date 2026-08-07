@@ -1,3 +1,8 @@
+/**
+ * Configure lanes, run reconciliation, and review match history for a period.
+ * Primary workspace for comparing partner and OpCo submitted figures.
+ */
+
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -42,6 +47,7 @@ import { paginateItems } from "@/lib/ui/list-pagination";
 import { nextSortState } from "@/lib/ui/sort";
 import { useDebouncedValue } from "@/lib/ui/use-debounced-value";
 import {
+  getCurrentPeriod,
   getMaxMonthForYear,
   getPeriodYearOptions,
 } from "@/lib/platform/period";
@@ -281,6 +287,39 @@ export function ReconciliationView({
       sortBy: compareSortBy,
       sortDir: compareSortDir,
     });
+  };
+
+  const clearCompareFilters = () => {
+    const period = getCurrentPeriod();
+    skipLaneSearchEffect.current = true;
+    setLaneSearch("");
+    setMonth(period.month);
+    setYear(period.year);
+    setSearchBy("opco");
+    setEntityId("");
+    setLaneStatus("all");
+    setCompareSortBy(initialCompareFilters.sortBy);
+    setCompareSortDir(initialCompareFilters.sortDir);
+    void loadLanes({
+      month: period.month,
+      year: period.year,
+      searchBy: "opco",
+      entityId: undefined,
+      search: undefined,
+      status: "all",
+      sortBy: initialCompareFilters.sortBy,
+      sortDir: initialCompareFilters.sortDir,
+    });
+  };
+
+  const clearHistoryFilters = () => {
+    skipHistorySearchEffect.current = true;
+    setHistorySearch("");
+    const defaultSortBy = initialHistory.sortBy ?? "runAt";
+    const defaultSortDir = initialHistory.sortDir ?? "desc";
+    setHistorySortBy(defaultSortBy);
+    setHistorySortDir(defaultSortDir);
+    void loadHistory(1, "", defaultSortBy, defaultSortDir);
   };
 
   const applyCompareSort = (field: CompareLaneSortField) => {
@@ -586,7 +625,12 @@ export function ReconciliationView({
                   </Select>
                 </label>
               </div>
-              <Button onClick={applyCompareFilters}>Apply filters</Button>
+              <div className="flex w-full flex-wrap gap-3">
+                <Button onClick={applyCompareFilters}>Apply filters</Button>
+                <Button variant="secondary" onClick={clearCompareFilters}>
+                  Clear filters
+                </Button>
+              </div>
             </FilterToolbar>
 
             <LoadingOverlay active={loading} className="mt-6 min-h-[12rem]" label="Loading pairs…">
@@ -735,6 +779,12 @@ export function ReconciliationView({
               onChange={setHistorySearch}
               placeholder="OpCo, Partner, status, or run by"
             />
+
+            <div className="mt-4 flex gap-3">
+              <Button variant="secondary" onClick={clearHistoryFilters}>
+                Clear filters
+              </Button>
+            </div>
 
             <LoadingOverlay active={loading} className="mt-6 min-h-[12rem]" label="Loading history…">
             {history.items.length > 0 ? (

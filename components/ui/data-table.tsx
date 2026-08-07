@@ -1,3 +1,7 @@
+/**
+ * Accessible table frame, header/body rows, and sortable column headers wired to shared sort direction types.
+ */
+
 import type { ReactNode, TableHTMLAttributes } from "react";
 
 import { cn, ui } from "@/lib/ui/classes";
@@ -109,13 +113,16 @@ export function DataTableTd({
   children,
   className,
   align = "left",
+  colSpan,
 }: {
   children?: ReactNode;
   className?: string;
   align?: "left" | "right";
+  colSpan?: number;
 }) {
   return (
     <td
+      colSpan={colSpan}
       className={cn(
         ui.tableCell,
         align === "right" ? "text-right tabular-nums" : "text-left",

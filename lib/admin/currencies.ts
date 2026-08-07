@@ -1,3 +1,7 @@
+/**
+ * Admin currency CRUD — ISO catalog maintenance with audit on create/update/delete.
+ * Rates live in `currency-rates.ts`; list shapes are shared with the Currencies UI.
+ */
 import { writeCurrencyAuditLog } from "@/lib/admin/audit";
 import type { CurrencyListItem } from "@/lib/admin/currencies.shared";
 import {

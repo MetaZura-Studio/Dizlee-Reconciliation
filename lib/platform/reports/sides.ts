@@ -1,7 +1,6 @@
 /**
- * OpCo and Partner each upload their own report for the same lane + period.
- * The reports table unique key is (opco_id, partner_id, year, month, version),
- * so we reserve version 1 for OpCo-side reports and version 2 for Partner-side reports.
+ * Report upload side versioning — OpCo report version 1, Partner version 2 per lane and period.
+ * Aligns with reports unique key (opco_id, partner_id, year, month, version).
  */
 export const OPCO_REPORT_VERSION = 1;
 export const PARTNER_REPORT_VERSION = 2;

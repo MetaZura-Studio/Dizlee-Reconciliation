@@ -1,3 +1,12 @@
+/**
+ * Singleton Prisma client for server-side data access (all portals).
+ *
+ * Applies a query extension on `findMany` / `findFirst` for configured soft-delete
+ * models so routine reads exclude `isDeleted: true` rows. Use explicit filters or
+ * raw queries when archived rows are required. Reuses one client instance in
+ * non-production to survive Next.js hot reload.
+ */
+
 import { PrismaClient } from "@prisma/client";
 
 const SOFT_DELETE_MODELS = new Set([

@@ -1,3 +1,7 @@
+/**
+ * Form field primitives: labeled inputs, selects, required marker, and grouped checkbox headings.
+ */
+
 import type { InputHTMLAttributes, LabelHTMLAttributes, SelectHTMLAttributes } from "react";
 
 import { cn, ui } from "@/lib/ui/classes";

@@ -1,3 +1,8 @@
+/**
+ * GET — Dizlee portal.
+ * Download a generated consolidation workbook for a run.
+ */
+
 import { NextResponse } from "next/server";
 
 import { requireDizleeSession } from "@/lib/dizlee/auth";

@@ -1,3 +1,10 @@
+/**
+ * Partner-initiated report reupload requests (change requests) pending Dizlee decision.
+ *
+ * Portal: Partner. Only SUBMITTED / APPROVED / RESUBMITTED reports; one open request
+ * per report. Does not mutate report files — approval unlocks reupload mutation.
+ */
+
 import { formatPeriodLabel } from "@/lib/partner/period";
 import { getPartnerLookupId } from "@/lib/partner/lookups";
 import { PARTNER_REPORT_VERSION } from "@/lib/platform/reports/sides";

@@ -1,3 +1,7 @@
+/**
+ * Square icon-only button with required accessible `label` and default/primary/danger variants.
+ */
+
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 import { cn, ui } from "@/lib/ui/classes";

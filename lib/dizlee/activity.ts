@@ -1,3 +1,9 @@
+/**
+ * Dizlee activity timeline: lane-scoped event feed built from reports, invoices, and notifications.
+ * Consumed by the activity page server component and related API routes.
+ * Lanes are active OpCo–partner links; events are ordered newest-first within filters.
+ */
+
 import "server-only";
 
 import { currentPeriod, type DashboardPeriod } from "@/lib/dizlee/dashboard";

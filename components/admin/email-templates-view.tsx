@@ -1,3 +1,8 @@
+/**
+ * Edit notification and auth email templates stored in the database.
+ * Supports preview, versioning, and creation of new template codes.
+ */
+
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
@@ -42,6 +47,14 @@ const SAMPLE_PLACEHOLDERS: Record<string, string> = {
   name: "Jane",
   link: "https://example.com/set-password?token=…",
   expiryHours: "24",
+  opcoName: "Sample OpCo",
+  partnerName: "Sample Partner",
+  status: "Completed",
+  matchedCount: "12",
+  unmatchedCount: "2",
+  totalVariance: "KD 15.250",
+  tolerancePercent: "5",
+  outcome: "2 mismatched / unmatched line item(s)",
 };
 
 const TEMPLATE_CATEGORY_FILTERS: Array<{
@@ -136,6 +149,11 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
         form.body !== detail.body ||
         form.changeNote.trim() !== ""),
   );
+
+  const clearFilters = () => {
+    setTemplateSearch("");
+    setTemplateCategory("all");
+  };
 
   const filteredTemplates = useMemo(() => {
     const query = templateSearch.trim().toLowerCase();
@@ -487,6 +505,15 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
                   </option>
                 ))}
               </select>
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full"
+                onClick={clearFilters}
+                disabled={busy}
+              >
+                Clear filters
+              </Button>
             </div>
           </div>
 

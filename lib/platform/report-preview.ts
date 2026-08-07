@@ -1,3 +1,6 @@
+/**
+ * Maps parsed Excel report lines to string preview DTOs for upload confirmation UI.
+ */
 import type { ParsedReportLine } from "@/lib/platform/excel/parse-report";
 
 export type ReportPreviewLineItem = {

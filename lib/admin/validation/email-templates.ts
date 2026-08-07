@@ -1,3 +1,6 @@
+/**
+ * Zod schemas for Admin notification template create, save, and revert actions.
+ */
 import { z } from "zod";
 
 export const saveEmailTemplateSchema = z.object({
@@ -39,7 +42,7 @@ export const createEmailTemplateSchema = z.object({
           "Code must be uppercase letters, numbers, and underscores",
         ),
     ),
-  category: z.enum(["INTIMATION", "REMINDER", "OTHER"], {
+  category: z.enum(["INTIMATION", "REMINDER", "ALERT", "OTHER"], {
     message: "Category is required",
   }),
   subject: z.string().trim().min(1, "Subject is required").max(255, "Subject is too long"),

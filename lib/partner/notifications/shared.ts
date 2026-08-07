@@ -1,3 +1,9 @@
+/**
+ * Partner inbox notification body truncation for list previews.
+ *
+ * Portal: Partner. Collapses whitespace; ellipsis appended when exceeding preview length.
+ */
+
 const BODY_PREVIEW_LENGTH = 120;
 
 export function trimNotificationPreview(body: string): string {

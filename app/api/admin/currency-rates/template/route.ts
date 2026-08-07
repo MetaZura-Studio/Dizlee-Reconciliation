@@ -1,3 +1,8 @@
+/**
+ * GET — Admin portal.
+ * Download the Excel template used for currency rate imports.
+ */
+
 import { NextResponse } from "next/server";
 
 import { requireAdminApiSession } from "@/lib/admin/api-auth";

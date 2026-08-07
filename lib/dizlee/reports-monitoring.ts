@@ -1,3 +1,8 @@
+/**
+ * Report submission monitoring: missing-side lanes, pagination, and reminder eligibility.
+ * Consumed by reports monitoring UI and automated/manual reminder sends.
+ */
+
 import { currentPeriod, type DashboardPeriod } from "@/lib/dizlee/dashboard";
 import { getLaneNotificationSummaries } from "@/lib/dizlee/lane-report-notifications";
 import {
@@ -77,7 +82,10 @@ export function parseReportMonitoringFilters(
     opcoId: searchParams.get("opcoId") ?? undefined,
     partnerId: searchParams.get("partnerId") ?? undefined,
     missing:
-      missing === "opco" || missing === "partner" || missing === "any"
+      missing === "opco" ||
+      missing === "partner" ||
+      missing === "any" ||
+      missing === "both"
         ? missing
         : undefined,
     page: Number.isInteger(page) && page >= 1 ? page : 1,
@@ -196,6 +204,12 @@ export async function listReportMonitoringLanes(
       (lane) =>
         lane.opcoReport.status === "Missing" ||
         lane.partnerReport.status === "Missing",
+    );
+  } else if (filters.missing === "both") {
+    lanes = lanes.filter(
+      (lane) =>
+        lane.opcoReport.status === "Submitted" &&
+        lane.partnerReport.status === "Submitted",
     );
   }
 

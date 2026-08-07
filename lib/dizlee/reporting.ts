@@ -1,3 +1,8 @@
+/**
+ * Cross-lane reporting matrix: submission completeness vs invoices and reconciliation.
+ * Consumed by the Dizlee reporting page; scopes rows to active OpCo–partner links.
+ */
+
 import {
   currentPeriod,
   getDashboardData,

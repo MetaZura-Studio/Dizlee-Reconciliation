@@ -1,3 +1,8 @@
+/**
+ * Start and track period consolidation runs across OpCos and partners.
+ * Shows readiness, history, and download actions for consolidation outputs.
+ */
+
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -36,6 +41,7 @@ import type {
 } from "@/lib/dizlee/consolidation";
 import type { ReportFilterOptions } from "@/lib/dizlee/reports";
 import {
+  getCurrentPeriod,
   getMaxMonthForYear,
   getPeriodYearOptions,
 } from "@/lib/platform/period";
@@ -73,10 +79,11 @@ function formatUsd(value: number | null): string {
   if (value === null) {
     return "—";
   }
-  return new Intl.NumberFormat("en-KW", {
+  return new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: "KWD",
-    maximumFractionDigits: 3,
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(value);
 }
 
@@ -289,6 +296,31 @@ export function ConsolidationView({
     void loadHistory(1, next, "");
   };
 
+  const clearGenerateFilters = () => {
+    const period = getCurrentPeriod();
+    setMonth(period.month);
+    setYear(period.year);
+    setOpcoId("");
+    setReadiness(null);
+    void loadReadiness(period.month, period.year, "");
+  };
+
+  const clearHistoryFilters = () => {
+    const period = getCurrentPeriod();
+    skipHistorySearchEffect.current = true;
+    setHistorySearch("");
+    setMonth(period.month);
+    setYear(period.year);
+    setOpcoId("");
+    const next = {
+      month: period.month,
+      year: period.year,
+      opcoId: undefined,
+    };
+    setAppliedHistoryFilters(next);
+    void loadHistory(1, next, "");
+  };
+
   useEffect(() => {
     if (skipHistorySearchEffect.current) {
       skipHistorySearchEffect.current = false;
@@ -487,6 +519,9 @@ export function ConsolidationView({
               >
                 Apply filters
               </Button>
+              <Button variant="secondary" onClick={clearGenerateFilters} disabled={loading}>
+                Clear filters
+              </Button>
               <Button
                 onClick={() => void runGenerate()}
                 disabled={!canGenerate || generating || loading}
@@ -649,9 +684,14 @@ export function ConsolidationView({
               </label>
             </div>
 
-            <Button onClick={applyHistoryFilters} disabled={loading}>
-              Apply filters
-            </Button>
+            <div className="flex w-full flex-wrap gap-3">
+              <Button onClick={applyHistoryFilters} disabled={loading}>
+                Apply filters
+              </Button>
+              <Button variant="secondary" onClick={clearHistoryFilters} disabled={loading}>
+                Clear filters
+              </Button>
+            </div>
           </FilterToolbar>
 
           <LoadingOverlay active={loading} className="min-h-[12rem]">
@@ -680,7 +720,7 @@ export function ConsolidationView({
                       />
                       <DataTableTh>Status</DataTableTh>
                       <SortableDataTableTh
-                        label="Total KWD"
+                        label="Total USD"
                         active={historySortBy === "total"}
                         direction={historySortDir}
                         onSort={() => applyHistorySort("total")}

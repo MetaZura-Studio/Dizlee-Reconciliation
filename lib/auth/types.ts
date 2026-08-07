@@ -1,6 +1,7 @@
 /**
- * Shared session contract for all portals.
- * See docs/AUTH_SESSION.md — other developers read these JWT fields in their own lib/<portal>/auth.ts.
+ * Cross-portal session user shape and role normalization from lookup codes.
+ * Consumed by NextAuth callbacks, portal auth guards, and middleware route checks.
+ * JWT/session fields mirror AppSessionUser; see docs/AUTH_SESSION.md for field semantics.
  */
 
 export const APP_ROLES = ["admin", "client", "opco", "partner"] as const;
@@ -20,6 +21,7 @@ export function isAppRole(value: string): value is AppRole {
   return (APP_ROLES as readonly string[]).includes(value);
 }
 
+/** Normalizes role lookup codes to lowercase AppRole values used in JWT/session. */
 export function normalizeRoleCode(lookupCode: string): AppRole {
   const role = lookupCode.toLowerCase();
   if (!isAppRole(role)) {

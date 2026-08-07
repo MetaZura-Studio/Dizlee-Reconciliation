@@ -235,8 +235,9 @@ export function InvoiceDetailModal({
                     Mark this invoice as paid?
                   </p>
                   <p className="mt-1 text-sm text-foreground-muted">
-                    This records payment collection from the OpCo for{" "}
-                    {detail.invoiceNumber ?? `invoice #${detail.id}`}.
+                    {detail.invoiceTypeCode === "PARTNER_TO_CLIENT"
+                      ? `This records that Dizlee paid the Partner invoice ${detail.invoiceNumber ?? `#${detail.id}`}.`
+                      : `This records payment collection from the OpCo for ${detail.invoiceNumber ?? `invoice #${detail.id}`}.`}
                   </p>
                   <div className="mt-4 flex flex-wrap justify-end gap-3">
                     <Button

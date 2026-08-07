@@ -1,3 +1,8 @@
+/**
+ * Upload and validate a partner report before final submission.
+ * Uses parse preview to catch template errors early.
+ */
+
 "use client";
 
 import Link from "next/link";

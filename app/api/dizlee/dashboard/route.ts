@@ -1,3 +1,8 @@
+/**
+ * GET — Dizlee portal.
+ * Return KPI and summary metrics for the Dizlee home dashboard.
+ */
+
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 

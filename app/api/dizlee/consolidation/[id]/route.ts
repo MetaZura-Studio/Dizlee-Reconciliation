@@ -1,3 +1,8 @@
+/**
+ * GET — Dizlee portal.
+ * Return details for a single consolidation run.
+ */
+
 import { NextResponse } from "next/server";
 
 import { requireDizleeSession } from "@/lib/dizlee/auth";

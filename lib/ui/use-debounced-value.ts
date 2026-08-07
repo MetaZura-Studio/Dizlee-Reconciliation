@@ -1,5 +1,12 @@
 "use client";
 
+/**
+ * Debounced React state for search fields and filter inputs.
+ *
+ * Portal-agnostic client hook. Resets the timer on every `value` change; default
+ * delay matches list search UX elsewhere in the app.
+ */
+
 import { useEffect, useState } from "react";
 
 /** Returns `value` after it has stayed unchanged for `delayMs`. */

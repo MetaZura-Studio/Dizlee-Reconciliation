@@ -1,3 +1,10 @@
+/**
+ * Partner PDF invoice upload for PARTNER_TO_DIZLEE billing periods.
+ *
+ * Portal: Partner. Enforces one invoice per partner/period; persists file, draft/sent
+ * workflow, audit log, and Dizlee notification. Currency defaults from platform base.
+ */
+
 import { getPartnerLookupId } from "@/lib/partner/lookups";
 import { formatPeriodLabel } from "@/lib/partner/period";
 import { saveInvoiceFileLocally } from "@/lib/partner/storage/save-invoice-file";

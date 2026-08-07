@@ -1,3 +1,6 @@
+/**
+ * Zod schemas for Admin OpCo–Partner link load and save requests.
+ */
 import { z } from "zod";
 
 const idString = z.string().trim().min(1, "Invalid ID");

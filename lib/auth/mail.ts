@@ -1,3 +1,8 @@
+/**
+ * Outbound mail transport: password emails and generic platform messages via Nodemailer.
+ * Consumed by password flows and platform notification delivery; honors dev preview when SMTP is off.
+ */
+
 import nodemailer from "nodemailer";
 
 import { buildPasswordEmailContent } from "@/lib/auth/password-email-content";
@@ -24,6 +29,7 @@ export type SendPlatformEmailInput = {
   html: string;
 };
 
+/** Rewrites recipient when SMTP_REDIRECT_TO is set (non-production safety). */
 export function applyEmailRedirect(input: {
   to: string;
   subject: string;

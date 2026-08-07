@@ -1,3 +1,8 @@
+/**
+ * Full OpCo notification inbox with read state and attachment downloads.
+ * Lists platform messages relevant to the signed-in OpCo user.
+ */
+
 "use client";
 
 import { useRouter } from "next/navigation";

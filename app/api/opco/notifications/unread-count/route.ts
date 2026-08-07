@@ -1,3 +1,8 @@
+/**
+ * GET — OpCo portal.
+ * Return the unread OpCo inbox notification count.
+ */
+
 import { NextResponse } from "next/server";
 
 import { getOpcoSession } from "@/lib/opco/auth";

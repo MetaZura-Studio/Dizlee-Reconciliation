@@ -1,3 +1,10 @@
+/**
+ * Partner report reupload after an approved change request.
+ *
+ * Portal: Partner. Replaces file and line items in place, marks request completed, sets
+ * RESUBMITTED. Eligibility must match `mapReuploadEligibility` before calling.
+ */
+
 import { Prisma } from "@prisma/client";
 
 import type { ParsedReportLine } from "@/lib/partner/excel/parse-report";

@@ -1,3 +1,8 @@
+/**
+ * GET — Dizlee portal.
+ * Return notification status tied to reconciliation lanes.
+ */
+
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 

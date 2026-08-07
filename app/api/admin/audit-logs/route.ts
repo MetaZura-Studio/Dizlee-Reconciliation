@@ -1,3 +1,8 @@
+/**
+ * GET — Admin portal.
+ * Return paginated audit log entries with optional filters.
+ */
+
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 

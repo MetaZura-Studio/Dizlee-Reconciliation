@@ -1,3 +1,8 @@
+/**
+ * GET, PATCH — Admin portal.
+ * Read or update numeric tolerance thresholds used in reconciliation.
+ */
+
 import { NextResponse } from "next/server";
 
 import { requireAdminApiSession } from "@/lib/admin/api-auth";

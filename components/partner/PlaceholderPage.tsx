@@ -1,3 +1,8 @@
+/**
+ * Placeholder content for partner routes not yet built.
+ * Maintains consistent layout inside the partner workspace.
+ */
+
 type PlaceholderPageProps = {
   title: string;
   description: string;

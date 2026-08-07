@@ -1,3 +1,8 @@
+/**
+ * OpCo-facing invoice list with search, period filter, preview, and print.
+ * Shows invoices issued to the OpCo with status and detail modals.
+ */
+
 "use client";
 
 import Link from "next/link";
@@ -206,6 +211,26 @@ export function InvoicesTable({
     void loadInvoices({ ...result.filters, page: 1 });
   };
 
+  const clearFilters = () => {
+    const period = getDefaultPeriod();
+    skipSearchEffect.current = true;
+    setYear(String(period.year));
+    setMonth(String(period.month));
+    setStatusCode("");
+    setPaymentStatus("all");
+    setSearch("");
+    setSortBy("uploaded");
+    setSortDir("desc");
+    void loadInvoices({
+      year: period.year,
+      month: period.month,
+      paymentStatus: "all",
+      sortBy: "uploaded",
+      sortDir: "desc",
+      page: 1,
+    });
+  };
+
   useEffect(() => {
     if (skipSearchEffect.current) {
       skipSearchEffect.current = false;
@@ -360,6 +385,9 @@ export function InvoicesTable({
         </div>
         <div className="flex w-full gap-3">
           <Button onClick={applyFilters}>Apply filters</Button>
+          <Button variant="secondary" onClick={clearFilters}>
+            Clear filters
+          </Button>
           <Button variant="secondary" onClick={refresh}>
             Refresh
           </Button>

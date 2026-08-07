@@ -1,3 +1,10 @@
+/**
+ * OpCo report list, detail, and URL filter parsing.
+ *
+ * Portal: OpCo. All queries filter `version: OPCO_REPORT_VERSION` and `opcoId`.
+ * Reupload eligibility is derived from change-request workflow, not status alone.
+ */
+
 import type { Prisma } from "@prisma/client";
 
 import { formatPeriodLabel } from "@/lib/opco/period";

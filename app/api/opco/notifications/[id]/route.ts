@@ -1,3 +1,8 @@
+/**
+ * GET, DELETE — OpCo portal.
+ * Fetch or dismiss a single OpCo inbox notification.
+ */
+
 import { NextResponse } from "next/server";
 
 import { getOpcoSession } from "@/lib/opco/auth";

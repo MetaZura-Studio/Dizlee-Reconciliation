@@ -1,3 +1,8 @@
+/**
+ * POST — Admin portal.
+ * Import FX rates from an uploaded spreadsheet for a billing period.
+ */
+
 import { NextResponse } from "next/server";
 
 import { requireAdminApiSession } from "@/lib/admin/api-auth";

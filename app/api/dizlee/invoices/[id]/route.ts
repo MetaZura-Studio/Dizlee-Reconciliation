@@ -1,3 +1,8 @@
+/**
+ * GET — Dizlee portal.
+ * Return full detail for a single invoice.
+ */
+
 import { NextResponse } from "next/server";
 
 import { requireDizleeSession } from "@/lib/dizlee/auth";

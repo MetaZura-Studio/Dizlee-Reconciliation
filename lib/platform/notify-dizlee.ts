@@ -1,3 +1,6 @@
+/**
+ * In-app notification fan-out to all Dizlee (CLIENT role) portal users.
+ */
 import { prisma } from "@/lib/prisma";
 
 /**

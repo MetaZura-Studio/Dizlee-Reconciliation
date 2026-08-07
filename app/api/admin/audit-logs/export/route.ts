@@ -1,3 +1,8 @@
+/**
+ * GET — Admin portal.
+ * Export audit log entries as a downloadable file for compliance review.
+ */
+
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 

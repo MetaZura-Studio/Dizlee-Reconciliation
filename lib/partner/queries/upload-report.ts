@@ -1,3 +1,10 @@
+/**
+ * Partner initial report upload: file persistence, line items, audit, and Dizlee notify.
+ *
+ * Portal: Partner. One report per OpCo/period on the Partner lane; rejects unlinked
+ * OpCos and duplicate lane rows via `laneReportWhere`.
+ */
+
 import { Prisma } from "@prisma/client";
 
 import type { ParsedReportLine } from "@/lib/partner/excel/parse-report";

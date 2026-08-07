@@ -1,3 +1,6 @@
+/**
+ * Zod schema for Admin reminder settings including notification schedule JSON steps.
+ */
 import { z } from "zod";
 
 import {

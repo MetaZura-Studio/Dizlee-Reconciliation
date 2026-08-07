@@ -353,6 +353,12 @@ export function CurrencyRatesSection({
     });
   }, [rows, search, rateStatus, sortDir]);
 
+  const clearFilters = () => {
+    setSearch("");
+    setRateStatus("all");
+    setPage(1);
+  };
+
   const pagedRows = useMemo(
     () => paginateItems(filteredRows, page),
     [filteredRows, page],
@@ -375,8 +381,8 @@ export function CurrencyRatesSection({
               ) : null}
             </div>
             <p className="text-sm text-foreground-muted">
-              Enter how many KWD equal <strong>1 unit</strong> of each currency
-              (example: 1 USD = 0.308 KWD).
+              Enter how many USD equal <strong>1 unit</strong> of each currency
+              (example: 1 KWD = 3.25 USD).
             </p>
           </div>
 
@@ -454,6 +460,14 @@ export function CurrencyRatesSection({
               </button>
             ))}
           </div>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={clearFilters}
+            disabled={busy}
+          >
+            Clear filters
+          </Button>
         </div>
 
         <LoadingOverlay active={loading} className="min-h-[12rem]">
@@ -485,7 +499,7 @@ export function CurrencyRatesSection({
                         direction={sortDir}
                         onSort={applyCurrencySort}
                       />
-                      <DataTableTh>1 unit = ? KWD</DataTableTh>
+                      <DataTableTh>1 unit = ? USD</DataTableTh>
                       <DataTableTh>Status</DataTableTh>
                     </tr>
                   </DataTableHead>
@@ -508,7 +522,7 @@ export function CurrencyRatesSection({
                           <DataTableTd>
                             {row.isBase ? (
                               <span className="text-foreground-muted">
-                                1.00 (KWD locked)
+                                1.00 (USD locked)
                               </span>
                             ) : (
                               <div className="flex max-w-xs items-center gap-2">
@@ -537,7 +551,7 @@ export function CurrencyRatesSection({
                                   disabled={busy}
                                 />
                                 <span className="shrink-0 text-xs text-foreground-subtle">
-                                  KWD
+                                  USD
                                 </span>
                               </div>
                             )}

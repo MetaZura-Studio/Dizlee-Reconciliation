@@ -1,3 +1,8 @@
+/**
+ * POST — OpCo portal.
+ * Upload and register a new OpCo report file.
+ */
+
 import { NextResponse } from "next/server";
 
 import { ReportParseError, parseReportWorkbook } from "@/lib/opco/excel/parse-report";

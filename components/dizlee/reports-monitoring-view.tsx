@@ -1,3 +1,8 @@
+/**
+ * Monitoring dashboard for report submission progress by pair and period.
+ * Highlights missing or late reports against expectations.
+ */
+
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -28,6 +33,7 @@ import { ui } from "@/lib/ui/classes";
 import { nextSortState, type SortDirection } from "@/lib/ui/sort";
 import type { ReportDetail, ReportFilterOptions } from "@/lib/dizlee/reports";
 import {
+  getCurrentPeriod,
   getMaxMonthForYear,
   getPeriodYearOptions,
 } from "@/lib/platform/period";
@@ -262,6 +268,24 @@ export function ReportsMonitoringView({
     void loadMonitoring({ ...result.filters, sortBy, sortDir, page: 1 });
   };
 
+  const clearFilters = () => {
+    const period = getCurrentPeriod();
+    setMonth(period.month);
+    setYear(period.year);
+    setOpcoId("");
+    setPartnerId("");
+    setMissing("");
+    setSortBy(initialResult.filters.sortBy);
+    setSortDir(initialResult.filters.sortDir);
+    void loadMonitoring({
+      month: period.month,
+      year: period.year,
+      page: 1,
+      sortBy: initialResult.filters.sortBy,
+      sortDir: initialResult.filters.sortDir,
+    });
+  };
+
   useEffect(() => {
     const handleFocus = () => {
       void loadMonitoring({ ...result.filters, page: 1 });
@@ -401,6 +425,7 @@ export function ReportsMonitoringView({
               <option value="opco">Missing OpCo reports</option>
               <option value="partner">Missing Partner reports</option>
               <option value="any">Any missing report</option>
+              <option value="both">Both OpCo & Partner submitted</option>
             </select>
           </label>
         </div>
@@ -408,6 +433,9 @@ export function ReportsMonitoringView({
           <Button onClick={applyFilters}>Apply</Button>
           <Button variant="secondary" onClick={refresh}>
             Refresh
+          </Button>
+          <Button variant="secondary" onClick={clearFilters}>
+            Clear filters
           </Button>
         </div>
       </FilterToolbar>

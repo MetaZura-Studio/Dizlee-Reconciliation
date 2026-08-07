@@ -1,3 +1,8 @@
+/**
+ * Dizlee user inbox for system notifications with read/unread state.
+ * Complements broadcast history with actionable incoming messages.
+ */
+
 "use client";
 
 import { useCallback, useEffect, useState } from "react";

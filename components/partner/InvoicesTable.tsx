@@ -1,3 +1,8 @@
+/**
+ * Partner invoice list with filters, preview, and upload entry points.
+ * Tracks invoice files submitted to linked OpCos.
+ */
+
 "use client";
 
 import {
@@ -344,7 +349,7 @@ export function InvoicesTable({ initialResult, filterOptions }: InvoicesTablePro
           <div className="flex w-full gap-2">
             <Button type="submit">Apply filters</Button>
             <Button type="button" variant="secondary" onClick={clearFilters}>
-              Clear
+              Clear filters
             </Button>
           </div>
         </FilterToolbar>

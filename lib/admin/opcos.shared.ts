@@ -1,3 +1,6 @@
+/**
+ * OpCo list item DTO and status label helper for Admin organization screens.
+ */
 export type AdminEntityStatus = "ACTIVE" | "INACTIVE";
 
 export type OpcoListItem = {

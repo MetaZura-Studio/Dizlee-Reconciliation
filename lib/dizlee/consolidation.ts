@@ -1,3 +1,9 @@
+/**
+ * OpCo consolidation: readiness checks, generation, history, and detail loaders.
+ * Consumed by consolidation UI; aggregates partner report lines per linked lane.
+ * Requires partner reports for all linked partners in the period before generation.
+ */
+
 import { currentPeriod, type DashboardPeriod } from "@/lib/dizlee/dashboard";
 import {
   aggregatePartnerLines,

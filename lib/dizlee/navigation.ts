@@ -1,3 +1,8 @@
+/**
+ * Static Dizlee sidebar navigation catalog and active-route matching.
+ * Consumed by Dizlee layout and workspace shell components.
+ */
+
 export type DizleeNavItem = {
   label: string;
   href: string;

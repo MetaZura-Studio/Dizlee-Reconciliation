@@ -1,3 +1,10 @@
+/**
+ * Persists Partner-uploaded report binaries under the shared object-storage layout.
+ *
+ * Portal: Partner. Storage keys land in the `reports/` folder; DB `File` rows are created
+ * by upload mutations, not this helper.
+ */
+
 import {
   saveStoredObject,
   type SaveStoredObjectResult,

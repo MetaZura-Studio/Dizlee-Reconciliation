@@ -1,3 +1,7 @@
+/**
+ * Page shell primitives: card container, title/subtitle header, and optional header actions layout.
+ */
+
 import type { ReactNode } from "react";
 
 import { cn, ui } from "@/lib/ui/classes";

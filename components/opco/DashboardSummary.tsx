@@ -1,3 +1,8 @@
+/**
+ * OpCo home dashboard summarizing report and invoice submission status.
+ * Period-aware KPIs and links into detailed tables.
+ */
+
 import { PartnerSubmissionsTable } from "@/components/opco/PartnerSubmissionsTable";
 import { PeriodSelector } from "@/components/opco/PeriodSelector";
 import { EmptyState } from "@/components/ui/empty-state";

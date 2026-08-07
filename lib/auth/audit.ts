@@ -1,3 +1,8 @@
+/**
+ * Human-readable session audit messages and login/logout platform audit writes.
+ * Consumed by NextAuth events and sign-out flows.
+ */
+
 import type { AppRole } from "@/lib/auth/types";
 import type { AuthLoginScope } from "@/lib/auth/scopes";
 import { writePlatformAuditLog } from "@/lib/platform/audit-log";

@@ -1,3 +1,7 @@
+/**
+ * Admin dashboard aggregates — entity counts, role breakdown, recent audit activity.
+ * Read-only; excludes soft-deleted rows and uses ACTIVE status where applicable.
+ */
 import type { AuditLogListItem } from "@/lib/admin/audit-logs.shared";
 import { prisma } from "@/lib/prisma";
 

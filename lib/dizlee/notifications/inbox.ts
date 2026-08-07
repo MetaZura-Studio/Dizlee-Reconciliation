@@ -1,3 +1,8 @@
+/**
+ * Dizlee operator notification inbox (messages addressed to the client portal).
+ * Consumed by notifications inbox UI; supports read/unread and paginated listing.
+ */
+
 import { NotificationError } from "@/lib/dizlee/notifications/intimations";
 import { trimNotificationPreview } from "@/lib/dizlee/notifications/shared";
 import { prisma } from "@/lib/prisma";

@@ -1,3 +1,8 @@
+/**
+ * Dizlee operations home with KPI cards, charts, and quick links.
+ * Summarizes submission, invoice, and reconciliation status for the selected period.
+ */
+
 "use client";
 
 import type { ReactNode } from "react";
@@ -101,10 +106,11 @@ const MONTHS = [
   "December",
 ];
 
-const kwdFormatter = new Intl.NumberFormat("en-KW", {
+const usdFormatter = new Intl.NumberFormat("en-US", {
   style: "currency",
-  currency: "KWD",
-  maximumFractionDigits: 3,
+  currency: "USD",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
 });
 
 function formatDateTime(value: string | null): string {
@@ -409,7 +415,7 @@ function BillingSectionView({
     <DashboardSection
       tone="billing"
       title="Billing & revenue"
-      description="Paid OpCo collections on platform; revenue in KWD using admin exchange rates."
+      description="Paid OpCo collections on platform; revenue in USD using admin exchange rates."
       action={
         <Link
           href={allInvoicesHref}
@@ -423,7 +429,7 @@ function BillingSectionView({
         <KpiCard label="Invoices" value={kpis.invoices} href={allInvoicesHref} tone="blue" />
         <KpiCard
           label="Total revenue (paid OpCos)"
-          value={kwdFormatter.format(kpis.totalRevenuePaidUsd)}
+          value={usdFormatter.format(kpis.totalRevenuePaidUsd)}
           href={paidInvoicesHref}
           tone="teal"
         />
@@ -435,7 +441,7 @@ function BillingSectionView({
         />
         <KpiCard
           label="Pending collection"
-          value={kwdFormatter.format(kpis.pendingCollectionUsd)}
+          value={usdFormatter.format(kpis.pendingCollectionUsd)}
           href={pendingInvoicesHref}
           tone="amber"
         />
@@ -444,7 +450,7 @@ function BillingSectionView({
       {kpis.missingFxCount > 0 ? (
         <div className={ui.alertWarning}>
           {kpis.missingFxCount} paid invoice(s) lack an FX rate for this period
-          and are excluded from the KWD total.
+          and are excluded from the USD total.
         </div>
       ) : null}
 
@@ -452,7 +458,7 @@ function BillingSectionView({
         <DonutChart
           title="Revenue by OpCo (paid)"
           segments={billing.revenueByOpco}
-          formatValue={(value) => kwdFormatter.format(value)}
+          formatValue={(value) => usdFormatter.format(value)}
           getSegmentHref={(segment) =>
             segment.id
               ? invoicesLink(month, year, {

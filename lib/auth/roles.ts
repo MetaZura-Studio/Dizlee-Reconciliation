@@ -1,3 +1,8 @@
+/**
+ * Portal home routes and pathname access rules by AppRole.
+ * Consumed by middleware, post-login redirects, and layout guards.
+ */
+
 import { ADMIN_DEFAULT_ROUTE } from "@/lib/admin/navigation";
 import type { MainPortalRole } from "@/lib/auth/scopes";
 import type { AppRole } from "@/lib/auth/types";
@@ -23,6 +28,7 @@ export function getMainPortalHomePath(role: MainPortalRole): string {
   return MAIN_PORTAL_HOME[role];
 }
 
+/** Enforces role-specific URL prefixes; shared auth pages remain allowed. */
 export function roleMayAccessPath(role: AppRole, pathname: string): boolean {
   if (pathname === "/admin/login") {
     return false;

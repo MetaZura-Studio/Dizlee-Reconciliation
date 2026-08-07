@@ -1,3 +1,8 @@
+/**
+ * Password email subject/body assembly from DB templates or hardcoded fallback.
+ * Consumed by mail.sendPasswordEmail; templates PASSWORD_INVITE and PASSWORD_FORGOT.
+ */
+
 import {
   buildPasswordActionUrl,
   formatTokenExpiryHours,

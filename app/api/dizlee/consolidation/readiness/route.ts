@@ -1,3 +1,8 @@
+/**
+ * GET — Dizlee portal.
+ * Report whether prerequisites are met to run consolidation for a period.
+ */
+
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 

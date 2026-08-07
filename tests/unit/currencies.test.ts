@@ -72,23 +72,23 @@ describe("currency rates validation", () => {
 
 describe("computeRateSavePlan", () => {
   const currencies = [
-    { id: "1", isoCode: "KWD" },
+    { id: "1", isoCode: "USD" },
     { id: "2", isoCode: "EUR" },
     { id: "3", isoCode: "GBP" },
   ];
 
-  it("forces KWD to 1 and upserts other provided rates", () => {
+  it("forces USD to 1 and upserts other provided rates", () => {
     const plan = computeRateSavePlan({
       currencies,
       submittedRates: [
         { currencyId: "1", rateToUsd: 99 },
-        { currencyId: "2", rateToUsd: 0.334 },
+        { currencyId: "2", rateToUsd: 1.08 },
       ],
     });
 
     expect(plan.toUpsert).toEqual([
       { currencyId: "1", rateToUsd: 1 },
-      { currencyId: "2", rateToUsd: 0.334 },
+      { currencyId: "2", rateToUsd: 1.08 },
     ]);
     expect(plan.toSoftDelete).toEqual([]);
     expect(plan.updated).toBe(2);

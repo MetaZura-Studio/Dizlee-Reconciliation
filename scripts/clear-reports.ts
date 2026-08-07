@@ -1,3 +1,7 @@
+/**
+ * Dev utility: deletes all reports and dependent reconciliations/consolidations/files for a clean slate.
+ */
+
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();

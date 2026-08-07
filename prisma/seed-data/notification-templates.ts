@@ -1,4 +1,13 @@
-export type EmailTemplateCategory = "INTIMATION" | "REMINDER" | "OTHER";
+/**
+ * DB-backed notification/email template seeds with version history stubs.
+ * Categories: INTIMATION, REMINDER, ALERT (reconciliation), and OTHER (password flows).
+ */
+
+export type EmailTemplateCategory =
+  | "INTIMATION"
+  | "REMINDER"
+  | "ALERT"
+  | "OTHER";
 
 export type NotificationTemplateSeed = {
   code: string;
@@ -38,7 +47,34 @@ If you did not expect this email, you can ignore it.
 
 — Dizlee Reconciliation`;
 
-/** Admin-editable templates; outreach grouped by Intimation / Reminder. */
+const RECONCILIATION_ALERT_OPCO_BODY = `Hello,
+
+Reconciliation results for {{opcoName}} / {{partnerName}} ({{period}}):
+
+- Status: {{status}}
+- Matched: {{matchedCount}}
+- Unmatched: {{unmatchedCount}}
+- Total variance: {{totalVariance}}
+- Tolerance: {{tolerancePercent}}%
+
+Outcome: {{outcome}}.
+
+Please review the reconciliation result in Dizlee.`;
+
+const RECONCILIATION_ALERT_PARTNER_BODY = `Hello,
+
+Reconciliation results for {{opcoName}} / {{partnerName}} ({{period}}):
+
+- Status: {{status}}
+- Matched: {{matchedCount}}
+- Unmatched: {{unmatchedCount}}
+- Total variance: {{totalVariance}}
+- Tolerance: {{tolerancePercent}}%
+
+Outcome: {{outcome}}.
+
+Please review the reconciliation result in Dizlee.`;
+
 export const NOTIFICATION_TEMPLATE_SEEDS: NotificationTemplateSeed[] = [
   {
     code: "REPORT_SUBMISSION",
@@ -93,6 +129,38 @@ export const NOTIFICATION_TEMPLATE_SEEDS: NotificationTemplateSeed[] = [
         version: 1,
         subject: "Invoice submission reminder",
         body: "Your monthly invoice for {{period}} is still missing. Please log in and upload it as soon as possible.",
+      },
+    ],
+  },
+  {
+    code: "RECONCILIATION_ALERT_OPCO",
+    name: "Reconciliation alert (OpCo)",
+    category: "ALERT",
+    subject:
+      "Reconciliation update — {{opcoName}} / {{partnerName}} ({{period}})",
+    body: RECONCILIATION_ALERT_OPCO_BODY,
+    versions: [
+      {
+        version: 1,
+        subject:
+          "Reconciliation update — {{opcoName}} / {{partnerName}} ({{period}})",
+        body: RECONCILIATION_ALERT_OPCO_BODY,
+      },
+    ],
+  },
+  {
+    code: "RECONCILIATION_ALERT_PARTNER",
+    name: "Reconciliation alert (Partner)",
+    category: "ALERT",
+    subject:
+      "Reconciliation update — {{opcoName}} / {{partnerName}} ({{period}})",
+    body: RECONCILIATION_ALERT_PARTNER_BODY,
+    versions: [
+      {
+        version: 1,
+        subject:
+          "Reconciliation update — {{opcoName}} / {{partnerName}} ({{period}})",
+        body: RECONCILIATION_ALERT_PARTNER_BODY,
       },
     ],
   },

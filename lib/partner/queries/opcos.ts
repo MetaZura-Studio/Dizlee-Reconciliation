@@ -1,3 +1,10 @@
+/**
+ * Active OpCo–Partner links for Partner upload pickers and authorization checks.
+ *
+ * Portal: Partner. Uses `ACTIVE_OPCO_PARTNER_LINK_FILTER`; inactive links are invisible
+ * to upload and list filter options.
+ */
+
 import { ACTIVE_OPCO_PARTNER_LINK_FILTER } from "@/lib/platform/opco-partner-links";
 import prisma from "@/lib/prisma";
 
@@ -25,7 +32,11 @@ export async function getLinkedOpcosForPartner(
   partnerId: bigint,
 ): Promise<LinkedOpco[]> {
   const links = await prisma.opcoPartnerLink.findMany({
-    where: { partnerId, ...ACTIVE_OPCO_PARTNER_LINK_FILTER },
+    where: {
+      partnerId,
+      ...ACTIVE_OPCO_PARTNER_LINK_FILTER,
+      opco: { isDeleted: false },
+    },
     include: {
       opco: {
         select: {

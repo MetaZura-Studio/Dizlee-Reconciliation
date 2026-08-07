@@ -1,3 +1,8 @@
+/**
+ * GET, PATCH — Admin portal.
+ * Read or update SMTP and outbound email configuration.
+ */
+
 import { NextResponse } from "next/server";
 
 import { requireAdminApiSession } from "@/lib/admin/api-auth";

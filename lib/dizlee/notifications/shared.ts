@@ -1,3 +1,8 @@
+/**
+ * Notification UI helpers: body previews and recipient rollups for sent messages.
+ * Consumed by intimations, history, and inbox list/detail formatters.
+ */
+
 const BODY_PREVIEW_LENGTH = 120;
 
 export function trimNotificationPreview(body: string): string {

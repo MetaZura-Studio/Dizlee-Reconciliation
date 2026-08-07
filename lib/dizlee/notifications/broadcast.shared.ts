@@ -1,3 +1,9 @@
+/**
+ * Shared broadcast/intimation types and template picker constants for Dizlee notifications.
+ * Consumed by intimations, reminders, and client notification forms.
+ * Manual sends use INTIMATION and REMINDER template categories only (excludes password/Other).
+ */
+
 export const BROADCAST_TEMPLATE_CODES = [
   "REPORT_SUBMISSION",
   "REPORT_REMINDER",

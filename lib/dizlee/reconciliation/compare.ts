@@ -1,3 +1,9 @@
+/**
+ * Pure line-matching logic for OpCo vs partner report reconciliation runs.
+ * Consumed by reconciliation runs and consolidation aggregation (shared service keys).
+ * Service identity is normalized description text, not raw line numbers alone.
+ */
+
 export type CompareLineInput = {
   lineId: bigint;
   description: string | null;
@@ -23,6 +29,7 @@ export type ComparedRow = {
     | "MISSING_IN_OPCO";
 };
 
+/** Canonical service key for matching OpCo and partner lines (whitespace-normalized). */
 export function normalizeServiceName(
   description: string | null,
   lineNumber: number,
@@ -31,15 +38,16 @@ export function normalizeServiceName(
   return base.replace(/\s+/g, " ");
 }
 
+/** Prefer billable amount (OpCo original / Partner gross); Zain share stays in usageUsd. */
 export function lineAmountUsd(line: CompareLineInput): number {
+  if (line.amount !== null && line.amount !== undefined) {
+    return line.amount;
+  }
   if (line.usageUsd !== null && line.usageUsd !== undefined) {
     return line.usageUsd;
   }
   if (line.usageAmount !== null && line.usageAmount !== undefined) {
     return line.usageAmount;
-  }
-  if (line.amount !== null && line.amount !== undefined) {
-    return line.amount;
   }
   return 0;
 }
@@ -87,6 +95,7 @@ function aggregateLines(
   return map;
 }
 
+/** Pairwise line comparison with tolerance-based MATCHED vs MISMATCHED classification. */
 export function compareReportLines(
   opcoLines: CompareLineInput[],
   partnerLines: CompareLineInput[],

@@ -1,3 +1,7 @@
+/**
+ * Admin outbound email configuration — DB overrides merged with SMTP env credentials.
+ * Supports test send and audit on change; secrets never returned in the view model.
+ */
 import type { Prisma } from "@prisma/client";
 
 import { writeSettingsAuditLog } from "@/lib/admin/audit";

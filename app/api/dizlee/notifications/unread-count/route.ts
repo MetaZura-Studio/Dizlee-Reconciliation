@@ -1,3 +1,8 @@
+/**
+ * GET — Dizlee portal.
+ * Return the count of unread Dizlee inbox notifications.
+ */
+
 import { NextResponse } from "next/server";
 
 import { requireDizleeSession } from "@/lib/dizlee/auth";

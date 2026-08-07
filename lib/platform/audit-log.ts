@@ -1,3 +1,7 @@
+/**
+ * Cross-portal audit log writer — resolves lookup IDs and swallows failures (non-blocking).
+ * Used by OpCo, Partner, and Dizlee mutations that are not Admin-scoped.
+ */
 import type { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
@@ -18,6 +22,7 @@ async function getLookupId(typeCode: string, code: string): Promise<number> {
   return lookup.id;
 }
 
+/** Writes an audit row; logs and ignores lookup/DB failures so callers are not blocked. */
 export async function writePlatformAuditLog(params: {
   actorUserId: bigint;
   action: string;

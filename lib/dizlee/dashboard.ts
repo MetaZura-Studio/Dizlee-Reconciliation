@@ -1,3 +1,9 @@
+/**
+ * Dizlee home dashboard aggregates: billing KPIs, lane health, and period helpers.
+ * Consumed by the dashboard page, reporting module, and list filters that default to “current period”.
+ * Revenue figures use monthly FX from platform currency rates; missing FX is surfaced in KPIs.
+ */
+
 import { ACTIVE_OPCO_PARTNER_LINK_FILTER } from "@/lib/platform/opco-partner-links";
 import { getMonthlyRatesForPeriod } from "@/lib/platform/currency-rates";
 import { prisma } from "@/lib/prisma";
@@ -81,6 +87,7 @@ function periodLabel(month: number, year: number): string {
   });
 }
 
+/** Calendar month/year used as the default filter across Dizlee modules. */
 export function currentPeriod(now = new Date()): DashboardPeriod {
   const month = now.getMonth() + 1;
   const year = now.getFullYear();
@@ -143,6 +150,7 @@ function reconciliationLaneStatus(
   }
 }
 
+/** Loads billing KPIs, lane panels, and chart segments for one reporting period. */
 export async function getDashboardData(
   period: DashboardPeriod,
 ): Promise<DashboardData> {

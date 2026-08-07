@@ -1,3 +1,8 @@
+/**
+ * GET — Admin portal.
+ * Trigger scheduled report and invoice submission reminder emails (cron-protected).
+ */
+
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 

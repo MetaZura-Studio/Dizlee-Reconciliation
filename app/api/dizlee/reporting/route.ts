@@ -1,3 +1,8 @@
+/**
+ * GET — Dizlee portal.
+ * Return aggregated reporting datasets for analytics screens.
+ */
+
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 

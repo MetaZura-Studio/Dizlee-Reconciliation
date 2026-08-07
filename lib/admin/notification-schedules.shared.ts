@@ -1,3 +1,8 @@
+/**
+ * Notification schedule model — intimation/reminder steps, due day, JSON parse/defaults.
+ * Stored in app_settings.notification_schedules_json; drives UC-07 cron and Admin Reminder UI.
+ * Invariant: intimation days < dueDayOfMonth < reminder days (all clamped to 1–28).
+ */
 export const SCHEDULE_STEP_KINDS = ["INTIMATION", "REMINDER"] as const;
 export type ScheduleStepKind = (typeof SCHEDULE_STEP_KINDS)[number];
 
@@ -54,6 +59,107 @@ export function audienceLabel(audience: ScheduleAudience): string {
     case "both":
       return "OpCo and Partner";
   }
+}
+
+/** Short helper under the audience select in Admin Reminder Settings. */
+export function audienceHelperText(audience: ScheduleAudience): string {
+  switch (audience) {
+    case "opco":
+      return "Emails all OpCo users in scope for the period.";
+    case "partner":
+      return "Emails all Partner users in scope for the period.";
+    case "both":
+      return "Emails both OpCo and Partner users.";
+  }
+}
+
+export type AutomationStatusKind = "off" | "cron_only" | "no_steps" | "active";
+
+export type AutomationStatus = {
+  kind: AutomationStatusKind;
+  label: string;
+};
+
+/**
+ * Effective automation status for Admin Reminder Settings (display only).
+ * Cron runs only when remindersEnabled is true; steps fire only when schedule.enabled.
+ */
+export function describeAutomationStatus(
+  remindersEnabled: boolean,
+  schedule: Pick<NotificationSchedule, "enabled" | "intimations" | "reminders">,
+): AutomationStatus {
+  const stepCount = schedule.intimations.length + schedule.reminders.length;
+
+  if (!remindersEnabled) {
+    return { kind: "off", label: "Not sending" };
+  }
+  if (!schedule.enabled) {
+    return {
+      kind: "cron_only",
+      label: "Paused — turn sending on to use this schedule",
+    };
+  }
+  if (stepCount === 0) {
+    return {
+      kind: "no_steps",
+      label: "On — add emails below",
+    };
+  }
+  return {
+    kind: "active",
+    label: `Sending · ${stepCount} email${stepCount === 1 ? "" : "s"} / month`,
+  };
+}
+
+/**
+ * Human-readable notice when changing due day clamps or drops steps.
+ * Returns null when the step lists are unchanged.
+ */
+export function describeDueDayClamp(
+  before: NotificationSchedule,
+  after: NotificationSchedule,
+): string | null {
+  const beforeIntimations = before.intimations;
+  const afterIntimations = after.intimations;
+  const beforeReminders = before.reminders;
+  const afterReminders = after.reminders;
+
+  let adjusted = 0;
+  let removed = 0;
+
+  for (const step of beforeIntimations) {
+    const next = afterIntimations.find((item) => item.id === step.id);
+    if (!next) {
+      removed += 1;
+    } else if (next.dayOfMonth !== step.dayOfMonth) {
+      adjusted += 1;
+    }
+  }
+  for (const step of beforeReminders) {
+    const next = afterReminders.find((item) => item.id === step.id);
+    if (!next) {
+      removed += 1;
+    } else if (next.dayOfMonth !== step.dayOfMonth) {
+      adjusted += 1;
+    }
+  }
+
+  if (adjusted === 0 && removed === 0) {
+    return null;
+  }
+
+  const parts: string[] = [];
+  if (adjusted > 0) {
+    parts.push(
+      `${adjusted} step${adjusted === 1 ? " was" : "s were"} adjusted to stay before/after the due day`,
+    );
+  }
+  if (removed > 0) {
+    parts.push(
+      `${removed} step${removed === 1 ? " was" : "s were"} removed because no valid day remains`,
+    );
+  }
+  return `${parts.join(". ")}.`;
 }
 
 /** Default template when a step has no templateCode saved yet. */

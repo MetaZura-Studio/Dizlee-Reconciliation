@@ -1,3 +1,9 @@
+/**
+ * Dizlee broadcast intimations: template resolution, validation, send, and history listing.
+ * Consumed by notifications UI and lane-specific intimation actions.
+ * Persists platform notifications with optional attachments and multi-audience recipients.
+ */
+
 import { getLookupId } from "@/lib/dizlee/lookups";
 import {
   BROADCAST_PICKER_CATEGORIES,
@@ -204,6 +210,7 @@ export async function listIntimations(filters: {
   };
 }
 
+/** Resolves subject/body from custom text or an active notification template code. */
 export async function resolveBroadcastMessage(
   input: SendBroadcastInput,
 ): Promise<{ subject: string; body: string }> {

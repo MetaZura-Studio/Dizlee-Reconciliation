@@ -1,3 +1,8 @@
+/**
+ * Browse and filter immutable audit log entries for security and compliance.
+ * Supports date-range search and export of audit history.
+ */
+
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -21,6 +26,7 @@ import { LoadingOverlay } from "@/components/ui/loading";
 import { PageCard } from "@/components/ui/page";
 import {
   buildAuditLogQuery,
+  parseAuditLogListFilters,
   type AuditLogFilterOptions,
   type AuditLogListFilters,
   type AuditLogListItem,
@@ -225,6 +231,14 @@ export function AuditLogsView({
     applyFilters({ search: searchDraft });
   };
 
+  const clearFilters = () => {
+    const defaults = parseAuditLogListFilters(new URLSearchParams());
+    const next = { ...defaults, pageSize: filters.pageSize };
+    setSearchDraft(next.search);
+    setFilters(next);
+    void loadLogs(next);
+  };
+
   return (
     <PageCard>
       {error ? <p className={ui.alertError}>{error}</p> : null}
@@ -313,6 +327,9 @@ export function AuditLogsView({
             </Button>
             <Button onClick={submitSearch} disabled={loading}>
               {loading ? "Loading…" : "Apply"}
+            </Button>
+            <Button variant="secondary" onClick={clearFilters} disabled={loading}>
+              Clear filters
             </Button>
           </div>
         </div>

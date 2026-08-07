@@ -12,6 +12,12 @@ Master/reference data for local development. Safe to run repeatedly — all oper
 npm run seed
 ```
 
+To wipe transactional data **and** replace OpCos / Partners / users from the seed roster:
+
+```bash
+npm run db:reset-orgs
+```
+
 Prerequisites:
 
 1. MySQL running and `DATABASE_URL` set in `.env`
@@ -24,9 +30,9 @@ Prerequisites:
 | Entity | Count | Notes |
 |--------|------:|-------|
 | OpCos | 7 | Zain markets (Kuwait, KSA, Iraq, Jordan, Bahrain, Sudan, South Sudan) |
-| Partners | 35 | Apple, Google, Spotify, Meta, Stripe, PayPal, etc. |
-| OpCo–Partner links | 74 | Realistic matrix — not all-to-all |
-| Users | 44 | 2 platform + 7 OpCo + 35 Partner |
+| Partners | 51 | Real roster from OpCo/Partner Excel (spelling variants merged) |
+| OpCo–Partner links | 109 | Per-market matrix; South Sudan has no partners yet |
+| Users | 60 | 2 platform + 7 OpCo + 51 Partner |
 | Currencies | 12 | USD, EUR, GBP, KWD, SAR, IQD, JOD, BHD, SDG, SSP, AED, OMR |
 | Currency monthly rates | 23 | Jan + Jun 2026 sample rates |
 | Lookup types + lookups | All SRS codes | USER_ROLE, REPORT_STATUS, etc. |
@@ -55,7 +61,7 @@ Pattern: `{opco-slug}@dizlee.com` → `/login`
 | Email | OpCo |
 |-------|------|
 | `zain-kuwait@dizlee.com` | Zain Kuwait |
-| `zain-ksa@dizlee.com` | Zain Saudi Arabia (Zain KSA) |
+| `zain-ksa@dizlee.com` | Zain KSA |
 | `zain-iraq@dizlee.com` | Zain Iraq |
 | `zain-jordan@dizlee.com` | Zain Jordan |
 | `zain-bahrain@dizlee.com` | Zain Bahrain |
@@ -66,13 +72,13 @@ Pattern: `{opco-slug}@dizlee.com` → `/login`
 
 Pattern: `{partner-slug}@dizlee.com` → `/login`
 
-Examples: `apple@dizlee.com`, `spotify@dizlee.com`, `netflix@dizlee.com`, `meta@dizlee.com`
+Examples: `arpuplus@dizlee.com`, `digitalvirgo@dizlee.com`, `google@dizlee.com`, `marvel-media@dizlee.com`
 
 Full partner list: `prisma/seed-data/partners.ts`
 
 ### Retired demo users
 
-`opco@dizlee.com` and `partner@dizlee.com` are soft-deleted by the seed script. Use slug-based emails instead.
+`opco@dizlee.com` and `partner@dizlee.com` are soft-deleted by the seed script. Any leftover emails not in the current OpCo/Partner roster are also soft-deleted. Use slug-based emails instead.
 
 ---
 
@@ -81,8 +87,8 @@ Full partner list: `prisma/seed-data/partners.ts`
 | File | Purpose |
 |------|---------|
 | `prisma/seed-data/opcos.ts` | 7 Zain OpCos with stable IDs |
-| `prisma/seed-data/partners.ts` | 35 partners with stable IDs |
-| `prisma/seed-data/opco-partner-links.ts` | Link matrix |
+| `prisma/seed-data/partners.ts` | 51 partners with stable IDs |
+| `prisma/seed-data/opco-partner-links.ts` | Link matrix (109 lanes) |
 | `prisma/seed-data/currencies.ts` | Currency definitions |
 | `prisma/seed-data/currency-rates.ts` | Monthly USD rates |
 | `prisma/seed-data/lookups.ts` | Lookup type codes |
@@ -98,7 +104,8 @@ After pulling the branch with the seed changes:
 ```bash
 npm install
 npx prisma migrate deploy   # or db push
-npm run seed
+npm run db:reset-orgs       # wipe old orgs/users/tx data + seed
+# or: npm run seed          # upsert only (does not hard-delete old orgs)
 ```
 
 Then sign in with any slug email above. Session contract: `docs/AUTH_SESSION.md`.

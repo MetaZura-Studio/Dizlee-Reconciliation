@@ -1,3 +1,8 @@
+/**
+ * GET — OpCo portal.
+ * List invoices addressed to the signed-in OpCo.
+ */
+
 import { NextResponse } from "next/server";
 
 import { getOpcoSession } from "@/lib/opco/auth";

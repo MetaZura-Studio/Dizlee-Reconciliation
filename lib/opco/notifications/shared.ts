@@ -1,3 +1,9 @@
+/**
+ * OpCo inbox notification body truncation for list previews.
+ *
+ * Portal: OpCo. Collapses whitespace; ellipsis appended when exceeding preview length.
+ */
+
 const BODY_PREVIEW_LENGTH = 120;
 
 export function trimNotificationPreview(body: string): string {

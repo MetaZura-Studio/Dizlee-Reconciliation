@@ -1,3 +1,8 @@
+/**
+ * GET — Partner portal.
+ * Return detail for a single partner-visible report.
+ */
+
 import { NextResponse } from "next/server";
 
 import { getPartnerSession } from "@/lib/partner/auth";

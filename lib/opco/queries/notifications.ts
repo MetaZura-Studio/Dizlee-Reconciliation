@@ -1,8 +1,16 @@
+/**
+ * OpCo notification inbox: list, detail, read state, and dismiss.
+ *
+ * Portal: OpCo. Visibility matches USER and OPCO recipient rows for the signed-in
+ * user and tenant. Dismiss soft-deletes the recipient link, not the notification row.
+ */
+
 import type { Prisma } from "@prisma/client";
 
 import { trimNotificationPreview } from "@/lib/opco/notifications/shared";
 import prisma from "@/lib/prisma";
 
+/** HTTP-friendly error for inbox mutations; `status` is intended for route handlers. */
 export class OpcoNotificationError extends Error {
   status: number;
 

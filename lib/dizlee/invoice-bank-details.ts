@@ -1,3 +1,9 @@
+/**
+ * Invoice bank account and signatory snapshots for digital Dizlee→OpCo invoices.
+ * Consumed by invoice send flows and admin bank settings readers.
+ * JSON on invoices supports legacy single-object, `{ accounts: [] }`, and raw array shapes.
+ */
+
 import { prisma } from "@/lib/prisma";
 
 export type InvoiceBankDetails = {
@@ -190,6 +196,7 @@ export function parseInvoiceSignatoriesJson(
   }
 }
 
+/** JSON snapshot stored on sent invoices: selected account plus optional signatories. */
 export function serializeInvoiceBankDetailsSnapshot(
   account: InvoiceBankAccount | InvoiceBankDetails,
   signatories?: Partial<InvoiceSignatories> | null,

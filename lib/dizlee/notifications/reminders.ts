@@ -1,3 +1,8 @@
+/**
+ * Report reminder settings surface and bulk send orchestration for Dizlee operators.
+ * Consumed by reminders UI; delegates missing-lane detection to report monitoring.
+ */
+
 import {
   type ReminderSettingsView,
   type SendReportRemindersInput,
