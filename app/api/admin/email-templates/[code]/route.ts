@@ -4,10 +4,10 @@
  */
 
 import { NextResponse } from "next/server";
+import { jsonError, unauthorized } from "@/lib/errors/respond";
 
 import { requireAdminApiSession } from "@/lib/admin/api-auth";
 import {
-  EmailTemplateError,
   getEmailTemplate,
   saveEmailTemplate,
 } from "@/lib/admin/email-templates";
@@ -20,7 +20,7 @@ type RouteContext = {
 export async function GET(_request: Request, context: RouteContext) {
   const user = await requireAdminApiSession();
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorized();
   }
 
   try {
@@ -28,19 +28,14 @@ export async function GET(_request: Request, context: RouteContext) {
     const data = await getEmailTemplate(decodeURIComponent(code));
     return NextResponse.json({ data });
   } catch (error) {
-    if (error instanceof EmailTemplateError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
-    }
-    const message =
-      error instanceof Error ? error.message : "Failed to load email template";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonError(error);
   }
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
   const user = await requireAdminApiSession();
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorized();
   }
 
   try {
@@ -53,11 +48,6 @@ export async function PATCH(request: Request, context: RouteContext) {
     );
     return NextResponse.json({ data });
   } catch (error) {
-    if (error instanceof EmailTemplateError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
-    }
-    const message =
-      error instanceof Error ? error.message : "Failed to save email template";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonError(error);
   }
 }

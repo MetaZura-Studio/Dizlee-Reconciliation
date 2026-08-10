@@ -12,11 +12,16 @@ import type {
   CreateOpcoInvoiceLineInput,
 } from "@/lib/dizlee/invoices";
 import type { InvoiceBankDetails } from "@/lib/dizlee/invoice-bank-details";
+import {
+  convertInvoiceLinesToUsd,
+  resolveRateToUsd,
+} from "@/lib/dizlee/invoice-usd-copy";
 import { ui } from "@/lib/ui/classes";
 import {
   getMaxMonthForYear,
   getPeriodYearOptions,
 } from "@/lib/platform/period";
+import { formatAppError } from "@/lib/errors/format";
 
 const MONTHS = [
   "January",
@@ -32,6 +37,8 @@ const MONTHS = [
   "November",
   "December",
 ];
+
+type CurrencyCopyMode = "local_only" | "local_and_usd";
 
 const emptyLine = (): CreateOpcoInvoiceLineInput => ({
   description: "",
@@ -97,6 +104,8 @@ function CreateOpcoInvoiceModalInner({
   const [opcoId, setOpcoId] = useState("");
   const [currencyId, setCurrencyId] = useState("");
   const [bankAccountId, setBankAccountId] = useState("");
+  const [currencyCopyMode, setCurrencyCopyMode] =
+    useState<CurrencyCopyMode>("local_only");
   const [preparedBy, setPreparedBy] = useState("");
   const [approvedBy, setApprovedBy] = useState("");
   const [lineItems, setLineItems] = useState<CreateOpcoInvoiceLineInput[]>([
@@ -105,26 +114,37 @@ function CreateOpcoInvoiceModalInner({
 
   useEffect(() => {
     let cancelled = false;
-    void fetch("/api/dizlee/invoices?form=create")
+    const params = new URLSearchParams({
+      form: "create",
+      month: String(month),
+      year: String(year),
+    });
+    void fetch(`/api/dizlee/invoices?${params.toString()}`)
       .then(async (response) => {
         const payload = await response.json();
         if (!response.ok) {
-          throw new Error(payload.error ?? "Failed to load form options");
+          throw new Error(formatAppError(payload, "Failed to load form options"));
         }
         if (cancelled) {
           return;
         }
         const options = payload.data as CreateOpcoInvoiceFormOptions;
         setFormOptions(options);
-        if (options.opcos.length > 0) {
-          const first = options.opcos[0];
-          setOpcoId(first.id);
-          setCurrencyId(first.defaultCurrencyId);
-        }
+        setOpcoId((current) => {
+          if (current && options.opcos.some((opco) => opco.id === current)) {
+            return current;
+          }
+          return options.opcos[0]?.id ?? "";
+        });
+        setCurrencyId((current) => {
+          if (current && options.currencies.some((row) => row.id === current)) {
+            return current;
+          }
+          const firstOpco = options.opcos[0];
+          return firstOpco?.defaultCurrencyId ?? options.currencies[0]?.id ?? "";
+        });
         if (options.bankAccounts.length === 1) {
           setBankAccountId(options.bankAccounts[0].id);
-        } else {
-          setBankAccountId("");
         }
       })
       .catch((loadError) => {
@@ -145,7 +165,7 @@ function CreateOpcoInvoiceModalInner({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [month, year]);
 
   const handleOpcoChange = (nextOpcoId: string) => {
     setOpcoId(nextOpcoId);
@@ -183,6 +203,18 @@ function CreateOpcoInvoiceModalInner({
   const selectedOpco = formOptions?.opcos.find((row) => row.id === opcoId) ?? null;
   const selectedCurrency =
     formOptions?.currencies.find((row) => row.id === currencyId) ?? null;
+  const isUsdCurrency = selectedCurrency?.isoCode === "USD";
+  const effectiveCopyMode: CurrencyCopyMode = isUsdCurrency
+    ? "local_only"
+    : currencyCopyMode;
+  const rateToUsd =
+    selectedCurrency && formOptions
+      ? resolveRateToUsd({
+          currencyId: selectedCurrency.id,
+          currencyIso: selectedCurrency.isoCode,
+          fxRates: formOptions.fxRates,
+        })
+      : null;
 
   const validateForPreview = (): string | null => {
     if (!opcoId) {
@@ -193,6 +225,9 @@ function CreateOpcoInvoiceModalInner({
     }
     if (formOptions && formOptions.bankAccounts.length > 1 && !bankAccountId) {
       return "Select a bank account.";
+    }
+    if (effectiveCopyMode === "local_and_usd" && rateToUsd === null) {
+      return `No USD conversion rate found for ${selectedCurrency?.isoCode ?? "this currency"} in ${MONTHS[month - 1]} ${year}. Add it under Admin → Currencies.`;
     }
     if (!preparedBy.trim()) {
       return "Prepared by is required.";
@@ -248,7 +283,7 @@ function CreateOpcoInvoiceModalInner({
       });
       const payload = await response.json();
       if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to create invoice");
+        throw new Error(formatAppError(payload, "Failed to create invoice"));
       }
       onCreated();
       onClose();
@@ -267,6 +302,16 @@ function CreateOpcoInvoiceModalInner({
   const maxMonth = getMaxMonthForYear(year);
 
   const isPreview = step === "preview";
+  const previewLines = lineItems.map((line) => ({
+    description: line.description,
+    quantity: line.quantity,
+    unitPrice: line.unitPrice,
+    lineTotal: line.quantity * line.unitPrice,
+  }));
+  const usdPreviewLines =
+    effectiveCopyMode === "local_and_usd" && rateToUsd !== null
+      ? convertInvoiceLinesToUsd(previewLines, rateToUsd)
+      : null;
 
   return (
     <Modal
@@ -286,21 +331,71 @@ function CreateOpcoInvoiceModalInner({
         <p className="text-sm text-foreground-subtle">Loading form…</p>
       ) : isPreview ? (
         <div className="space-y-4">
-          <DizleeOpcoInvoiceDocument
-            invoiceNumber="INV-DRAFT"
-            issuedAt={new Date().toISOString()}
-            billedPartyName={selectedOpco?.name ?? "—"}
-            currencyCode={selectedCurrency?.isoCode ?? "USD"}
-            lineItems={lineItems.map((line) => ({
-              description: line.description,
-              quantity: line.quantity,
-              unitPrice: line.unitPrice,
-              lineTotal: line.quantity * line.unitPrice,
-            }))}
-            bankDetails={toBankDetails(selectedBank)}
-            preparedBy={preparedBy}
-            approvedBy={approvedBy}
-          />
+          <div className="space-y-0">
+            <section className="rounded-lg border-2 border-zinc-900 bg-white p-4 sm:p-6 print:rounded-none print:border-0 print:p-0">
+              <div className="mb-4 border-b-2 border-zinc-900 pb-3 print:mb-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                  Invoice 1 of {usdPreviewLines ? 2 : 1}
+                </p>
+                <p className="mt-1 text-base font-semibold text-zinc-900">
+                  Local currency
+                  {selectedCurrency?.isoCode
+                    ? ` (${selectedCurrency.isoCode})`
+                    : ""}
+                </p>
+              </div>
+              <DizleeOpcoInvoiceDocument
+                invoiceNumber="INV-DRAFT"
+                issuedAt={new Date().toISOString()}
+                billedPartyName={selectedOpco?.name ?? "—"}
+                currencyCode={selectedCurrency?.isoCode ?? "USD"}
+                lineItems={previewLines}
+                bankDetails={toBankDetails(selectedBank)}
+                preparedBy={preparedBy}
+                approvedBy={approvedBy}
+              />
+            </section>
+
+            {usdPreviewLines ? (
+              <>
+                <div
+                  className="my-6 flex items-center gap-3 print:hidden"
+                  aria-hidden
+                >
+                  <div className="h-px flex-1 bg-zinc-900" />
+                  <span className="shrink-0 rounded-full border border-zinc-900 bg-zinc-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-zinc-800">
+                    Next: USD equivalent
+                  </span>
+                  <div className="h-px flex-1 bg-zinc-900" />
+                </div>
+
+                <section className="rounded-lg border-2 border-zinc-900 bg-white p-4 sm:p-6 print:break-before-page print:rounded-none print:border-0 print:p-0">
+                  <div className="mb-4 border-b-2 border-zinc-900 pb-3 print:mb-5">
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                      Invoice 2 of 2
+                    </p>
+                    <p className="mt-1 text-base font-semibold text-zinc-900">
+                      USD equivalent
+                    </p>
+                    <p className="mt-1 text-sm text-zinc-600">
+                      Converted from {selectedCurrency?.isoCode ?? "local"} using
+                      rate {rateToUsd} ({MONTHS[month - 1]} {year})
+                    </p>
+                  </div>
+                  <DizleeOpcoInvoiceDocument
+                    invoiceNumber="INV-DRAFT"
+                    issuedAt={new Date().toISOString()}
+                    billedPartyName={selectedOpco?.name ?? "—"}
+                    currencyCode="USD"
+                    lineItems={usdPreviewLines}
+                    bankDetails={toBankDetails(selectedBank)}
+                    preparedBy={preparedBy}
+                    approvedBy={approvedBy}
+                  />
+                </section>
+              </>
+            ) : null}
+          </div>
           {error ? <p className={ui.alertError}>{error}</p> : null}
           <div className="flex justify-end gap-3 print:hidden">
             <Button
@@ -331,7 +426,10 @@ function CreateOpcoInvoiceModalInner({
               <Select
                 id="create-invoice-month"
                 value={month}
-                onChange={(event) => setMonth(Number(event.target.value))}
+                onChange={(event) => {
+                  setLoadingOptions(true);
+                  setMonth(Number(event.target.value));
+                }}
               >
                 {MONTHS.slice(0, maxMonth).map((name, index) => (
                   <option key={name} value={index + 1}>
@@ -346,11 +444,12 @@ function CreateOpcoInvoiceModalInner({
                 id="create-invoice-year"
                 value={year}
                 onChange={(event) => {
-                const nextYear = Number(event.target.value);
-                setYear(nextYear);
-                const capped = getMaxMonthForYear(nextYear);
-                if (month > capped) setMonth(capped);
-              }}
+                  setLoadingOptions(true);
+                  const nextYear = Number(event.target.value);
+                  setYear(nextYear);
+                  const capped = getMaxMonthForYear(nextYear);
+                  if (month > capped) setMonth(capped);
+                }}
               >
                 {yearOptions.map((value) => (
                   <option key={value} value={value}>
@@ -378,7 +477,15 @@ function CreateOpcoInvoiceModalInner({
               <Select
                 id="create-invoice-currency"
                 value={currencyId}
-                onChange={(event) => setCurrencyId(event.target.value)}
+                onChange={(event) => {
+                  setCurrencyId(event.target.value);
+                  const next = formOptions?.currencies.find(
+                    (currency) => currency.id === event.target.value,
+                  );
+                  if (next?.isoCode === "USD") {
+                    setCurrencyCopyMode("local_only");
+                  }
+                }}
               >
                 {formOptions?.currencies.map((currency) => (
                   <option key={currency.id} value={currency.id}>
@@ -389,6 +496,57 @@ function CreateOpcoInvoiceModalInner({
               </Select>
             </div>
           </div>
+
+          {!isUsdCurrency ? (
+            <fieldset className="space-y-2 rounded-md border border-border p-3">
+              <legend className="px-1 text-sm font-medium text-foreground">
+                Invoice currency copy
+              </legend>
+              <label className="flex cursor-pointer items-start gap-2 text-sm text-foreground-muted">
+                <input
+                  type="radio"
+                  name="currency-copy-mode"
+                  className="mt-1"
+                  checked={currencyCopyMode === "local_only"}
+                  onChange={() => setCurrencyCopyMode("local_only")}
+                />
+                <span>
+                  <span className="font-medium text-foreground">
+                    Local currency only
+                  </span>
+                  <span className="mt-0.5 block text-xs text-foreground-subtle">
+                    PDF shows one invoice in the selected currency.
+                  </span>
+                </span>
+              </label>
+              <label className="flex cursor-pointer items-start gap-2 text-sm text-foreground-muted">
+                <input
+                  type="radio"
+                  name="currency-copy-mode"
+                  className="mt-1"
+                  checked={currencyCopyMode === "local_and_usd"}
+                  onChange={() => setCurrencyCopyMode("local_and_usd")}
+                />
+                <span>
+                  <span className="font-medium text-foreground">
+                    Local currency + USD
+                  </span>
+                  <span className="mt-0.5 block text-xs text-foreground-subtle">
+                    Same PDF includes a second page converted to USD using the
+                    period FX rate
+                    {rateToUsd !== null ? ` (current rate ${rateToUsd})` : ""}.
+                  </span>
+                </span>
+              </label>
+              {currencyCopyMode === "local_and_usd" && rateToUsd === null ? (
+                <p className={ui.alertWarning}>
+                  No USD rate for {selectedCurrency?.isoCode} in{" "}
+                  {MONTHS[month - 1]} {year}. Add it under Admin → Currencies
+                  before previewing.
+                </p>
+              ) : null}
+            </fieldset>
+          ) : null}
 
           {formOptions && formOptions.bankAccounts.length === 0 ? (
             <p className={ui.alertWarning}>

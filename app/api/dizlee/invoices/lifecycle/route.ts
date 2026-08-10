@@ -5,6 +5,8 @@
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { jsonError, unauthorized } from "@/lib/errors/respond";
+import { appErrorFromUnknown } from "@/lib/errors/app-error";
 
 import { requireDizleeSession } from "@/lib/dizlee/auth";
 import {
@@ -17,7 +19,7 @@ import {
 export async function GET(request: NextRequest) {
   const user = await requireDizleeSession();
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorized();
   }
 
   try {
@@ -27,7 +29,7 @@ export async function GET(request: NextRequest) {
     if (invoiceId) {
       const data = await getInvoiceLifecycleDetail(invoiceId);
       if (!data) {
-        return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
+        return jsonError(appErrorFromUnknown("Invoice not found", 404));
       }
       return NextResponse.json({ data });
     }
@@ -40,8 +42,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ data, filterOptions });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to load invoice lifecycle";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonError(error);
   }
 }

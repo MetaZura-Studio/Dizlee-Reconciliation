@@ -4,6 +4,7 @@
  */
 
 import { NextResponse } from "next/server";
+import { unauthorized } from "@/lib/errors/respond";
 
 import { getOpcoSession } from "@/lib/opco/auth";
 import { parseDashboardPeriod } from "@/lib/opco/period";
@@ -13,7 +14,7 @@ export async function GET(request: Request) {
   const session = await getOpcoSession();
 
   if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorized();
   }
 
   const { searchParams } = new URL(request.url);

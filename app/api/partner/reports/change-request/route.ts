@@ -4,19 +4,21 @@
  */
 
 import { NextResponse } from "next/server";
+import {
+  jsonError,
+  unauthorized,
+  validationFailed,
+} from "@/lib/errors/respond";
 
 import { getPartnerSession } from "@/lib/partner/auth";
-import {
-  ReportChangeRequestError,
-  createReportChangeRequest,
-} from "@/lib/partner/queries/change-request";
+import { createReportChangeRequest } from "@/lib/partner/queries/change-request";
 import { reportChangeRequestSchema } from "@/lib/partner/validation/change-request";
 
 export async function POST(request: Request) {
   const session = await getPartnerSession();
 
   if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorized();
   }
 
   try {
@@ -24,13 +26,7 @@ export async function POST(request: Request) {
     const parsed = reportChangeRequestSchema.safeParse(body);
 
     if (!parsed.success) {
-      return NextResponse.json(
-        {
-          error: "Invalid request",
-          details: parsed.error.flatten().fieldErrors,
-        },
-        { status: 400 },
-      );
+      return validationFailed(parsed.error.flatten().fieldErrors);
     }
 
     const result = await createReportChangeRequest({
@@ -45,14 +41,6 @@ export async function POST(request: Request) {
       message: "Reupload request submitted to Dizlee",
     });
   } catch (error) {
-    if (error instanceof ReportChangeRequestError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
-    }
-
-    console.error("Partner report change request failed", error);
-    return NextResponse.json(
-      { error: "Failed to submit reupload request" },
-      { status: 500 },
-    );
+    return jsonError(error);
   }
 }

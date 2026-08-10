@@ -4,11 +4,9 @@
  */
 
 import { NextResponse } from "next/server";
+import { jsonError } from "@/lib/errors/respond";
 
-import {
-  PasswordFlowError,
-  requestForgotPassword,
-} from "@/lib/auth/password-flow";
+import { requestForgotPassword } from "@/lib/auth/password-flow";
 
 export async function POST(request: Request) {
   try {
@@ -16,11 +14,6 @@ export async function POST(request: Request) {
     const result = await requestForgotPassword(body);
     return NextResponse.json(result);
   } catch (error) {
-    if (error instanceof PasswordFlowError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
-    }
-    const message =
-      error instanceof Error ? error.message : "Failed to process request";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonError(error);
   }
 }

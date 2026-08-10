@@ -14,6 +14,7 @@ import {
   type UpdatePartnerInput,
 } from "@/lib/admin/validation/partners";
 import { prisma } from "@/lib/prisma";
+import { DomainError } from "@/lib/errors/app-error";
 
 export type {
   AdminEntityStatus,
@@ -21,13 +22,9 @@ export type {
 } from "@/lib/admin/partners.shared";
 export { formatEntityStatusLabel } from "@/lib/admin/partners.shared";
 
-export class PartnerActionError extends Error {
-  status: number;
-
-  constructor(message: string, status = 400) {
-    super(message);
-    this.name = "PartnerActionError";
-    this.status = status;
+export class PartnerActionError extends DomainError {
+  constructor(keyOrMessage: string, status?: number) {
+    super("PartnerActionError", keyOrMessage, status);
   }
 }
 

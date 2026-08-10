@@ -7,17 +7,14 @@ import "server-only";
 import { resolveDownloadMimeType } from "@/lib/platform/file-response-headers";
 import { saveNotificationFileLocally } from "@/lib/platform/storage/save-notification-file";
 import { prisma } from "@/lib/prisma";
+import { DomainError } from "@/lib/errors/app-error";
 
 export const MAX_NOTIFICATION_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 export const MAX_NOTIFICATION_ATTACHMENTS = 5;
 
-export class NotificationAttachmentError extends Error {
-  status: number;
-
-  constructor(message: string, status = 400) {
-    super(message);
-    this.name = "NotificationAttachmentError";
-    this.status = status;
+export class NotificationAttachmentError extends DomainError {
+  constructor(keyOrMessage: string, status?: number) {
+    super("NotificationAttachmentError", keyOrMessage, status);
   }
 }
 

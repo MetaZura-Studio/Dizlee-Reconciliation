@@ -49,6 +49,7 @@ import type {
   OpcoReportSortField,
   OpcoSortDirection,
 } from "@/lib/opco/queries/reports";
+import { formatAppError } from "@/lib/errors/format";
 
 const REQUESTABLE_STATUSES = new Set(["SUBMITTED", "APPROVED", "RESUBMITTED"]);
 
@@ -152,7 +153,7 @@ export function ReportsTable({
         error?: string;
       };
       if (!response.ok || !payload.result) {
-        throw new Error(payload.error ?? "Failed to load reports");
+        throw new Error(formatAppError(payload, "Failed to load reports"));
       }
       setResult(payload.result);
       if (payload.filterOptions) {

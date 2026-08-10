@@ -8,6 +8,7 @@ import { ModalCloseButton } from "@/components/ui/modal-close-button";
 import { PortalOverlay } from "@/components/ui/portal-overlay";
 import type { CurrencyListItem } from "@/lib/admin/currencies.shared";
 import { ui } from "@/lib/ui/classes";
+import { formatAppError } from "@/lib/errors/format";
 
 type CurrencyFormValues = {
   isoCode: string;
@@ -98,7 +99,7 @@ function CurrencyFormModalContent({
       );
       const body = await response.json();
       if (!response.ok) {
-        throw new Error(body.error ?? "Failed to save currency");
+        throw new Error(formatAppError(body, "Failed to save currency"));
       }
 
       onSaved(

@@ -18,6 +18,7 @@ import type {
   NotificationHistoryDetail,
   NotificationHistoryResult,
 } from "@/lib/dizlee/notifications/history";
+import { formatAppError } from "@/lib/errors/format";
 
 function formatDateTime(value: string): string {
   return new Date(value).toLocaleString("en-US", {
@@ -63,7 +64,7 @@ export function NotificationHistoryView({
       const response = await fetch(`/api/dizlee/notifications/history?page=${page}`);
       const payload = await response.json();
       if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to load history");
+        throw new Error(formatAppError(payload, "Failed to load history"));
       }
       setResult(payload.data as NotificationHistoryResult);
     } catch (loadError) {
@@ -83,7 +84,7 @@ export function NotificationHistoryView({
       const response = await fetch(`/api/dizlee/notifications/history/${id}`);
       const payload = await response.json();
       if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to load notification");
+        throw new Error(formatAppError(payload, "Failed to load notification"));
       }
       setDetail(payload.data as NotificationHistoryDetail);
     } catch (loadError) {

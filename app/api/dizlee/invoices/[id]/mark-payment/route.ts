@@ -4,12 +4,10 @@
  */
 
 import { NextResponse } from "next/server";
+import { jsonError, unauthorized } from "@/lib/errors/respond";
 
 import { requireDizleeSession } from "@/lib/dizlee/auth";
-import {
-  InvoiceActionError,
-  markInvoicePaymentDone,
-} from "@/lib/dizlee/invoices";
+import { markInvoicePaymentDone } from "@/lib/dizlee/invoices";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -18,7 +16,7 @@ type RouteContext = {
 export async function POST(_request: Request, context: RouteContext) {
   const user = await requireDizleeSession();
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorized();
   }
 
   const { id } = await context.params;
@@ -27,11 +25,6 @@ export async function POST(_request: Request, context: RouteContext) {
     const data = await markInvoicePaymentDone(id, user.id);
     return NextResponse.json({ data });
   } catch (error) {
-    if (error instanceof InvoiceActionError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
-    }
-    const message =
-      error instanceof Error ? error.message : "Failed to mark payment";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonError(error);
   }
 }

@@ -22,6 +22,7 @@ import {
 } from "@/lib/platform/reports/sides";
 import { periodLabel } from "@/lib/platform/template-placeholders";
 import { prisma } from "@/lib/prisma";
+import { DomainError } from "@/lib/errors/app-error";
 
 export type {
   ActivityEvent,
@@ -31,13 +32,9 @@ export type {
   ActivityTimelineResult,
 } from "@/lib/dizlee/activity.shared";
 
-export class ActivityError extends Error {
-  status: number;
-
-  constructor(message: string, status = 400) {
-    super(message);
-    this.name = "ActivityError";
-    this.status = status;
+export class ActivityError extends DomainError {
+  constructor(keyOrMessage: string, status?: number) {
+    super("ActivityError", keyOrMessage, status);
   }
 }
 

@@ -44,6 +44,7 @@ import type {
   ReportSortField,
   SortDirection,
 } from "@/lib/dizlee/reports";
+import { formatAppError } from "@/lib/errors/format";
 
 const MONTHS = [
   "January",
@@ -135,7 +136,7 @@ export function ReportsListView({
       const response = await fetch(`/api/dizlee/reports?${buildQuery(filters)}`);
       const payload = await response.json();
       if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to load reports");
+        throw new Error(formatAppError(payload, "Failed to load reports"));
       }
       setResult(payload.data as ReportListResult);
       setFilterOptions(payload.filterOptions as ReportFilterOptions);
@@ -256,7 +257,7 @@ export function ReportsListView({
       const response = await fetch(`/api/dizlee/reports/${reportId}`);
       const payload = await response.json();
       if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to load report");
+        throw new Error(formatAppError(payload, "Failed to load report"));
       }
       setDetail(payload.data as ReportDetail);
     } catch (detailError) {

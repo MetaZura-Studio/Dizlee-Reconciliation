@@ -5,13 +5,13 @@
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { jsonError, unauthorized } from "@/lib/errors/respond";
 
 import { requireDizleeSession } from "@/lib/dizlee/auth";
 import {
   createOpcoInvoice,
   getCreateOpcoInvoiceFormOptions,
   getInvoiceFilterOptions,
-  InvoiceActionError,
   listInvoices,
   parseInvoiceListFilters,
   type CreateOpcoInvoiceInput,
@@ -20,13 +20,22 @@ import {
 export async function GET(request: NextRequest) {
   const user = await requireDizleeSession();
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorized();
   }
 
   try {
     const { searchParams } = new URL(request.url);
     if (searchParams.get("form") === "create") {
-      const formOptions = await getCreateOpcoInvoiceFormOptions();
+      const monthRaw = searchParams.get("month");
+      const yearRaw = searchParams.get("year");
+      const month =
+        monthRaw && /^\d+$/.test(monthRaw) ? Number(monthRaw) : undefined;
+      const year =
+        yearRaw && /^\d+$/.test(yearRaw) ? Number(yearRaw) : undefined;
+      const formOptions = await getCreateOpcoInvoiceFormOptions({
+        month,
+        year,
+      });
       return NextResponse.json({ data: formOptions });
     }
 
@@ -38,16 +47,14 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ data, filterOptions });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to load invoices";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonError(error);
   }
 }
 
 export async function POST(request: NextRequest) {
   const user = await requireDizleeSession();
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorized();
   }
 
   try {
@@ -55,11 +62,6 @@ export async function POST(request: NextRequest) {
     const data = await createOpcoInvoice(body, user.id);
     return NextResponse.json({ data }, { status: 201 });
   } catch (error) {
-    if (error instanceof InvoiceActionError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
-    }
-    const message =
-      error instanceof Error ? error.message : "Failed to create invoice";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonError(error);
   }
 }

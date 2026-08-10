@@ -4,10 +4,10 @@
  */
 
 import { NextResponse } from "next/server";
+import { jsonError, unauthorized } from "@/lib/errors/respond";
 
 import { requireAdminApiSession } from "@/lib/admin/api-auth";
 import {
-  EmailSettingsError,
   getEmailSettings,
   updateEmailSettings,
 } from "@/lib/admin/email-settings";
@@ -16,26 +16,21 @@ import type { UpdateEmailSettingsInput } from "@/lib/admin/validation/email-sett
 export async function GET() {
   const user = await requireAdminApiSession();
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorized();
   }
 
   try {
     const data = await getEmailSettings();
     return NextResponse.json({ data });
   } catch (error) {
-    if (error instanceof EmailSettingsError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
-    }
-    const message =
-      error instanceof Error ? error.message : "Failed to load email settings";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonError(error);
   }
 }
 
 export async function PATCH(request: Request) {
   const user = await requireAdminApiSession();
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorized();
   }
 
   try {
@@ -43,11 +38,6 @@ export async function PATCH(request: Request) {
     const data = await updateEmailSettings(body, BigInt(user.id));
     return NextResponse.json({ data });
   } catch (error) {
-    if (error instanceof EmailSettingsError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
-    }
-    const message =
-      error instanceof Error ? error.message : "Failed to save email settings";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonError(error);
   }
 }

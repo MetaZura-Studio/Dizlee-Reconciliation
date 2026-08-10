@@ -17,9 +17,15 @@ import {
   type InvoiceBankDetails,
 } from "@/lib/dizlee/invoice-bank-details";
 import { getLookupId } from "@/lib/dizlee/lookups";
+import {
+  BASE_CURRENCY_ISO_CODE,
+  BASE_CURRENCY_RATE,
+  getMonthlyRatesForPeriod,
+} from "@/lib/platform/currency-rates";
 import { prisma } from "@/lib/prisma";
 import { isFuturePeriod } from "@/lib/platform/period";
 import { notifyOpcoUsers } from "@/lib/platform/notify-opco";
+import { DomainError } from "@/lib/errors/app-error";
 
 export type InvoiceSortField = "uploaded" | "period" | "opco" | "partner";
 export type SortDirection = "asc" | "desc";
@@ -114,15 +120,14 @@ export type CreateOpcoInvoiceFormOptions = {
   opcos: Array<{ id: string; name: string; defaultCurrencyId: string }>;
   currencies: Array<{ id: string; isoCode: string; symbol: string | null }>;
   bankAccounts: InvoiceBankAccount[];
+  /** Period FX rates (local → USD). Used for dual-currency PDF preview; not persisted yet. */
+  fxRates: Array<{ currencyId: string; rateToUsd: number }>;
+  fxPeriod: { month: number; year: number };
 };
 
-export class InvoiceActionError extends Error {
-  status: number;
-
-  constructor(message: string, status = 400) {
-    super(message);
-    this.name = "InvoiceActionError";
-    this.status = status;
+export class InvoiceActionError extends DomainError {
+  constructor(keyOrMessage: string, status?: number) {
+    super("InvoiceActionError", keyOrMessage, status);
   }
 }
 
@@ -317,8 +322,15 @@ export async function getInvoiceFilterOptions(): Promise<InvoiceFilterOptions> {
   };
 }
 
-export async function getCreateOpcoInvoiceFormOptions(): Promise<CreateOpcoInvoiceFormOptions> {
-  const [opcos, currencies, bankAccounts] = await Promise.all([
+export async function getCreateOpcoInvoiceFormOptions(params?: {
+  month?: number;
+  year?: number;
+}): Promise<CreateOpcoInvoiceFormOptions> {
+  const now = currentPeriod();
+  const month = params?.month ?? now.month;
+  const year = params?.year ?? now.year;
+
+  const [opcos, currencies, bankAccounts, fxRates] = await Promise.all([
     prisma.opco.findMany({
       orderBy: { name: "asc" },
       select: { id: true, name: true, defaultCurrencyId: true },
@@ -328,7 +340,22 @@ export async function getCreateOpcoInvoiceFormOptions(): Promise<CreateOpcoInvoi
       select: { id: true, isoCode: true, symbol: true },
     }),
     getInvoiceBankAccounts(),
+    getMonthlyRatesForPeriod(month, year),
   ]);
+
+  const ratesByCurrencyId = new Map(
+    fxRates.map((rate) => [rate.currencyId, rate.rateToUsd]),
+  );
+
+  // Ensure USD always has rate 1 even if missing from the period table.
+  for (const currency of currencies) {
+    if (
+      currency.isoCode === BASE_CURRENCY_ISO_CODE &&
+      !ratesByCurrencyId.has(currency.id.toString())
+    ) {
+      ratesByCurrencyId.set(currency.id.toString(), BASE_CURRENCY_RATE);
+    }
+  }
 
   return {
     opcos: opcos.map((row) => ({
@@ -342,6 +369,11 @@ export async function getCreateOpcoInvoiceFormOptions(): Promise<CreateOpcoInvoi
       symbol: row.symbol,
     })),
     bankAccounts,
+    fxRates: [...ratesByCurrencyId.entries()].map(([currencyId, rateToUsd]) => ({
+      currencyId,
+      rateToUsd,
+    })),
+    fxPeriod: { month, year },
   };
 }
 

@@ -26,6 +26,7 @@ import {
   getPeriodYearOptions,
 } from "@/lib/platform/period";
 import { ui } from "@/lib/ui/classes";
+import { formatAppError } from "@/lib/errors/format";
 
 const MONTHS = [
   "January",
@@ -142,7 +143,7 @@ export function ActivityView({
       );
       const payload = await response.json();
       if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to load activity");
+        throw new Error(formatAppError(payload, "Failed to load activity"));
       }
       setResult(payload.data as ActivityTimelineResult);
       setFilterOptions(payload.filterOptions as ReportFilterOptions);

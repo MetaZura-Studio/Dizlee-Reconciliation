@@ -4,6 +4,7 @@
  */
 
 import { NextResponse } from "next/server";
+import { unauthorized } from "@/lib/errors/respond";
 
 import { getOpcoSession } from "@/lib/opco/auth";
 import { getOpcoUnreadInboxCount } from "@/lib/opco/queries/notifications";
@@ -12,7 +13,7 @@ export async function GET() {
   const session = await getOpcoSession();
 
   if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorized();
   }
 
   const unreadCount = await getOpcoUnreadInboxCount(

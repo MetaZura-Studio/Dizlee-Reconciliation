@@ -18,6 +18,8 @@ export type DizleeOpcoInvoiceDocumentProps = {
   bankDetails: InvoiceBankDetails | null;
   preparedBy?: string | null;
   approvedBy?: string | null;
+  /** Optional banner under the header (e.g. USD equivalent + FX rate). */
+  subtitle?: string | null;
   className?: string;
 };
 
@@ -102,6 +104,7 @@ export function DizleeOpcoInvoiceDocument({
   bankDetails,
   preparedBy,
   approvedBy,
+  subtitle,
   className,
 }: DizleeOpcoInvoiceDocumentProps) {
   const total = lineItems.reduce((sum, item) => sum + lineTotalOf(item), 0);
@@ -116,7 +119,12 @@ export function DizleeOpcoInvoiceDocument({
       )}
     >
       <header className="flex flex-wrap items-start justify-between gap-6 border-b-2 border-zinc-900 pb-5">
-        <DizleeLogo className="h-10" />
+        <div>
+          <DizleeLogo className="h-10" />
+          {subtitle ? (
+            <p className="mt-2 text-sm font-medium text-zinc-600">{subtitle}</p>
+          ) : null}
+        </div>
         <div className="min-w-[12rem] text-right text-sm">
           <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
             Invoice number

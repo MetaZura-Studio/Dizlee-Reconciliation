@@ -4,6 +4,7 @@
  */
 
 import { NextResponse } from "next/server";
+import { unauthorized } from "@/lib/errors/respond";
 
 import { getPartnerSession } from "@/lib/partner/auth";
 import { getPartnerUnreadInboxCount } from "@/lib/partner/queries/notifications";
@@ -12,7 +13,7 @@ export async function GET() {
   const session = await getPartnerSession();
 
   if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorized();
   }
 
   const unreadCount = await getPartnerUnreadInboxCount(

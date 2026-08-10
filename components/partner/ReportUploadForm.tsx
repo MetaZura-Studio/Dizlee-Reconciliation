@@ -24,6 +24,7 @@ import {
 } from "@/lib/platform/period";
 import { cn, ui } from "@/lib/ui/classes";
 import { useToast } from "@/components/ui/toast";
+import { formatAppError } from "@/lib/errors/format";
 
 type ReportUploadFormProps = {
   opcos: LinkedOpco[];
@@ -193,7 +194,7 @@ export function ReportUploadForm({ opcos }: ReportUploadFormProps) {
       };
 
       if (!response.ok) {
-        setConfirmError(payload.error ?? "Failed to upload report");
+        setConfirmError(formatAppError(payload, "Failed to upload report"));
         return;
       }
 

@@ -21,6 +21,7 @@ import type {
 } from "@/lib/admin/opco-partner-links.shared";
 import { paginateItems } from "@/lib/ui/list-pagination";
 import { ui } from "@/lib/ui/classes";
+import { formatAppError } from "@/lib/errors/format";
 
 type LinkStatusFilter = "all" | "linked" | "unlinked";
 
@@ -71,7 +72,7 @@ export function OpcoPartnersView({ initialData }: OpcoPartnersViewProps) {
       );
       const body = await response.json();
       if (!response.ok) {
-        throw new Error(body.error ?? "Failed to load partner links");
+        throw new Error(formatAppError(body, "Failed to load partner links"));
       }
       applyLinksView(body.data as OpcoPartnerLinksView);
       setSelectedOpcoId(opcoId);
@@ -142,7 +143,7 @@ export function OpcoPartnersView({ initialData }: OpcoPartnersViewProps) {
       });
       const body = await response.json();
       if (!response.ok) {
-        throw new Error(body.error ?? "Failed to save partner links");
+        throw new Error(formatAppError(body, "Failed to save partner links"));
       }
 
       applyLinksView(body.data as OpcoPartnerLinksView);

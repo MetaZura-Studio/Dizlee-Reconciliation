@@ -12,6 +12,7 @@ import {
 import { getLookupId } from "@/lib/dizlee/lookups";
 import { ACTIVE_OPCO_PARTNER_LINK_FILTER } from "@/lib/platform/opco-partner-links";
 import { prisma } from "@/lib/prisma";
+import { DomainError } from "@/lib/errors/app-error";
 
 export type ConsolidationReadinessPartner = {
   partnerId: string;
@@ -88,13 +89,9 @@ export type ConsolidationDetail = {
 
 const HISTORY_PAGE_SIZE = 10;
 
-export class ConsolidationError extends Error {
-  constructor(
-    message: string,
-    readonly statusCode: number,
-  ) {
-    super(message);
-    this.name = "ConsolidationError";
+export class ConsolidationError extends DomainError {
+  constructor(keyOrMessage: string, status?: number) {
+    super("ConsolidationError", keyOrMessage, status);
   }
 }
 

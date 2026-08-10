@@ -11,14 +11,11 @@ import { OPCO_REPORT_VERSION } from "@/lib/platform/reports/sides";
 import { writePlatformAuditLog } from "@/lib/platform/audit-log";
 import { notifyDizleeUsers } from "@/lib/platform/notify-dizlee";
 import prisma from "@/lib/prisma";
+import { DomainError } from "@/lib/errors/app-error";
 
-export class ReportChangeRequestError extends Error {
-  status: number;
-
-  constructor(message: string, status = 400) {
-    super(message);
-    this.name = "ReportChangeRequestError";
-    this.status = status;
+export class ReportChangeRequestError extends DomainError {
+  constructor(keyOrMessage: string, status?: number) {
+    super("ReportChangeRequestError", keyOrMessage, status);
   }
 }
 

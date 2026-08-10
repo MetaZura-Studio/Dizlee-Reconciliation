@@ -5,13 +5,14 @@
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { jsonError, unauthorized } from "@/lib/errors/respond";
+import { appErrorFromUnknown } from "@/lib/errors/app-error";
 
 import { requireDizleeSession } from "@/lib/dizlee/auth";
 import {
   DEFAULT_REMINDER_MESSAGE_SOURCE,
   type SendReportRemindersInput,
 } from "@/lib/dizlee/notifications/broadcast.shared";
-import { NotificationError } from "@/lib/dizlee/notifications/intimations";
 import {
   getReminderSettings,
   listReminderLanes,
@@ -23,7 +24,7 @@ import { getReportFilterOptions } from "@/lib/dizlee/reports-monitoring";
 export async function GET(request: NextRequest) {
   const user = await requireDizleeSession();
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorized();
   }
 
   try {
@@ -37,16 +38,14 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ data, settings, filterOptions });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to load report reminders";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonError(error);
   }
 }
 
 export async function POST(request: Request) {
   const user = await requireDizleeSession();
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorized();
   }
 
   try {
@@ -62,12 +61,12 @@ export async function POST(request: Request) {
     };
 
     if (!body.month || !body.year) {
-      return NextResponse.json({ error: "Period is required." }, { status: 400 });
+      return jsonError(appErrorFromUnknown("Period is required.", 400));
     }
 
     const target = body.target ?? "both";
     if (target !== "opco" && target !== "partner" && target !== "both") {
-      return NextResponse.json({ error: "Invalid reminder target." }, { status: 400 });
+      return jsonError(appErrorFromUnknown("Invalid reminder target.", 400));
     }
 
     const result = await sendReportReminders({
@@ -86,11 +85,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ data: result });
   } catch (error) {
-    if (error instanceof NotificationError) {
-      return NextResponse.json({ error: error.message }, { status: error.statusCode });
-    }
-    const message =
-      error instanceof Error ? error.message : "Failed to send report reminders";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonError(error);
   }
 }

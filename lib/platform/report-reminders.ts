@@ -17,6 +17,7 @@ import {
   periodLabel,
 } from "@/lib/platform/template-placeholders";
 import { prisma } from "@/lib/prisma";
+import { DomainError } from "@/lib/errors/app-error";
 
 export type SendMissingReportRemindersResult = {
   opcoNotifications: number;
@@ -37,13 +38,9 @@ export type SendMissingReportRemindersInput = {
   attachmentFileIds?: string[];
 };
 
-export class ReportReminderError extends Error {
-  status: number;
-
-  constructor(message: string, status = 400) {
-    super(message);
-    this.name = "ReportReminderError";
-    this.status = status;
+export class ReportReminderError extends DomainError {
+  constructor(keyOrMessage: string, status?: number) {
+    super("ReportReminderError", keyOrMessage, status);
   }
 }
 

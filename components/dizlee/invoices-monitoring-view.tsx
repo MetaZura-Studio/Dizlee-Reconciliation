@@ -39,6 +39,7 @@ import type {
   InvoiceMonitoringResult,
   InvoiceMonitoringSortField,
 } from "@/lib/dizlee/invoices-monitoring";
+import { formatAppError } from "@/lib/errors/format";
 
 const MONTHS = [
   "January",
@@ -137,7 +138,7 @@ export function InvoicesMonitoringView({
       );
       const payload = await response.json();
       if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to load invoice monitoring");
+        throw new Error(formatAppError(payload, "Failed to load invoice monitoring"));
       }
       setResult(payload.data as InvoiceMonitoringResult);
       setFilterOptions(payload.filterOptions as InvoiceFilterOptions);

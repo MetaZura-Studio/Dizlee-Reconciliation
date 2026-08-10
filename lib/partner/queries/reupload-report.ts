@@ -13,14 +13,11 @@ import { mapReuploadEligibility } from "@/lib/partner/reupload/eligibility";
 import { saveReportFileLocally } from "@/lib/partner/storage/save-report-file";
 import { PARTNER_REPORT_VERSION } from "@/lib/platform/reports/sides";
 import prisma from "@/lib/prisma";
+import { DomainError } from "@/lib/errors/app-error";
 
-export class ReportReuploadError extends Error {
-  status: number;
-
-  constructor(message: string, status = 400) {
-    super(message);
-    this.name = "ReportReuploadError";
-    this.status = status;
+export class ReportReuploadError extends DomainError {
+  constructor(keyOrMessage: string, status?: number) {
+    super("ReportReuploadError", keyOrMessage, status);
   }
 }
 

@@ -14,6 +14,7 @@ import {
 import { ACTIVE_OPCO_PARTNER_LINK_FILTER } from "@/lib/platform/opco-partner-links";
 import { getReconciliationTolerancePercent } from "@/lib/platform/reconciliation-tolerance";
 import { prisma } from "@/lib/prisma";
+import { DomainError } from "@/lib/errors/app-error";
 
 export type ReconciliationSearchBy = "opco" | "partner";
 
@@ -123,13 +124,9 @@ export type ReconciliationDetail = {
 
 const HISTORY_PAGE_SIZE = 10;
 
-export class ReconciliationError extends Error {
-  constructor(
-    message: string,
-    readonly statusCode: number,
-  ) {
-    super(message);
-    this.name = "ReconciliationError";
+export class ReconciliationError extends DomainError {
+  constructor(keyOrMessage: string, status?: number) {
+    super("ReconciliationError", keyOrMessage, status);
   }
 }
 

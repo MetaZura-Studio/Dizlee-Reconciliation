@@ -7,6 +7,7 @@ import { ModalCloseButton } from "@/components/ui/modal-close-button";
 import { PortalOverlay } from "@/components/ui/portal-overlay";
 import type { OpcoListItem } from "@/lib/admin/opcos.shared";
 import { ui } from "@/lib/ui/classes";
+import { formatAppError } from "@/lib/errors/format";
 
 type OpcoDeleteModalProps = {
   open: boolean;
@@ -38,7 +39,7 @@ export function OpcoDeleteModal({
       });
       const body = await response.json();
       if (!response.ok) {
-        throw new Error(body.error ?? "Failed to delete OpCo");
+        throw new Error(formatAppError(body, "Failed to delete OpCo"));
       }
 
       onDeleted("OpCo deleted.");

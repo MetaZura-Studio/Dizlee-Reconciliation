@@ -14,6 +14,7 @@ import type { OpcoReportListItem } from "@/lib/opco/queries/reports";
 import { validateReportUploadFile } from "@/lib/opco/validation/report-upload";
 import { readRawExcelSheetPreview } from "@/lib/platform/excel/read-raw-sheet";
 import { ui } from "@/lib/ui/classes";
+import { formatAppError } from "@/lib/errors/format";
 
 type ReportReuploadDialogProps = {
   report: OpcoReportListItem;
@@ -125,7 +126,7 @@ export function ReportReuploadDialog({
       const payload = (await response.json()) as { error?: string };
 
       if (!response.ok) {
-        setConfirmError(payload.error ?? "Failed to upload corrected report");
+        setConfirmError(formatAppError(payload, "Failed to upload corrected report"));
         return;
       }
 

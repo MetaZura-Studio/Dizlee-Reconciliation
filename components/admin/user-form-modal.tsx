@@ -13,6 +13,7 @@ import type {
 } from "@/lib/admin/users.shared";
 import { formatUserRoleLabel } from "@/lib/admin/users.shared";
 import { ui } from "@/lib/ui/classes";
+import { formatAppError } from "@/lib/errors/format";
 
 type OrgOption = {
   id: string;
@@ -99,10 +100,10 @@ function UserFormModalContent({
         const partnersBody = await partnersResponse.json();
 
         if (!opcosResponse.ok) {
-          throw new Error(opcosBody.error ?? "Failed to load OpCos");
+          throw new Error(formatAppError(opcosBody, "Failed to load OpCos"));
         }
         if (!partnersResponse.ok) {
-          throw new Error(partnersBody.error ?? "Failed to load Partners");
+          throw new Error(formatAppError(partnersBody, "Failed to load Partners"));
         }
 
         if (cancelled) {
@@ -190,7 +191,7 @@ function UserFormModalContent({
 
       const body = await response.json();
       if (!response.ok) {
-        throw new Error(body.error ?? "Failed to save user");
+        throw new Error(formatAppError(body, "Failed to save user"));
       }
 
       if (mode === "create") {

@@ -18,7 +18,7 @@ export default async function AdminOpcosPage() {
 
   if (loadError) {
     return (
-      <div className="mx-auto max-w-5xl space-y-3">
+      <div className="w-full space-y-3">
         <h1 className="text-2xl font-semibold tracking-tight">OpCos</h1>
         <p className="rounded-md border border-danger-border bg-danger-muted px-3 py-2 text-sm text-danger">
           {loadError}
@@ -28,7 +28,7 @@ export default async function AdminOpcosPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="w-full">
       <OpcosView initialOpcos={opcos} currencies={currencies} />
     </div>
   );

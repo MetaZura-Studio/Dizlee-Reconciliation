@@ -33,6 +33,7 @@ import {
   getPeriodYearOptions,
 } from "@/lib/platform/period";
 import { cn, ui } from "@/lib/ui/classes";
+import { formatAppError } from "@/lib/errors/format";
 
 type SectionTone = "billing" | "reports" | "uploads";
 
@@ -243,7 +244,7 @@ export function DashboardView({ initialData }: DashboardViewProps) {
       );
       const payload = await response.json();
       if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to load dashboard");
+        throw new Error(formatAppError(payload, "Failed to load dashboard"));
       }
       setMonth(next.month);
       setYear(next.year);

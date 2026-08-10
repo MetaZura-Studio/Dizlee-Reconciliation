@@ -28,6 +28,7 @@ import type { CurrencyListItem } from "@/lib/admin/currencies.shared";
 import { paginateItems } from "@/lib/ui/list-pagination";
 import { cn, ui } from "@/lib/ui/classes";
 import { nextSortState, type SortDirection } from "@/lib/ui/sort";
+import { formatAppError } from "@/lib/errors/format";
 
 type CurrencySortField = "iso" | "symbol";
 
@@ -109,7 +110,7 @@ export function CurrenciesView({
     const response = await fetch("/api/admin/currencies");
     const body = await response.json();
     if (!response.ok) {
-      throw new Error(body.error ?? "Failed to reload currencies");
+      throw new Error(formatAppError(body, "Failed to reload currencies"));
     }
     applyCurrencies(body.data.currencies as CurrencyListItem[]);
   };

@@ -22,6 +22,7 @@ import { useToast } from "@/components/ui/toast";
 import type { ReconciliationAlertTemplates } from "@/lib/dizlee/notifications/reconciliation-alerts";
 import type { ReconciliationDetail } from "@/lib/dizlee/reconciliation";
 import { reportRawFilePreviewUrl } from "@/lib/platform/reports/preview-url";
+import { formatAppError } from "@/lib/errors/format";
 
 function formatDateTime(value: string): string {
   return new Date(value).toLocaleString("en-US", {
@@ -109,7 +110,7 @@ export function ReconciliationResultView({
       );
       const payload = await response.json();
       if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to confirm reconciliation");
+        throw new Error(formatAppError(payload, "Failed to confirm reconciliation"));
       }
       setConfirmSuccessMessage(
         (payload.data?.message as string | undefined) ??
@@ -164,7 +165,7 @@ export function ReconciliationResultView({
     });
     const payload = await response.json();
     if (!response.ok) {
-      throw new Error(payload.error ?? "Failed to send alert");
+      throw new Error(formatAppError(payload, "Failed to send alert"));
     }
     return payload.data?.message as string | undefined;
   }

@@ -32,8 +32,9 @@ import { formatEntityStatusLabel } from "@/lib/admin/opcos.shared";
 import { paginateItems } from "@/lib/ui/list-pagination";
 import { ui } from "@/lib/ui/classes";
 import { nextSortState, type SortDirection } from "@/lib/ui/sort";
+import { formatAppError } from "@/lib/errors/format";
 
-type OpcoSortField = "name" | "currency" | "status" | "users";
+type OpcoSortField = "name" | "currency" | "vat" | "status" | "users";
 type OpcoStatusFilter = AdminEntityStatus | "all";
 
 function entityStatusTone(status: AdminEntityStatus): "success" | "neutral" {
@@ -50,6 +51,12 @@ function compareOpcos(
   switch (sortBy) {
     case "currency":
       return a.defaultCurrencyIso.localeCompare(b.defaultCurrencyIso) * dir;
+    case "vat":
+      return (
+        ((Number.isFinite(a.vatPercent) ? a.vatPercent : 0) -
+          (Number.isFinite(b.vatPercent) ? b.vatPercent : 0)) *
+        dir
+      );
     case "status":
       return a.status.localeCompare(b.status) * dir;
     case "users":
@@ -121,7 +128,7 @@ export function OpcosView({ initialOpcos, currencies }: OpcosViewProps) {
     const response = await fetch("/api/admin/opcos");
     const body = await response.json();
     if (!response.ok) {
-      throw new Error(body.error ?? "Failed to reload OpCos");
+      throw new Error(formatAppError(body, "Failed to reload OpCos"));
     }
     setOpcos(body.data.opcos as OpcoListItem[]);
   };
@@ -273,6 +280,12 @@ export function OpcosView({ initialOpcos, currencies }: OpcosViewProps) {
                       onSort={() => applySort("currency")}
                     />
                     <SortableDataTableTh
+                      label="VAT %"
+                      active={sortBy === "vat"}
+                      direction={sortDir}
+                      onSort={() => applySort("vat")}
+                    />
+                    <SortableDataTableTh
                       label="Status"
                       active={sortBy === "status"}
                       direction={sortDir}
@@ -295,6 +308,9 @@ export function OpcosView({ initialOpcos, currencies }: OpcosViewProps) {
                       </DataTableTd>
                       <DataTableTd className="text-foreground-muted">
                         {opco.defaultCurrencyIso}
+                      </DataTableTd>
+                      <DataTableTd className="text-foreground-muted">
+                        {Number.isFinite(opco.vatPercent) ? opco.vatPercent : 0}
                       </DataTableTd>
                       <DataTableTd>
                         <StatusPill tone={entityStatusTone(opco.status)}>

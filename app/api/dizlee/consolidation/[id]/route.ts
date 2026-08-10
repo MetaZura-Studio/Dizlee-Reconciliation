@@ -4,6 +4,8 @@
  */
 
 import { NextResponse } from "next/server";
+import { jsonError, unauthorized } from "@/lib/errors/respond";
+import { appErrorFromUnknown } from "@/lib/errors/app-error";
 
 import { requireDizleeSession } from "@/lib/dizlee/auth";
 import { getConsolidationDetail } from "@/lib/dizlee/consolidation";
@@ -15,7 +17,7 @@ type RouteContext = {
 export async function GET(_request: Request, context: RouteContext) {
   const user = await requireDizleeSession();
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorized();
   }
 
   try {
@@ -23,18 +25,16 @@ export async function GET(_request: Request, context: RouteContext) {
     const consolidationId = Number(id);
 
     if (!Number.isInteger(consolidationId)) {
-      return NextResponse.json({ error: "Invalid consolidation id." }, { status: 400 });
+      return jsonError(appErrorFromUnknown("Invalid consolidation id.", 400));
     }
 
     const data = await getConsolidationDetail(consolidationId);
     if (!data) {
-      return NextResponse.json({ error: "Consolidation not found." }, { status: 404 });
+      return jsonError(appErrorFromUnknown("Consolidation not found.", 404));
     }
 
     return NextResponse.json({ data });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to load consolidation";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonError(error);
   }
 }

@@ -31,6 +31,7 @@ import { formatEntityStatusLabel } from "@/lib/admin/partners.shared";
 import { paginateItems } from "@/lib/ui/list-pagination";
 import { ui } from "@/lib/ui/classes";
 import { nextSortState, type SortDirection } from "@/lib/ui/sort";
+import { formatAppError } from "@/lib/errors/format";
 
 type PartnerSortField = "name" | "status" | "users";
 type PartnerStatusFilter = AdminEntityStatus | "all";
@@ -107,7 +108,7 @@ export function PartnersView({ initialPartners }: PartnersViewProps) {
     const response = await fetch("/api/admin/partners");
     const body = await response.json();
     if (!response.ok) {
-      throw new Error(body.error ?? "Failed to reload Partners");
+      throw new Error(formatAppError(body, "Failed to reload Partners"));
     }
     setPartners(body.data.partners as PartnerListItem[]);
   };

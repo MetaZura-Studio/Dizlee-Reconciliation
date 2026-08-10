@@ -29,6 +29,7 @@ import {
   periodLabel,
 } from "@/lib/platform/template-placeholders";
 import { prisma } from "@/lib/prisma";
+import { DomainError } from "@/lib/errors/app-error";
 
 export {
   BROADCAST_TEMPLATE_CODES,
@@ -44,13 +45,9 @@ export {
 
 const PAGE_SIZE = 10;
 
-export class NotificationError extends Error {
-  constructor(
-    message: string,
-    readonly statusCode: number,
-  ) {
-    super(message);
-    this.name = "NotificationError";
+export class NotificationError extends DomainError {
+  constructor(keyOrMessage: string, status?: number) {
+    super("NotificationError", keyOrMessage, status);
   }
 }
 

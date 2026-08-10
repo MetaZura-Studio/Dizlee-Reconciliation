@@ -18,6 +18,7 @@ import {
   resolveSmtpConfig,
 } from "@/lib/auth/smtp-config";
 import { prisma } from "@/lib/prisma";
+import { DomainError } from "@/lib/errors/app-error";
 
 export type EmailSettingsView = {
   emailEnabled: boolean;
@@ -28,13 +29,9 @@ export type EmailSettingsView = {
   smtpPasswordConfigured: boolean;
 };
 
-export class EmailSettingsError extends Error {
-  status: number;
-
-  constructor(message: string, status = 400) {
-    super(message);
-    this.name = "EmailSettingsError";
-    this.status = status;
+export class EmailSettingsError extends DomainError {
+  constructor(keyOrMessage: string, status?: number) {
+    super("EmailSettingsError", keyOrMessage, status);
   }
 }
 

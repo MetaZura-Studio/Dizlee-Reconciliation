@@ -19,6 +19,7 @@ import type {
   OpcoInboxListResult,
 } from "@/lib/opco/queries/notifications";
 import { notificationAttachmentDownloadUrl } from "@/lib/platform/notification-attachment-url";
+import { formatAppError } from "@/lib/errors/format";
 
 function formatDateTime(value: string): string {
   return new Date(value).toLocaleString("en-US", {
@@ -72,7 +73,7 @@ export function NotificationsInbox({ initialResult }: NotificationsInboxProps) {
       };
 
       if (!response.ok || !payload.detail) {
-        throw new Error(payload.error ?? "Failed to load notification");
+        throw new Error(formatAppError(payload, "Failed to load notification"));
       }
 
       setDetail(payload.detail);
@@ -103,7 +104,7 @@ export function NotificationsInbox({ initialResult }: NotificationsInboxProps) {
       const payload = (await response.json()) as { error?: string };
 
       if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to dismiss notification");
+        throw new Error(formatAppError(payload, "Failed to dismiss notification"));
       }
 
       setSelectedId(null);
@@ -136,7 +137,7 @@ export function NotificationsInbox({ initialResult }: NotificationsInboxProps) {
       const payload = (await response.json()) as { error?: string };
 
       if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to mark all as read");
+        throw new Error(formatAppError(payload, "Failed to mark all as read"));
       }
 
       router.refresh();

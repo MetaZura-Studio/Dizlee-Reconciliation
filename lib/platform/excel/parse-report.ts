@@ -3,6 +3,7 @@
  * Throws ReportParseError on structural issues; skips blank rows.
  */
 import ExcelJS from "exceljs";
+import { DomainError } from "@/lib/errors/app-error";
 
 export type ParsedReportLine = {
   lineNumber: number;
@@ -16,10 +17,9 @@ export type ParsedReportLine = {
   sourceColumns: Record<string, string | number | null>;
 };
 
-export class ReportParseError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "ReportParseError";
+export class ReportParseError extends DomainError {
+  constructor(keyOrMessage: string) {
+    super("ReportParseError", keyOrMessage);
   }
 }
 

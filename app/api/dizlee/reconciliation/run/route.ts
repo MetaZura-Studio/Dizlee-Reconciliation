@@ -4,17 +4,15 @@
  */
 
 import { NextResponse } from "next/server";
+import { jsonError, unauthorized } from "@/lib/errors/respond";
 
 import { requireDizleeSession } from "@/lib/dizlee/auth";
-import {
-  ReconciliationError,
-  runReconciliation,
-} from "@/lib/dizlee/reconciliation";
+import { runReconciliation } from "@/lib/dizlee/reconciliation";
 
 export async function POST(request: Request) {
   const user = await requireDizleeSession();
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorized();
   }
 
   try {
@@ -42,11 +40,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ data: result });
   } catch (error) {
-    if (error instanceof ReconciliationError) {
-      return NextResponse.json({ error: error.message }, { status: error.statusCode });
-    }
-    const message =
-      error instanceof Error ? error.message : "Failed to run reconciliation";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonError(error);
   }
 }

@@ -14,10 +14,24 @@ describe("admin OpCo validation", () => {
     const result = createOpcoSchema.safeParse({
       name: "Zain Jordan",
       defaultCurrencyId: "1",
+      vatPercent: 5,
       status: "ACTIVE",
     });
 
     expect(result.success).toBe(true);
+  });
+
+  it("defaults vatPercent to 0 on create when omitted", () => {
+    const result = createOpcoSchema.safeParse({
+      name: "Zain Jordan",
+      defaultCurrencyId: "1",
+      status: "ACTIVE",
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.vatPercent).toBe(0);
+    }
   });
 
   it("requires name and currency id", () => {
@@ -29,10 +43,22 @@ describe("admin OpCo validation", () => {
     expect(result.success).toBe(false);
   });
 
+  it("rejects vatPercent outside 0–100", () => {
+    const result = createOpcoSchema.safeParse({
+      name: "Zain Jordan",
+      defaultCurrencyId: "1",
+      vatPercent: 101,
+      status: "ACTIVE",
+    });
+
+    expect(result.success).toBe(false);
+  });
+
   it("accepts an update payload", () => {
     const result = updateOpcoSchema.safeParse({
       name: "Zain Kuwait",
       defaultCurrencyId: "2",
+      vatPercent: 15.5,
       status: "INACTIVE",
     });
 

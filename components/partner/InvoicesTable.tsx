@@ -247,6 +247,8 @@ export function InvoicesTable({ initialResult, filterOptions }: InvoicesTablePro
     [columnHelper, openDetail],
   );
 
+  // TanStack Table returns unstable function identities; React Compiler skips memoization by design.
+  // eslint-disable-next-line react-hooks/incompatible-library -- useReactTable API
   const table = useReactTable({
     data: initialResult.items,
     columns,

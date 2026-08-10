@@ -24,6 +24,7 @@ import {
   type SaveEmailTemplateInput,
 } from "@/lib/admin/validation/email-templates";
 import { prisma } from "@/lib/prisma";
+import { DomainError } from "@/lib/errors/app-error";
 
 export type {
   EmailTemplateCategory,
@@ -38,13 +39,9 @@ export {
   getPlaceholdersForTemplate,
 } from "@/lib/admin/email-templates.shared";
 
-export class EmailTemplateError extends Error {
-  status: number;
-
-  constructor(message: string, status = 400) {
-    super(message);
-    this.name = "EmailTemplateError";
-    this.status = status;
+export class EmailTemplateError extends DomainError {
+  constructor(keyOrMessage: string, status?: number) {
+    super("EmailTemplateError", keyOrMessage, status);
   }
 }
 

@@ -1,7 +1,9 @@
 /**
- * Admin OpCo CRUD — default currency, ACTIVE/INACTIVE status, soft delete with audit.
+ * Admin OpCo CRUD — default currency, VAT %, ACTIVE/INACTIVE status, soft delete with audit.
  * OpCo names reserved for linking rules are enforced at link layer, not here.
  */
+import type { Decimal } from "@prisma/client/runtime/library";
+
 import { writeOpcoAuditLog } from "@/lib/admin/audit";
 import { getLookupId } from "@/lib/admin/lookups";
 import type {
@@ -15,17 +17,14 @@ import {
   type UpdateOpcoInput,
 } from "@/lib/admin/validation/opcos";
 import { prisma } from "@/lib/prisma";
+import { DomainError } from "@/lib/errors/app-error";
 
 export type { AdminEntityStatus, OpcoListItem } from "@/lib/admin/opcos.shared";
 export { formatEntityStatusLabel } from "@/lib/admin/opcos.shared";
 
-export class OpcoActionError extends Error {
-  status: number;
-
-  constructor(message: string, status = 400) {
-    super(message);
-    this.name = "OpcoActionError";
-    this.status = status;
+export class OpcoActionError extends DomainError {
+  constructor(keyOrMessage: string, status?: number) {
+    super("OpcoActionError", keyOrMessage, status);
   }
 }
 
@@ -36,10 +35,22 @@ function mapStatusCode(code: string): AdminEntityStatus {
   return "INACTIVE";
 }
 
+function mapVatPercent(value: Decimal | number | string | null | undefined): number {
+  if (value === null || value === undefined) {
+    return 0;
+  }
+  const parsed =
+    typeof value === "number"
+      ? value
+      : Number.parseFloat(typeof value === "string" ? value : value.toString());
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 function mapOpco(row: {
   id: bigint;
   name: string;
   defaultCurrencyId: bigint;
+  vatPercent: Decimal;
   status: { code: string; label: string };
   defaultCurrency: { isoCode: string };
   _count: { users: number };
@@ -52,6 +63,7 @@ function mapOpco(row: {
     statusLabel: row.status.label,
     defaultCurrencyId: row.defaultCurrencyId.toString(),
     defaultCurrencyIso: row.defaultCurrency.isoCode,
+    vatPercent: mapVatPercent(row.vatPercent),
     userCount: row._count.users,
   };
 }
@@ -104,6 +116,7 @@ export async function createOpco(
     data: {
       name: parsed.data.name,
       defaultCurrencyId,
+      vatPercent: parsed.data.vatPercent,
       statusId,
       createdByUserId: actorUserId,
       updatedByUserId: actorUserId,
@@ -119,6 +132,7 @@ export async function createOpco(
     metadata: {
       name: created.name,
       defaultCurrencyId: created.defaultCurrencyId.toString(),
+      vatPercent: parsed.data.vatPercent,
       status: parsed.data.status,
     },
   });
@@ -158,6 +172,7 @@ export async function updateOpco(
     data: {
       name: parsed.data.name,
       defaultCurrencyId,
+      vatPercent: parsed.data.vatPercent,
       statusId,
       updatedByUserId: actorUserId,
     },
@@ -174,6 +189,7 @@ export async function updateOpco(
       after: {
         name: updated.name,
         defaultCurrencyId: updated.defaultCurrencyId.toString(),
+        vatPercent: parsed.data.vatPercent,
         status: parsed.data.status,
       },
     },

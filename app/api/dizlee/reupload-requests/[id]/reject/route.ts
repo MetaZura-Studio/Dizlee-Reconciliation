@@ -4,12 +4,10 @@
  */
 
 import { NextResponse } from "next/server";
+import { jsonError, unauthorized } from "@/lib/errors/respond";
 
 import { requireDizleeSession } from "@/lib/dizlee/auth";
-import {
-  ReuploadRequestError,
-  rejectReuploadRequest,
-} from "@/lib/dizlee/reupload-requests";
+import { rejectReuploadRequest } from "@/lib/dizlee/reupload-requests";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -18,7 +16,7 @@ type RouteContext = {
 export async function PATCH(request: Request, context: RouteContext) {
   const user = await requireDizleeSession();
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorized();
   }
 
   const { id } = await context.params;
@@ -35,11 +33,6 @@ export async function PATCH(request: Request, context: RouteContext) {
     await rejectReuploadRequest(id, user.id, decisionNote);
     return NextResponse.json({ ok: true });
   } catch (error) {
-    if (error instanceof ReuploadRequestError) {
-      return NextResponse.json({ error: error.message }, { status: error.statusCode });
-    }
-    const message =
-      error instanceof Error ? error.message : "Failed to reject reupload request";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonError(error);
   }
 }

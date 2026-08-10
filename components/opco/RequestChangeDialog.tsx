@@ -8,6 +8,7 @@ import { Modal } from "@/components/ui/modal";
 import { formatPeriodLabel } from "@/lib/opco/period";
 import { ui } from "@/lib/ui/classes";
 import type { OpcoReportListItem } from "@/lib/opco/queries/reports";
+import { formatAppError } from "@/lib/errors/format";
 
 type RequestChangeDialogProps = {
   report: OpcoReportListItem;
@@ -39,7 +40,7 @@ export function RequestChangeDialog({
       const payload = (await response.json()) as { error?: string; message?: string };
 
       if (!response.ok) {
-        setError(payload.error ?? "Failed to submit reupload request");
+        setError(formatAppError(payload, "Failed to submit reupload request"));
         return;
       }
 

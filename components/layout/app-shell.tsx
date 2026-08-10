@@ -353,13 +353,13 @@ export function AppShell({
   const showHeader = headerLeft != null || headerRight != null;
 
   return (
-    <div className="h-dvh overflow-hidden bg-canvas p-3 sm:p-4">
-      <div className="mx-auto flex h-full max-w-[1600px] gap-3 sm:gap-4">
+    <div className="h-dvh overflow-hidden bg-canvas p-2 sm:p-3 lg:p-4">
+      <div className="flex h-full w-full gap-2 sm:gap-3 lg:gap-4">
         <aside
           className={cn(
             ui.sidebar,
             "hidden h-full min-h-0 shrink-0 transition-[width] duration-200 lg:flex",
-            collapsed ? "w-20" : "w-72",
+            collapsed ? "w-20" : "w-64 xl:w-72",
           )}
         >
           <div className={cn("shrink-0 border-b border-border p-4", collapsed && "px-3")}>
@@ -424,7 +424,7 @@ export function AppShell({
           </div>
         </aside>
 
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 sm:gap-4">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 sm:gap-3 lg:gap-4">
           {showHeader ? (
             <header
               className={cn(
@@ -442,7 +442,7 @@ export function AppShell({
               ) : null}
             </header>
           ) : null}
-          <main className="min-h-0 flex-1 overflow-auto rounded-[28px] border border-border bg-white/50 p-4 shadow-[var(--shadow-sm)] backdrop-blur-sm sm:p-6">
+          <main className="min-h-0 w-full flex-1 overflow-auto rounded-[24px] border border-border bg-white/50 p-3 shadow-[var(--shadow-sm)] backdrop-blur-sm sm:rounded-[28px] sm:p-4 lg:p-6">
             {children}
           </main>
         </div>

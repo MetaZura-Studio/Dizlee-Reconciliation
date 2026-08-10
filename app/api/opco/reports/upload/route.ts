@@ -4,27 +4,23 @@
  */
 
 import { NextResponse } from "next/server";
+import { jsonError, unauthorized } from "@/lib/errors/respond";
+import { appErrorFromUnknown } from "@/lib/errors/app-error";
 
-import { ReportParseError, parseReportWorkbook } from "@/lib/opco/excel/parse-report";
+import { parseReportWorkbook } from "@/lib/opco/excel/parse-report";
 import { getOpcoSession } from "@/lib/opco/auth";
-import {
-  ReportUploadError,
-  createReportUpload,
-} from "@/lib/opco/queries/upload-report";
+import { createReportUpload } from "@/lib/opco/queries/upload-report";
 import {
   reportUploadMetadataSchema,
   validateReportUploadFile,
 } from "@/lib/opco/validation/report-upload";
-import {
-  ObjectStorageError,
-  storageDiagnostics,
-} from "@/lib/platform/storage/object-storage";
+import { storageDiagnostics } from "@/lib/platform/storage/object-storage";
 
 export async function POST(request: Request) {
   const session = await getOpcoSession();
 
   if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorized();
   }
 
   try {
@@ -47,10 +43,12 @@ export async function POST(request: Request) {
     }
 
     const fileError =
-      file instanceof File ? validateReportUploadFile(file) : "Excel file is required";
+      file instanceof File
+        ? validateReportUploadFile(file)
+        : "Excel file is required";
 
     if (fileError) {
-      return NextResponse.json({ error: fileError }, { status: 400 });
+      return jsonError(appErrorFromUnknown(fileError, 400));
     }
 
     const uploadFile = file as File;
@@ -76,31 +74,6 @@ export async function POST(request: Request) {
       message: "Report uploaded successfully",
     });
   } catch (error) {
-    if (error instanceof ReportParseError) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
-    }
-
-    if (error instanceof ReportUploadError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
-    }
-
-    if (error instanceof ObjectStorageError) {
-      return NextResponse.json(
-        { error: error.message, storage: storageDiagnostics() },
-        { status: 503 },
-      );
-    }
-
-    console.error("Report upload failed", error);
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? `Failed to upload report: ${error.message}`
-            : "Failed to upload report",
-        storage: storageDiagnostics(),
-      },
-      { status: 500 },
-    );
+    return jsonError(error, { storage: storageDiagnostics() });
   }
 }

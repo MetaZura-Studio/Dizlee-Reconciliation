@@ -11,16 +11,13 @@ import {
   type UpdateCurrencyInput,
 } from "@/lib/admin/validation/currencies";
 import { prisma } from "@/lib/prisma";
+import { DomainError } from "@/lib/errors/app-error";
 
 export type { CurrencyListItem } from "@/lib/admin/currencies.shared";
 
-export class CurrencyActionError extends Error {
-  status: number;
-
-  constructor(message: string, status = 400) {
-    super(message);
-    this.name = "CurrencyActionError";
-    this.status = status;
+export class CurrencyActionError extends DomainError {
+  constructor(keyOrMessage: string, status?: number) {
+    super("CurrencyActionError", keyOrMessage, status);
   }
 }
 

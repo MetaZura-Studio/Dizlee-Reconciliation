@@ -10,16 +10,30 @@ import { FieldLabel } from "@/components/ui/field";
 import { FullPageLoading } from "@/components/ui/loading";
 import { startNavigationProgress } from "@/components/ui/navigation-progress";
 import { useToast } from "@/components/ui/toast";
+import { formatErrorDisplay } from "@/lib/errors/format";
+import { ERROR_CATALOG } from "@/lib/errors/catalog";
 import { getMainPortalHomePath } from "@/lib/auth/roles";
 import { isMainPortalRole } from "@/lib/auth/scopes";
 import { ui } from "@/lib/ui/classes";
 
-const ERROR_MESSAGES: Record<string, string> = {
-  AccessDenied: "You do not have access to that portal.",
-  MissingOpcoScope: "Your OpCo account is missing an OpCo assignment.",
-  MissingPartnerScope: "Your Partner account is missing a partner assignment.",
-  CredentialsSignin: "Invalid email or password.",
+const LOGIN_ERROR_KEYS: Record<string, keyof typeof ERROR_CATALOG> = {
+  AccessDenied: "UNAUTHORIZED",
+  MissingOpcoScope: "UNAUTHORIZED",
+  MissingPartnerScope: "UNAUTHORIZED",
+  CredentialsSignin: "INVALID_CREDENTIALS",
 };
+
+function formatLoginError(code: string | null | undefined): string {
+  if (!code) {
+    return formatErrorDisplay(
+      ERROR_CATALOG.SYSTEM_ERROR.code,
+      ERROR_CATALOG.SYSTEM_ERROR.message,
+    );
+  }
+  const key = LOGIN_ERROR_KEYS[code] ?? "INVALID_CREDENTIALS";
+  const def = ERROR_CATALOG[key];
+  return formatErrorDisplay(def.code, def.message);
+}
 
 export function LoginForm() {
   const router = useRouter();
@@ -48,7 +62,7 @@ export function LoginForm() {
       });
 
       if (!result?.ok) {
-        setError(ERROR_MESSAGES.CredentialsSignin);
+        setError(formatLoginError("CredentialsSignin"));
         setIsSubmitting(false);
         return;
       }
@@ -60,7 +74,7 @@ export function LoginForm() {
 
       const role = session.user?.role;
       if (!role || !isMainPortalRole(role)) {
-        setError(ERROR_MESSAGES.CredentialsSignin);
+        setError(formatLoginError("CredentialsSignin"));
         setIsSubmitting(false);
         return;
       }
@@ -75,14 +89,13 @@ export function LoginForm() {
       router.refresh();
       // Keep FullPageLoading until this page unmounts after navigation.
     } catch {
-      setError("Something went wrong. Please try again.");
+      setError(formatLoginError(null));
       setIsSubmitting(false);
     }
   }
 
   const displayError =
-    error ??
-    (queryError ? (ERROR_MESSAGES[queryError] ?? "Sign in failed.") : null);
+    error ?? (queryError ? formatLoginError(queryError) : null);
 
   const displaySuccess =
     queryMessage === "PasswordSet"

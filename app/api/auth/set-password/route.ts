@@ -4,11 +4,9 @@
  */
 
 import { NextResponse } from "next/server";
+import { jsonError } from "@/lib/errors/respond";
 
-import {
-  PasswordFlowError,
-  setPasswordWithToken,
-} from "@/lib/auth/password-flow";
+import { setPasswordWithToken } from "@/lib/auth/password-flow";
 
 export async function POST(request: Request) {
   try {
@@ -16,11 +14,6 @@ export async function POST(request: Request) {
     await setPasswordWithToken(body);
     return NextResponse.json({ success: true });
   } catch (error) {
-    if (error instanceof PasswordFlowError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
-    }
-    const message =
-      error instanceof Error ? error.message : "Failed to set password";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonError(error);
   }
 }

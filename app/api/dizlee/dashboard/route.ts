@@ -5,6 +5,7 @@
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { jsonError, unauthorized } from "@/lib/errors/respond";
 
 import { requireDizleeSession } from "@/lib/dizlee/auth";
 import {
@@ -21,7 +22,9 @@ function parsePeriod(request: NextRequest): DashboardPeriod {
   const year = Number(searchParams.get("year"));
 
   let validMonth =
-    Number.isInteger(month) && month >= 1 && month <= 12 ? month : fallback.month;
+    Number.isInteger(month) && month >= 1 && month <= 12
+      ? month
+      : fallback.month;
   const validYear =
     Number.isInteger(year) && year >= 2000 && year <= fallback.year
       ? year
@@ -44,15 +47,13 @@ function parsePeriod(request: NextRequest): DashboardPeriod {
 export async function GET(request: NextRequest) {
   const user = await requireDizleeSession();
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorized();
   }
 
   try {
     const data = await getDashboardData(parsePeriod(request));
     return NextResponse.json({ data });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to load dashboard";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonError(error);
   }
 }

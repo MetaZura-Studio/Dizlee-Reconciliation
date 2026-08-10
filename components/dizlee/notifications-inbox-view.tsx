@@ -15,6 +15,7 @@ import { PageCard, PageHeader } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
 import { cn, ui } from "@/lib/ui/classes";
 import type { InboxDetail, InboxListResult } from "@/lib/dizlee/notifications/inbox";
+import { formatAppError } from "@/lib/errors/format";
 
 function formatDateTime(value: string): string {
   return new Date(value).toLocaleString("en-US", {
@@ -64,7 +65,7 @@ export function NotificationsInboxView({
       const response = await fetch(`/api/dizlee/notifications/inbox?${params}`);
       const payload = await response.json();
       if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to load inbox");
+        throw new Error(formatAppError(payload, "Failed to load inbox"));
       }
       setResult(payload.data as InboxListResult);
     } catch (loadError) {
@@ -84,7 +85,7 @@ export function NotificationsInboxView({
       const response = await fetch(`/api/dizlee/notifications/inbox/${id}`);
       const payload = await response.json();
       if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to load notification");
+        throw new Error(formatAppError(payload, "Failed to load notification"));
       }
       setDetail(payload.data as InboxDetail);
       await loadList(result.page, unreadOnly);
@@ -112,7 +113,7 @@ export function NotificationsInboxView({
       );
       const payload = await response.json();
       if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to mark all as read");
+        throw new Error(formatAppError(payload, "Failed to mark all as read"));
       }
       await loadList(result.page, unreadOnly);
       window.dispatchEvent(new CustomEvent("dizlee-inbox-updated"));

@@ -35,6 +35,7 @@ import {
 import type { ReminderSettingsView } from "@/lib/admin/reminder-settings";
 import { updateReminderSettingsSchema } from "@/lib/admin/validation/reminder-settings";
 import { cn, ui } from "@/lib/ui/classes";
+import { formatAppError } from "@/lib/errors/format";
 
 type ReminderSettingsFormProps = {
   initialSettings: ReminderSettingsView;
@@ -189,7 +190,7 @@ export function ReminderSettingsForm({
       const response = await fetch("/api/admin/reminder-settings");
       const body = await response.json();
       if (!response.ok) {
-        throw new Error(body.error ?? "Failed to reload reminder settings");
+        throw new Error(formatAppError(body, "Failed to reload reminder settings"));
       }
       applySettings(body.data as ReminderSettingsView);
       toast.success("Unsaved changes discarded.");
@@ -235,7 +236,7 @@ export function ReminderSettingsForm({
       });
       const body = await response.json();
       if (!response.ok) {
-        throw new Error(body.error ?? "Failed to save reminder settings");
+        throw new Error(formatAppError(body, "Failed to save reminder settings"));
       }
 
       applySettings(body.data as ReminderSettingsView);

@@ -26,6 +26,7 @@ import type {
   IntimationFormOptions,
   IntimationListResult,
 } from "@/lib/dizlee/notifications/broadcast.shared";
+import { formatAppError } from "@/lib/errors/format";
 
 const PRIORITY_OPTIONS = [
   { value: "", label: "Normal" },
@@ -167,7 +168,7 @@ export function IntimationsView({
       );
       const payload = await response.json();
       if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to load intimations");
+        throw new Error(formatAppError(payload, "Failed to load intimations"));
       }
       setResult(payload.data as IntimationListResult);
       if (payload.formOptions) {
@@ -244,7 +245,7 @@ export function IntimationsView({
       });
       const payload = await response.json();
       if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to send notification");
+        throw new Error(formatAppError(payload, "Failed to send notification"));
       }
 
       toast.success(payload.data.message as string);

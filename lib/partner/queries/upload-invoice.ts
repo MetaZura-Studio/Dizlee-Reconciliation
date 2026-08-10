@@ -13,14 +13,11 @@ import { writePlatformAuditLog } from "@/lib/platform/audit-log";
 import { BASE_CURRENCY_ISO_CODE } from "@/lib/platform/currency-rates";
 import { notifyDizleeUsers } from "@/lib/platform/notify-dizlee";
 import prisma from "@/lib/prisma";
+import { DomainError } from "@/lib/errors/app-error";
 
-export class InvoiceUploadError extends Error {
-  status: number;
-
-  constructor(message: string, status = 400) {
-    super(message);
-    this.name = "InvoiceUploadError";
-    this.status = status;
+export class InvoiceUploadError extends DomainError {
+  constructor(keyOrMessage: string, status?: number) {
+    super("InvoiceUploadError", keyOrMessage, status);
   }
 }
 

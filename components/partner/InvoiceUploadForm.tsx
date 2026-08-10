@@ -17,6 +17,7 @@ import {
 } from "@/lib/platform/period";
 import { ui } from "@/lib/ui/classes";
 import { useToast } from "@/components/ui/toast";
+import { formatAppError } from "@/lib/errors/format";
 
 const MONTHS = [
   "January",
@@ -89,7 +90,7 @@ export function InvoiceUploadForm() {
       };
 
       if (!response.ok) {
-        setError(payload.error ?? "Failed to upload invoice");
+        setError(formatAppError(payload, "Failed to upload invoice"));
         return;
       }
 

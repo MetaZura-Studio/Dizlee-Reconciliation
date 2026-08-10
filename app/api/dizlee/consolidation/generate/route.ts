@@ -4,17 +4,15 @@
  */
 
 import { NextResponse } from "next/server";
+import { jsonError, unauthorized } from "@/lib/errors/respond";
 
 import { requireDizleeSession } from "@/lib/dizlee/auth";
-import {
-  ConsolidationError,
-  generateConsolidation,
-} from "@/lib/dizlee/consolidation";
+import { generateConsolidation } from "@/lib/dizlee/consolidation";
 
 export async function POST(request: Request) {
   const user = await requireDizleeSession();
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorized();
   }
 
   try {
@@ -40,11 +38,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ data: result });
   } catch (error) {
-    if (error instanceof ConsolidationError) {
-      return NextResponse.json({ error: error.message }, { status: error.statusCode });
-    }
-    const message =
-      error instanceof Error ? error.message : "Failed to generate consolidation";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonError(error);
   }
 }

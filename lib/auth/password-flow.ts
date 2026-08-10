@@ -19,14 +19,11 @@ import {
 } from "@/lib/auth/password-reset";
 import type { AppSessionUser } from "@/lib/auth/types";
 import { prisma } from "@/lib/prisma";
+import { DomainError } from "@/lib/errors/app-error";
 
-export class PasswordFlowError extends Error {
-  status: number;
-
-  constructor(message: string, status = 400) {
-    super(message);
-    this.name = "PasswordFlowError";
-    this.status = status;
+export class PasswordFlowError extends DomainError {
+  constructor(keyOrMessage: string, status?: number) {
+    super("PasswordFlowError", keyOrMessage, status);
   }
 }
 

@@ -5,6 +5,7 @@
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { jsonError, unauthorized } from "@/lib/errors/respond";
 
 import { requireDizleeSession } from "@/lib/dizlee/auth";
 import {
@@ -15,7 +16,7 @@ import {
 export async function GET(request: NextRequest) {
   const user = await requireDizleeSession();
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorized();
   }
 
   try {
@@ -24,8 +25,6 @@ export async function GET(request: NextRequest) {
     const data = await listConsolidationHistory(filters);
     return NextResponse.json({ data });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to load consolidation history";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonError(error);
   }
 }

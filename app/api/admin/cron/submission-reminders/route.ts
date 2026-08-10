@@ -5,6 +5,7 @@
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { jsonError, unauthorized } from "@/lib/errors/respond";
 
 import { runAutomaticSubmissionReminders } from "@/lib/admin/automatic-submission-reminders";
 
@@ -19,17 +20,13 @@ export async function GET(request: NextRequest) {
 
   const authorization = request.headers.get("authorization");
   if (authorization !== `Bearer ${secret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorized();
   }
 
   try {
     const data = await runAutomaticSubmissionReminders();
     return NextResponse.json({ data });
   } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Failed to run automatic submission reminders";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonError(error);
   }
 }

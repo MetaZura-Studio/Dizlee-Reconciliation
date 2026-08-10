@@ -15,16 +15,13 @@ import {
   type InvoiceBankAccount,
 } from "@/lib/dizlee/invoice-bank-details";
 import { prisma } from "@/lib/prisma";
+import { DomainError } from "@/lib/errors/app-error";
 
 export type { InvoiceBankDetailsListView } from "@/lib/admin/invoice-bank-details.shared";
 
-export class InvoiceBankDetailsError extends Error {
-  status: number;
-
-  constructor(message: string, status = 400) {
-    super(message);
-    this.name = "InvoiceBankDetailsError";
-    this.status = status;
+export class InvoiceBankDetailsError extends DomainError {
+  constructor(keyOrMessage: string, status?: number) {
+    super("InvoiceBankDetailsError", keyOrMessage, status);
   }
 }
 

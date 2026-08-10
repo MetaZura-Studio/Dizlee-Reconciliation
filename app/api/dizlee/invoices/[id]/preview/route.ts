@@ -4,6 +4,8 @@
  */
 
 import { NextResponse } from "next/server";
+import { jsonError, unauthorized } from "@/lib/errors/respond";
+import { appErrorFromUnknown } from "@/lib/errors/app-error";
 
 import { requireDizleeSession } from "@/lib/dizlee/auth";
 import { prisma } from "@/lib/prisma";
@@ -16,7 +18,7 @@ type RouteContext = {
 export async function GET(_request: Request, context: RouteContext) {
   const user = await requireDizleeSession();
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorized();
   }
 
   const { id } = await context.params;
@@ -28,7 +30,7 @@ export async function GET(_request: Request, context: RouteContext) {
     });
 
     if (!invoice?.file) {
-      return NextResponse.json({ error: "File not found" }, { status: 404 });
+      return jsonError(appErrorFromUnknown("File not found", 404));
     }
 
     try {
@@ -46,8 +48,6 @@ export async function GET(_request: Request, context: RouteContext) {
       );
     }
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to load invoice preview";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonError(error);
   }
 }

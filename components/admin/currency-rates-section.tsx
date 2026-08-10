@@ -25,6 +25,7 @@ import type {
 import { paginateItems } from "@/lib/ui/list-pagination";
 import { cn, ui } from "@/lib/ui/classes";
 import { nextSortState, type SortDirection } from "@/lib/ui/sort";
+import { formatAppError } from "@/lib/errors/format";
 
 type RateFormRow = {
   currencyId: string;
@@ -140,7 +141,7 @@ export function CurrencyRatesSection({
       const response = await fetch("/api/admin/currency-rates/periods");
       const body = await response.json();
       if (!response.ok) {
-        throw new Error(body.error ?? "Failed to load periods");
+        throw new Error(formatAppError(body, "Failed to load periods"));
       }
       setPeriods((body.data?.periods ?? []) as CurrencyRatePeriodOption[]);
     } catch {
@@ -158,7 +159,7 @@ export function CurrencyRatesSection({
       );
       const body = await response.json();
       if (!response.ok) {
-        throw new Error(body.error ?? "Failed to load currency rates");
+        throw new Error(formatAppError(body, "Failed to load currency rates"));
       }
       applyPeriodView(body.data as CurrencyRatesPeriodView);
     } catch (loadError) {
@@ -222,7 +223,7 @@ export function CurrencyRatesSection({
       });
       const body = await response.json();
       if (!response.ok) {
-        throw new Error(body.error ?? "Failed to save currency rates");
+        throw new Error(formatAppError(body, "Failed to save currency rates"));
       }
 
       applyPeriodView(body.data as CurrencyRatesPeriodView);
@@ -262,7 +263,7 @@ export function CurrencyRatesSection({
       });
       const body = await response.json();
       if (!response.ok) {
-        throw new Error(body.error ?? "Failed to import Excel file");
+        throw new Error(formatAppError(body, "Failed to import Excel file"));
       }
 
       const data = body.data as CurrencyRatesPeriodView & {

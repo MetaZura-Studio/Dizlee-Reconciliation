@@ -4,10 +4,10 @@
  */
 
 import { NextResponse } from "next/server";
+import { jsonError, unauthorized } from "@/lib/errors/respond";
 
 import { requireAdminApiSession } from "@/lib/admin/api-auth";
 import {
-  CurrencyRatesError,
   currentCalendarPeriod,
   getRatesForPeriod,
 } from "@/lib/admin/currency-rates";
@@ -16,7 +16,7 @@ import { buildCurrencyRatesTemplateBuffer } from "@/lib/admin/currency-rates-exc
 export async function GET(request: Request) {
   const user = await requireAdminApiSession();
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorized();
   }
 
   try {
@@ -46,11 +46,6 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
-    if (error instanceof CurrencyRatesError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
-    }
-    const message =
-      error instanceof Error ? error.message : "Failed to build template";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonError(error);
   }
 }

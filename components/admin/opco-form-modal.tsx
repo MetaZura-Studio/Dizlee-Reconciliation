@@ -12,10 +12,12 @@ import type {
   OpcoListItem,
 } from "@/lib/admin/opcos.shared";
 import { ui } from "@/lib/ui/classes";
+import { formatAppError } from "@/lib/errors/format";
 
 type OpcoFormValues = {
   name: string;
   defaultCurrencyId: string;
+  vatPercent: string;
   status: AdminEntityStatus;
 };
 
@@ -42,9 +44,11 @@ function getInitialValues(
   currencies: CurrencyListItem[],
 ): OpcoFormValues {
   if (mode === "edit" && opco) {
+    const vat = Number.isFinite(opco.vatPercent) ? opco.vatPercent : 0;
     return {
       name: opco.name,
       defaultCurrencyId: opco.defaultCurrencyId,
+      vatPercent: String(vat),
       status: opco.status,
     };
   }
@@ -53,6 +57,7 @@ function getInitialValues(
   return {
     name: "",
     defaultCurrencyId: kwd?.id ?? currencies[0]?.id ?? "",
+    vatPercent: "0",
     status: "ACTIVE",
   };
 }
@@ -76,9 +81,11 @@ function OpcoFormModalContent({
     setError(null);
 
     try {
+      const parsedVat = Number.parseFloat(values.vatPercent.trim());
       const payload = {
         name: values.name,
         defaultCurrencyId: values.defaultCurrencyId,
+        vatPercent: Number.isFinite(parsedVat) ? parsedVat : 0,
         status: values.status,
       };
 
@@ -92,7 +99,7 @@ function OpcoFormModalContent({
       );
       const body = await response.json();
       if (!response.ok) {
-        throw new Error(body.error ?? "Failed to save OpCo");
+        throw new Error(formatAppError(body, "Failed to save OpCo"));
       }
 
       onSaved(
@@ -164,6 +171,24 @@ function OpcoFormModalContent({
                   ))
                 )}
               </select>
+            </label>
+
+            <label className="block text-sm">
+              <FieldLegend required>VAT %</FieldLegend>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={values.vatPercent}
+                onChange={(event) =>
+                  setValues((current) => ({
+                    ...current,
+                    vatPercent: event.target.value,
+                  }))
+                }
+                placeholder="e.g. 5 or 15.5"
+                required
+                className={ui.input}
+              />
             </label>
 
             <label className="block text-sm">

@@ -35,7 +35,7 @@ export default async function AdminAuditLogsPage({
   const filterOptions = await getAuditLogFilterOptions();
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6">
+    <div className="w-full space-y-6">
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">Audit logs</h1>
         <p className="text-sm text-foreground-muted">

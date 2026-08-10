@@ -4,13 +4,10 @@
  */
 
 import { NextResponse } from "next/server";
+import { jsonError, unauthorized } from "@/lib/errors/respond";
 
 import { requireAdminApiSession } from "@/lib/admin/api-auth";
-import {
-  deletePartner,
-  PartnerActionError,
-  updatePartner,
-} from "@/lib/admin/partners";
+import { deletePartner, updatePartner } from "@/lib/admin/partners";
 import type { UpdatePartnerInput } from "@/lib/admin/validation/partners";
 
 type RouteContext = {
@@ -20,7 +17,7 @@ type RouteContext = {
 export async function PATCH(request: Request, context: RouteContext) {
   const user = await requireAdminApiSession();
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorized();
   }
 
   try {
@@ -29,19 +26,14 @@ export async function PATCH(request: Request, context: RouteContext) {
     const partner = await updatePartner(id, body, BigInt(user.id));
     return NextResponse.json({ data: partner });
   } catch (error) {
-    if (error instanceof PartnerActionError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
-    }
-    const message =
-      error instanceof Error ? error.message : "Failed to update Partner";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonError(error);
   }
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
   const user = await requireAdminApiSession();
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorized();
   }
 
   try {
@@ -49,11 +41,6 @@ export async function DELETE(_request: Request, context: RouteContext) {
     await deletePartner(id, BigInt(user.id));
     return NextResponse.json({ data: { success: true } });
   } catch (error) {
-    if (error instanceof PartnerActionError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
-    }
-    const message =
-      error instanceof Error ? error.message : "Failed to delete Partner";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonError(error);
   }
 }

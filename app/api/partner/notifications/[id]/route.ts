@@ -4,10 +4,11 @@
  */
 
 import { NextResponse } from "next/server";
+import { jsonError, unauthorized } from "@/lib/errors/respond";
+import { appErrorFromUnknown } from "@/lib/errors/app-error";
 
 import { getPartnerSession } from "@/lib/partner/auth";
 import {
-  PartnerNotificationError,
   dismissPartnerInboxNotification,
   getPartnerInboxNotificationDetail,
   markPartnerInboxNotificationRead,
@@ -21,13 +22,13 @@ export async function GET(_request: Request, context: RouteContext) {
   const session = await getPartnerSession();
 
   if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorized();
   }
 
   const { id } = await context.params;
 
   if (!/^\d+$/.test(id)) {
-    return NextResponse.json({ error: "Invalid notification id" }, { status: 400 });
+    return jsonError(appErrorFromUnknown("Invalid notification id", 400));
   }
 
   try {
@@ -48,17 +49,12 @@ export async function GET(_request: Request, context: RouteContext) {
     });
 
     if (!detail) {
-      return NextResponse.json({ error: "Notification not found" }, { status: 404 });
+      return jsonError(appErrorFromUnknown("Notification not found", 404));
     }
 
     return NextResponse.json({ detail, markedRead: true });
   } catch (error) {
-    if (error instanceof PartnerNotificationError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
-    }
-
-    console.error("Failed to load partner notification", error);
-    return NextResponse.json({ error: "Failed to load notification" }, { status: 500 });
+    return jsonError(error);
   }
 }
 
@@ -66,13 +62,13 @@ export async function DELETE(_request: Request, context: RouteContext) {
   const session = await getPartnerSession();
 
   if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorized();
   }
 
   const { id } = await context.params;
 
   if (!/^\d+$/.test(id)) {
-    return NextResponse.json({ error: "Invalid notification id" }, { status: 400 });
+    return jsonError(appErrorFromUnknown("Invalid notification id", 400));
   }
 
   try {
@@ -84,14 +80,6 @@ export async function DELETE(_request: Request, context: RouteContext) {
 
     return NextResponse.json({ message: "Notification dismissed" });
   } catch (error) {
-    if (error instanceof PartnerNotificationError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
-    }
-
-    console.error("Failed to dismiss partner notification", error);
-    return NextResponse.json(
-      { error: "Failed to dismiss notification" },
-      { status: 500 },
-    );
+    return jsonError(error);
   }
 }

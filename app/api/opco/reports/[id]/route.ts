@@ -4,6 +4,8 @@
  */
 
 import { NextResponse } from "next/server";
+import { jsonError, unauthorized } from "@/lib/errors/respond";
+import { appErrorFromUnknown } from "@/lib/errors/app-error";
 
 import { getOpcoSession } from "@/lib/opco/auth";
 import { getReportDetailForOpco } from "@/lib/opco/queries/reports";
@@ -16,19 +18,22 @@ export async function GET(_request: Request, context: RouteContext) {
   const session = await getOpcoSession();
 
   if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorized();
   }
 
   const { id } = await context.params;
 
   if (!/^\d+$/.test(id)) {
-    return NextResponse.json({ error: "Invalid report id" }, { status: 400 });
+    return jsonError(appErrorFromUnknown("Invalid report id", 400));
   }
 
-  const detail = await getReportDetailForOpco(BigInt(session.opcoId), BigInt(id));
+  const detail = await getReportDetailForOpco(
+    BigInt(session.opcoId),
+    BigInt(id),
+  );
 
   if (!detail) {
-    return NextResponse.json({ error: "Report not found" }, { status: 404 });
+    return jsonError(appErrorFromUnknown("Report not found", 404));
   }
 
   return NextResponse.json({ detail });

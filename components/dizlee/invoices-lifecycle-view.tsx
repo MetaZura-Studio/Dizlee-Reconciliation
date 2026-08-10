@@ -34,6 +34,7 @@ import type {
   LifecycleListItem,
   LifecycleListResult,
 } from "@/lib/dizlee/invoice-lifecycle";
+import { formatAppError } from "@/lib/errors/format";
 
 const MONTHS = [
   "January",
@@ -113,7 +114,7 @@ export function InvoicesLifecycleView({
       );
       const payload = await response.json();
       if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to load lifecycle detail");
+        throw new Error(formatAppError(payload, "Failed to load lifecycle detail"));
       }
       setDetail(payload.data as InvoiceLifecycleDetail);
     } catch (detailError) {
@@ -143,7 +144,7 @@ export function InvoicesLifecycleView({
         );
         const payload = await response.json();
         if (!response.ok) {
-          throw new Error(payload.error ?? "Failed to load lifecycle invoices");
+          throw new Error(formatAppError(payload, "Failed to load lifecycle invoices"));
         }
         const nextResult = payload.data as LifecycleListResult;
         setResult(nextResult);
