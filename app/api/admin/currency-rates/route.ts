@@ -5,10 +5,10 @@
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { jsonError, unauthorized } from "@/lib/errors/respond";
 
 import { requireAdminApiSession } from "@/lib/admin/api-auth";
 import {
-  CurrencyRatesError,
   getRatesForPeriod,
   saveRatesForPeriod,
 } from "@/lib/admin/currency-rates";
@@ -17,7 +17,7 @@ import type { SaveCurrencyRatesInput } from "@/lib/admin/validation/currency-rat
 export async function GET(request: NextRequest) {
   const user = await requireAdminApiSession();
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorized();
   }
 
   try {
@@ -35,19 +35,14 @@ export async function GET(request: NextRequest) {
     const data = await getRatesForPeriod(month, year);
     return NextResponse.json({ data });
   } catch (error) {
-    if (error instanceof CurrencyRatesError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
-    }
-    const message =
-      error instanceof Error ? error.message : "Failed to load currency rates";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonError(error);
   }
 }
 
 export async function PATCH(request: Request) {
   const user = await requireAdminApiSession();
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorized();
   }
 
   try {
@@ -55,11 +50,6 @@ export async function PATCH(request: Request) {
     const data = await saveRatesForPeriod(body, BigInt(user.id));
     return NextResponse.json({ data });
   } catch (error) {
-    if (error instanceof CurrencyRatesError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
-    }
-    const message =
-      error instanceof Error ? error.message : "Failed to save currency rates";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonError(error);
   }
 }

@@ -48,6 +48,7 @@ import {
   monitoringLaneNeedsReminder,
   monitoringLaneToCompareLane,
 } from "@/lib/dizlee/reports-monitoring.shared";
+import { formatAppError } from "@/lib/errors/format";
 
 const MONTHS = [
   "January",
@@ -219,7 +220,7 @@ export function ReportsMonitoringView({
       );
       const payload = await response.json();
       if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to load reports monitoring");
+        throw new Error(formatAppError(payload, "Failed to load reports monitoring"));
       }
       setResult(payload.data as ReportMonitoringResult);
       setFilterOptions(payload.filterOptions as ReportFilterOptions);
@@ -306,7 +307,7 @@ export function ReportsMonitoringView({
       const response = await fetch(`/api/dizlee/reports/${reportId}`);
       const payload = await response.json();
       if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to load report");
+        throw new Error(formatAppError(payload, "Failed to load report"));
       }
       setDetail(payload.data as ReportDetail);
     } catch (detailError) {

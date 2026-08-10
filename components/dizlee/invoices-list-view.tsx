@@ -46,6 +46,7 @@ import type {
   PaymentStatusFilter,
   SortDirection,
 } from "@/lib/dizlee/invoices";
+import { formatAppError } from "@/lib/errors/format";
 
 const MONTHS = [
   "January",
@@ -160,7 +161,7 @@ export function InvoicesListView({
       const response = await fetch(`/api/dizlee/invoices?${buildQuery(filters)}`);
       const payload = await response.json();
       if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to load invoices");
+        throw new Error(formatAppError(payload, "Failed to load invoices"));
       }
       setResult(payload.data as InvoiceListResult);
       setFilterOptions(payload.filterOptions as InvoiceFilterOptions);
@@ -284,9 +285,7 @@ export function InvoicesListView({
         acknowledged?: boolean;
       };
       if (!response.ok) {
-        throw new Error(
-          (payload as { error?: string }).error ?? "Failed to load invoice",
-        );
+        throw new Error(formatAppError(payload, "Failed to load invoice"));
       }
       setDetail(payload.data);
       if (payload.acknowledged) {
@@ -324,7 +323,7 @@ export function InvoicesListView({
         error?: string;
       };
       if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to mark payment");
+        throw new Error(formatAppError(payload, "Failed to mark payment"));
       }
       if (payload.data) {
         setDetail(payload.data);

@@ -18,14 +18,11 @@ import { writePlatformAuditLog } from "@/lib/platform/audit-log";
 import { notifyDizleeUsers } from "@/lib/platform/notify-dizlee";
 import { formatPeriodLabel } from "@/lib/partner/period";
 import prisma from "@/lib/prisma";
+import { DomainError } from "@/lib/errors/app-error";
 
-export class ReportUploadError extends Error {
-  status: number;
-
-  constructor(message: string, status = 400) {
-    super(message);
-    this.name = "ReportUploadError";
-    this.status = status;
+export class ReportUploadError extends DomainError {
+  constructor(keyOrMessage: string, status?: number) {
+    super("ReportUploadError", keyOrMessage, status);
   }
 }
 

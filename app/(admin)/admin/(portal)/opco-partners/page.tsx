@@ -27,7 +27,7 @@ export default async function AdminOpcoPartnersPage({
 
   if (errorMessage) {
     return (
-      <div className="mx-auto max-w-3xl space-y-3">
+      <div className="w-full space-y-3">
         <h1 className="text-2xl font-semibold tracking-tight">OpCo partners</h1>
         <p className="rounded-md border border-danger-border bg-danger-muted px-3 py-2 text-sm text-danger">
           {errorMessage}
@@ -37,7 +37,7 @@ export default async function AdminOpcoPartnersPage({
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="w-full space-y-6">
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">OpCo partners</h1>
         <p className="text-sm text-foreground-muted">

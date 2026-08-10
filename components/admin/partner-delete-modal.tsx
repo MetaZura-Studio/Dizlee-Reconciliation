@@ -7,6 +7,7 @@ import { ModalCloseButton } from "@/components/ui/modal-close-button";
 import { PortalOverlay } from "@/components/ui/portal-overlay";
 import type { PartnerListItem } from "@/lib/admin/partners.shared";
 import { ui } from "@/lib/ui/classes";
+import { formatAppError } from "@/lib/errors/format";
 
 type PartnerDeleteModalProps = {
   open: boolean;
@@ -38,7 +39,7 @@ export function PartnerDeleteModal({
       });
       const body = await response.json();
       if (!response.ok) {
-        throw new Error(body.error ?? "Failed to delete Partner");
+        throw new Error(formatAppError(body, "Failed to delete Partner"));
       }
 
       onDeleted("Partner deleted.");

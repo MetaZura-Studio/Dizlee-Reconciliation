@@ -16,7 +16,7 @@ export default async function AdminPartnersPage() {
 
   if (loadError) {
     return (
-      <div className="mx-auto max-w-5xl space-y-3">
+      <div className="w-full space-y-3">
         <h1 className="text-2xl font-semibold tracking-tight">Partners</h1>
         <p className="rounded-md border border-danger-border bg-danger-muted px-3 py-2 text-sm text-danger">
           {loadError}
@@ -26,7 +26,7 @@ export default async function AdminPartnersPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="w-full">
       <PartnersView initialPartners={partners} />
     </div>
   );

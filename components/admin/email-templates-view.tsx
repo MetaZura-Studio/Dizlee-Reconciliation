@@ -24,6 +24,7 @@ import {
   type EmailTemplatesPageData,
 } from "@/lib/admin/email-templates.shared";
 import { cn, ui } from "@/lib/ui/classes";
+import { formatAppError } from "@/lib/errors/format";
 
 type WorkTab = "edit" | "preview" | "versions";
 type TemplateCategoryFilter = "all" | EmailTemplateCategory;
@@ -238,7 +239,7 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
       );
       const body = await response.json();
       if (!response.ok) {
-        throw new Error(body.error ?? "Failed to load email template");
+        throw new Error(formatAppError(body, "Failed to load email template"));
       }
       applyDetail(body.data as EmailTemplateDetail);
       setTab("edit");
@@ -297,7 +298,7 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
       });
       const body = await response.json();
       if (!response.ok) {
-        throw new Error(body.error ?? "Failed to create email template");
+        throw new Error(formatAppError(body, "Failed to create email template"));
       }
 
       const created = body.data as EmailTemplateDetail;
@@ -375,7 +376,7 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
       );
       const body = await response.json();
       if (!response.ok) {
-        throw new Error(body.error ?? "Failed to save email template");
+        throw new Error(formatAppError(body, "Failed to save email template"));
       }
 
       applyDetail(body.data as EmailTemplateDetail);
@@ -412,7 +413,7 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
       );
       const body = await response.json();
       if (!response.ok) {
-        throw new Error(body.error ?? "Failed to restore email template");
+        throw new Error(formatAppError(body, "Failed to restore email template"));
       }
 
       applyDetail(body.data as EmailTemplateDetail);

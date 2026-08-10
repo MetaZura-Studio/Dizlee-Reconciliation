@@ -60,7 +60,7 @@ async function main() {
   }
 
   const sample = await prisma.currencyMonthlyRate.findMany({
-    where: { year: 2026, month: { in: [1, 6] }, isDeleted: false },
+    where: { year: 2026, month: { in: [1, 6, 8] }, isDeleted: false },
     include: { currency: { select: { isoCode: true } } },
     orderBy: [{ month: "asc" }, { currency: { isoCode: "asc" } }],
   });
@@ -70,7 +70,7 @@ async function main() {
       {
         upserted,
         samples: sample
-          .filter((r) => ["USD", "KWD", "EUR"].includes(r.currency.isoCode))
+          .filter((r) => ["USD", "KWD", "EUR", "IQD"].includes(r.currency.isoCode))
           .map((r) => ({
             iso: r.currency.isoCode,
             month: r.month,

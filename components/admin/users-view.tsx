@@ -40,6 +40,7 @@ import {
 } from "@/lib/admin/users.shared";
 import { ui } from "@/lib/ui/classes";
 import { nextSortState } from "@/lib/ui/sort";
+import { formatAppError } from "@/lib/errors/format";
 
 function formatDateTime(value: string | null): string {
   if (!value) {
@@ -125,7 +126,7 @@ export function UsersView({ initialResult }: UsersViewProps) {
       const response = await fetch(`/api/admin/users?${buildQuery(filters)}`);
       const payload = await response.json();
       if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to load users");
+        throw new Error(formatAppError(payload, "Failed to load users"));
       }
       const nextResult = payload.data as UserListResult;
       setResult(nextResult);

@@ -8,7 +8,7 @@
 export const ui = {
   page: "min-h-screen bg-canvas text-foreground antialiased",
   pageCard:
-    "rounded-[28px] border border-border bg-surface p-6 shadow-[var(--shadow-md)] sm:p-8",
+    "w-full rounded-[24px] border border-border bg-surface p-4 shadow-[var(--shadow-md)] sm:rounded-[28px] sm:p-6 lg:p-8",
   card: "rounded-[28px] border border-border bg-surface shadow-[var(--shadow-md)]",
   cardPadding:
     "rounded-[28px] border border-border bg-surface p-4 shadow-[var(--shadow-sm)] sm:p-5",
@@ -49,8 +49,8 @@ export const ui = {
   header:
     "rounded-[28px] border border-border bg-white/80 shadow-[var(--shadow-sm)] backdrop-blur-md",
   tableWrap:
-    "overflow-hidden rounded-[28px] border border-border bg-surface shadow-[var(--shadow-md)]",
-  table: "w-full border-separate border-spacing-0 text-sm",
+    "w-full overflow-x-auto overflow-y-hidden rounded-[28px] border border-border bg-surface shadow-[var(--shadow-md)]",
+  table: "w-full min-w-[40rem] border-separate border-spacing-0 text-sm",
   tableHead:
     "bg-surface-muted text-left text-xs font-semibold tracking-wide text-foreground-muted",
   tableHeadCell: "px-4 py-3.5",
@@ -80,7 +80,7 @@ export const ui = {
   pageTitle: "text-xl font-semibold tracking-tight text-foreground sm:text-2xl",
   pageSubtitle: "mt-1 text-sm text-foreground-muted",
   filterToolbar:
-    "flex flex-wrap items-end gap-3 rounded-[24px] border border-border bg-surface-muted/60 p-4",
+    "flex w-full flex-wrap items-end gap-3 rounded-[24px] border border-border bg-surface-muted/60 p-3 sm:p-4",
   emptyState:
     "rounded-3xl border border-dashed border-border-strong bg-surface px-6 py-12 text-center",
 } as const;

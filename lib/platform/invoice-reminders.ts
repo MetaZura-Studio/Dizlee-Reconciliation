@@ -13,6 +13,7 @@ import {
   periodLabel,
 } from "@/lib/platform/template-placeholders";
 import { prisma } from "@/lib/prisma";
+import { DomainError } from "@/lib/errors/app-error";
 
 export type SendMissingInvoiceRemindersResult = {
   opcoNotifications: number;
@@ -29,13 +30,9 @@ export type SendMissingInvoiceRemindersInput = {
   throwIfNoRecipients?: boolean;
 };
 
-export class InvoiceReminderError extends Error {
-  status: number;
-
-  constructor(message: string, status = 400) {
-    super(message);
-    this.name = "InvoiceReminderError";
-    this.status = status;
+export class InvoiceReminderError extends DomainError {
+  constructor(keyOrMessage: string, status?: number) {
+    super("InvoiceReminderError", keyOrMessage, status);
   }
 }
 

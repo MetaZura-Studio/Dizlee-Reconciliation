@@ -9,15 +9,12 @@ import type { Prisma } from "@prisma/client";
 
 import { trimNotificationPreview } from "@/lib/opco/notifications/shared";
 import prisma from "@/lib/prisma";
+import { DomainError } from "@/lib/errors/app-error";
 
 /** HTTP-friendly error for inbox mutations; `status` is intended for route handlers. */
-export class OpcoNotificationError extends Error {
-  status: number;
-
-  constructor(message: string, status = 400) {
-    super(message);
-    this.name = "OpcoNotificationError";
-    this.status = status;
+export class OpcoNotificationError extends DomainError {
+  constructor(keyOrMessage: string, status?: number) {
+    super("OpcoNotificationError", keyOrMessage, status);
   }
 }
 

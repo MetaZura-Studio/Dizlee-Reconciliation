@@ -45,6 +45,7 @@ import type {
   OpcoInvoiceSortField,
   OpcoSortDirection,
 } from "@/lib/opco/queries/invoices";
+import { formatAppError } from "@/lib/errors/format";
 
 const MONTHS = [
   "January",
@@ -143,7 +144,7 @@ export function InvoicesTable({
         error?: string;
       };
       if (!response.ok || !payload.result) {
-        throw new Error(payload.error ?? "Failed to load invoices");
+        throw new Error(formatAppError(payload, "Failed to load invoices"));
       }
       setResult(payload.result);
       if (payload.filterOptions) {

@@ -4,12 +4,10 @@
  */
 
 import { NextResponse } from "next/server";
+import { jsonError, unauthorized } from "@/lib/errors/respond";
 
 import { requireAdminApiSession } from "@/lib/admin/api-auth";
-import {
-  EmailTemplateError,
-  revertEmailTemplate,
-} from "@/lib/admin/email-templates";
+import { revertEmailTemplate } from "@/lib/admin/email-templates";
 import type { RevertEmailTemplateInput } from "@/lib/admin/validation/email-templates";
 
 type RouteContext = {
@@ -19,7 +17,7 @@ type RouteContext = {
 export async function POST(request: Request, context: RouteContext) {
   const user = await requireAdminApiSession();
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorized();
   }
 
   try {
@@ -32,11 +30,6 @@ export async function POST(request: Request, context: RouteContext) {
     );
     return NextResponse.json({ data });
   } catch (error) {
-    if (error instanceof EmailTemplateError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
-    }
-    const message =
-      error instanceof Error ? error.message : "Failed to revert email template";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonError(error);
   }
 }

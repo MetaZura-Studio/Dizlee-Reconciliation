@@ -11,6 +11,7 @@ import type {
   PartnerListItem,
 } from "@/lib/admin/partners.shared";
 import { ui } from "@/lib/ui/classes";
+import { formatAppError } from "@/lib/errors/format";
 
 type PartnerFormValues = {
   name: string;
@@ -84,7 +85,7 @@ function PartnerFormModalContent({
       );
       const body = await response.json();
       if (!response.ok) {
-        throw new Error(body.error ?? "Failed to save Partner");
+        throw new Error(formatAppError(body, "Failed to save Partner"));
       }
 
       onSaved(

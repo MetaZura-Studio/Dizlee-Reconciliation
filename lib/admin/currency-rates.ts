@@ -26,18 +26,15 @@ import {
   BASE_CURRENCY_RATE,
 } from "@/lib/platform/currency-rates";
 import { prisma } from "@/lib/prisma";
+import { DomainError } from "@/lib/errors/app-error";
 
 export type { CurrencyRatesPeriodView, CurrencyRatePeriodOption } from "@/lib/admin/currencies.shared";
 
 const ROLLING_PERIOD_COUNT = 24;
 
-export class CurrencyRatesError extends Error {
-  status: number;
-
-  constructor(message: string, status = 400) {
-    super(message);
-    this.name = "CurrencyRatesError";
-    this.status = status;
+export class CurrencyRatesError extends DomainError {
+  constructor(keyOrMessage: string, status?: number) {
+    super("CurrencyRatesError", keyOrMessage, status);
   }
 }
 

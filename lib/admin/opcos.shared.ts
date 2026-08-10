@@ -10,6 +10,7 @@ export type OpcoListItem = {
   statusLabel: string;
   defaultCurrencyId: string;
   defaultCurrencyIso: string;
+  vatPercent: number;
   userCount: number;
 };
 

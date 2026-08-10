@@ -7,6 +7,7 @@ import { FieldLegend } from "@/components/ui/field";
 import { useToast } from "@/components/ui/toast";
 import type { InvoiceBankDetailsListView } from "@/lib/admin/invoice-bank-details.shared";
 import { ui } from "@/lib/ui/classes";
+import { formatAppError } from "@/lib/errors/format";
 
 type InvoiceBankDetailsFormProps = {
   initialSettings: InvoiceBankDetailsListView;
@@ -82,7 +83,7 @@ export function InvoiceBankDetailsForm({
       const response = await fetch("/api/admin/invoice-bank-details");
       const body = await response.json();
       if (!response.ok) {
-        throw new Error(body.error ?? "Failed to reload invoice bank details");
+        throw new Error(formatAppError(body, "Failed to reload invoice bank details"));
       }
       applySettings(body.data as InvoiceBankDetailsListView);
     } catch (reloadError) {
@@ -119,7 +120,7 @@ export function InvoiceBankDetailsForm({
       });
       const body = await response.json();
       if (!response.ok) {
-        throw new Error(body.error ?? "Failed to save invoice bank details");
+        throw new Error(formatAppError(body, "Failed to save invoice bank details"));
       }
 
       applySettings(body.data as InvoiceBankDetailsListView);

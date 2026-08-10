@@ -4,12 +4,11 @@
  */
 
 import { NextResponse } from "next/server";
+import { jsonError, unauthorized } from "@/lib/errors/respond";
+import { appErrorFromUnknown } from "@/lib/errors/app-error";
 
 import { requireDizleeSession } from "@/lib/dizlee/auth";
-import {
-  ReconciliationError,
-  confirmReconciliation,
-} from "@/lib/dizlee/reconciliation";
+import { confirmReconciliation } from "@/lib/dizlee/reconciliation";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -18,25 +17,20 @@ type RouteContext = {
 export async function PATCH(_request: Request, context: RouteContext) {
   const user = await requireDizleeSession();
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorized();
   }
 
   const { id } = await context.params;
   const reconciliationId = Number(id);
 
   if (!Number.isInteger(reconciliationId) || reconciliationId < 1) {
-    return NextResponse.json({ error: "Invalid reconciliation id" }, { status: 400 });
+    return jsonError(appErrorFromUnknown("Invalid reconciliation id", 400));
   }
 
   try {
     await confirmReconciliation(reconciliationId, user.id);
     return NextResponse.json({ ok: true });
   } catch (error) {
-    if (error instanceof ReconciliationError) {
-      return NextResponse.json({ error: error.message }, { status: error.statusCode });
-    }
-    const message =
-      error instanceof Error ? error.message : "Failed to confirm reconciliation";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonError(error);
   }
 }

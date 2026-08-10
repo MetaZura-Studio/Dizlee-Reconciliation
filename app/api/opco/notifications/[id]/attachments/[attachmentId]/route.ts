@@ -4,6 +4,8 @@
  */
 
 import { NextResponse } from "next/server";
+import { jsonError, unauthorized } from "@/lib/errors/respond";
+import { appErrorFromUnknown } from "@/lib/errors/app-error";
 
 import { getOpcoSession } from "@/lib/opco/auth";
 import { buildNotificationAttachmentDownloadResponse } from "@/lib/platform/notification-attachment-download";
@@ -16,13 +18,13 @@ export async function GET(_request: Request, context: RouteContext) {
   const session = await getOpcoSession();
 
   if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorized();
   }
 
   const { id, attachmentId } = await context.params;
 
   if (!/^\d+$/.test(id) || !/^\d+$/.test(attachmentId)) {
-    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
+    return jsonError(appErrorFromUnknown("Invalid id", 400));
   }
 
   return buildNotificationAttachmentDownloadResponse({

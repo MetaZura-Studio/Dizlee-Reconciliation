@@ -7,6 +7,7 @@ import { PASSWORD_MIN_LENGTH, validatePasswordMatch } from "@/lib/auth/password-
 import { FieldLegend } from "@/components/ui/field";
 import { useToast } from "@/components/ui/toast";
 import { ui } from "@/lib/ui/classes";
+import { formatAppError } from "@/lib/errors/format";
 
 export function ChangePasswordForm() {
   const router = useRouter();
@@ -36,7 +37,7 @@ export function ChangePasswordForm() {
       });
       const body = await response.json();
       if (!response.ok) {
-        throw new Error(body.error ?? "Failed to change password");
+        throw new Error(formatAppError(body, "Failed to change password"));
       }
 
       toast.success("Password updated.");

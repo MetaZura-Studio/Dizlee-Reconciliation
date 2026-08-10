@@ -4,6 +4,7 @@
  */
 
 import { NextResponse } from "next/server";
+import { unauthorized } from "@/lib/errors/respond";
 
 import { getPartnerSession } from "@/lib/partner/auth";
 import { parseDashboardPeriod } from "@/lib/partner/period";
@@ -13,7 +14,7 @@ export async function GET(request: Request) {
   const session = await getPartnerSession();
 
   if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorized();
   }
 
   const { searchParams } = new URL(request.url);

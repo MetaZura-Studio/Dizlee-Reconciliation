@@ -4,6 +4,8 @@
  */
 
 import { NextResponse } from "next/server";
+import { jsonError, unauthorized } from "@/lib/errors/respond";
+import { appErrorFromUnknown } from "@/lib/errors/app-error";
 
 import { requireDizleeSession } from "@/lib/dizlee/auth";
 import { buildStoredFilePreviewResponse } from "@/lib/platform/reports/preview-stored-file";
@@ -16,13 +18,13 @@ type RouteContext = {
 export async function GET(_request: Request, context: RouteContext) {
   const user = await requireDizleeSession();
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorized();
   }
 
   const { id } = await context.params;
 
   if (!/^\d+$/.test(id)) {
-    return NextResponse.json({ error: "Invalid report id" }, { status: 400 });
+    return jsonError(appErrorFromUnknown("Invalid report id", 400));
   }
 
   try {
@@ -32,12 +34,12 @@ export async function GET(_request: Request, context: RouteContext) {
     });
 
     if (!report?.file) {
-      return NextResponse.json({ error: "File not found" }, { status: 404 });
+      return jsonError(appErrorFromUnknown("File not found", 404));
     }
 
     return buildStoredFilePreviewResponse(report.file);
   } catch (error) {
     console.error("Dizlee report preview failed", error);
-    return NextResponse.json({ error: "Failed to load report file" }, { status: 500 });
+    return jsonError(appErrorFromUnknown("Failed to load report file", 500));
   }
 }

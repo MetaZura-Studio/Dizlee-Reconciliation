@@ -7,6 +7,7 @@ import { ModalCloseButton } from "@/components/ui/modal-close-button";
 import { PortalOverlay } from "@/components/ui/portal-overlay";
 import type { UserListItem } from "@/lib/admin/users.shared";
 import { ui } from "@/lib/ui/classes";
+import { formatAppError } from "@/lib/errors/format";
 
 type UserDeleteModalProps = {
   open: boolean;
@@ -38,7 +39,7 @@ export function UserDeleteModal({
       });
       const body = await response.json();
       if (!response.ok) {
-        throw new Error(body.error ?? "Failed to delete user");
+        throw new Error(formatAppError(body, "Failed to delete user"));
       }
 
       onDeleted("User deleted.");

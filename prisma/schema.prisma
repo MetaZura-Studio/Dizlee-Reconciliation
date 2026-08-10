@@ -97,6 +97,7 @@ model Opco {
   id                BigInt   @id @default(autoincrement())
   name              String   @db.VarChar(255)
   defaultCurrencyId BigInt   @map("default_currency_id")
+  vatPercent        Decimal  @default(0) @map("vat_percent") @db.Decimal(5, 2)
   statusId          Int      @map("status_id")
   createdByUserId   BigInt?  @map("created_by_user_id")
   updatedByUserId   BigInt?  @map("updated_by_user_id")

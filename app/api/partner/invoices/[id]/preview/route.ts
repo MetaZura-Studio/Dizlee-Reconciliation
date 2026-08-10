@@ -4,6 +4,8 @@
  */
 
 import { NextResponse } from "next/server";
+import { jsonError, unauthorized } from "@/lib/errors/respond";
+import { appErrorFromUnknown } from "@/lib/errors/app-error";
 
 import { getPartnerSession } from "@/lib/partner/auth";
 import prisma from "@/lib/prisma";
@@ -17,13 +19,13 @@ export async function GET(_request: Request, context: RouteContext) {
   const session = await getPartnerSession();
 
   if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorized();
   }
 
   const { id } = await context.params;
 
   if (!/^\d+$/.test(id)) {
-    return NextResponse.json({ error: "Invalid invoice id" }, { status: 400 });
+    return jsonError(appErrorFromUnknown("Invalid invoice id", 400));
   }
 
   try {
@@ -38,7 +40,7 @@ export async function GET(_request: Request, context: RouteContext) {
     });
 
     if (!invoice?.file) {
-      return NextResponse.json({ error: "File not found" }, { status: 404 });
+      return jsonError(appErrorFromUnknown("File not found", 404));
     }
 
     try {
@@ -57,6 +59,8 @@ export async function GET(_request: Request, context: RouteContext) {
     }
   } catch (error) {
     console.error("Partner invoice preview failed", error);
-    return NextResponse.json({ error: "Failed to load invoice preview" }, { status: 500 });
+    return jsonError(
+      appErrorFromUnknown("Failed to load invoice preview", 500),
+    );
   }
 }

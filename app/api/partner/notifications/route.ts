@@ -4,6 +4,7 @@
  */
 
 import { NextResponse } from "next/server";
+import { unauthorized } from "@/lib/errors/respond";
 
 import { getPartnerSession } from "@/lib/partner/auth";
 import {
@@ -15,7 +16,7 @@ export async function GET(request: Request) {
   const session = await getPartnerSession();
 
   if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorized();
   }
 
   const filters = parsePartnerInboxFilters(new URL(request.url).searchParams);

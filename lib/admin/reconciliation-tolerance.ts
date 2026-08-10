@@ -9,18 +9,15 @@ import {
 } from "@/lib/admin/validation/reconciliation-tolerance";
 import { getReconciliationTolerancePercent } from "@/lib/platform/reconciliation-tolerance";
 import { prisma } from "@/lib/prisma";
+import { DomainError } from "@/lib/errors/app-error";
 
 export type ReconciliationToleranceView = {
   reconciliationNegligiblePercent: number;
 };
 
-export class ReconciliationToleranceError extends Error {
-  status: number;
-
-  constructor(message: string, status = 400) {
-    super(message);
-    this.name = "ReconciliationToleranceError";
-    this.status = status;
+export class ReconciliationToleranceError extends DomainError {
+  constructor(keyOrMessage: string, status?: number) {
+    super("ReconciliationToleranceError", keyOrMessage, status);
   }
 }
 

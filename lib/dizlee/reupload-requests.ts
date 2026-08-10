@@ -13,6 +13,7 @@ import {
   type ReportFilterOptions,
 } from "@/lib/dizlee/reports";
 import { prisma } from "@/lib/prisma";
+import { DomainError } from "@/lib/errors/app-error";
 
 export type ReuploadListFilters = {
   month: number;
@@ -187,13 +188,9 @@ export async function listPendingReuploadRequests(
   };
 }
 
-export class ReuploadRequestError extends Error {
-  constructor(
-    message: string,
-    readonly statusCode: number,
-  ) {
-    super(message);
-    this.name = "ReuploadRequestError";
+export class ReuploadRequestError extends DomainError {
+  constructor(keyOrMessage: string, status?: number) {
+    super("ReuploadRequestError", keyOrMessage, status);
   }
 }
 

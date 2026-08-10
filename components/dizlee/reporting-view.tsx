@@ -38,6 +38,7 @@ import type {
   ReportingLaneStatus,
   ReportingOverview,
 } from "@/lib/dizlee/reporting";
+import { formatAppError } from "@/lib/errors/format";
 
 const MONTHS = [
   "January",
@@ -247,7 +248,7 @@ export function ReportingView({
         );
         const payload = await response.json();
         if (!response.ok) {
-          throw new Error(payload.error ?? "Failed to load reporting");
+          throw new Error(formatAppError(payload, "Failed to load reporting"));
         }
         setOverview(payload.data as ReportingOverview);
         setFilterOptions(payload.filterOptions as ReportFilterOptions);

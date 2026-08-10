@@ -35,6 +35,7 @@ import {
 } from "@/lib/admin/audit-logs.shared";
 import { cn, ui } from "@/lib/ui/classes";
 import { nextSortState } from "@/lib/ui/sort";
+import { formatAppError } from "@/lib/errors/format";
 
 function formatDateTime(value: string): string {
   return new Date(value).toLocaleString("en-US", {
@@ -187,7 +188,7 @@ export function AuditLogsView({
       );
       const body = await response.json();
       if (!response.ok) {
-        throw new Error(body.error ?? "Failed to load audit logs");
+        throw new Error(formatAppError(body, "Failed to load audit logs"));
       }
       const data = body.data as AuditLogListResult;
       setResult(data);

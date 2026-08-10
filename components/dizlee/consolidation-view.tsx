@@ -45,6 +45,7 @@ import {
   getMaxMonthForYear,
   getPeriodYearOptions,
 } from "@/lib/platform/period";
+import { formatAppError } from "@/lib/errors/format";
 
 const MONTHS = [
   "January",
@@ -196,7 +197,7 @@ export function ConsolidationView({
         );
         const payload = await response.json();
         if (!response.ok) {
-          throw new Error(payload.error ?? "Failed to load readiness");
+          throw new Error(formatAppError(payload, "Failed to load readiness"));
         }
         setReadiness(payload.data as ConsolidationReadiness);
         setPartnerPage(1);
@@ -252,7 +253,7 @@ export function ConsolidationView({
         const response = await fetch(`/api/dizlee/consolidation/history?${params}`);
         const payload = await response.json();
         if (!response.ok) {
-          throw new Error(payload.error ?? "Failed to load history");
+          throw new Error(formatAppError(payload, "Failed to load history"));
         }
         const data = payload.data as ConsolidationHistoryResult;
         setHistory(data);
@@ -357,7 +358,7 @@ export function ConsolidationView({
       });
       const payload = await response.json();
       if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to generate consolidation");
+        throw new Error(formatAppError(payload, "Failed to generate consolidation"));
       }
 
       toast.success(

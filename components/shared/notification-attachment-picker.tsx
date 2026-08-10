@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { FieldLabel } from "@/components/ui/field";
+import { formatAppError } from "@/lib/errors/format";
 import { ui } from "@/lib/ui/classes";
 
 export const MAX_NOTIFICATION_ATTACHMENTS = 5;
@@ -57,7 +58,7 @@ export function NotificationAttachmentPicker({
         const payload = await response.json();
 
         if (!response.ok) {
-          throw new Error(payload.error ?? `Failed to upload ${file.name}`);
+          throw new Error(formatAppError(payload, `Failed to upload ${file.name}`));
         }
 
         uploaded.push({

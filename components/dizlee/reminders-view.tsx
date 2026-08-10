@@ -44,6 +44,7 @@ import {
   getMaxMonthForYear,
   getPeriodYearOptions,
 } from "@/lib/platform/period";
+import { formatAppError } from "@/lib/errors/format";
 
 const MONTHS = [
   "January",
@@ -174,7 +175,7 @@ export function RemindersView({
         );
         const payload = await response.json();
         if (!response.ok) {
-          throw new Error(payload.error ?? "Failed to load reminders");
+          throw new Error(formatAppError(payload, "Failed to load reminders"));
         }
         setResult(payload.data as ReportMonitoringResult);
         const nextSettings = payload.settings as ReminderSettingsView;
@@ -270,7 +271,7 @@ export function RemindersView({
       });
       const payload = await response.json();
       if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to send reminders");
+        throw new Error(formatAppError(payload, "Failed to send reminders"));
       }
       toast.success(payload.data.message as string);
       setSelectedLaneKeys([]);

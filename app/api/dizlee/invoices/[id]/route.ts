@@ -4,6 +4,8 @@
  */
 
 import { NextResponse } from "next/server";
+import { jsonError, unauthorized } from "@/lib/errors/respond";
+import { appErrorFromUnknown } from "@/lib/errors/app-error";
 
 import { requireDizleeSession } from "@/lib/dizlee/auth";
 import { getInvoiceDetailForViewer } from "@/lib/dizlee/invoices";
@@ -15,7 +17,7 @@ type RouteContext = {
 export async function GET(_request: Request, context: RouteContext) {
   const user = await requireDizleeSession();
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorized();
   }
 
   const { id } = await context.params;
@@ -23,15 +25,13 @@ export async function GET(_request: Request, context: RouteContext) {
   try {
     const result = await getInvoiceDetailForViewer(id, user.id);
     if (!result) {
-      return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
+      return jsonError(appErrorFromUnknown("Invoice not found", 404));
     }
     return NextResponse.json({
       data: result.detail,
       acknowledged: result.acknowledged,
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to load invoice";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonError(error);
   }
 }

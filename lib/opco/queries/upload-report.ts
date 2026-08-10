@@ -18,14 +18,11 @@ import {
 } from "@/lib/platform/reports/sides";
 import prisma from "@/lib/prisma";
 import { formatPeriodLabel } from "@/lib/opco/period";
+import { DomainError } from "@/lib/errors/app-error";
 
-export class ReportUploadError extends Error {
-  status: number;
-
-  constructor(message: string, status = 400) {
-    super(message);
-    this.name = "ReportUploadError";
-    this.status = status;
+export class ReportUploadError extends DomainError {
+  constructor(keyOrMessage: string, status?: number) {
+    super("ReportUploadError", keyOrMessage, status);
   }
 }
 

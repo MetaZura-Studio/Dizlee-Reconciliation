@@ -5,6 +5,8 @@
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { jsonError, unauthorized } from "@/lib/errors/respond";
+import { appErrorFromUnknown } from "@/lib/errors/app-error";
 
 import { requireDizleeSession } from "@/lib/dizlee/auth";
 import { getLaneNotificationHistory } from "@/lib/dizlee/lane-report-notifications";
@@ -12,7 +14,7 @@ import { getLaneNotificationHistory } from "@/lib/dizlee/lane-report-notificatio
 export async function GET(request: NextRequest) {
   const user = await requireDizleeSession();
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorized();
   }
 
   try {
@@ -36,7 +38,7 @@ export async function GET(request: NextRequest) {
       !Number.isInteger(year) ||
       year < 2000
     ) {
-      return NextResponse.json({ error: "Valid period is required." }, { status: 400 });
+      return jsonError(appErrorFromUnknown("Valid period is required.", 400));
     }
 
     const data = await getLaneNotificationHistory({
@@ -48,10 +50,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ data });
   } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Failed to load lane notification history";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonError(error);
   }
 }

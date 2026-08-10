@@ -5,6 +5,7 @@ import { useState } from "react";
 import { FieldLabel } from "@/components/ui/field";
 import { PASSWORD_MIN_LENGTH, validatePasswordMatch } from "@/lib/auth/password-policy";
 import { ui } from "@/lib/ui/classes";
+import { formatAppError } from "@/lib/errors/format";
 
 type SetPasswordFormProps = {
   token: string;
@@ -41,7 +42,7 @@ export function SetPasswordForm({
       });
       const body = await response.json();
       if (!response.ok) {
-        throw new Error(body.error ?? "Failed to set password");
+        throw new Error(formatAppError(body, "Failed to set password"));
       }
       onSuccess();
     } catch (submitError) {

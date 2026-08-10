@@ -32,7 +32,7 @@ export default async function AdminCurrenciesPage() {
 
   if (errorMessage) {
     return (
-      <div className="mx-auto max-w-5xl space-y-3">
+      <div className="w-full space-y-3">
         <h1 className="text-2xl font-semibold tracking-tight">
           Currencies &amp; USD rates
         </h1>
@@ -44,7 +44,7 @@ export default async function AdminCurrenciesPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="w-full space-y-6">
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">
           Currencies &amp; USD rates

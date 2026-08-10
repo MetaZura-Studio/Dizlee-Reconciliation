@@ -37,6 +37,7 @@ import type {  ReuploadListFilters,
   ReuploadRequestItem,
   ReuploadSortField,
 } from "@/lib/dizlee/reupload-requests";
+import { formatAppError } from "@/lib/errors/format";
 
 const MONTHS = [
   "January",
@@ -128,7 +129,7 @@ export function ReuploadRequestsView({
       );
       const payload = await response.json();
       if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to load reupload requests");
+        throw new Error(formatAppError(payload, "Failed to load reupload requests"));
       }
       setResult(payload.data as ReuploadListResult);
       setFilterOptions(payload.filterOptions as ReportFilterOptions);
@@ -214,7 +215,7 @@ export function ReuploadRequestsView({
       );
       const payload = await response.json();
       if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to approve request");
+        throw new Error(formatAppError(payload, "Failed to approve request"));
       }
       await loadRequests({ ...result.filters, page: result.page });
     } catch (actionError) {
@@ -252,7 +253,7 @@ export function ReuploadRequestsView({
       );
       const payload = await response.json();
       if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to reject request");
+        throw new Error(formatAppError(payload, "Failed to reject request"));
       }
       setRejectOpen(false);
       setRejectTarget(null);

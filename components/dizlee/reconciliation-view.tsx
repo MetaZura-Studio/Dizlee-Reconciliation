@@ -52,6 +52,7 @@ import {
   getPeriodYearOptions,
 } from "@/lib/platform/period";
 import { reportRawFilePreviewUrl } from "@/lib/platform/reports/preview-url";
+import { formatAppError } from "@/lib/errors/format";
 
 const MONTHS = [
   "January",
@@ -221,7 +222,7 @@ export function ReconciliationView({
       );
       const payload = await response.json();
       if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to load lanes");
+        throw new Error(formatAppError(payload, "Failed to load lanes"));
       }
       setLanes(payload.data as CompareLaneRow[]);
       setLanePage(1);
@@ -257,7 +258,7 @@ export function ReconciliationView({
       const response = await fetch(`/api/dizlee/reconciliation/history?${params}`);
       const payload = await response.json();
       if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to load history");
+        throw new Error(formatAppError(payload, "Failed to load history"));
       }
       const data = payload.data as ReconciliationHistoryResult;
       setHistory(data);
@@ -402,7 +403,7 @@ export function ReconciliationView({
       });
       const payload = await response.json();
       if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to run reconciliation");
+        throw new Error(formatAppError(payload, "Failed to run reconciliation"));
       }
       await loadLanes({
         month,

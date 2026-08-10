@@ -7,6 +7,7 @@ import { FieldLabel, FieldLegend } from "@/components/ui/field";
 import { useToast } from "@/components/ui/toast";
 import type { EmailSettingsView } from "@/lib/admin/email-settings";
 import { ui } from "@/lib/ui/classes";
+import { formatAppError } from "@/lib/errors/format";
 
 type EmailSettingsFormProps = {
   initialSettings: EmailSettingsView;
@@ -47,7 +48,7 @@ export function EmailSettingsForm({ initialSettings }: EmailSettingsFormProps) {
       const response = await fetch("/api/admin/email-settings");
       const body = await response.json();
       if (!response.ok) {
-        throw new Error(body.error ?? "Failed to reload email settings");
+        throw new Error(formatAppError(body, "Failed to reload email settings"));
       }
       applySettings(body.data as EmailSettingsView);
       toast.success("Settings reloaded (DB values, with .env fallback when empty).");
@@ -85,7 +86,7 @@ export function EmailSettingsForm({ initialSettings }: EmailSettingsFormProps) {
       });
       const body = await response.json();
       if (!response.ok) {
-        throw new Error(body.error ?? "Failed to save email settings");
+        throw new Error(formatAppError(body, "Failed to save email settings"));
       }
 
       applySettings(body.data as EmailSettingsView);
@@ -118,7 +119,7 @@ export function EmailSettingsForm({ initialSettings }: EmailSettingsFormProps) {
       });
       const body = await response.json();
       if (!response.ok) {
-        throw new Error(body.error ?? "Failed to send test email");
+        throw new Error(formatAppError(body, "Failed to send test email"));
       }
       toast.success(body.message as string);
     } catch (testError) {

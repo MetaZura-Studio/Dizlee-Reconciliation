@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import type { ReconciliationToleranceView } from "@/lib/admin/reconciliation-tolerance";
 import { ui } from "@/lib/ui/classes";
+import { formatAppError } from "@/lib/errors/format";
 
 type ReconciliationToleranceFormProps = {
   initialSettings: ReconciliationToleranceView;
@@ -48,7 +49,7 @@ export function ReconciliationToleranceForm({
       const body = await response.json();
       if (!response.ok) {
         throw new Error(
-          body.error ?? "Failed to reload reconciliation tolerance",
+          formatAppError(body, "Failed to reload reconciliation tolerance"),
         );
       }
       applySettings(body.data as ReconciliationToleranceView);
@@ -87,7 +88,7 @@ export function ReconciliationToleranceForm({
       const body = await response.json();
       if (!response.ok) {
         throw new Error(
-          body.error ?? "Failed to save reconciliation tolerance",
+          formatAppError(body, "Failed to save reconciliation tolerance"),
         );
       }
 

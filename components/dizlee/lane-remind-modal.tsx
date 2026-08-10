@@ -29,6 +29,7 @@ import type {
 } from "@/lib/dizlee/lane-report-notifications";
 import type { CompareLaneRow } from "@/lib/dizlee/reconciliation";
 import { ui } from "@/lib/ui/classes";
+import { formatAppError } from "@/lib/errors/format";
 
 type LaneRemindModalProps = {
   lane: CompareLaneRow;
@@ -139,7 +140,7 @@ export function LaneRemindModal({
         );
         const payload = await response.json();
         if (!response.ok) {
-          throw new Error(payload.error ?? "Failed to load reminder history");
+          throw new Error(formatAppError(payload, "Failed to load reminder history"));
         }
         if (cancelled) {
           return;
@@ -205,7 +206,7 @@ export function LaneRemindModal({
       });
       const payload = await response.json();
       if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to send reminder");
+        throw new Error(formatAppError(payload, "Failed to send reminder"));
       }
 
       const message =

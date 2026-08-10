@@ -9,6 +9,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { get, put } from "@vercel/blob";
+import { DomainError } from "@/lib/errors/app-error";
 
 export type StorageFolder = "reports" | "invoices" | "notifications";
 
@@ -25,10 +26,9 @@ export type SaveStoredObjectResult = {
   sizeBytes: bigint;
 };
 
-export class ObjectStorageError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "ObjectStorageError";
+export class ObjectStorageError extends DomainError {
+  constructor(keyOrMessage: string) {
+    super("ObjectStorageError", keyOrMessage);
   }
 }
 

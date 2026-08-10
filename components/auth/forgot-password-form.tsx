@@ -6,6 +6,7 @@ import { useState } from "react";
 import { FieldLabel } from "@/components/ui/field";
 import { useToast } from "@/components/ui/toast";
 import { ui } from "@/lib/ui/classes";
+import { formatAppError } from "@/lib/errors/format";
 
 export function ForgotPasswordForm() {
   const [email, setEmail] = useState("");
@@ -29,7 +30,7 @@ export function ForgotPasswordForm() {
       });
       const body = await response.json();
       if (!response.ok) {
-        throw new Error(body.error ?? "Failed to send reset link");
+        throw new Error(formatAppError(body, "Failed to send reset link"));
       }
       setMessage(body.message as string);
       toast.success(body.message as string);

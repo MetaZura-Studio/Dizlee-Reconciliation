@@ -15,6 +15,7 @@ import {
   type UpdateReminderSettingsInput,
 } from "@/lib/admin/validation/reminder-settings";
 import { prisma } from "@/lib/prisma";
+import { DomainError } from "@/lib/errors/app-error";
 
 export type ReminderSettingsView = {
   remindersEnabled: boolean;
@@ -27,13 +28,9 @@ export type ReminderSettingsView = {
   };
 };
 
-export class ReminderSettingsError extends Error {
-  status: number;
-
-  constructor(message: string, status = 400) {
-    super(message);
-    this.name = "ReminderSettingsError";
-    this.status = status;
+export class ReminderSettingsError extends DomainError {
+  constructor(keyOrMessage: string, status?: number) {
+    super("ReminderSettingsError", keyOrMessage, status);
   }
 }
 

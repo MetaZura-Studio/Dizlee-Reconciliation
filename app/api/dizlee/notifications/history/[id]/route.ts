@@ -4,6 +4,8 @@
  */
 
 import { NextResponse } from "next/server";
+import { jsonError, unauthorized } from "@/lib/errors/respond";
+import { appErrorFromUnknown } from "@/lib/errors/app-error";
 
 import { requireDizleeSession } from "@/lib/dizlee/auth";
 import { getNotificationHistoryDetail } from "@/lib/dizlee/notifications/history";
@@ -15,19 +17,17 @@ type RouteContext = {
 export async function GET(_request: Request, context: RouteContext) {
   const user = await requireDizleeSession();
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorized();
   }
 
   try {
     const { id } = await context.params;
     const data = await getNotificationHistoryDetail(id);
     if (!data) {
-      return NextResponse.json({ error: "Notification not found." }, { status: 404 });
+      return jsonError(appErrorFromUnknown("Notification not found.", 404));
     }
     return NextResponse.json({ data });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to load notification";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonError(error);
   }
 }

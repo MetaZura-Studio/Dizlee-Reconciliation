@@ -23,6 +23,7 @@ import {
   type UpdateUserInput,
 } from "@/lib/admin/validation/users";
 import { prisma } from "@/lib/prisma";
+import { DomainError } from "@/lib/errors/app-error";
 
 export type {
   AdminUserRole,
@@ -36,13 +37,9 @@ export type {
 
 export { parseUserListFilters } from "@/lib/admin/users.shared";
 
-export class UserActionError extends Error {
-  status: number;
-
-  constructor(message: string, status = 400) {
-    super(message);
-    this.name = "UserActionError";
-    this.status = status;
+export class UserActionError extends DomainError {
+  constructor(keyOrMessage: string, status?: number) {
+    super("UserActionError", keyOrMessage, status);
   }
 }
 

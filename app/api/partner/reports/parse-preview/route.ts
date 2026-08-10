@@ -4,8 +4,10 @@
  */
 
 import { NextResponse } from "next/server";
+import { jsonError, unauthorized } from "@/lib/errors/respond";
+import { appErrorFromUnknown } from "@/lib/errors/app-error";
 
-import { ReportParseError, parseReportWorkbook } from "@/lib/partner/excel/parse-report";
+import { parseReportWorkbook } from "@/lib/partner/excel/parse-report";
 import { getPartnerSession } from "@/lib/partner/auth";
 import { validateReportUploadFile } from "@/lib/partner/validation/report-upload";
 import { mapParsedLinesToPreview } from "@/lib/platform/report-preview";
@@ -14,17 +16,19 @@ export async function POST(request: Request) {
   const session = await getPartnerSession();
 
   if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorized();
   }
 
   try {
     const formData = await request.formData();
     const file = formData.get("file");
     const fileError =
-      file instanceof File ? validateReportUploadFile(file) : "Excel file is required";
+      file instanceof File
+        ? validateReportUploadFile(file)
+        : "Excel file is required";
 
     if (fileError) {
-      return NextResponse.json({ error: fileError }, { status: 400 });
+      return jsonError(appErrorFromUnknown(fileError, 400));
     }
 
     const uploadFile = file as File;
@@ -37,11 +41,6 @@ export async function POST(request: Request) {
       lineItems: mapParsedLinesToPreview(lineItems),
     });
   } catch (error) {
-    if (error instanceof ReportParseError) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
-    }
-
-    console.error("Partner report parse preview failed", error);
-    return NextResponse.json({ error: "Failed to parse report" }, { status: 500 });
+    return jsonError(error);
   }
 }

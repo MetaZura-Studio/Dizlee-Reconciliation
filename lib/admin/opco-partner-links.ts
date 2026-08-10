@@ -21,6 +21,7 @@ import {
   isLinkableOpcoName,
 } from "@/lib/platform/opco-partner-links";
 import { prisma } from "@/lib/prisma";
+import { DomainError } from "@/lib/errors/app-error";
 
 export type {
   OpcoListItem,
@@ -31,13 +32,9 @@ export type {
 
 export { computeLinkDiff } from "@/lib/platform/opco-partner-links";
 
-export class OpcoPartnerLinksError extends Error {
-  status: number;
-
-  constructor(message: string, status = 400) {
-    super(message);
-    this.name = "OpcoPartnerLinksError";
-    this.status = status;
+export class OpcoPartnerLinksError extends DomainError {
+  constructor(keyOrMessage: string, status?: number) {
+    super("OpcoPartnerLinksError", keyOrMessage, status);
   }
 }
 

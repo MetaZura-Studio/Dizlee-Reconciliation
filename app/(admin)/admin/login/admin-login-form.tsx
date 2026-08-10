@@ -11,12 +11,26 @@ import { FullPageLoading } from "@/components/ui/loading";
 import { startNavigationProgress } from "@/components/ui/navigation-progress";
 import { useToast } from "@/components/ui/toast";
 import { ADMIN_DEFAULT_ROUTE } from "@/lib/admin/navigation";
+import { ERROR_CATALOG } from "@/lib/errors/catalog";
+import { formatErrorDisplay } from "@/lib/errors/format";
 import { ui } from "@/lib/ui/classes";
 
-const ERROR_MESSAGES: Record<string, string> = {
-  AccessDenied: "You do not have access to the Admin portal.",
-  CredentialsSignin: "Invalid email or password.",
+const LOGIN_ERROR_KEYS: Record<string, keyof typeof ERROR_CATALOG> = {
+  AccessDenied: "UNAUTHORIZED",
+  CredentialsSignin: "INVALID_CREDENTIALS",
 };
+
+function formatLoginError(code: string | null | undefined): string {
+  if (!code) {
+    return formatErrorDisplay(
+      ERROR_CATALOG.SYSTEM_ERROR.code,
+      ERROR_CATALOG.SYSTEM_ERROR.message,
+    );
+  }
+  const key = LOGIN_ERROR_KEYS[code] ?? "INVALID_CREDENTIALS";
+  const def = ERROR_CATALOG[key];
+  return formatErrorDisplay(def.code, def.message);
+}
 
 export function AdminLoginForm() {
   const router = useRouter();
@@ -46,7 +60,7 @@ export function AdminLoginForm() {
       });
 
       if (!result?.ok) {
-        setError(ERROR_MESSAGES.CredentialsSignin);
+        setError(formatLoginError("CredentialsSignin"));
         setIsSubmitting(false);
         return;
       }
@@ -57,7 +71,7 @@ export function AdminLoginForm() {
       };
 
       if (session.user?.role !== "admin") {
-        setError(ERROR_MESSAGES.CredentialsSignin);
+        setError(formatLoginError("CredentialsSignin"));
         setIsSubmitting(false);
         return;
       }
@@ -72,14 +86,13 @@ export function AdminLoginForm() {
       router.refresh();
       // Keep FullPageLoading until this page unmounts after navigation.
     } catch {
-      setError("Something went wrong. Please try again.");
+      setError(formatLoginError(null));
       setIsSubmitting(false);
     }
   }
 
   const displayError =
-    error ??
-    (queryError ? (ERROR_MESSAGES[queryError] ?? "Sign in failed.") : null);
+    error ?? (queryError ? formatLoginError(queryError) : null);
 
   const displaySuccess =
     queryMessage === "PasswordSet"

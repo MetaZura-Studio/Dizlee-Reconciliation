@@ -4,10 +4,10 @@
  */
 
 import { NextResponse } from "next/server";
+import { jsonError, unauthorized } from "@/lib/errors/respond";
 
 import { requireAdminApiSession } from "@/lib/admin/api-auth";
 import {
-  CurrencyRatesError,
   currentCalendarPeriod,
   getRatesForPeriod,
 } from "@/lib/admin/currency-rates";
@@ -20,7 +20,7 @@ import { listCurrencies } from "@/lib/admin/currencies";
 export async function POST(request: Request) {
   const user = await requireAdminApiSession();
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorized();
   }
 
   try {
@@ -80,7 +80,9 @@ export async function POST(request: Request) {
     });
 
     const rates = periodView.rates.map((rate) => {
-      const draft = merged.rates.find((item) => item.currencyId === rate.currencyId);
+      const draft = merged.rates.find(
+        (item) => item.currencyId === rate.currencyId,
+      );
       const rateToUsd = rate.isBase ? 1 : (draft?.rateToUsd ?? rate.rateToUsd);
       return {
         ...rate,
@@ -104,11 +106,6 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
-    if (error instanceof CurrencyRatesError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
-    }
-    const message =
-      error instanceof Error ? error.message : "Failed to import currency rates";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonError(error);
   }
 }
