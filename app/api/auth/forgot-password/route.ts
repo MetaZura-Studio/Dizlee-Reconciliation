@@ -4,7 +4,7 @@
  */
 
 import { NextResponse } from "next/server";
-import { jsonError, unauthorized } from "@/lib/errors/respond";
+import { jsonError } from "@/lib/errors/respond";
 
 import { requestForgotPassword } from "@/lib/auth/password-flow";
 

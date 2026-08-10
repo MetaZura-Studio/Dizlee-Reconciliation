@@ -3,7 +3,6 @@
  * Download a notification attachment for the partner inbox.
  */
 
-import { NextResponse } from "next/server";
 import { jsonError, unauthorized } from "@/lib/errors/respond";
 import { appErrorFromUnknown } from "@/lib/errors/app-error";
 

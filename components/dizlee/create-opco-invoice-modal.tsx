@@ -114,7 +114,6 @@ function CreateOpcoInvoiceModalInner({
 
   useEffect(() => {
     let cancelled = false;
-    setLoadingOptions(true);
     const params = new URLSearchParams({
       form: "create",
       month: String(month),
@@ -427,7 +426,10 @@ function CreateOpcoInvoiceModalInner({
               <Select
                 id="create-invoice-month"
                 value={month}
-                onChange={(event) => setMonth(Number(event.target.value))}
+                onChange={(event) => {
+                  setLoadingOptions(true);
+                  setMonth(Number(event.target.value));
+                }}
               >
                 {MONTHS.slice(0, maxMonth).map((name, index) => (
                   <option key={name} value={index + 1}>
@@ -442,11 +444,12 @@ function CreateOpcoInvoiceModalInner({
                 id="create-invoice-year"
                 value={year}
                 onChange={(event) => {
-                const nextYear = Number(event.target.value);
-                setYear(nextYear);
-                const capped = getMaxMonthForYear(nextYear);
-                if (month > capped) setMonth(capped);
-              }}
+                  setLoadingOptions(true);
+                  const nextYear = Number(event.target.value);
+                  setYear(nextYear);
+                  const capped = getMaxMonthForYear(nextYear);
+                  if (month > capped) setMonth(capped);
+                }}
               >
                 {yearOptions.map((value) => (
                   <option key={value} value={value}>

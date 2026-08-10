@@ -3,7 +3,6 @@
  * Preview a report file submitted by the OpCo or its partners.
  */
 
-import { NextResponse } from "next/server";
 import { jsonError, unauthorized } from "@/lib/errors/respond";
 import { appErrorFromUnknown } from "@/lib/errors/app-error";
 

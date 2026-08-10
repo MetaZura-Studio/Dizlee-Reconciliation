@@ -3,7 +3,6 @@
  * Preview a report file submitted by the partner.
  */
 
-import { NextResponse } from "next/server";
 import { jsonError, unauthorized } from "@/lib/errors/respond";
 import { appErrorFromUnknown } from "@/lib/errors/app-error";
 
