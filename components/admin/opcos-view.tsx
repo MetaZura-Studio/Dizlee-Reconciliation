@@ -5,6 +5,7 @@
 
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { OpcoDeleteModal } from "@/components/admin/opco-delete-modal";
@@ -322,6 +323,12 @@ export function OpcosView({ initialOpcos, currencies }: OpcosViewProps) {
                       </DataTableTd>
                       <DataTableTd align="right">
                         <div className="flex justify-end gap-2">
+                          <Link
+                            href={`/admin/opcos/${opco.id}/report-mapping`}
+                            className={ui.btnSecondary}
+                          >
+                            Report map
+                          </Link>
                           <IconButton label="Edit OpCo" onClick={() => openEdit(opco)}>
                             <IconPencil />
                           </IconButton>

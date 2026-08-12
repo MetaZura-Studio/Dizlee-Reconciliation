@@ -33,6 +33,12 @@ type PartnerAuditAction =
   | "PARTNER_UPDATED"
   | "PARTNER_DELETED";
 
+type ServicePartnerMapAuditAction =
+  | "SERVICE_PARTNER_MAP_CREATED"
+  | "SERVICE_PARTNER_MAP_UPDATED"
+  | "SERVICE_PARTNER_MAP_DELETED"
+  | "SERVICE_PARTNER_MAP_IMPORTED";
+
 export async function writeUserAuditLog(params: {
   actorUserId: bigint;
   action: UserAuditAction;
@@ -170,6 +176,30 @@ export async function writePartnerAuditLog(params: {
       actionId,
       entityTypeId,
       entityId: params.partnerId,
+      message: params.message,
+      metadata: params.metadata ?? undefined,
+    },
+  });
+}
+
+export async function writeServicePartnerMapAuditLog(params: {
+  actorUserId: bigint;
+  action: ServicePartnerMapAuditAction;
+  mapId: bigint;
+  message: string;
+  metadata?: Prisma.InputJsonValue;
+}): Promise<void> {
+  const [actionId, entityTypeId] = await Promise.all([
+    getLookupId("AUDIT_ACTION", params.action),
+    getLookupId("AUDIT_ENTITY_TYPE", "SERVICE_PARTNER_MAP"),
+  ]);
+
+  await prisma.auditLog.create({
+    data: {
+      actorUserId: params.actorUserId,
+      actionId,
+      entityTypeId,
+      entityId: params.mapId,
       message: params.message,
       metadata: params.metadata ?? undefined,
     },

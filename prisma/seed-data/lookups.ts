@@ -55,6 +55,10 @@ export const LOOKUP_SEEDS: Record<string, string[]> = {
     "PARTNER_CREATED",
     "PARTNER_UPDATED",
     "PARTNER_DELETED",
+    "SERVICE_PARTNER_MAP_CREATED",
+    "SERVICE_PARTNER_MAP_UPDATED",
+    "SERVICE_PARTNER_MAP_DELETED",
+    "SERVICE_PARTNER_MAP_IMPORTED",
   ],
   AUDIT_ENTITY_TYPE: [
     "USER",
@@ -67,5 +71,6 @@ export const LOOKUP_SEEDS: Record<string, string[]> = {
     "CURRENCY",
     "OPCO",
     "PARTNER",
+    "SERVICE_PARTNER_MAP",
   ],
 };

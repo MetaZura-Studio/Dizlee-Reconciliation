@@ -9,6 +9,7 @@ import type { Prisma } from "@prisma/client";
 import { currentPeriod, type DashboardPeriod } from "@/lib/dizlee/dashboard";
 import {
   findBankAccountById,
+  getDefaultBankAccount,
   getInvoiceBankAccounts,
   parseInvoiceBankDetailsJson,
   parseInvoiceSignatoriesJson,
@@ -770,14 +771,15 @@ export async function getInvoiceDetail(id: string): Promise<InvoiceDetail | null
     bankDetails = parseInvoiceBankDetailsJson(invoice.bankDetailsJson);
     if (!bankDetails) {
       const accounts = await getInvoiceBankAccounts();
-      bankDetails = accounts[0]
+      const selected = getDefaultBankAccount(accounts);
+      bankDetails = selected
         ? {
-            bankName: accounts[0].bankName,
-            accountName: accounts[0].accountName,
-            accountNumber: accounts[0].accountNumber,
-            iban: accounts[0].iban,
-            swift: accounts[0].swift,
-            reference: accounts[0].reference,
+            bankName: selected.bankName,
+            accountName: selected.accountName,
+            accountNumber: selected.accountNumber,
+            iban: selected.iban,
+            swift: selected.swift,
+            reference: selected.reference,
           }
         : null;
     }

@@ -11,6 +11,7 @@ export type ParsedReportLine = {
   usageAmount: number | null;
   usageUsd: number | null;
   amount: number | null;
+  revenueSharePercent: number | null;
   exchangeRate: number | null;
   usageUnit: string | null;
   reconciliationBasis: string | null;
@@ -40,6 +41,9 @@ const COLUMN_ALIASES: Record<
   zain_amount: "usageUsd",
   amount: "amount",
   gross_amount: "amount",
+  revenue_share_percent: "revenueSharePercent",
+  revenue_share: "revenueSharePercent",
+  share_percent: "revenueSharePercent",
   gross_amount_lc: "amount",
   exchange_rate: "exchangeRate",
   exchangerate: "exchangeRate",
@@ -169,6 +173,7 @@ export async function parseReportWorkbook(
       usageAmount: null,
       usageUsd: null,
       amount: null,
+      revenueSharePercent: null,
       exchangeRate: null,
       usageUnit: null,
       reconciliationBasis: null,

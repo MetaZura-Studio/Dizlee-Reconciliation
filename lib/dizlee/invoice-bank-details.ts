@@ -18,6 +18,7 @@ export type InvoiceBankDetails = {
 export type InvoiceBankAccount = InvoiceBankDetails & {
   id: string;
   label: string;
+  isDefault: boolean;
 };
 
 function readString(value: unknown): string | null {
@@ -26,6 +27,10 @@ function readString(value: unknown): string | null {
   }
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function readBoolean(value: unknown): boolean {
+  return value === true || value === "true" || value === 1 || value === "1";
 }
 
 function hasAnyField(details: InvoiceBankDetails): boolean {
@@ -54,21 +59,48 @@ function makeId(): string {
   return `bank_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
+/** Exactly one default when accounts exist; sole account is always default. */
+export function ensureDefaultBankAccount(
+  accounts: InvoiceBankAccount[],
+): InvoiceBankAccount[] {
+  if (accounts.length === 0) {
+    return [];
+  }
+  if (accounts.length === 1) {
+    return [{ ...accounts[0], isDefault: true }];
+  }
+
+  const preferredIndex = accounts.findIndex((account) => account.isDefault);
+  const defaultIndex = preferredIndex >= 0 ? preferredIndex : 0;
+
+  return accounts.map((account, index) => ({
+    ...account,
+    isDefault: index === defaultIndex,
+  }));
+}
+
+export function getDefaultBankAccount(
+  accounts: InvoiceBankAccount[],
+): InvoiceBankAccount | null {
+  const normalized = ensureDefaultBankAccount(accounts);
+  return normalized.find((account) => account.isDefault) ?? normalized[0] ?? null;
+}
+
 export function parseInvoiceBankDetailsJson(
   raw: string | null | undefined,
 ): InvoiceBankDetails | null {
   const accounts = parseInvoiceBankAccountsJson(raw);
-  if (accounts.length === 0) {
+  const selected = getDefaultBankAccount(accounts);
+  if (!selected) {
     return null;
   }
-  const first = accounts[0];
   return {
-    bankName: first.bankName,
-    accountName: first.accountName,
-    accountNumber: first.accountNumber,
-    iban: first.iban,
-    swift: first.swift,
-    reference: first.reference,
+    bankName: selected.bankName,
+    accountName: selected.accountName,
+    accountNumber: selected.accountNumber,
+    iban: selected.iban,
+    swift: selected.swift,
+    reference: selected.reference,
   };
 }
 
@@ -87,36 +119,34 @@ export function parseInvoiceBankAccountsJson(
 
   try {
     const parsed = JSON.parse(raw) as unknown;
+    let accounts: InvoiceBankAccount[] = [];
 
     if (Array.isArray(parsed)) {
-      return parsed
+      accounts = parsed
         .map((item, index) => normalizeAccount(item, index))
         .filter((account): account is InvoiceBankAccount => account !== null);
+    } else if (parsed && typeof parsed === "object") {
+      const record = parsed as Record<string, unknown>;
+      if (Array.isArray(record.accounts)) {
+        accounts = record.accounts
+          .map((item, index) => normalizeAccount(item, index))
+          .filter((account): account is InvoiceBankAccount => account !== null);
+      } else {
+        const legacy = parseDetailsObject(record);
+        if (hasAnyField(legacy)) {
+          accounts = [
+            {
+              id: "legacy",
+              label: legacy.bankName ?? "Default account",
+              isDefault: true,
+              ...legacy,
+            },
+          ];
+        }
+      }
     }
 
-    if (!parsed || typeof parsed !== "object") {
-      return [];
-    }
-
-    const record = parsed as Record<string, unknown>;
-    if (Array.isArray(record.accounts)) {
-      return record.accounts
-        .map((item, index) => normalizeAccount(item, index))
-        .filter((account): account is InvoiceBankAccount => account !== null);
-    }
-
-    const legacy = parseDetailsObject(record);
-    if (!hasAnyField(legacy)) {
-      return [];
-    }
-
-    return [
-      {
-        id: "legacy",
-        label: legacy.bankName ?? "Default account",
-        ...legacy,
-      },
-    ];
+    return ensureDefaultBankAccount(accounts);
   } catch {
     return [];
   }
@@ -145,6 +175,7 @@ function normalizeAccount(
   return {
     id,
     label,
+    isDefault: readBoolean(record.isDefault ?? record.is_default),
     ...details,
   };
 }
@@ -152,14 +183,16 @@ function normalizeAccount(
 export function serializeInvoiceBankAccounts(
   accounts: InvoiceBankAccount[],
 ): string | null {
-  if (accounts.length === 0) {
+  const normalized = ensureDefaultBankAccount(accounts);
+  if (normalized.length === 0) {
     return null;
   }
 
   return JSON.stringify({
-    accounts: accounts.map((account) => ({
+    accounts: normalized.map((account) => ({
       id: account.id || makeId(),
       label: account.label,
+      isDefault: account.isDefault,
       bankName: account.bankName,
       accountName: account.accountName,
       accountNumber: account.accountNumber,
@@ -225,17 +258,17 @@ export async function getInvoiceBankAccounts(): Promise<InvoiceBankAccount[]> {
 
 export async function getInvoiceBankDetails(): Promise<InvoiceBankDetails | null> {
   const accounts = await getInvoiceBankAccounts();
-  if (accounts.length === 0) {
+  const selected = getDefaultBankAccount(accounts);
+  if (!selected) {
     return null;
   }
-  const first = accounts[0];
   return {
-    bankName: first.bankName,
-    accountName: first.accountName,
-    accountNumber: first.accountNumber,
-    iban: first.iban,
-    swift: first.swift,
-    reference: first.reference,
+    bankName: selected.bankName,
+    accountName: selected.accountName,
+    accountNumber: selected.accountNumber,
+    iban: selected.iban,
+    swift: selected.swift,
+    reference: selected.reference,
   };
 }
 
@@ -247,10 +280,10 @@ export function findBankAccountById(
     return null;
   }
   if (accounts.length === 1) {
-    return accounts[0];
+    return ensureDefaultBankAccount(accounts)[0];
   }
   if (!bankAccountId) {
-    return null;
+    return getDefaultBankAccount(accounts);
   }
   return accounts.find((account) => account.id === bankAccountId) ?? null;
 }

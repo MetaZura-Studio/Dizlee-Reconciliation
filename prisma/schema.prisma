@@ -117,6 +117,7 @@ model Opco {
   consolidations    Consolidation[]
   reconciliations   Reconciliation[]
   invoices          Invoice[]
+  reportMapping     OpcoReportMapping?
 
   @@map("opcos")
 }
@@ -142,8 +143,30 @@ model Partner {
   consolidationItems ConsolidationItem[]
   reconciliations   Reconciliation[]
   invoices          Invoice[]
+  servicePartnerMaps ServicePartnerMap[]
 
   @@map("partners")
+}
+
+model ServicePartnerMap {
+  id              BigInt   @id @default(autoincrement())
+  serviceName     String   @map("service_name") @db.VarChar(255)
+  serviceKey      String   @map("service_key") @db.VarChar(255)
+  partnerId       BigInt   @map("partner_id")
+  createdByUserId BigInt?  @map("created_by_user_id")
+  updatedByUserId BigInt?  @map("updated_by_user_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  isDeleted       Boolean  @default(false) @map("is_deleted")
+  deletedByUserId BigInt?  @map("deleted_by_user_id")
+  deletedAt       DateTime? @map("deleted_at")
+
+  partner       Partner @relation(fields: [partnerId], references: [id])
+  createdByUser User?   @relation("ServicePartnerMapCreatedBy", fields: [createdByUserId], references: [id])
+  updatedByUser User?   @relation("ServicePartnerMapUpdatedBy", fields: [updatedByUserId], references: [id])
+
+  @@unique([serviceKey], map: "uq_service_partner_maps_service_key")
+  @@map("service_partner_maps")
 }
 
 model User {
@@ -184,6 +207,10 @@ model User {
   opcosUpdated            Opco[]    @relation("OpcoUpdatedBy")
   partnersCreated         Partner[] @relation("PartnerCreatedBy")
   partnersUpdated         Partner[] @relation("PartnerUpdatedBy")
+  servicePartnerMapsCreated ServicePartnerMap[] @relation("ServicePartnerMapCreatedBy")
+  servicePartnerMapsUpdated ServicePartnerMap[] @relation("ServicePartnerMapUpdatedBy")
+  opcoReportMappingsCreated OpcoReportMapping[] @relation("OpcoReportMappingCreatedBy")
+  opcoReportMappingsUpdated OpcoReportMapping[] @relation("OpcoReportMappingUpdatedBy")
   filesUploaded           File[]    @relation("FileUploader")
   filesUpdated            File[]    @relation("FileUpdatedBy")
   auditLogs               AuditLog[]
@@ -240,6 +267,35 @@ model OpcoPartnerLink {
   @@map("opco_partner_links")
 }
 
+model OpcoReportMapping {
+  id                  BigInt   @id @default(autoincrement())
+  opcoId              BigInt   @unique @map("opco_id")
+  sampleFileId        BigInt?  @map("sample_file_id")
+  headersJson         String?  @map("headers_json") @db.Text
+  serviceColumn       String?  @map("service_column") @db.VarChar(255)
+  partnerMode         String   @default("EXCEL_COLUMN") @map("partner_mode") @db.VarChar(32)
+  partnerColumn       String?  @map("partner_column") @db.VarChar(255)
+  revenueColumn       String?  @map("revenue_column") @db.VarChar(255)
+  revenueShareColumn  String?  @map("revenue_share_column") @db.VarChar(255)
+  rowFilterColumn     String?  @map("row_filter_column") @db.VarChar(255)
+  rowFilterValue      String?  @map("row_filter_value") @db.VarChar(255)
+  aggregateDailyRows  Boolean  @default(false) @map("aggregate_daily_rows")
+  createdByUserId     BigInt?  @map("created_by_user_id")
+  updatedByUserId     BigInt?  @map("updated_by_user_id")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+  isDeleted           Boolean  @default(false) @map("is_deleted")
+  deletedByUserId     BigInt?  @map("deleted_by_user_id")
+  deletedAt           DateTime? @map("deleted_at")
+
+  opco          Opco   @relation(fields: [opcoId], references: [id])
+  sampleFile    File?  @relation(fields: [sampleFileId], references: [id])
+  createdByUser User?  @relation("OpcoReportMappingCreatedBy", fields: [createdByUserId], references: [id])
+  updatedByUser User?  @relation("OpcoReportMappingUpdatedBy", fields: [updatedByUserId], references: [id])
+
+  @@map("opco_report_mappings")
+}
+
 model File {
   id                BigInt   @id @default(autoincrement())
   filename          String   @db.VarChar(255)
@@ -260,6 +316,7 @@ model File {
   reports                  Report[]
   notificationAttachments  NotificationAttachment[]
   invoices                 Invoice[]
+  opcoReportMappings       OpcoReportMapping[]
 
   @@map("files")
 }
@@ -460,6 +517,7 @@ model ReportLineItem {
   usageAmount         Decimal? @map("usage_amount") @db.Decimal(18, 4)
   usageUsd            Decimal? @map("usage_usd") @db.Decimal(18, 4)
   amount              Decimal? @db.Decimal(18, 4)
+  revenueSharePercent Decimal? @map("revenue_share_percent") @db.Decimal(18, 4)
   exchangeRate        Decimal? @map("exchange_rate") @db.Decimal(18, 4)
   usageUnit           String?  @map("usage_unit") @db.VarChar(32)
   sourceColumns       Json?    @map("source_columns")

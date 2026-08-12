@@ -8,6 +8,7 @@ import {
 import { OPCO_PARTNER_LINK_SEEDS } from "@/prisma/seed-data/opco-partner-links";
 import { OPCO_SEEDS } from "@/prisma/seed-data/opcos";
 import { PARTNER_SEEDS } from "@/prisma/seed-data/partners";
+import { SERVICE_PARTNER_MAP_SEEDS } from "@/prisma/seed-data/service-partner-maps";
 
 describe("seed data validation", () => {
   it("has unique OpCo and Partner slugs", () => {
@@ -30,5 +31,14 @@ describe("seed data validation", () => {
   it("seeds expected entity counts", () => {
     expect(OPCO_SEEDS).toHaveLength(7);
     expect(PARTNER_SEEDS).toHaveLength(51);
+    expect(SERVICE_PARTNER_MAP_SEEDS).toHaveLength(26);
+  });
+
+  it("seeds unique Service–Partner map slugs for Iraq and Sudan", () => {
+    const slugs = SERVICE_PARTNER_MAP_SEEDS.map((row) => row.partnerSlug);
+    expect(new Set(slugs).size).toBe(slugs.length);
+    expect(slugs).toContain("digitalvirgo");
+    expect(slugs).toContain("arpuplus");
+    expect(slugs).toContain("mobibox");
   });
 });

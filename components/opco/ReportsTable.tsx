@@ -103,11 +103,13 @@ function buildReportsQuery(filters: OpcoReportListFilters): string {
 type ReportsTableProps = {
   initialResult: OpcoReportListResult;
   filterOptions: OpcoReportFilterOptions;
+  preferredSheetName?: string | null;
 };
 
 export function ReportsTable({
   initialResult,
   filterOptions: initialFilterOptions,
+  preferredSheetName = null,
 }: ReportsTableProps) {
   const defaults = getDefaultPeriod();
   const { filters: initialFilters } = initialResult;
@@ -557,6 +559,7 @@ export function ReportsTable({
       {reuploadReport ? (
         <ReportReuploadDialog
           report={reuploadReport}
+          preferredSheetName={preferredSheetName}
           onClose={() => setReuploadReport(null)}
           onSuccess={handleReuploadSuccess}
         />

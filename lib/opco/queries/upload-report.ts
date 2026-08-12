@@ -124,6 +124,7 @@ export async function createReportUpload(
             usageAmount: item.usageAmount,
             usageUsd: item.usageUsd,
             amount: item.amount,
+            revenueSharePercent: item.revenueSharePercent,
             exchangeRate: item.exchangeRate,
             usageUnit: item.usageUnit,
             reconciliationBasis: item.reconciliationBasis,

@@ -10,6 +10,7 @@ import {
 } from "@/lib/admin/validation/invoice-bank-details";
 import {
   createBankAccountId,
+  ensureDefaultBankAccount,
   parseInvoiceBankAccountsJson,
   serializeInvoiceBankAccounts,
   type InvoiceBankAccount,
@@ -58,16 +59,19 @@ export async function updateInvoiceBankDetails(
     );
   }
 
-  const accounts: InvoiceBankAccount[] = parsed.data.accounts.map((account) => ({
-    id: account.id?.trim() || createBankAccountId(),
-    label: account.label.trim(),
-    bankName: account.bankName,
-    accountName: account.accountName,
-    accountNumber: account.accountNumber,
-    iban: account.iban,
-    swift: account.swift,
-    reference: account.reference,
-  }));
+  const accounts: InvoiceBankAccount[] = ensureDefaultBankAccount(
+    parsed.data.accounts.map((account) => ({
+      id: account.id?.trim() || createBankAccountId(),
+      label: account.label.trim(),
+      isDefault: account.isDefault ?? false,
+      bankName: account.bankName,
+      accountName: account.accountName,
+      accountNumber: account.accountNumber,
+      iban: account.iban,
+      swift: account.swift,
+      reference: account.reference,
+    })),
+  );
 
   const opcoInvoiceBankDetailsJson = serializeInvoiceBankAccounts(accounts);
 

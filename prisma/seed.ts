@@ -7,6 +7,7 @@
 import { PrismaClient } from "@prisma/client";
 
 import { hashPassword } from "../lib/auth/password";
+import { normalizeServiceKey } from "../lib/platform/service-partner-map";
 import { APP_SETTINGS_SEED } from "./seed-data/app-settings";
 import { CURRENCY_RATE_SEEDS } from "./seed-data/currency-rates";
 import { CURRENCY_SEEDS } from "./seed-data/currencies";
@@ -18,8 +19,13 @@ import {
 import { LOOKUP_SEEDS } from "./seed-data/lookups";
 import { NOTIFICATION_TEMPLATE_SEEDS } from "./seed-data/notification-templates";
 import { OPCO_PARTNER_LINK_SEEDS } from "./seed-data/opco-partner-links";
+import {
+  OPCO_REPORT_MAPPING_SEEDS,
+  seedOpcoReportMappingHeadersJson,
+} from "./seed-data/opco-report-mappings";
 import { OPCO_SEEDS } from "./seed-data/opcos";
 import { PARTNER_SEEDS } from "./seed-data/partners";
+import { SERVICE_PARTNER_MAP_SEEDS } from "./seed-data/service-partner-maps";
 
 const prisma = new PrismaClient();
 
@@ -244,6 +250,64 @@ async function seedOpcosAndPartners(
       },
       update: { isDeleted: false },
       create: { opcoId, partnerId },
+    });
+  }
+
+  for (const mapping of OPCO_REPORT_MAPPING_SEEDS) {
+    const opcoId = opcoIds.get(mapping.opcoSlug);
+    if (!opcoId) {
+      throw new Error(`Missing OpCo for report mapping seed: ${mapping.opcoSlug}`);
+    }
+
+    await prisma.opcoReportMapping.upsert({
+      where: { opcoId },
+      update: {
+        partnerMode: mapping.partnerMode,
+        partnerColumn: mapping.partnerColumn,
+        serviceColumn: mapping.serviceColumn,
+        revenueColumn: mapping.revenueColumn,
+        revenueShareColumn: mapping.revenueShareColumn,
+        rowFilterColumn: mapping.rowFilterColumn,
+        rowFilterValue: mapping.rowFilterValue,
+        aggregateDailyRows: mapping.aggregateDailyRows,
+        headersJson: seedOpcoReportMappingHeadersJson(mapping),
+        isDeleted: false,
+      },
+      create: {
+        opcoId,
+        partnerMode: mapping.partnerMode,
+        partnerColumn: mapping.partnerColumn,
+        serviceColumn: mapping.serviceColumn,
+        revenueColumn: mapping.revenueColumn,
+        revenueShareColumn: mapping.revenueShareColumn,
+        rowFilterColumn: mapping.rowFilterColumn,
+        rowFilterValue: mapping.rowFilterValue,
+        aggregateDailyRows: mapping.aggregateDailyRows,
+        headersJson: seedOpcoReportMappingHeadersJson(mapping),
+      },
+    });
+  }
+
+  for (const mapping of SERVICE_PARTNER_MAP_SEEDS) {
+    const partnerId = partnerIds.get(mapping.partnerSlug);
+    if (!partnerId) {
+      throw new Error(`Missing Partner for service map seed: ${mapping.partnerSlug}`);
+    }
+    const serviceKey = normalizeServiceKey(mapping.serviceName);
+    await prisma.servicePartnerMap.upsert({
+      where: { serviceKey },
+      update: {
+        serviceName: mapping.serviceName,
+        partnerId,
+        isDeleted: false,
+        deletedAt: null,
+        deletedByUserId: null,
+      },
+      create: {
+        serviceName: mapping.serviceName,
+        serviceKey,
+        partnerId,
+      },
     });
   }
 

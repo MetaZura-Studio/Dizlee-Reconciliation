@@ -24,6 +24,7 @@ export const invoiceBankAccountSchema = z
       .trim()
       .min(1, "Label is required")
       .max(255, "Label is too long"),
+    isDefault: z.boolean().optional().default(false),
     bankName: optionalBankField,
     accountName: optionalBankField,
     accountNumber: optionalBankField,
@@ -47,9 +48,23 @@ export const invoiceBankAccountSchema = z
     }
   });
 
-export const updateInvoiceBankDetailsSchema = z.object({
-  accounts: z.array(invoiceBankAccountSchema),
-});
+export const updateInvoiceBankDetailsSchema = z
+  .object({
+    accounts: z.array(invoiceBankAccountSchema),
+  })
+  .superRefine((value, ctx) => {
+    if (value.accounts.length <= 1) {
+      return;
+    }
+    const defaultCount = value.accounts.filter((account) => account.isDefault).length;
+    if (defaultCount > 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Only one bank account can be the default",
+        path: ["accounts"],
+      });
+    }
+  });
 
 export type UpdateInvoiceBankDetailsInput = z.infer<
   typeof updateInvoiceBankDetailsSchema
