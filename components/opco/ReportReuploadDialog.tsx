@@ -18,6 +18,7 @@ import { formatAppError } from "@/lib/errors/format";
 
 type ReportReuploadDialogProps = {
   report: OpcoReportListItem;
+  preferredSheetName?: string | null;
   onClose: () => void;
   onSuccess: () => void;
 };
@@ -33,6 +34,7 @@ type ReviewState = {
 
 export function ReportReuploadDialog({
   report,
+  preferredSheetName = null,
   onClose,
   onSuccess,
 }: ReportReuploadDialogProps) {
@@ -64,7 +66,7 @@ export function ReportReuploadDialog({
 
     try {
       const buffer = await selectedFile.arrayBuffer();
-      const preview = await readRawExcelSheetPreview(buffer);
+      const preview = await readRawExcelSheetPreview(buffer, preferredSheetName);
       setReview({
         filename: selectedFile.name,
         fileSizeLabel: formatFileSizeLabel(selectedFile.size),

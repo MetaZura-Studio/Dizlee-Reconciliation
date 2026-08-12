@@ -15,6 +15,8 @@ const SOFT_DELETE_MODELS = new Set([
   "Currency",
   "Opco",
   "Partner",
+  "ServicePartnerMap",
+  "OpcoReportMapping",
   "User",
   "CurrencyMonthlyRate",
   "OpcoPartnerLink",

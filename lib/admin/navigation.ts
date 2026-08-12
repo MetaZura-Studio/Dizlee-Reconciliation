@@ -66,13 +66,21 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
         description: "Create and manage Partner organizations.",
         section: "main",
       },
-      {
-        label: "OpCo partners",
-        href: "/admin/opco-partners",
-        icon: "opco-partners",
-        description: "Configure OpCo and Partner relationships.",
-        section: "main",
-      },
+  {
+    label: "OpCo partners",
+    href: "/admin/opco-partners",
+    icon: "opco-partners",
+    description: "Configure OpCo and Partner relationships.",
+    section: "main",
+  },
+  {
+    label: "Service–Partner maps",
+    href: "/admin/service-partner-maps",
+    icon: "partners",
+    description:
+      "Map service/application names to Partners for OpCo reports without a Partner column.",
+    section: "main",
+  },
     ],
   },
   {

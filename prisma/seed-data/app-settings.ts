@@ -49,6 +49,7 @@ export const APP_SETTINGS_SEED = {
       {
         id: "seed-primary",
         label: "Primary settlement",
+        isDefault: true,
         bankName: "Dizlee Settlement Bank",
         accountName: "Dizlee Reconciliation Ltd",
         accountNumber: null,

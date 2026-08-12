@@ -69,13 +69,21 @@ export type RawExcelSheetPreview = {
   truncated: boolean;
 };
 
-/** Read the first worksheet as raw display cells (no report-schema mapping). */
+/** Read a worksheet as raw display cells (no report-schema mapping). */
 export async function readRawExcelSheetPreview(
   source: ArrayBuffer | Buffer | Uint8Array,
+  preferredSheetName?: string | null,
 ): Promise<RawExcelSheetPreview> {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(source as unknown as ExcelJS.Buffer);
-  const sheet = workbook.worksheets[0];
+  const preferred = preferredSheetName?.trim();
+  const sheet =
+    (preferred
+      ? workbook.getWorksheet(preferred) ??
+        workbook.worksheets.find(
+          (item) => item.name.trim().toLowerCase() === preferred.toLowerCase(),
+        )
+      : undefined) ?? workbook.worksheets[0];
 
   if (!sheet) {
     throw new Error("Workbook has no sheets");

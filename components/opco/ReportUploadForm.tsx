@@ -28,11 +28,16 @@ import { formatAppError } from "@/lib/errors/format";
 
 type ReportUploadFormProps = {
   partners: LinkedPartner[];
+  /** When true, Partner is resolved from Excel / Admin maps (no Partner picker). */
+  partnerFromServiceMap?: boolean;
+  preferredSheetName?: string | null;
 };
 
 type UploadSuccess = {
   reportId: string;
+  reportIds?: string[];
   lineItemCount: number;
+  partnerCount?: number;
 };
 
 type ReviewState = {
@@ -59,7 +64,11 @@ const MONTHS = [
   "December",
 ];
 
-export function ReportUploadForm({ partners }: ReportUploadFormProps) {
+export function ReportUploadForm({
+  partners,
+  partnerFromServiceMap = false,
+  preferredSheetName = null,
+}: ReportUploadFormProps) {
   const defaultPeriod = getDefaultPeriod();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [partnerId, setPartnerId] = useState(partners[0]?.id ?? "");
@@ -75,8 +84,9 @@ export function ReportUploadForm({ partners }: ReportUploadFormProps) {
   const [isDragging, setIsDragging] = useState(false);
   const toast = useToast();
 
-  const selectedPartnerName =
-    partners.find((partner) => partner.id === partnerId)?.name ?? "Partner";
+  const selectedPartnerName = partnerFromServiceMap
+    ? "Mapped partners"
+    : (partners.find((partner) => partner.id === partnerId)?.name ?? "Partner");
 
   const yearOptions = getUploadYearOptions();
   const maxMonth = getMaxUploadMonthForYear(year);
@@ -111,7 +121,7 @@ export function ReportUploadForm({ partners }: ReportUploadFormProps) {
 
     try {
       const buffer = await selectedFile.arrayBuffer();
-      const preview = await readRawExcelSheetPreview(buffer);
+      const preview = await readRawExcelSheetPreview(buffer, preferredSheetName);
       setReview({
         filename: selectedFile.name,
         fileSizeLabel: formatFileSizeLabel(selectedFile.size),
@@ -177,7 +187,9 @@ export function ReportUploadForm({ partners }: ReportUploadFormProps) {
     setIsConfirming(true);
 
     const formData = new FormData();
-    formData.append("partnerId", partnerId);
+    if (!partnerFromServiceMap) {
+      formData.append("partnerId", partnerId);
+    }
     formData.append("year", String(year));
     formData.append("month", String(month));
     formData.append("file", file);
@@ -191,7 +203,9 @@ export function ReportUploadForm({ partners }: ReportUploadFormProps) {
       const payload = (await response.json()) as {
         error?: string;
         reportId?: string;
+        reportIds?: string[];
         lineItemCount?: number;
+        partnerCount?: number;
       };
 
       if (!response.ok) {
@@ -201,10 +215,14 @@ export function ReportUploadForm({ partners }: ReportUploadFormProps) {
 
       setSuccess({
         reportId: payload.reportId ?? "",
+        reportIds: payload.reportIds,
         lineItemCount: payload.lineItemCount ?? 0,
+        partnerCount: payload.partnerCount,
       });
       toast.success(
-        `Report uploaded successfully with ${payload.lineItemCount ?? 0} line items.`,
+        partnerFromServiceMap && payload.partnerCount
+          ? `Report uploaded for ${payload.partnerCount} partner(s) with ${payload.lineItemCount ?? 0} line items.`
+          : `Report uploaded successfully with ${payload.lineItemCount ?? 0} line items.`,
       );
       setReview(null);
       setConfirmError(null);
@@ -232,22 +250,30 @@ export function ReportUploadForm({ partners }: ReportUploadFormProps) {
     <>
       <div className="grid gap-8 lg:grid-cols-[minmax(0,28rem)_minmax(0,18rem)] lg:items-start">
         <div className="space-y-5">
-          <div>
-            <FieldLabel htmlFor="partnerId" required>Partner</FieldLabel>
-            <Select
-              id="partnerId"
-              name="partnerId"
-              value={partnerId}
-              onChange={(event) => setPartnerId(event.target.value)}
-              required
-            >
-              {partners.map((partner) => (
-                <option key={partner.id} value={partner.id}>
-                  {partner.name}
-                </option>
-              ))}
-            </Select>
-          </div>
+          {partnerFromServiceMap ? (
+            <div className={ui.alertWarning}>
+              Partner is resolved automatically from the Excel Partner /
+              Merchant / Vendor column (or Admin Service–Partner maps for
+              Iraq/Sudan). One report is created per Partner found in the file.
+            </div>
+          ) : (
+            <div>
+              <FieldLabel htmlFor="partnerId" required>Partner</FieldLabel>
+              <Select
+                id="partnerId"
+                name="partnerId"
+                value={partnerId}
+                onChange={(event) => setPartnerId(event.target.value)}
+                required
+              >
+                {partners.map((partner) => (
+                  <option key={partner.id} value={partner.id}>
+                    {partner.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          )}
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
@@ -387,8 +413,9 @@ export function ReportUploadForm({ partners }: ReportUploadFormProps) {
           <ul className="mt-3 space-y-2.5 text-sm text-foreground-muted">
             <li>Use the standard monthly Excel template (.xlsx).</li>
             <li>
-              Choose the correct partner and period (
-              {MONTHS[month - 1]} {year}).
+              {partnerFromServiceMap
+                ? `Choose the correct period (${MONTHS[month - 1]} ${year}). Partners come from the file or Admin mappings.`
+                : `Choose the correct partner and period (${MONTHS[month - 1]} ${year}).`}
             </li>
             <li>You will preview the sheet before confirming upload.</li>
             <li>

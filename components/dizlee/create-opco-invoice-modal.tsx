@@ -145,6 +145,11 @@ function CreateOpcoInvoiceModalInner({
         });
         if (options.bankAccounts.length === 1) {
           setBankAccountId(options.bankAccounts[0].id);
+        } else if (options.bankAccounts.length > 1) {
+          const defaultAccount =
+            options.bankAccounts.find((account) => account.isDefault) ??
+            options.bankAccounts[0];
+          setBankAccountId(defaultAccount.id);
         }
       })
       .catch((loadError) => {
@@ -597,10 +602,10 @@ function CreateOpcoInvoiceModalInner({
                   value={bankAccountId}
                   onChange={(event) => setBankAccountId(event.target.value)}
                 >
-                  <option value="">Select bank account</option>
                   {formOptions.bankAccounts.map((account) => (
                     <option key={account.id} value={account.id}>
                       {account.label}
+                      {account.isDefault ? " (default)" : ""}
                       {account.bankName ? ` — ${account.bankName}` : ""}
                     </option>
                   ))}

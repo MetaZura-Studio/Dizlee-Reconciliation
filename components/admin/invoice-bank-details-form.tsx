@@ -16,6 +16,7 @@ type InvoiceBankDetailsFormProps = {
 type AccountForm = {
   id: string;
   label: string;
+  isDefault: boolean;
   bankName: string;
   accountName: string;
   accountNumber: string;
@@ -25,7 +26,7 @@ type AccountForm = {
 };
 
 const FIELDS: Array<{
-  key: Exclude<keyof AccountForm, "id" | "label">;
+  key: Exclude<keyof AccountForm, "id" | "label" | "isDefault">;
   label: string;
 }> = [
   { key: "bankName", label: "Bank name" },
@@ -36,23 +37,42 @@ const FIELDS: Array<{
   { key: "reference", label: "Payment reference" },
 ];
 
-function toFormAccounts(settings: InvoiceBankDetailsListView): AccountForm[] {
-  return settings.accounts.map((account) => ({
-    id: account.id,
-    label: account.label,
-    bankName: account.bankName ?? "",
-    accountName: account.accountName ?? "",
-    accountNumber: account.accountNumber ?? "",
-    iban: account.iban ?? "",
-    swift: account.swift ?? "",
-    reference: account.reference ?? "",
+function withSingleDefault(accounts: AccountForm[]): AccountForm[] {
+  if (accounts.length === 0) {
+    return [];
+  }
+  if (accounts.length === 1) {
+    return [{ ...accounts[0], isDefault: true }];
+  }
+  const preferred = accounts.findIndex((account) => account.isDefault);
+  const defaultIndex = preferred >= 0 ? preferred : 0;
+  return accounts.map((account, index) => ({
+    ...account,
+    isDefault: index === defaultIndex,
   }));
 }
 
-function emptyAccount(): AccountForm {
+function toFormAccounts(settings: InvoiceBankDetailsListView): AccountForm[] {
+  return withSingleDefault(
+    settings.accounts.map((account) => ({
+      id: account.id,
+      label: account.label,
+      isDefault: account.isDefault ?? false,
+      bankName: account.bankName ?? "",
+      accountName: account.accountName ?? "",
+      accountNumber: account.accountNumber ?? "",
+      iban: account.iban ?? "",
+      swift: account.swift ?? "",
+      reference: account.reference ?? "",
+    })),
+  );
+}
+
+function emptyAccount(makeDefault: boolean): AccountForm {
   return {
     id: `new_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
     label: "",
+    isDefault: makeDefault,
     bankName: "",
     accountName: "",
     accountNumber: "",
@@ -100,15 +120,17 @@ export function InvoiceBankDetailsForm({
   const saveSettings = async (nextAccounts: AccountForm[]) => {
     setError(null);
     setSaving(true);
+    const normalized = withSingleDefault(nextAccounts);
 
     try {
       const response = await fetch("/api/admin/invoice-bank-details", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          accounts: nextAccounts.map((account) => ({
+          accounts: normalized.map((account) => ({
             id: account.id.startsWith("new_") ? undefined : account.id,
             label: account.label,
+            isDefault: account.isDefault,
             bankName: account.bankName,
             accountName: account.accountName,
             accountNumber: account.accountNumber,
@@ -147,9 +169,20 @@ export function InvoiceBankDetailsForm({
     value: AccountForm[K],
   ) => {
     setAccounts((current) =>
-      current.map((account) =>
-        account.id === id ? { ...account, [key]: value } : account,
+      withSingleDefault(
+        current.map((account) =>
+          account.id === id ? { ...account, [key]: value } : account,
+        ),
       ),
+    );
+  };
+
+  const setDefaultAccount = (id: string) => {
+    setAccounts((current) =>
+      current.map((account) => ({
+        ...account,
+        isDefault: account.id === id,
+      })),
     );
   };
 
@@ -158,11 +191,23 @@ export function InvoiceBankDetailsForm({
       {error ? <p className={ui.alertError}>{error}</p> : null}
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="flex flex-wrap items-center justify-end gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-foreground-muted">
+            With one account it is always the default. With several, pick which
+            bank is selected by default on Dizlee → OpCo invoices (others remain
+            choosable).
+          </p>
           <Button
             type="button"
             variant="secondary"
-            onClick={() => setAccounts((current) => [...current, emptyAccount()])}
+            onClick={() =>
+              setAccounts((current) =>
+                withSingleDefault([
+                  ...current.map((account) => ({ ...account, isDefault: false })),
+                  emptyAccount(current.length === 0),
+                ]),
+              )
+            }
             disabled={saving || reloading}
           >
             Add bank account
@@ -178,15 +223,24 @@ export function InvoiceBankDetailsForm({
             {accounts.map((account, index) => (
               <section key={account.id} className={`space-y-4 ${ui.cardPaddingLg}`}>
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h2 className="text-sm font-semibold text-foreground">
-                    Account {index + 1}
-                  </h2>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <h2 className="text-sm font-semibold text-foreground">
+                      Account {index + 1}
+                    </h2>
+                    {account.isDefault ? (
+                      <span className="rounded-full bg-primary-muted px-2.5 py-0.5 text-xs font-medium text-primary">
+                        Default
+                      </span>
+                    ) : null}
+                  </div>
                   <Button
                     type="button"
                     variant="ghost"
                     onClick={() =>
                       setAccounts((current) =>
-                        current.filter((item) => item.id !== account.id),
+                        withSingleDefault(
+                          current.filter((item) => item.id !== account.id),
+                        ),
                       )
                     }
                     disabled={saving || reloading}
@@ -195,6 +249,24 @@ export function InvoiceBankDetailsForm({
                     Remove
                   </Button>
                 </div>
+
+                {accounts.length > 1 ? (
+                  <label className="flex items-center gap-2 text-sm text-foreground">
+                    <input
+                      type="radio"
+                      name="default-bank-account"
+                      checked={account.isDefault}
+                      onChange={() => setDefaultAccount(account.id)}
+                      disabled={saving || reloading}
+                      className="h-4 w-4 accent-primary"
+                    />
+                    Use as default on invoices
+                  </label>
+                ) : (
+                  <p className="text-xs text-foreground-subtle">
+                    This is the only account, so it is the default for invoices.
+                  </p>
+                )}
 
                 <label className="block text-sm sm:max-w-md">
                   <FieldLegend required>Label</FieldLegend>

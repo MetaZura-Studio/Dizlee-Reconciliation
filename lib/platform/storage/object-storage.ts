@@ -11,7 +11,11 @@ import path from "node:path";
 import { get, put } from "@vercel/blob";
 import { DomainError } from "@/lib/errors/app-error";
 
-export type StorageFolder = "reports" | "invoices" | "notifications";
+export type StorageFolder =
+  | "reports"
+  | "invoices"
+  | "notifications"
+  | "opco-report-samples";
 
 export type SaveStoredObjectInput = {
   folder: StorageFolder;

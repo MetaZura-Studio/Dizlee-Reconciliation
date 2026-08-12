@@ -15,6 +15,7 @@ export const DIZLEE_NAV_ITEMS: DizleeNavItem[] = [
   { label: "Invoices", href: "/dizlee/invoices" },
   { label: "Reconciliation", href: "/dizlee/reconciliation" },
   { label: "Consolidation", href: "/dizlee/consolidation" },
+  { label: "Revenue Share", href: "/dizlee/revenue-share" },
   { label: "Notifications", href: "/dizlee/notifications" },
   {
     label: "Activity",
