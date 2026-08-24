@@ -28,7 +28,6 @@ import {
   resolveLookupLinesToPartnerBuckets,
 } from "@/lib/opco/queries/resolve-service-partner-maps";
 import { validateReportUploadFile } from "@/lib/opco/validation/report-upload";
-import { storageDiagnostics } from "@/lib/platform/storage/object-storage";
 import prisma from "@/lib/prisma";
 
 type RouteContext = {
@@ -98,17 +97,14 @@ export async function POST(request: Request, context: RouteContext) {
   } catch (error) {
     if (
       error instanceof ServicePartnerResolveError ||
-      error instanceof PartnerColumnResolveError ||
-      error instanceof ReportParseError
+      error instanceof PartnerColumnResolveError
     ) {
-      const status =
-        error instanceof ServicePartnerResolveError ||
-        error instanceof PartnerColumnResolveError
-          ? error.status
-          : 400;
-      return NextResponse.json({ error: error.message }, { status });
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.status },
+      );
     }
-    return jsonError(error, { storage: storageDiagnostics() });
+    return jsonError(error);
   }
 }
 

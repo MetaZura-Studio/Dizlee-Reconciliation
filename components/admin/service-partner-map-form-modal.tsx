@@ -6,12 +6,14 @@ import { Button } from "@/components/ui/button";
 import { FieldLegend } from "@/components/ui/field";
 import { ModalCloseButton } from "@/components/ui/modal-close-button";
 import { PortalOverlay } from "@/components/ui/portal-overlay";
+import type { OpcoListItem } from "@/lib/admin/opcos.shared";
 import type { PartnerListItem } from "@/lib/admin/partners.shared";
 import type { ServicePartnerMapListItem } from "@/lib/admin/service-partner-maps.shared";
 import { formatAppError } from "@/lib/errors/format";
 import { ui } from "@/lib/ui/classes";
 
 type FormValues = {
+  opcoId: string;
   serviceName: string;
   partnerId: string;
 };
@@ -21,6 +23,7 @@ type ServicePartnerMapFormModalProps = {
   mode: "create" | "edit";
   map: ServicePartnerMapListItem | null;
   partners: PartnerListItem[];
+  opcos: OpcoListItem[];
   onClose: () => void;
   onSaved: (map: ServicePartnerMapListItem, message: string) => void;
 };
@@ -29,14 +32,17 @@ function getInitialValues(
   mode: "create" | "edit",
   map: ServicePartnerMapListItem | null,
   partners: PartnerListItem[],
+  opcos: OpcoListItem[],
 ): FormValues {
   if (mode === "edit" && map) {
     return {
+      opcoId: map.opcoId,
       serviceName: map.serviceName,
       partnerId: map.partnerId,
     };
   }
   return {
+    opcoId: opcos.find((opco) => opco.status === "ACTIVE")?.id ?? opcos[0]?.id ?? "",
     serviceName: "",
     partnerId: partners[0]?.id ?? "",
   };
@@ -47,21 +53,22 @@ export function ServicePartnerMapFormModal({
   mode,
   map,
   partners,
+  opcos,
   onClose,
   onSaved,
 }: ServicePartnerMapFormModalProps) {
   const [values, setValues] = useState<FormValues>(() =>
-    getInitialValues(mode, map, partners),
+    getInitialValues(mode, map, partners, opcos),
   );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
-      setValues(getInitialValues(mode, map, partners));
+      setValues(getInitialValues(mode, map, partners, opcos));
       setError(null);
     }
-  }, [open, mode, map, partners]);
+  }, [open, mode, map, partners, opcos]);
 
   if (!open) {
     return null;
@@ -103,6 +110,11 @@ export function ServicePartnerMapFormModal({
   };
 
   const activePartners = partners.filter((partner) => partner.status === "ACTIVE");
+  const activeOpcos = opcos.filter((opco) => opco.status === "ACTIVE");
+  const opcoOptions =
+    mode === "edit" && map && !activeOpcos.some((opco) => opco.id === map.opcoId)
+      ? [{ id: map.opcoId, name: map.opcoName }, ...activeOpcos]
+      : activeOpcos;
 
   return (
     <PortalOverlay onClose={onClose}>
@@ -123,6 +135,24 @@ export function ServicePartnerMapFormModal({
         </div>
 
         <form className="mt-4 space-y-4" onSubmit={(event) => void submit(event)}>
+          <label className="block text-sm">
+            <FieldLegend required>OpCo</FieldLegend>
+            <select
+              value={values.opcoId}
+              onChange={(event) =>
+                setValues((prev) => ({ ...prev, opcoId: event.target.value }))
+              }
+              className={ui.select}
+              required
+            >
+              {opcoOptions.map((opco) => (
+                <option key={opco.id} value={opco.id}>
+                  {opco.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
           <label className="block text-sm">
             <FieldLegend required>Service / Application name</FieldLegend>
             <input
@@ -160,7 +190,7 @@ export function ServicePartnerMapFormModal({
             <Button type="button" variant="secondary" onClick={onClose} disabled={submitting}>
               Cancel
             </Button>
-            <Button type="submit" disabled={submitting || activePartners.length === 0}>
+            <Button type="submit" disabled={submitting || activePartners.length === 0 || opcoOptions.length === 0}>
               {submitting ? "Saving…" : "Save"}
             </Button>
           </div>

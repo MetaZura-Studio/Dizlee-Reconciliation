@@ -52,9 +52,13 @@ export function jsonError(
 ): NextResponse<ApiErrorBody> {
   const appErr = toAppError(error);
 
-  if (appErr.key === "SYSTEM_ERROR" || appErr.key === "UNMAPPED_ERROR") {
-    console.error("[api]", error);
-  }
+  // Always log diagnostic code/key server-side (not shown in the UI).
+  console.error(
+    `[api] ERROR ${appErr.code} — ${appErr.key}`,
+    appErr.key === "SYSTEM_ERROR" || appErr.key === "UNMAPPED_ERROR"
+      ? error
+      : undefined,
+  );
 
   const body: ApiErrorBody = { error: appErr.toJSON() };
   if (details !== undefined) {

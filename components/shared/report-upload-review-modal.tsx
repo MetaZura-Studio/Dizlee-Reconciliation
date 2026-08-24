@@ -21,6 +21,8 @@ type ReportUploadReviewModalProps = {
   fileSizeLabel?: string;
   /** Parsed/mapped line items (legacy confirm flow). */
   lineItems?: ReportPreviewLineItem[];
+  currencyCode?: string;
+  side?: "opco" | "partner";
   /** Raw spreadsheet rows from the selected file. */
   rawRows?: string[][];
   rawSheetName?: string;
@@ -50,6 +52,8 @@ export function ReportUploadReviewModal({
   subtitle,
   fileSizeLabel,
   lineItems,
+  currencyCode,
+  side,
   rawRows,
   rawSheetName,
   rawTruncated,
@@ -63,9 +67,19 @@ export function ReportUploadReviewModal({
   onClose,
 }: ReportUploadReviewModalProps) {
   const showRaw = Boolean(rawRows && rawRows.length > 0);
+  const headerCells = showRaw ? (rawRows?.[0] ?? []) : [];
+  const bodyRows = showRaw ? (rawRows ?? []).slice(1) : [];
   const columnCount = showRaw
-    ? Math.max(...(rawRows ?? []).map((row) => row.length), 1)
+    ? Math.max(
+        headerCells.length,
+        ...bodyRows.map((row) => row.length),
+        1,
+      )
     : 0;
+  const dataRowCount =
+    typeof rawTotalRows === "number"
+      ? Math.max(rawTotalRows - 1, 0)
+      : bodyRows.length;
 
   useEffect(() => {
     const previous = document.body.style.overflow;
@@ -121,9 +135,7 @@ export function ReportUploadReviewModal({
             <>
               <p className="mb-3 text-sm text-foreground-muted">
                 Sheet “{rawSheetName ?? "Sheet1"}”
-                {typeof rawTotalRows === "number"
-                  ? ` · ${rawTotalRows} data row${rawTotalRows === 1 ? "" : "s"}`
-                  : null}
+                {` · ${dataRowCount} data row${dataRowCount === 1 ? "" : "s"}`}
                 {rawTruncated
                   ? " · preview shows the first rows only"
                   : null}
@@ -137,13 +149,13 @@ export function ReportUploadReviewModal({
                       </DataTableTh>
                       {Array.from({ length: columnCount }, (_, index) => (
                         <DataTableTh key={index} className="whitespace-nowrap">
-                          Col {index + 1}
+                          {headerCells[index]?.trim() || ""}
                         </DataTableTh>
                       ))}
                     </tr>
                   </DataTableHead>
                   <tbody>
-                    {(rawRows ?? []).map((row, rowIndex) => (
+                    {bodyRows.map((row, rowIndex) => (
                       <DataTableRow key={rowIndex}>
                         <DataTableTd className="sticky left-0 z-10 bg-surface text-foreground-subtle">
                           {rowIndex + 1}
@@ -170,7 +182,11 @@ export function ReportUploadReviewModal({
                 {lineItems?.length ?? 0} line item
                 {(lineItems?.length ?? 0) === 1 ? "" : "s"}
               </p>
-              <ReportLineItemsTable lineItems={lineItems ?? []} />
+              <ReportLineItemsTable
+                lineItems={lineItems ?? []}
+                currencyCode={currencyCode}
+                side={side}
+              />
             </>
           )}
         </div>

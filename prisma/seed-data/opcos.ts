@@ -16,6 +16,7 @@ export const OPCO_SEEDS: SeedOpco[] = [
     slug: "zain-ksa",
     name: "Zain KSA",
     defaultCurrencyIso: "SAR",
+    vatPercent: 19.5,
   },
   {
     id: 3,

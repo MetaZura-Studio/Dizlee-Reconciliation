@@ -1,16 +1,24 @@
 /**
  * Notification attachment validation, file records, and Prisma create helpers.
  * Limits: 10 MB per file, five attachments; stored under notifications folder in object storage.
+ * Allowlisted types only — SVG/HTML/JS rejected to prevent stored XSS on download.
  */
 import "server-only";
 
 import { resolveDownloadMimeType } from "@/lib/platform/file-response-headers";
+import { resolveAllowedNotificationAttachmentMime } from "@/lib/platform/notification-attachment-allowlist";
+import { MAX_NOTIFICATION_ATTACHMENTS } from "@/lib/platform/notification-attachments.shared";
 import { saveNotificationFileLocally } from "@/lib/platform/storage/save-notification-file";
 import { prisma } from "@/lib/prisma";
 import { DomainError } from "@/lib/errors/app-error";
 
 export const MAX_NOTIFICATION_ATTACHMENT_BYTES = 10 * 1024 * 1024;
-export const MAX_NOTIFICATION_ATTACHMENTS = 5;
+export {
+  ATTACHMENT_TYPE_NOT_ALLOWED_MESSAGE,
+  MAX_NOTIFICATION_ATTACHMENTS,
+  NOTIFICATION_ATTACHMENT_ACCEPT,
+  NOTIFICATION_ATTACHMENT_MIME_BY_EXT,
+} from "@/lib/platform/notification-attachments.shared";
 
 export class NotificationAttachmentError extends DomainError {
   constructor(keyOrMessage: string, status?: number) {
@@ -34,9 +42,17 @@ export function validateNotificationAttachmentFile(
     );
   }
 
+  const allowed = resolveAllowedNotificationAttachmentMime({
+    filename,
+    clientMimeType: file.type,
+  });
+  if ("error" in allowed) {
+    throw new NotificationAttachmentError(allowed.error);
+  }
+
   return {
     filename,
-    mimeType: resolveDownloadMimeType(filename, file.type),
+    mimeType: resolveDownloadMimeType(filename, allowed.mimeType),
   };
 }
 

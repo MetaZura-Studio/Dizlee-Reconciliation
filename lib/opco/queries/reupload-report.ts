@@ -39,6 +39,7 @@ export async function reuploadCorrectedReport(
       id: input.reportId,
       opcoId: input.opcoId,
       version: OPCO_REPORT_VERSION,
+      isDeleted: false,
     },
     include: {
       status: { select: { code: true } },

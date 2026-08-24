@@ -4,6 +4,7 @@
 import ExcelJS from "exceljs";
 
 export type ParsedServicePartnerMapRow = {
+  opcoName: string;
   serviceName: string;
   partnerName: string;
   rowNumber: number;
@@ -38,6 +39,10 @@ function normalizeHeader(value: ExcelJS.CellValue): string {
     .replace(/[^a-z0-9]+/g, "");
 }
 
+function isOpcoHeader(header: string): boolean {
+  return header === "opco" || header === "opconame";
+}
+
 function isServiceHeader(header: string): boolean {
   return (
     header === "serviceorapplicationname" ||
@@ -66,11 +71,15 @@ export async function parseServicePartnerMapsExcel(
   }
 
   const headerRow = sheet.getRow(1);
+  let opcoCol = 0;
   let serviceCol = 0;
   let partnerCol = 0;
 
   headerRow.eachCell((cell, colNumber) => {
     const header = normalizeHeader(cell.value);
+    if (isOpcoHeader(header)) {
+      opcoCol = colNumber;
+    }
     if (isServiceHeader(header)) {
       serviceCol = colNumber;
     }
@@ -79,14 +88,13 @@ export async function parseServicePartnerMapsExcel(
     }
   });
 
-  if (!serviceCol || !partnerCol) {
+  if (!opcoCol || !serviceCol || !partnerCol) {
     return {
       rows: [],
       issues: [
         {
           rowNumber: 1,
-          message:
-            "Missing required headers. Expected ServiceOrApplicationName and Partner.",
+          message: "Missing required headers. Expected OpCo, Partner, and Service.",
         },
       ],
     };
@@ -100,10 +108,19 @@ export async function parseServicePartnerMapsExcel(
       return;
     }
 
+    const opcoName = cellText(row.getCell(opcoCol).value);
     const serviceName = cellText(row.getCell(serviceCol).value);
     const partnerName = cellText(row.getCell(partnerCol).value);
 
-    if (!serviceName && !partnerName) {
+    if (!opcoName && !serviceName && !partnerName) {
+      return;
+    }
+
+    if (!opcoName) {
+      issues.push({
+        rowNumber,
+        message: `Missing OpCo for "${serviceName || partnerName}"`,
+      });
       return;
     }
 
@@ -123,7 +140,7 @@ export async function parseServicePartnerMapsExcel(
       return;
     }
 
-    rows.push({ serviceName, partnerName, rowNumber });
+    rows.push({ opcoName, serviceName, partnerName, rowNumber });
   });
 
   return { rows, issues };
@@ -132,11 +149,12 @@ export async function parseServicePartnerMapsExcel(
 export async function buildServicePartnerMapsTemplateBuffer(): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet("ServicePartnerMaps");
-  sheet.addRow(["ServiceOrApplicationName", "Partner"]);
+  sheet.addRow(["OpCo", "Partner", "Service"]);
   sheet.getRow(1).font = { bold: true };
-  sheet.getColumn(1).width = 36;
+  sheet.getColumn(1).width = 22;
   sheet.getColumn(2).width = 28;
-  sheet.addRow(["Example Service Name", "Google"]);
+  sheet.getColumn(3).width = 36;
+  sheet.addRow(["Zain KSA", "Google", "Example Service Name"]);
 
   const arrayBuffer = await workbook.xlsx.writeBuffer();
   return Buffer.from(arrayBuffer);

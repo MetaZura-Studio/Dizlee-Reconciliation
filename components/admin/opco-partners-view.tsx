@@ -225,10 +225,37 @@ export function OpcoPartnersView({ initialData }: OpcoPartnersViewProps) {
       {error ? <p className={ui.alertError}>{error}</p> : null}
 
       <p className={`mt-4 ${ui.cardPadding} text-sm text-foreground-muted`}>
-        Linked partners control upload dropdowns, monitoring pairs, consolidation
-        readiness, and report validation. Unlinked OpCo–Partner uploads are
-        rejected.
+        Linked partners control upload dropdowns, monitoring pairs, and report
+        validation. OpCo Excel files that name unlinked or unknown partners are
+        blocked until you add the link.
       </p>
+
+      {linksView?.recentLinkRequests?.length ? (
+        <div className={`mt-4 ${ui.alertWarning}`}>
+          <p className="font-semibold text-foreground">
+            Recent partner-link requests
+          </p>
+          <ul className="mt-2 space-y-3">
+            {linksView.recentLinkRequests.map((request) => {
+              const partners = [
+                ...request.unlinkedPartnerNames,
+                ...request.unknownPartnerNames,
+              ].filter(Boolean);
+              return (
+              <li key={request.id}>
+                <p className="text-sm text-foreground">
+                  {request.periodLabel}
+                  {partners.length ? ` · ${partners.join(", ")}` : ""}
+                </p>
+                <p className="mt-0.5 text-sm text-foreground-muted">
+                  {request.message}
+                </p>
+              </li>
+              );
+            })}
+          </ul>
+        </div>
+      ) : null}
 
       <form onSubmit={(event) => void save(event)} className="mt-6 space-y-6">
         <FilterToolbar>

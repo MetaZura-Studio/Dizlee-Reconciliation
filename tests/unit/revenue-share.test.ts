@@ -6,8 +6,14 @@ import {
   regulatoryFeeFromVatPercent,
   resolveRevenueSharePercent,
   revenueSharePercentFromSource,
+  revenueShareReadinessFromPartnerRows,
 } from "@/lib/dizlee/revenue-share";
 import { revenueShareExportFilename } from "@/lib/dizlee/revenue-share/export-excel";
+import {
+  decimalPrecisionForCurrency,
+  formatExportMoney,
+  formatExportPercent,
+} from "@/lib/dizlee/revenue-share/export-format";
 
 describe("revenue share formulas", () => {
   it("reads share percent and applies OpCo tax % to gross", () => {
@@ -32,12 +38,13 @@ describe("revenue share formulas", () => {
     ).toBe(30);
   });
 
-  it("builds an export line from OpCo vatPercent and share field", () => {
+  it("builds an export line from OpCo USD, Partner USD, and OpCo fee %", () => {
     expect(
       buildRevenueShareLine({
         partnerName: "ArpuPlus",
         serviceName: "Games",
-        amount: 200,
+        opcoAmountUsd: 200,
+        partnerAmountUsd: 198,
         vatPercent: 10,
         revenueSharePercent: 25,
         sourceColumns: { revenue_share_percent: 99 },
@@ -45,7 +52,8 @@ describe("revenue share formulas", () => {
     ).toEqual({
       partnerName: "ArpuPlus",
       serviceName: "Games",
-      grossAmount: 200,
+      opcoAmountUsd: 200,
+      partnerAmountUsd: 198,
       regulatoryFee: 20,
       netRevenue: 180,
       revenueSharePercent: 25,
@@ -56,5 +64,81 @@ describe("revenue share formulas", () => {
     expect(revenueShareExportFilename("Zain Kuwait", 3, 2026)).toBe(
       "revenue_share_zain-kuwait_2026-03.xlsx",
     );
+  });
+
+  it("formats export money with currency decimals and thousand separators", () => {
+    expect(decimalPrecisionForCurrency("USD")).toBe(2);
+    expect(decimalPrecisionForCurrency("KWD")).toBe(3);
+    expect(decimalPrecisionForCurrency("BHD")).toBe(3);
+    expect(formatExportMoney(367567.8, "USD")).toBe("367,567.80");
+    expect(formatExportMoney(1234.5678, "KWD")).toBe("1,234.568");
+    expect(formatExportMoney(null, "USD")).toBe("");
+  });
+
+  it("formats export percents with a % sign", () => {
+    expect(formatExportPercent(19.5)).toBe("19.5%");
+    expect(formatExportPercent(30)).toBe("30%");
+    expect(formatExportPercent(null)).toBe("");
+  });
+});
+
+describe("revenueShareReadinessFromPartnerRows", () => {
+  it("omits linked partners with no OpCo report and only waits on Partner uploads", () => {
+    const result = revenueShareReadinessFromPartnerRows(
+      [
+        {
+          partnerId: "1",
+          partnerName: "In File",
+          hasOpcoReport: true,
+          hasPartnerReport: false,
+          opcoLineItemCount: 3,
+          partnerLineItemCount: 0,
+        },
+        {
+          partnerId: "2",
+          partnerName: "Linked Only",
+          hasOpcoReport: false,
+          hasPartnerReport: true,
+          opcoLineItemCount: 0,
+          partnerLineItemCount: 2,
+        },
+      ],
+      2,
+    );
+
+    expect(result.linkedCount).toBe(2);
+    expect(result.partners).toEqual([
+      expect.objectContaining({ partnerId: "1", partnerName: "In File" }),
+    ]);
+    expect(result.missing).toEqual(["In File (Partner report)"]);
+    expect(result.ready).toBe(false);
+  });
+
+  it("is ready when every OpCo-submitted partner also has a Partner report", () => {
+    const result = revenueShareReadinessFromPartnerRows(
+      [
+        {
+          partnerId: "1",
+          partnerName: "In File",
+          hasOpcoReport: true,
+          hasPartnerReport: true,
+          opcoLineItemCount: 3,
+          partnerLineItemCount: 2,
+        },
+        {
+          partnerId: "2",
+          partnerName: "Linked Only",
+          hasOpcoReport: false,
+          hasPartnerReport: false,
+          opcoLineItemCount: 0,
+          partnerLineItemCount: 0,
+        },
+      ],
+      2,
+    );
+
+    expect(result.partners).toHaveLength(1);
+    expect(result.missing).toEqual([]);
+    expect(result.ready).toBe(true);
   });
 });

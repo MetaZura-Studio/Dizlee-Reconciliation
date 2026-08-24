@@ -25,5 +25,9 @@ declare module "next-auth/jwt" {
     role?: AppRole;
     opcoId?: string | null;
     partnerId?: string | null;
+    /** Set when DB revalidation finds the user inactive/deleted. */
+    error?: "InactiveUser";
+    /** Epoch ms of last ACTIVE/isDeleted revalidation. */
+    lastValidatedAt?: number;
   }
 }

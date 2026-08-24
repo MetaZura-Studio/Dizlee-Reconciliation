@@ -13,6 +13,7 @@ import {
 } from "@/lib/dizlee/reconciliation/compare";
 import { ACTIVE_OPCO_PARTNER_LINK_FILTER } from "@/lib/platform/opco-partner-links";
 import { getReconciliationTolerancePercent } from "@/lib/platform/reconciliation-tolerance";
+import { applyReportFxToAmount, getReportFx } from "@/lib/platform/report-fx";
 import { prisma } from "@/lib/prisma";
 import { DomainError } from "@/lib/errors/app-error";
 
@@ -459,9 +460,13 @@ export async function runReconciliation(params: {
         partnerId: BigInt(params.partnerId),
         month: params.month,
         year: params.year,
+        isDeleted: false,
         uploadedByUser: { role: { code: "OPCO" } },
       },
-      include: { lineItems: true },
+      include: {
+        lineItems: { where: { isDeleted: false } },
+        currency: { select: { id: true } },
+      },
     }),
     prisma.report.findFirst({
       where: {
@@ -469,9 +474,10 @@ export async function runReconciliation(params: {
         partnerId: BigInt(params.partnerId),
         month: params.month,
         year: params.year,
+        isDeleted: false,
         uploadedByUser: { role: { code: "PARTNER" } },
       },
-      include: { lineItems: true },
+      include: { lineItems: { where: { isDeleted: false } } },
     }),
     getTolerancePercent(),
   ]);
@@ -525,8 +531,29 @@ export async function runReconciliation(params: {
     amount: toNumber(line.amount),
   });
 
+  const fx = await getReportFx({
+    currencyId: opcoReport.currency.id,
+    month: params.month,
+    year: params.year,
+  });
+  if (fx.rateToUsd === null) {
+    throw new ReconciliationError(
+      `No USD rate for ${fx.currencyCode} in this period. Set it in Admin Currencies before reconciling.`,
+      400,
+    );
+  }
+
   const compared = compareReportLines(
-    opcoReport.lineItems.map(toCompareLine),
+    opcoReport.lineItems.map((line) => {
+      const local = toCompareLine(line);
+      const converted = applyReportFxToAmount(local.amount, fx.rateToUsd);
+      return {
+        ...local,
+        amount: converted.amountUsd === null ? null : Number(converted.amountUsd),
+        usageUsd: null,
+        usageAmount: null,
+      };
+    }),
     partnerReport.lineItems.map(toCompareLine),
     tolerancePercent,
   );

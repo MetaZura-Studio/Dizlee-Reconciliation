@@ -100,9 +100,32 @@ Configure SMTP credentials in `.env` (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SM
 
 ---
 
+## Cookies & CSRF (S15)
+
+Login uses **HTTP-only JWT cookies** (not `localStorage`). Cookie flags are set explicitly in [`lib/auth/cookies.ts`](../lib/auth/cookies.ts) and applied via [`lib/auth/options.ts`](../lib/auth/options.ts):
+
+| Flag | Value | Why |
+|------|--------|-----|
+| `HttpOnly` | `true` | JavaScript on the page cannot read the session cookie |
+| `SameSite` | `lax` | Other sites generally cannot send the cookie on cross-site POSTs (main CSRF defense for cookie sessions) |
+| `Secure` | `true` on HTTPS (`NEXTAUTH_URL` starts with `https://`, or production without a URL override) | Cookie only sent over HTTPS |
+| `Path` | `/` | Whole app |
+
+**CSRF posture:** We do **not** add a separate CSRF token layer on every API. Protection is:
+
+1. **SameSite=Lax** session + CSRF cookies (locked above; NextAuth also issues a CSRF cookie for its own sign-in flow)
+2. Browser calls to `/api/*` are same-site from our portals; cross-site form POSTs from evil.com typically do not include the session cookie
+3. Middleware + per-route session checks (S14) still require a valid logged-in user
+
+**Not covered by SameSite alone:** rare cases (old browsers, some cross-site top-level GETs with Lax). Destructive actions stay behind authenticated POSTs and role checks.
+
+---
+
 ## Environment variables
 
 ```env
 NEXTAUTH_SECRET="generate-with-openssl-rand-base64-32"
 NEXTAUTH_URL="http://localhost:3000"
 ```
+
+In production, set `NEXTAUTH_URL` to your `https://…` origin so Secure cookie flags apply.

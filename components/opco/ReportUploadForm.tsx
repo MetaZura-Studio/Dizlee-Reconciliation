@@ -14,9 +14,15 @@ import {
 } from "@/components/shared/report-upload-review-modal";
 import { Button } from "@/components/ui/button";
 import { FieldLabel, Select } from "@/components/ui/field";
+import { Modal } from "@/components/ui/modal";
 import type { LinkedPartner } from "@/lib/opco/queries/partners";
 import { getDefaultPeriod } from "@/lib/opco/period";
 import { validateReportUploadFile } from "@/lib/opco/validation/report-upload";
+import {
+  notLinkedPartnerDisplayNames,
+  parseUnlinkedPartnersDetails,
+  type UnlinkedPartnersInFile,
+} from "@/lib/opco/unlinked-partners-in-file.shared";
 import { readRawExcelSheetPreview } from "@/lib/platform/excel/read-raw-sheet";
 import {
   getMaxUploadMonthForYear,
@@ -82,6 +88,14 @@ export function ReportUploadForm({
   const [isConfirming, setIsConfirming] = useState(false);
   const [review, setReview] = useState<ReviewState | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [linkRequest, setLinkRequest] = useState<UnlinkedPartnersInFile | null>(
+    null,
+  );
+  const [linkRequestMessage, setLinkRequestMessage] = useState(
+    "Please add these OpCo–Partner links so we can upload the report.",
+  );
+  const [isNotifyingAdmin, setIsNotifyingAdmin] = useState(false);
+  const [linkRequestError, setLinkRequestError] = useState<string | null>(null);
   const toast = useToast();
 
   const selectedPartnerName = partnerFromServiceMap
@@ -105,6 +119,8 @@ export function ReportUploadForm({
     setConfirmError(null);
     setSuccess(null);
     setReview(null);
+    setLinkRequest(null);
+    setLinkRequestError(null);
 
     const validationError = validateReportUploadFile(selectedFile);
     if (validationError) {
@@ -201,7 +217,8 @@ export function ReportUploadForm({
       });
 
       const payload = (await response.json()) as {
-        error?: string;
+        error?: string | { key?: string };
+        details?: unknown;
         reportId?: string;
         reportIds?: string[];
         lineItemCount?: number;
@@ -209,6 +226,16 @@ export function ReportUploadForm({
       };
 
       if (!response.ok) {
+        const unmatched = parseUnlinkedPartnersDetails(payload);
+        if (unmatched) {
+          setReview(null);
+          setLinkRequest(unmatched);
+          setLinkRequestMessage(
+            "Please add these OpCo–Partner links so we can upload the report.",
+          );
+          setLinkRequestError(null);
+          return;
+        }
         setConfirmError(formatAppError(payload, "Failed to upload report"));
         return;
       }
@@ -234,6 +261,59 @@ export function ReportUploadForm({
       setConfirmError("Failed to upload report");
     } finally {
       setIsConfirming(false);
+    }
+  }
+
+  function resetFileSelection() {
+    setReview(null);
+    setConfirmError(null);
+    setLinkRequest(null);
+    setLinkRequestError(null);
+    setFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }
+
+  async function handleNotifyAdmin() {
+    if (!linkRequest) {
+      return;
+    }
+    const message = linkRequestMessage.trim();
+    if (message.length < 10) {
+      setLinkRequestError("Message must be at least 10 characters.");
+      return;
+    }
+
+    setIsNotifyingAdmin(true);
+    setLinkRequestError(null);
+    try {
+      const response = await fetch("/api/opco/reports/request-partner-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          year,
+          month,
+          message,
+          unlinkedPartnerNames: linkRequest.unlinkedPartnerNames,
+          unknownPartnerNames: linkRequest.unknownPartnerNames,
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        setLinkRequestError(
+          formatAppError(payload, "Failed to notify Admin"),
+        );
+        return;
+      }
+      toast.success(
+        "Admin has been notified. You can upload after the link is added.",
+      );
+      resetFileSelection();
+    } catch {
+      setLinkRequestError("Failed to notify Admin");
+    } finally {
+      setIsNotifyingAdmin(false);
     }
   }
 
@@ -438,6 +518,7 @@ export function ReportUploadForm({
           filename={review.filename}
           fileSizeLabel={review.fileSizeLabel}
           subtitle={`${selectedPartnerName} — ${MONTHS[month - 1]} ${year}`}
+          side="opco"
           rawRows={review.rawRows}
           rawSheetName={review.sheetName}
           rawTruncated={review.truncated}
@@ -454,6 +535,62 @@ export function ReportUploadForm({
           }}
         />
       ) : null}
+
+      <Modal
+        open={Boolean(linkRequest)}
+        title="Partners not linked with you"
+        onClose={() => {
+          if (!isNotifyingAdmin) {
+            resetFileSelection();
+          }
+        }}
+        className="max-w-lg"
+      >
+        <p className="text-sm text-foreground-muted">
+          These partners are not linked with you. Notify Admin to add the
+          OpCo–Partner links, then you can upload this file.
+        </p>
+        {linkRequest ? (
+          <ul className="mt-4 list-disc pl-5 text-sm text-foreground">
+            {notLinkedPartnerDisplayNames(linkRequest).map((name) => (
+              <li key={name}>{name}</li>
+            ))}
+          </ul>
+        ) : null}
+        <div className="mt-4">
+          <FieldLabel htmlFor="linkRequestMessage" required>
+            Message to Admin
+          </FieldLabel>
+          <textarea
+            id="linkRequestMessage"
+            value={linkRequestMessage}
+            onChange={(event) => setLinkRequestMessage(event.target.value)}
+            disabled={isNotifyingAdmin}
+            rows={4}
+            className={`${ui.input} h-auto min-h-[6.5rem] py-2.5`}
+          />
+        </div>
+        {linkRequestError ? (
+          <p className={`mt-3 ${ui.alertError}`}>{linkRequestError}</p>
+        ) : null}
+        <div className="mt-5 flex flex-wrap justify-end gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={resetFileSelection}
+            disabled={isNotifyingAdmin}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            onClick={() => void handleNotifyAdmin()}
+            disabled={isNotifyingAdmin}
+          >
+            {isNotifyingAdmin ? "Notifying…" : "Notify Admin"}
+          </Button>
+        </div>
+      </Modal>
     </>
   );
 }

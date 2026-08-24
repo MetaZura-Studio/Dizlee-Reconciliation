@@ -8,6 +8,10 @@ import { NextResponse } from "next/server";
 import { requireAdminApiSession } from "@/lib/admin/api-auth";
 import { importServicePartnerMapsFromExcel } from "@/lib/admin/service-partner-maps";
 import { jsonError, unauthorized } from "@/lib/errors/respond";
+import {
+  assertExcelBufferMagic,
+  validateExcelUploadFile,
+} from "@/lib/platform/excel-upload";
 
 export async function POST(request: Request) {
   const user = await requireAdminApiSession();
@@ -25,15 +29,17 @@ export async function POST(request: Request) {
       );
     }
 
-    const name = file.name.toLowerCase();
-    if (!name.endsWith(".xlsx") && !name.endsWith(".xls")) {
-      return NextResponse.json(
-        { error: "File must be an Excel workbook (.xlsx)" },
-        { status: 400 },
-      );
+    const fileError = validateExcelUploadFile(file, { allowLegacyXls: true });
+    if (fileError) {
+      return NextResponse.json({ error: fileError }, { status: 400 });
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
+    const magicError = assertExcelBufferMagic(buffer, file.name);
+    if (magicError) {
+      return NextResponse.json({ error: magicError }, { status: 400 });
+    }
+
     const result = await importServicePartnerMapsFromExcel(
       buffer,
       BigInt(user.id),

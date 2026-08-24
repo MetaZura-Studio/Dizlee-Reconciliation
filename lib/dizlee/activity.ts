@@ -771,14 +771,12 @@ export async function listActivityTimeline(
     reports,
     reuploads,
     reconciliations,
-    consolidations,
     invoices,
   ] = await Promise.all([
     loadNotificationEvents(filters, scope),
     loadReportEvents(filters, lanes),
     loadReuploadEvents(filters),
     loadReconciliationEvents(filters),
-    loadConsolidationEvents(filters),
     loadInvoiceEvents(filters),
   ]);
 
@@ -790,7 +788,6 @@ export async function listActivityTimeline(
       ...reports,
       ...reuploads,
       ...reconciliations,
-      ...consolidations,
       ...invoices,
     ]),
     filters,

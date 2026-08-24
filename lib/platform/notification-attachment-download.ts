@@ -87,6 +87,8 @@ export async function buildNotificationAttachmentDownloadResponse(params: {
     headers: buildFileResponseHeaders({
       filename: attachment.file.filename,
       mimeType: attachment.file.mimeType,
+      // Never render notification attachments in-browser (legacy SVG/HTML in storage).
+      forceAttachment: true,
     }),
   });
 }

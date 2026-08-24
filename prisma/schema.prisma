@@ -118,6 +118,7 @@ model Opco {
   reconciliations   Reconciliation[]
   invoices          Invoice[]
   reportMapping     OpcoReportMapping?
+  servicePartnerMaps ServicePartnerMap[]
 
   @@map("opcos")
 }
@@ -150,6 +151,7 @@ model Partner {
 
 model ServicePartnerMap {
   id              BigInt   @id @default(autoincrement())
+  opcoId          BigInt   @map("opco_id")
   serviceName     String   @map("service_name") @db.VarChar(255)
   serviceKey      String   @map("service_key") @db.VarChar(255)
   partnerId       BigInt   @map("partner_id")
@@ -161,11 +163,13 @@ model ServicePartnerMap {
   deletedByUserId BigInt?  @map("deleted_by_user_id")
   deletedAt       DateTime? @map("deleted_at")
 
+  opco          Opco    @relation(fields: [opcoId], references: [id])
   partner       Partner @relation(fields: [partnerId], references: [id])
   createdByUser User?   @relation("ServicePartnerMapCreatedBy", fields: [createdByUserId], references: [id])
   updatedByUser User?   @relation("ServicePartnerMapUpdatedBy", fields: [updatedByUserId], references: [id])
 
-  @@unique([serviceKey], map: "uq_service_partner_maps_service_key")
+  @@unique([opcoId, serviceKey], map: "uq_service_partner_maps_opco_service_key")
+  @@index([opcoId], map: "idx_service_partner_maps_opco_id")
   @@map("service_partner_maps")
 }
 

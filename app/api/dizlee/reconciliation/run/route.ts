@@ -4,10 +4,15 @@
  */
 
 import { NextResponse } from "next/server";
-import { jsonError, unauthorized } from "@/lib/errors/respond";
+import {
+  jsonError,
+  unauthorized,
+  validationFailed,
+} from "@/lib/errors/respond";
 
 import { requireDizleeSession } from "@/lib/dizlee/auth";
 import { runReconciliation } from "@/lib/dizlee/reconciliation";
+import { runReconciliationBodySchema } from "@/lib/dizlee/validation/api-bodies";
 
 export async function POST(request: Request) {
   const user = await requireDizleeSession();
@@ -16,25 +21,23 @@ export async function POST(request: Request) {
   }
 
   try {
-    const body = (await request.json()) as {
-      month?: number;
-      year?: number;
-      opcoId?: string;
-      partnerId?: string;
-    };
+    let raw: unknown;
+    try {
+      raw = await request.json();
+    } catch {
+      return validationFailed();
+    }
 
-    if (!body.month || !body.year || !body.opcoId || !body.partnerId) {
-      return NextResponse.json(
-        { error: "Period, OpCo, and Partner are required." },
-        { status: 400 },
-      );
+    const parsed = runReconciliationBodySchema.safeParse(raw);
+    if (!parsed.success) {
+      return validationFailed(parsed.error.flatten().fieldErrors);
     }
 
     const result = await runReconciliation({
-      month: body.month,
-      year: body.year,
-      opcoId: body.opcoId,
-      partnerId: body.partnerId,
+      month: parsed.data.month,
+      year: parsed.data.year,
+      opcoId: parsed.data.opcoId,
+      partnerId: parsed.data.partnerId,
       runByUserId: user.id,
     });
 

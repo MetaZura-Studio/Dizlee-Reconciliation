@@ -34,6 +34,14 @@ When the user later asks to update the ERD / [`04_DATABASE_SCHEMA_FOR_CURSOR.md`
 - Soft-delete and audit patterns as in current Prisma models
 - Auth password emails are **DB-backed templates** under Other (not “hardcoded only” in ERD notes)
 - Reminder schedules live in `app_settings.notification_schedules_json` (JSON, no extra table)
+
+### Applied migration — service partner maps scoped to OpCo
+- Migration: `prisma/migrations/20260818120000_service_partner_maps_opco_id`
+- Table `service_partner_maps`: add `opco_id BIGINT NOT NULL` → `opcos.id`
+- Drop unique `uq_service_partner_maps_service_key`
+- Add unique `uq_service_partner_maps_opco_service_key` (`opco_id`, `service_key`)
+- Same service name may map to different partners on different OpCos
+
 ## Source of truth until ERD is refreshed
 1. [`prisma/schema.prisma`](prisma/schema.prisma)
 2. Files under [`prisma/migrations/`](prisma/migrations/)

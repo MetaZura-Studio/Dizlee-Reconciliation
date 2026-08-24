@@ -56,7 +56,7 @@ function isBlobStorageEnabled(): boolean {
   );
 }
 
-/** Safe diagnostics for API error payloads (no secrets). */
+/** Server-only diagnostics for logs (never send to API clients). */
 export function storageDiagnostics(): {
   hasBlobToken: boolean;
   hasBlobStoreId: boolean;
@@ -72,6 +72,61 @@ export function storageDiagnostics(): {
 function sanitizeFilename(filename: string): string {
   const base = path.posix.basename(filename).replace(/[^\w.\-()+ ]+/g, "_");
   return base.length > 0 ? base : "upload.bin";
+}
+
+const STORAGE_FOLDERS = new Set<string>([
+  "reports",
+  "invoices",
+  "notifications",
+  "opco-report-samples",
+]);
+
+/**
+ * Reject path traversal / absolute paths before reading from local disk.
+ * Allowed keys look like: `reports/<uuid>/file.xlsx`
+ */
+function assertSafeLocalStorageKey(storageKey: string): string {
+  if (
+    !storageKey ||
+    storageKey.includes("\0") ||
+    storageKey.includes("\\") ||
+    storageKey.startsWith("/") ||
+    storageKey.includes("://")
+  ) {
+    throw new ObjectStorageError("STORAGE_OBJECT_NOT_FOUND");
+  }
+
+  const normalized = path.posix.normalize(storageKey);
+  if (
+    normalized !== storageKey ||
+    normalized.startsWith("..") ||
+    normalized.includes("/../") ||
+    normalized.split("/").some((part) => part === ".." || part === "")
+  ) {
+    throw new ObjectStorageError("STORAGE_OBJECT_NOT_FOUND");
+  }
+
+  const folder = normalized.split("/")[0];
+  if (!folder || !STORAGE_FOLDERS.has(folder)) {
+    throw new ObjectStorageError("STORAGE_OBJECT_NOT_FOUND");
+  }
+
+  return normalized;
+}
+
+function resolveLocalUploadPath(storageKey: string): string {
+  const safeKey = assertSafeLocalStorageKey(storageKey);
+  const root = path.resolve(process.cwd(), ".uploads");
+  const absolutePath = path.resolve(root, safeKey);
+  const relative = path.relative(root, absolutePath);
+  if (
+    relative.startsWith("..") ||
+    path.isAbsolute(relative) ||
+    relative === ""
+  ) {
+    throw new ObjectStorageError("STORAGE_OBJECT_NOT_FOUND");
+  }
+  return absolutePath;
 }
 
 export async function saveStoredObject(
@@ -103,16 +158,12 @@ export async function saveStoredObject(
         diagnostics: storageDiagnostics(),
         error,
       });
-      throw new ObjectStorageError(
-        `File storage (Blob) failed: ${detail}. Ensure BLOB_READ_WRITE_TOKEN is set for Production/Preview and redeployed.`,
-      );
+      throw new ObjectStorageError("STORAGE_WRITE_FAILED");
     }
   } else if (process.env.VERCEL) {
-    throw new ObjectStorageError(
-      "File storage is not configured. Set BLOB_READ_WRITE_TOKEN on Vercel (Storage → Blob → read-write token), then redeploy.",
-    );
+    throw new ObjectStorageError("STORAGE_NOT_CONFIGURED");
   } else {
-    const absolutePath = path.join(process.cwd(), ".uploads", storageKey);
+    const absolutePath = resolveLocalUploadPath(storageKey);
     await mkdir(path.dirname(absolutePath), { recursive: true });
     await writeFile(absolutePath, input.buffer);
   }
@@ -130,16 +181,15 @@ export async function readStoredObject(storageKey: string): Promise<Buffer> {
   }
 
   if (isBlobStorageEnabled()) {
+    assertSafeLocalStorageKey(storageKey);
     return readBlobObject(storageKey);
   }
 
   if (process.env.VERCEL) {
-    throw new ObjectStorageError(
-      "File storage is not configured. Set BLOB_READ_WRITE_TOKEN on Vercel.",
-    );
+    throw new ObjectStorageError("STORAGE_NOT_CONFIGURED");
   }
 
-  const absolutePath = path.join(process.cwd(), ".uploads", storageKey);
+  const absolutePath = resolveLocalUploadPath(storageKey);
   return readFile(absolutePath);
 }
 
@@ -151,7 +201,7 @@ async function readBlobObject(urlOrPathname: string): Promise<Buffer> {
       ...(token ? { token } : {}),
     });
     if (!result || result.statusCode !== 200 || !result.stream) {
-      throw new ObjectStorageError("Stored object not found in blob storage");
+      throw new ObjectStorageError("STORAGE_OBJECT_NOT_FOUND");
     }
     return Buffer.from(await new Response(result.stream).arrayBuffer());
   } catch (error) {
@@ -166,6 +216,6 @@ async function readBlobObject(urlOrPathname: string): Promise<Buffer> {
       diagnostics: storageDiagnostics(),
       error,
     });
-    throw new ObjectStorageError(`File storage (Blob) read failed: ${detail}`);
+    throw new ObjectStorageError("STORAGE_READ_FAILED");
   }
 }

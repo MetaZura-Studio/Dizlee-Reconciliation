@@ -13,6 +13,7 @@ import {
   listAuditLogsForExport,
   parseAuditLogListFilters,
 } from "@/lib/admin/audit-logs";
+import { buildFileResponseHeaders } from "@/lib/platform/file-response-headers";
 
 export async function GET(request: NextRequest) {
   const user = await requireAdminApiSession();
@@ -29,10 +30,11 @@ export async function GET(request: NextRequest) {
 
     return new NextResponse(csv, {
       status: 200,
-      headers: {
-        "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename="audit-logs-${stamp}.csv"`,
-      },
+      headers: buildFileResponseHeaders({
+        filename: `audit-logs-${stamp}.csv`,
+        mimeType: "text/csv; charset=utf-8",
+        forceAttachment: true,
+      }),
     });
   } catch (error) {
     return jsonError(error);

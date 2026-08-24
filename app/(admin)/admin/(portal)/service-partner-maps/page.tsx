@@ -1,4 +1,5 @@
 import { ServicePartnerMapsView } from "@/components/admin/service-partner-maps-view";
+import { listOpcos, OpcoActionError } from "@/lib/admin/opcos";
 import { listPartners, PartnerActionError } from "@/lib/admin/partners";
 import {
   listServicePartnerMaps,
@@ -9,16 +10,19 @@ export default async function AdminServicePartnerMapsPage() {
   let loadError: string | null = null;
   let maps: Awaited<ReturnType<typeof listServicePartnerMaps>> = [];
   let partners: Awaited<ReturnType<typeof listPartners>> = [];
+  let opcos: Awaited<ReturnType<typeof listOpcos>> = [];
 
   try {
-    [maps, partners] = await Promise.all([
+    [maps, partners, opcos] = await Promise.all([
       listServicePartnerMaps(),
       listPartners(),
+      listOpcos(),
     ]);
   } catch (error) {
     loadError =
       error instanceof ServicePartnerMapActionError ||
-      error instanceof PartnerActionError
+      error instanceof PartnerActionError ||
+      error instanceof OpcoActionError
         ? error.message
         : "Service–Partner maps could not be loaded.";
   }
@@ -38,7 +42,7 @@ export default async function AdminServicePartnerMapsPage() {
 
   return (
     <div className="w-full">
-      <ServicePartnerMapsView initialMaps={maps} partners={partners} />
+      <ServicePartnerMapsView initialMaps={maps} partners={partners} opcos={opcos} />
     </div>
   );
 }

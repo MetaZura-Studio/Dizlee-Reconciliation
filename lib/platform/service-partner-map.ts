@@ -1,5 +1,5 @@
 /**
- * Global Service/Application → Partner mapping helpers.
+ * Per-OpCo Service/Application → Partner mapping helpers.
  * Used when OpCo report Partner mode is SERVICE_PARTNER_MAP.
  */
 
@@ -9,6 +9,40 @@ export function normalizeServiceKey(value: string): string {
 
 export function compactPartnerKey(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+export type ServiceMapRowLike = {
+  serviceKey: string;
+  serviceName?: string | null;
+};
+
+/**
+ * Match a report service to a map row. "Premium Games" and "PremiumGames"
+ * are the same key (letters/digits only).
+ */
+export function matchServiceMapRow<T extends ServiceMapRowLike>(
+  line: { serviceKey: string; serviceName: string },
+  maps: T[],
+): T | null {
+  const exact = maps.find((row) => row.serviceKey === line.serviceKey);
+  if (exact) {
+    return exact;
+  }
+
+  const compact =
+    compactPartnerKey(line.serviceName) || compactPartnerKey(line.serviceKey);
+  if (!compact) {
+    return null;
+  }
+
+  return (
+    maps.find((row) => {
+      const rowCompact =
+        compactPartnerKey(row.serviceName ?? "") ||
+        compactPartnerKey(row.serviceKey);
+      return rowCompact === compact;
+    }) ?? null
+  );
 }
 
 /** Match Excel Partner text to a linked Partner (spaces, punctuation, prefix/suffix). */

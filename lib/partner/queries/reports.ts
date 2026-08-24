@@ -54,10 +54,11 @@ export type PartnerReportListResult = {
 export type PartnerReportLineItem = {
   lineNumber: number;
   description: string | null;
+  amount: string | null;
+  amountUsd: string | null;
+  exchangeRate: string | null;
   usageAmount: string | null;
   usageUsd: string | null;
-  amount: string | null;
-  exchangeRate: string | null;
   usageUnit: string | null;
   reconciliationBasis: string | null;
 };
@@ -74,6 +75,7 @@ export type PartnerReportDetail = {
   fileSizeBytes: number | null;
   uploadedAt: string;
   lineItemCount: number;
+  currencyCode: string;
   lineItems: PartnerReportLineItem[];
   hasPendingChangeRequest: boolean;
   canReupload: boolean;
@@ -108,6 +110,7 @@ function buildWhere(
   const where: Prisma.ReportWhereInput = {
     partnerId,
     version: PARTNER_REPORT_VERSION,
+    isDeleted: false,
   };
 
   if (filters.year !== undefined) {
@@ -152,13 +155,15 @@ function mapLineItem(
     reconciliationBasis: string | null;
   },
 ): PartnerReportLineItem {
+  const amount = decimalToString(item.amount);
   return {
     lineNumber: item.lineNumber,
     description: item.description,
     usageAmount: decimalToString(item.usageAmount),
     usageUsd: decimalToString(item.usageUsd),
-    amount: decimalToString(item.amount),
-    exchangeRate: decimalToString(item.exchangeRate),
+    amount,
+    amountUsd: amount,
+    exchangeRate: null,
     usageUnit: item.usageUnit,
     reconciliationBasis: item.reconciliationBasis,
   };
@@ -290,6 +295,7 @@ export async function getReportDetailForPartner(
       id: reportId,
       partnerId,
       version: PARTNER_REPORT_VERSION,
+      isDeleted: false,
     },
     include: {
       opco: { select: { name: true } },
@@ -325,6 +331,7 @@ export async function getReportDetailForPartner(
     fileSizeBytes: report.file?.sizeBytes ? Number(report.file.sizeBytes) : null,
     uploadedAt: report.createdAt.toISOString(),
     lineItemCount: report.lineItems.length,
+    currencyCode: "USD",
     lineItems: report.lineItems.map(mapLineItem),
     hasPendingChangeRequest: report.changeRequests.some(
       (request) => request.decidedAt === null,

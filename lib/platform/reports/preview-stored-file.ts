@@ -5,6 +5,7 @@ import "server-only";
 
 import { NextResponse } from "next/server";
 
+import { buildFileResponseHeaders } from "@/lib/platform/file-response-headers";
 import { readStoredObject } from "@/lib/platform/storage/object-storage";
 
 export type StoredFileRecord = {
@@ -22,10 +23,10 @@ export async function buildStoredFilePreviewResponse(
   try {
     const buffer = await readStoredObject(file.storageKey);
     return new NextResponse(new Uint8Array(buffer), {
-      headers: {
-        "Content-Type": file.mimeType ?? DEFAULT_REPORT_MIME,
-        "Content-Disposition": `inline; filename="${file.filename}"`,
-      },
+      headers: buildFileResponseHeaders({
+        filename: file.filename,
+        mimeType: file.mimeType ?? DEFAULT_REPORT_MIME,
+      }),
     });
   } catch {
     return NextResponse.json(

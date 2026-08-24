@@ -11,7 +11,6 @@ import { parseReportWorkbook } from "@/lib/partner/excel/parse-report";
 import { getPartnerSession } from "@/lib/partner/auth";
 import { reuploadCorrectedReport } from "@/lib/partner/queries/reupload-report";
 import { validateReportUploadFile } from "@/lib/partner/validation/report-upload";
-import { storageDiagnostics } from "@/lib/platform/storage/object-storage";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -63,6 +62,6 @@ export async function POST(request: Request, context: RouteContext) {
       message: "Corrected report uploaded successfully",
     });
   } catch (error) {
-    return jsonError(error, { storage: storageDiagnostics() });
+    return jsonError(error);
   }
 }

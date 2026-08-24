@@ -67,6 +67,7 @@ export function AdminNavIconGlyph({ name, className = "h-5 w-5" }: NavIconProps)
         </svg>
       );
     case "reminder":
+    case "notifications":
       return (
         <svg {...props}>
           <path

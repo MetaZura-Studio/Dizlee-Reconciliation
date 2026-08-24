@@ -1,17 +1,15 @@
 /**
- * In-app notification fan-out to all Dizlee (CLIENT role) portal users.
+ * In-app notification fan-out to portal users by USER_ROLE code.
  */
 import { prisma } from "@/lib/prisma";
 
-/**
- * Creates an in-app notification for all Dizlee (CLIENT) portal users.
- */
-export async function notifyDizleeUsers(params: {
+async function notifyUsersByRoleCodes(params: {
   fromUserId: bigint;
   subject: string;
   body: string;
+  roleCodes: string[];
 }): Promise<void> {
-  const [sentStatus, userRecipientType, dizleeUsers] = await Promise.all([
+  const [sentStatus, userRecipientType, users] = await Promise.all([
     prisma.lookup.findFirst({
       where: {
         code: "SENT",
@@ -29,13 +27,16 @@ export async function notifyDizleeUsers(params: {
     prisma.user.findMany({
       where: {
         isDeleted: false,
-        role: { code: "CLIENT", lookupType: { code: "USER_ROLE" } },
+        role: {
+          code: { in: params.roleCodes },
+          lookupType: { code: "USER_ROLE" },
+        },
       },
       select: { id: true },
     }),
   ]);
 
-  if (!sentStatus || !userRecipientType || dizleeUsers.length === 0) {
+  if (!sentStatus || !userRecipientType || users.length === 0) {
     return;
   }
 
@@ -47,12 +48,40 @@ export async function notifyDizleeUsers(params: {
       sentAt: new Date(),
       createdByUserId: params.fromUserId,
       recipients: {
-        create: dizleeUsers.map((user) => ({
+        create: users.map((user) => ({
           recipientTypeId: userRecipientType.id,
           recipientId: user.id,
           fromUserId: params.fromUserId,
         })),
       },
     },
+  });
+}
+
+/**
+ * Creates an in-app notification for all Dizlee (CLIENT) portal users.
+ */
+export async function notifyDizleeUsers(params: {
+  fromUserId: bigint;
+  subject: string;
+  body: string;
+}): Promise<void> {
+  await notifyUsersByRoleCodes({
+    ...params,
+    roleCodes: ["CLIENT"],
+  });
+}
+
+/**
+ * Creates an in-app notification for Admin and Dizlee (CLIENT) users.
+ */
+export async function notifyAdminAndDizleeUsers(params: {
+  fromUserId: bigint;
+  subject: string;
+  body: string;
+}): Promise<void> {
+  await notifyUsersByRoleCodes({
+    ...params,
+    roleCodes: ["ADMIN", "CLIENT"],
   });
 }

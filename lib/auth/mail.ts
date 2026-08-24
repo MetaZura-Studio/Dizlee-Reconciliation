@@ -29,7 +29,7 @@ export type SendPlatformEmailInput = {
   html: string;
 };
 
-/** Rewrites recipient when SMTP_REDIRECT_TO is set (non-production safety). */
+/** Rewrites recipient when SMTP_REDIRECT_TO is set — development/test only. */
 export function applyEmailRedirect(input: {
   to: string;
   subject: string;
@@ -38,6 +38,14 @@ export function applyEmailRedirect(input: {
 }) {
   const redirectTo = process.env.SMTP_REDIRECT_TO?.trim();
   if (!redirectTo) {
+    return input;
+  }
+
+  // Never redirect real recipients in production (misconfig would leak reset links).
+  if (process.env.NODE_ENV === "production") {
+    console.warn(
+      "[mail] SMTP_REDIRECT_TO is set but ignored in production; emails go to the real recipients.",
+    );
     return input;
   }
 

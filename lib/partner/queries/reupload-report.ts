@@ -39,6 +39,7 @@ export async function reuploadCorrectedReport(
       id: input.reportId,
       partnerId: input.partnerId,
       version: PARTNER_REPORT_VERSION,
+      isDeleted: false,
     },
     include: {
       status: { select: { code: true } },

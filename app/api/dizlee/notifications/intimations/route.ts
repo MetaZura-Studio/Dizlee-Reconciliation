@@ -5,7 +5,11 @@
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { jsonError, unauthorized } from "@/lib/errors/respond";
+import {
+  jsonError,
+  unauthorized,
+  validationFailed,
+} from "@/lib/errors/respond";
 
 import { requireDizleeSession } from "@/lib/dizlee/auth";
 import {
@@ -13,9 +17,8 @@ import {
   listIntimations,
   parseIntimationListFilters,
   sendBroadcastNotification,
-  type BroadcastAudience,
-  type BroadcastMessageSource,
 } from "@/lib/dizlee/notifications/intimations";
+import { sendBroadcastBodySchema } from "@/lib/dizlee/validation/api-bodies";
 
 export async function GET(request: NextRequest) {
   const user = await requireDizleeSession();
@@ -44,21 +47,19 @@ export async function POST(request: Request) {
   }
 
   try {
-    const body = (await request.json()) as {
-      audience?: BroadcastAudience;
-      subject?: string;
-      message?: string;
-      body?: string;
-      opcoIds?: string[];
-      partnerIds?: string[];
-      messageSource?: BroadcastMessageSource;
-      month?: number;
-      year?: number;
-      priority?: string | null;
-      expiresAt?: string | null;
-      attachmentFileIds?: string[];
-    };
+    let raw: unknown;
+    try {
+      raw = await request.json();
+    } catch {
+      return validationFailed();
+    }
 
+    const parsed = sendBroadcastBodySchema.safeParse(raw);
+    if (!parsed.success) {
+      return validationFailed(parsed.error.flatten().fieldErrors);
+    }
+
+    const body = parsed.data;
     const result = await sendBroadcastNotification({
       input: {
         audience: body.audience ?? "opco",

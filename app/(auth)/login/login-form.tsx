@@ -10,9 +10,10 @@ import { FieldLabel } from "@/components/ui/field";
 import { FullPageLoading } from "@/components/ui/loading";
 import { startNavigationProgress } from "@/components/ui/navigation-progress";
 import { useToast } from "@/components/ui/toast";
-import { formatErrorDisplay } from "@/lib/errors/format";
 import { ERROR_CATALOG } from "@/lib/errors/catalog";
+import { formatAppError } from "@/lib/errors/format";
 import { getMainPortalHomePath } from "@/lib/auth/roles";
+import { safeMainPortalCallbackUrl } from "@/lib/auth/safe-callback-url";
 import { isMainPortalRole } from "@/lib/auth/scopes";
 import { ui } from "@/lib/ui/classes";
 
@@ -21,18 +22,15 @@ const LOGIN_ERROR_KEYS: Record<string, keyof typeof ERROR_CATALOG> = {
   MissingOpcoScope: "UNAUTHORIZED",
   MissingPartnerScope: "UNAUTHORIZED",
   CredentialsSignin: "INVALID_CREDENTIALS",
+  RATE_LIMITED: "RATE_LIMITED",
 };
 
 function formatLoginError(code: string | null | undefined): string {
   if (!code) {
-    return formatErrorDisplay(
-      ERROR_CATALOG.SYSTEM_ERROR.code,
-      ERROR_CATALOG.SYSTEM_ERROR.message,
-    );
+    return formatAppError("SYSTEM_ERROR", "Login failed. Please try again.");
   }
   const key = LOGIN_ERROR_KEYS[code] ?? "INVALID_CREDENTIALS";
-  const def = ERROR_CATALOG[key];
-  return formatErrorDisplay(def.code, def.message);
+  return formatAppError(key);
 }
 
 export function LoginForm() {
@@ -62,7 +60,11 @@ export function LoginForm() {
       });
 
       if (!result?.ok) {
-        setError(formatLoginError("CredentialsSignin"));
+        setError(
+          formatLoginError(
+            result?.status === 429 ? "RATE_LIMITED" : "CredentialsSignin",
+          ),
+        );
         setIsSubmitting(false);
         return;
       }
@@ -80,9 +82,10 @@ export function LoginForm() {
       }
 
       const destination =
-        callbackUrl && mainRoleMayAccessCallback(role, callbackUrl)
-          ? callbackUrl
-          : getMainPortalHomePath(role);
+        safeMainPortalCallbackUrl(
+          role as "opco" | "client" | "partner",
+          callbackUrl,
+        ) ?? getMainPortalHomePath(role);
 
       startNavigationProgress();
       router.push(destination);
@@ -174,19 +177,4 @@ export function LoginForm() {
       </form>
     </>
   );
-}
-
-function mainRoleMayAccessCallback(
-  role: "opco" | "client" | "partner",
-  callbackUrl: string,
-): boolean {
-  try {
-    const path = new URL(callbackUrl, "http://localhost").pathname;
-    if (role === "client") return path.startsWith("/dizlee");
-    if (role === "opco") return path.startsWith("/opco");
-    if (role === "partner") return path.startsWith("/partner");
-    return false;
-  } catch {
-    return false;
-  }
 }

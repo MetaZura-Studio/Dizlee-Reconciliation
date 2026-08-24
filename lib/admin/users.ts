@@ -308,7 +308,7 @@ export async function createUser(
 
 async function getEditableUser(userId: string) {
   const user = await prisma.user.findFirst({
-    where: { id: BigInt(userId) },
+    where: { id: BigInt(userId), isDeleted: false },
     include: {
       role: true,
       status: true,

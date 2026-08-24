@@ -1,19 +1,23 @@
 /**
- * Dizlee Revenue Share Report: readiness + OpCo line rows for Excel export.
+ * Dizlee Revenue Share Report: readiness + OpCo/Partner USD rows for Excel export.
  *
  * Formulas:
- * - Gross Amount = OpCo line amount
- * - Revenue Share % = report_line_items.revenue_share_percent
+ * - OpCo USD = OpCo local amount × Admin monthly USD rate
+ * - Partner USD = Partner line amount (already USD)
+ * - Revenue Share % = OpCo report_line_items.revenue_share_percent
  *   (fallback: sourceColumns.revenue_share_percent for older rows)
- * - Regulatory Fee = Gross × OpCo vatPercent / 100 (Admin tax % on the OpCo)
- * - Net Revenue = Gross Amount − Regulatory Fee
+ * - Regulatory Fee = OpCo USD × OpCo vatPercent / 100 (fee on the OpCo record)
+ * - Net Revenue = OpCo USD − Regulatory Fee
  *
- * Gate: latest OpCo report and latest Partner report for every linked Partner.
+ * Gate: latest OpCo report and latest Partner report for every Partner
+ * that appears in the OpCo file for the period (not every linked Partner).
  */
 
 import { currentPeriod, type DashboardPeriod } from "@/lib/dizlee/dashboard";
+import { normalizeServiceName } from "@/lib/dizlee/reconciliation/compare";
 import { DomainError } from "@/lib/errors/app-error";
 import { ACTIVE_OPCO_PARTNER_LINK_FILTER } from "@/lib/platform/opco-partner-links";
+import { applyReportFxToAmount, getOpcoReportFx } from "@/lib/platform/report-fx";
 import { prisma } from "@/lib/prisma";
 
 export type RevenueShareReadinessPartner = {
@@ -39,7 +43,8 @@ export type RevenueShareReadiness = {
 export type RevenueShareLine = {
   partnerName: string;
   serviceName: string;
-  grossAmount: number;
+  opcoAmountUsd: number | null;
+  partnerAmountUsd: number | null;
   regulatoryFee: number;
   netRevenue: number;
   revenueSharePercent: number | null;
@@ -122,20 +127,25 @@ export function netRevenueFromGross(grossAmount: number, regulatoryFee: number):
 export function buildRevenueShareLine(input: {
   partnerName: string;
   serviceName: string;
-  amount: number | null;
+  opcoAmountUsd: number | null;
+  partnerAmountUsd?: number | null;
   vatPercent: number;
   revenueSharePercent?: unknown;
   sourceColumns?: unknown;
 }): RevenueShareLine {
   const source = parseSourceRecord(input.sourceColumns);
-  const grossAmount = input.amount ?? 0;
-  const regulatoryFee = regulatoryFeeFromVatPercent(grossAmount, input.vatPercent);
+  const opcoAmountUsd = input.opcoAmountUsd;
+  const partnerAmountUsd =
+    input.partnerAmountUsd === undefined ? null : input.partnerAmountUsd;
+  const grossForFee = opcoAmountUsd ?? 0;
+  const regulatoryFee = regulatoryFeeFromVatPercent(grossForFee, input.vatPercent);
   return {
     partnerName: input.partnerName,
     serviceName: input.serviceName,
-    grossAmount,
+    opcoAmountUsd,
+    partnerAmountUsd,
     regulatoryFee,
-    netRevenue: netRevenueFromGross(grossAmount, regulatoryFee),
+    netRevenue: netRevenueFromGross(grossForFee, regulatoryFee),
     revenueSharePercent: resolveRevenueSharePercent({
       revenueSharePercent: input.revenueSharePercent,
       sourceColumns: source,
@@ -171,6 +181,49 @@ type ReportLite = {
   partner: { name: string };
 };
 
+function serviceNameFromLine(item: {
+  description: string | null;
+  sourceColumns: unknown;
+}): string {
+  const source = parseSourceRecord(item.sourceColumns);
+  return (
+    item.description?.trim() ||
+    String(source.service_name ?? source.servicename ?? "").trim() ||
+    "—"
+  );
+}
+
+type AggregatedServiceLine = {
+  serviceName: string;
+  amount: number;
+  revenueSharePercent: unknown;
+  sourceColumns: unknown;
+};
+
+function aggregateLinesByService(
+  items: ReportLite["lineItems"],
+  toUsd: (amount: number | null) => number,
+): Map<string, AggregatedServiceLine> {
+  const map = new Map<string, AggregatedServiceLine>();
+  items.forEach((item, index) => {
+    const serviceName = serviceNameFromLine(item);
+    const key = normalizeServiceName(serviceName, index + 1);
+    const amount = toUsd(toFiniteNumber(item.amount));
+    const existing = map.get(key);
+    if (existing) {
+      existing.amount += amount;
+      return;
+    }
+    map.set(key, {
+      serviceName,
+      amount,
+      revenueSharePercent: item.revenueSharePercent,
+      sourceColumns: item.sourceColumns,
+    });
+  });
+  return map;
+}
+
 function latestByPartner(reports: ReportLite[]): Map<string, ReportLite> {
   const map = new Map<string, ReportLite>();
   for (const report of reports) {
@@ -181,6 +234,23 @@ function latestByPartner(reports: ReportLite[]): Map<string, ReportLite> {
     }
   }
   return map;
+}
+
+/** Revenue share only lists partners the OpCo submitted for the period. */
+export function revenueShareReadinessFromPartnerRows(
+  partners: RevenueShareReadinessPartner[],
+  linkedCount: number,
+): Pick<RevenueShareReadiness, "partners" | "missing" | "ready" | "linkedCount"> {
+  const submitted = partners.filter((partner) => partner.hasOpcoReport);
+  const missing = submitted
+    .filter((partner) => !partner.hasPartnerReport)
+    .map((partner) => `${partner.partnerName} (Partner report)`);
+  return {
+    linkedCount,
+    partners: submitted,
+    missing,
+    ready: submitted.length > 0 && missing.length === 0,
+  };
 }
 
 const reportSelect = {
@@ -268,20 +338,12 @@ export async function getRevenueShareReadiness(params: {
     };
   });
 
-  const inOpcoFile = partners.filter((partner) => partner.hasOpcoReport);
-  const missing = inOpcoFile
-    .filter((partner) => !partner.hasPartnerReport)
-    .map((partner) => `${partner.partnerName} (Partner report)`);
-
   return {
     opcoId: opco.id.toString(),
     opcoName: opco.name,
     vatPercent: vatPercentFromOpco(opco.vatPercent),
     period: periodFromParts(params.month, params.year),
-    linkedCount: links.length,
-    ready: inOpcoFile.length > 0 && missing.length === 0,
-    missing,
-    partners,
+    ...revenueShareReadinessFromPartnerRows(partners, links.length),
   };
 }
 
@@ -295,42 +357,69 @@ export async function buildRevenueShareReport(params: {
     throw new RevenueShareError(
       readiness.linkedCount === 0
         ? "This OpCo has no linked Partners."
-        : readiness.partners.every((partner) => !partner.hasOpcoReport)
+        : readiness.partners.length === 0
           ? "Upload the OpCo bulk report for this period first."
           : `Upload missing reports first: ${readiness.missing.join(", ")}.`,
       400,
     );
   }
 
-  const opcoReports = latestByPartner(
-    await loadPeriodReports({
+  const [opcoReports, partnerReports, fx] = await Promise.all([
+    loadPeriodReports({
       opcoId: BigInt(params.opcoId),
       month: params.month,
       year: params.year,
       roleCode: "OPCO",
+    }).then(latestByPartner),
+    loadPeriodReports({
+      opcoId: BigInt(params.opcoId),
+      month: params.month,
+      year: params.year,
+      roleCode: "PARTNER",
+    }).then(latestByPartner),
+    getOpcoReportFx({
+      opcoId: BigInt(params.opcoId),
+      month: params.month,
+      year: params.year,
     }),
-  );
+  ]);
+
+  if (fx.rateToUsd === null) {
+    throw new RevenueShareError(
+      `No USD rate for ${fx.currencyCode} in this period. Set it in Admin Currencies before generating the RS report.`,
+      400,
+    );
+  }
 
   const lines: RevenueShareLine[] = [];
   for (const partner of readiness.partners) {
-    const report = opcoReports.get(partner.partnerId);
-    if (!report) {
-      continue;
-    }
-    for (const item of report.lineItems) {
-      const source = parseSourceRecord(item.sourceColumns);
-      const serviceName =
-        item.description?.trim() ||
-        String(source.service_name ?? source.servicename ?? "").trim() ||
-        "—";
+    const opcoReport = opcoReports.get(partner.partnerId);
+    const partnerReport = partnerReports.get(partner.partnerId);
+    const opcoByService = aggregateLinesByService(opcoReport?.lineItems ?? [], (amount) => {
+      const converted = applyReportFxToAmount(amount, fx.rateToUsd);
+      return converted.amountUsd === null ? 0 : Number(converted.amountUsd);
+    });
+    const partnerByService = aggregateLinesByService(
+      partnerReport?.lineItems ?? [],
+      (amount) => amount ?? 0,
+    );
+    const serviceKeys = new Set([
+      ...opcoByService.keys(),
+      ...partnerByService.keys(),
+    ]);
+
+    for (const key of [...serviceKeys].sort()) {
+      const opco = opcoByService.get(key);
+      const partnerLine = partnerByService.get(key);
       lines.push(
         buildRevenueShareLine({
-          partnerName: report.partner.name,
-          serviceName,
-          amount: toFiniteNumber(item.amount),
+          partnerName: partner.partnerName,
+          serviceName: opco?.serviceName ?? partnerLine?.serviceName ?? "—",
+          opcoAmountUsd: opco ? opco.amount : null,
+          partnerAmountUsd: partnerLine ? partnerLine.amount : null,
           vatPercent: readiness.vatPercent,
-          revenueSharePercent: item.revenueSharePercent,
-          sourceColumns: item.sourceColumns,
+          revenueSharePercent: opco?.revenueSharePercent,
+          sourceColumns: opco?.sourceColumns,
         }),
       );
     }

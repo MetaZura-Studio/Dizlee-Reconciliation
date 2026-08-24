@@ -3,6 +3,8 @@
  */
 export type ServicePartnerMapListItem = {
   id: string;
+  opcoId: string;
+  opcoName: string;
   serviceName: string;
   serviceKey: string;
   partnerId: string;

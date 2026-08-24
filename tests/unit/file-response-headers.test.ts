@@ -57,6 +57,33 @@ describe("buildFileResponseHeaders", () => {
     });
     expect(headers["Content-Disposition"]).toMatch(/^attachment;/);
     expect(isInlinePreviewableMime(headers["Content-Type"])).toBe(false);
+    expect(headers["X-Content-Type-Options"]).toBe("nosniff");
+  });
+
+  it("never serves SVG or HTML inline", () => {
+    expect(isInlinePreviewableMime("image/svg+xml")).toBe(false);
+    expect(isInlinePreviewableMime("text/html")).toBe(false);
+    const svg = buildFileResponseHeaders({
+      filename: "evil.svg",
+      mimeType: "image/svg+xml",
+    });
+    expect(svg["Content-Disposition"]).toMatch(/^attachment;/);
+    expect(svg["X-Content-Type-Options"]).toBe("nosniff");
+
+    const html = buildFileResponseHeaders({
+      filename: "page.html",
+      mimeType: "text/html",
+    });
+    expect(html["Content-Disposition"]).toMatch(/^attachment;/);
+  });
+
+  it("forceAttachment overrides inline preview", () => {
+    const headers = buildFileResponseHeaders({
+      filename: "shot.png",
+      mimeType: "image/png",
+      forceAttachment: true,
+    });
+    expect(headers["Content-Disposition"]).toMatch(/^attachment;/);
   });
 });
 

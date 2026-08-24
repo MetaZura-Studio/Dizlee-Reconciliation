@@ -8,6 +8,7 @@ import { jsonError, unauthorized } from "@/lib/errors/respond";
 
 import { requireDizleeSession } from "@/lib/dizlee/auth";
 import { rejectReuploadRequest } from "@/lib/dizlee/reupload-requests";
+import { rejectReuploadBodySchema } from "@/lib/dizlee/validation/api-bodies";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -23,8 +24,12 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   let decisionNote: string | undefined;
   try {
-    const body = (await request.json()) as { decisionNote?: string };
-    decisionNote = body.decisionNote;
+    const raw = await request.json();
+    const parsed = rejectReuploadBodySchema.safeParse(raw);
+    // Empty / odd bodies still allow reject; only use note when shape is OK.
+    if (parsed.success) {
+      decisionNote = parsed.data.decisionNote;
+    }
   } catch {
     decisionNote = undefined;
   }

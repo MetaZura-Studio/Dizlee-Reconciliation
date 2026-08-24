@@ -6,6 +6,11 @@
 import type { Prisma } from "@prisma/client";
 
 import { currentPeriod, type DashboardPeriod } from "@/lib/dizlee/dashboard";
+import { applyReportFxToAmount, getReportFx } from "@/lib/platform/report-fx";
+import {
+  PARTNER_REPORT_VERSION,
+  type ReportUploaderSide,
+} from "@/lib/platform/reports/sides";
 import { prisma } from "@/lib/prisma";
 
 export type ReportSortField = "uploaded" | "period" | "opco" | "partner";
@@ -45,10 +50,11 @@ export type ReportListResult = {
 export type ReportLineItem = {
   lineNumber: number;
   description: string | null;
+  amount: string | null;
+  amountUsd: string | null;
+  exchangeRate: string | null;
   usageAmount: string | null;
   usageUsd: string | null;
-  amount: string | null;
-  exchangeRate: string | null;
   usageUnit: string | null;
   reconciliationBasis: string | null;
 };
@@ -66,6 +72,8 @@ export type ReportDetail = {
   fileSizeBytes: number | null;
   previewUrl: string | null;
   lineItemCount: number;
+  currencyCode: string;
+  side: ReportUploaderSide;
   lineItems: ReportLineItem[];
 };
 
@@ -173,6 +181,7 @@ export async function listReports(
   const where: Prisma.ReportWhereInput = {
     month: filters.month,
     year: filters.year,
+    isDeleted: false,
   };
 
   if (filters.opcoId) {
@@ -236,11 +245,12 @@ function decimalToString(value: Prisma.Decimal | null | undefined): string | nul
 
 export async function getReportDetail(id: string): Promise<ReportDetail | null> {
   const report = await prisma.report.findFirst({
-    where: { id: BigInt(id) },
+    where: { id: BigInt(id), isDeleted: false },
     include: {
       opco: { select: { name: true } },
       partner: { select: { name: true } },
       status: { select: { code: true } },
+      currency: { select: { id: true, isoCode: true } },
       file: { select: { id: true, filename: true, sizeBytes: true } },
       uploadedByUser: { select: { role: { select: { code: true } } } },
       lineItems: {
@@ -264,6 +274,16 @@ export async function getReportDetail(id: string): Promise<ReportDetail | null> 
   }
 
   const fileId = report.file?.id.toString() ?? null;
+  const side: ReportUploaderSide =
+    report.version === PARTNER_REPORT_VERSION ? "partner" : "opco";
+  const fx =
+    side === "opco"
+      ? await getReportFx({
+          currencyId: report.currency.id,
+          month: report.month,
+          year: report.year,
+        })
+      : { currencyCode: "USD", rateToUsd: 1 };
 
   return {
     id: report.id.toString(),
@@ -278,16 +298,36 @@ export async function getReportDetail(id: string): Promise<ReportDetail | null> 
     fileSizeBytes: report.file?.sizeBytes ? Number(report.file.sizeBytes) : null,
     previewUrl: fileId ? `/api/dizlee/reports/${report.id.toString()}/preview` : null,
     lineItemCount: report.lineItems.length,
-    lineItems: report.lineItems.map((item) => ({
-      lineNumber: item.lineNumber,
-      description: item.description,
-      usageAmount: decimalToString(item.usageAmount),
-      usageUsd: decimalToString(item.usageUsd),
-      amount: decimalToString(item.amount),
-      exchangeRate: decimalToString(item.exchangeRate),
-      usageUnit: item.usageUnit,
-      reconciliationBasis: item.reconciliationBasis,
-    })),
+    currencyCode: fx.currencyCode,
+    side,
+    lineItems: report.lineItems.map((item) => {
+      const localAmount = decimalToString(item.amount);
+      if (side === "partner") {
+        return {
+          lineNumber: item.lineNumber,
+          description: item.description,
+          usageAmount: decimalToString(item.usageAmount),
+          usageUsd: decimalToString(item.usageUsd),
+          amount: localAmount,
+          amountUsd: localAmount,
+          exchangeRate: null,
+          usageUnit: item.usageUnit,
+          reconciliationBasis: item.reconciliationBasis,
+        };
+      }
+      const converted = applyReportFxToAmount(localAmount, fx.rateToUsd);
+      return {
+        lineNumber: item.lineNumber,
+        description: item.description,
+        usageAmount: decimalToString(item.usageAmount),
+        usageUsd: decimalToString(item.usageUsd),
+        amount: localAmount,
+        amountUsd: converted.amountUsd,
+        exchangeRate: converted.exchangeRate,
+        usageUnit: item.usageUnit,
+        reconciliationBasis: item.reconciliationBasis,
+      };
+    }),
   };
 }
 

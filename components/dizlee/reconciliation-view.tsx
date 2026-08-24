@@ -30,7 +30,6 @@ import { useToast } from "@/components/ui/toast";
 import { ListPagination } from "@/components/ui/list-pagination";
 import { ListSearch, OrFiltersDivider } from "@/components/ui/list-search";
 import { LoadingOverlay } from "@/components/ui/loading";
-import { SuccessDialog } from "@/components/ui/success-dialog";
 import type { ReportFilterOptions } from "@/lib/dizlee/reports";
 import type {
   CompareLaneFilters,
@@ -208,10 +207,6 @@ export function ReconciliationView({
   const toast = useToast();
   const [remindLane, setRemindLane] = useState<CompareLaneRow | null>(null);
   const [reconcilingLabel, setReconcilingLabel] = useState<string | null>(null);
-  const [runSuccess, setRunSuccess] = useState<{
-    id: number;
-    message: string;
-  } | null>(null);
 
   const loadLanes = useCallback(async (filters: CompareLaneFilters) => {
     setLoading(true);
@@ -405,22 +400,8 @@ export function ReconciliationView({
       if (!response.ok) {
         throw new Error(formatAppError(payload, "Failed to run reconciliation"));
       }
-      await loadLanes({
-        month,
-        year,
-        searchBy,
-        entityId: debouncedLaneSearch.trim() ? undefined : entityId || undefined,
-        search: debouncedLaneSearch.trim() || undefined,
-        status: laneStatus,
-        sortBy: compareSortBy,
-        sortDir: compareSortDir,
-      });
-      setRunSuccess({
-        id: payload.data.id as number,
-        message:
-          (payload.data.message as string | undefined) ??
-          "Reconciliation completed successfully.",
-      });
+      const reconciliationId = payload.data.id as number;
+      openReconciliationResult(reconciliationId);
     } catch (runError) {
       setError(
         runError instanceof Error ? runError.message : "Failed to run reconciliation",
@@ -900,22 +881,6 @@ export function ReconciliationView({
           }}
         />
       ) : null}
-
-      <SuccessDialog
-        open={runSuccess !== null}
-        title="Reconciliation complete"
-        message={
-          runSuccess?.message ?? "Reconciliation completed successfully."
-        }
-        actionLabel="View result"
-        onAction={() => {
-          const id = runSuccess?.id;
-          setRunSuccess(null);
-          if (id != null) {
-            openReconciliationResult(id);
-          }
-        }}
-      />
     </div>
   );
 }

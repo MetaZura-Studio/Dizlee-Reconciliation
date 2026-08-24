@@ -6,7 +6,7 @@
 
 import { NextResponse } from "next/server";
 import { jsonError, unauthorized } from "@/lib/errors/respond";
-import { appErrorFromUnknown } from "@/lib/errors/app-error";
+import { appError, appErrorFromUnknown } from "@/lib/errors/app-error";
 
 import {
   assertOpcoMappingReady,
@@ -14,14 +14,10 @@ import {
 } from "@/lib/opco/excel/parse-mapped-opco-report";
 import {
   parseReportWorkbook,
-  ReportParseError,
   type ParsedReportLine,
 } from "@/lib/opco/excel/parse-report";
 import { getOpcoSession } from "@/lib/opco/auth";
-import {
-  createReportUpload,
-  ReportUploadError,
-} from "@/lib/opco/queries/upload-report";
+import { createReportUpload } from "@/lib/opco/queries/upload-report";
 import {
   resolvePartnerColumnLinesToBuckets,
   PartnerColumnResolveError,
@@ -37,8 +33,9 @@ import {
 } from "@/lib/opco/validation/report-upload";
 import { getOpcoReportMappingByOpcoId } from "@/lib/admin/opco-report-mappings";
 import { parseStoredSampleHeaders } from "@/lib/admin/opco-report-mapping-excel";
+import { findUnlinkedPartnersInOpcoFile } from "@/lib/opco/queries/unlinked-partners-in-file";
+import { hasUnlinkedPartnersInFile } from "@/lib/opco/unlinked-partners-in-file.shared";
 import type { ResolvedServicePartnerLine } from "@/lib/platform/service-partner-map";
-import { storageDiagnostics } from "@/lib/platform/storage/object-storage";
 
 function toParsedLines(lines: ResolvedServicePartnerLine[]): ParsedReportLine[] {
   return lines.map((line, index) => ({
@@ -183,6 +180,16 @@ export async function POST(request: Request) {
     }
 
     const parsed = await parseOpcoReportWithMapping(buffer, mapping);
+    const unmatched = await findUnlinkedPartnersInOpcoFile({
+      opcoId,
+      partnerMode: mapping.partnerMode,
+      partnerColumnLines: parsed.partnerColumnLines,
+      serviceMapLines: parsed.serviceMapLines,
+    });
+    if (hasUnlinkedPartnersInFile(unmatched)) {
+      return jsonError(appError("OPCO_UNLINKED_PARTNERS_IN_FILE"), unmatched);
+    }
+
     const buckets =
       mapping.partnerMode === "EXCEL_COLUMN"
         ? await resolvePartnerColumnLinesToBuckets({
@@ -223,22 +230,14 @@ export async function POST(request: Request) {
   } catch (error) {
     if (
       error instanceof ServicePartnerResolveError ||
-      error instanceof PartnerColumnResolveError ||
-      error instanceof ReportParseError
+      error instanceof PartnerColumnResolveError
     ) {
-      const status =
-        error instanceof ServicePartnerResolveError ||
-        error instanceof PartnerColumnResolveError
-          ? error.status
-          : 400;
-      return NextResponse.json({ error: error.message }, { status });
-    }
-    if (error instanceof ReportUploadError) {
+      // Intentional user-facing mapping hints (not storage/infra details).
       return NextResponse.json(
         { error: error.message },
         { status: error.status },
       );
     }
-    return jsonError(error, { storage: storageDiagnostics() });
+    return jsonError(error);
   }
 }
