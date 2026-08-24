@@ -190,6 +190,7 @@ export function ReportReuploadDialog({
         <ReportUploadReviewModal
           filename={review.filename}
           subtitle={`${report.partnerName} — ${formatPeriodLabel(report.year, report.month)}`}
+          side="opco"
           fileSizeLabel={review.fileSizeLabel}
           rawRows={review.rawRows}
           rawSheetName={review.sheetName}

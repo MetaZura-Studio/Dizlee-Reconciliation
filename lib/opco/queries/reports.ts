@@ -11,6 +11,7 @@ import { formatPeriodLabel } from "@/lib/opco/period";
 import { getLinkedPartnersForOpco } from "@/lib/opco/queries/partners";
 import { mapReuploadEligibility } from "@/lib/opco/reupload/eligibility";
 import { OPCO_REPORT_VERSION } from "@/lib/platform/reports/sides";
+import { applyReportFxToAmount, getReportFx } from "@/lib/platform/report-fx";
 import prisma from "@/lib/prisma";
 
 export type OpcoReportSortField = "uploaded" | "period" | "partner";
@@ -54,10 +55,11 @@ export type OpcoReportListResult = {
 export type OpcoReportLineItem = {
   lineNumber: number;
   description: string | null;
+  amount: string | null;
+  amountUsd: string | null;
+  exchangeRate: string | null;
   usageAmount: string | null;
   usageUsd: string | null;
-  amount: string | null;
-  exchangeRate: string | null;
   usageUnit: string | null;
   reconciliationBasis: string | null;
 };
@@ -74,6 +76,7 @@ export type OpcoReportDetail = {
   fileSizeBytes: number | null;
   uploadedAt: string;
   lineItemCount: number;
+  currencyCode: string;
   lineItems: OpcoReportLineItem[];
   hasPendingChangeRequest: boolean;
   canReupload: boolean;
@@ -108,6 +111,7 @@ function buildWhere(
   const where: Prisma.ReportWhereInput = {
     opcoId,
     version: OPCO_REPORT_VERSION,
+    isDeleted: false,
   };
 
   if (filters.year !== undefined) {
@@ -150,15 +154,21 @@ function mapLineItem(
     exchangeRate: Prisma.Decimal | null;
     usageUnit: string | null;
     reconciliationBasis: string | null;
+    rateToUsd: number | null;
   },
 ): OpcoReportLineItem {
+  const converted = applyReportFxToAmount(
+    decimalToString(item.amount),
+    item.rateToUsd,
+  );
   return {
     lineNumber: item.lineNumber,
     description: item.description,
     usageAmount: decimalToString(item.usageAmount),
     usageUsd: decimalToString(item.usageUsd),
     amount: decimalToString(item.amount),
-    exchangeRate: decimalToString(item.exchangeRate),
+    amountUsd: converted.amountUsd,
+    exchangeRate: converted.exchangeRate,
     usageUnit: item.usageUnit,
     reconciliationBasis: item.reconciliationBasis,
   };
@@ -290,10 +300,12 @@ export async function getReportDetailForOpco(
       id: reportId,
       opcoId,
       version: OPCO_REPORT_VERSION,
+      isDeleted: false,
     },
     include: {
       partner: { select: { name: true } },
       status: { select: { code: true, label: true } },
+      currency: { select: { id: true } },
       file: { select: { filename: true, sizeBytes: true } },
       lineItems: {
         orderBy: { lineNumber: "asc" },
@@ -313,6 +325,12 @@ export async function getReportDetailForOpco(
     return null;
   }
 
+  const fx = await getReportFx({
+    currencyId: report.currency.id,
+    month: report.month,
+    year: report.year,
+  });
+
   return {
     id: report.id.toString(),
     partnerName: report.partner.name,
@@ -325,7 +343,10 @@ export async function getReportDetailForOpco(
     fileSizeBytes: report.file?.sizeBytes ? Number(report.file.sizeBytes) : null,
     uploadedAt: report.createdAt.toISOString(),
     lineItemCount: report.lineItems.length,
-    lineItems: report.lineItems.map(mapLineItem),
+    currencyCode: fx.currencyCode,
+    lineItems: report.lineItems.map((item) =>
+      mapLineItem({ ...item, rateToUsd: fx.rateToUsd }),
+    ),
     hasPendingChangeRequest: report.changeRequests.some(
       (request) => request.decidedAt === null,
     ),

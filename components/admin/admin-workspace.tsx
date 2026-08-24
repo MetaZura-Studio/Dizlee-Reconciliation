@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { AppShell, type AppShellNavItem } from "@/components/layout/app-shell";
+import { AdminNotificationsBell } from "@/components/admin/notifications-bell";
 import { IconChevronLeft, IconChevronRight } from "@/components/ui/icons";
 import {
   ADMIN_FOOTER_NAV_ITEMS,
@@ -27,6 +28,9 @@ function mapIcon(icon: string): AppShellNavItem["icon"] {
   }
   if (icon === "settings" || icon === "email-settings" || icon === "reminder" || icon === "tolerance" || icon === "currencies" || icon === "bank" || icon === "email-templates") {
     return "settings";
+  }
+  if (icon === "notifications") {
+    return "bell";
   }
   if (icon === "audit") {
     return "home";
@@ -65,6 +69,7 @@ const NAV: AppShellNavItem[] = [
 
 type AdminWorkspaceProps = {
   user: AdminSessionUser;
+  unreadCount?: number;
   children: React.ReactNode;
 };
 
@@ -164,13 +169,14 @@ function AdminProfileMenu({
   );
 }
 
-export function AdminWorkspace({ user, children }: AdminWorkspaceProps) {
+export function AdminWorkspace({ user, unreadCount = 0, children }: AdminWorkspaceProps) {
   return (
     <AppShell
       brand=""
       subtitle="Admin workspace"
       storageKey="admin-sidebar-collapsed"
       navItems={NAV}
+      headerRight={<AdminNotificationsBell initialUnreadCount={unreadCount} />}
       footerSlot={(collapsed, toggleCollapsed) => (
         <AdminProfileMenu
           user={user}

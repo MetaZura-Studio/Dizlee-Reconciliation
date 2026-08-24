@@ -2,21 +2,43 @@
  * NextAuth configuration: credentials login, JWT sessions, and scoped role enforcement.
  * Consumed by the auth route handler and all getServerSession callers.
  * Login scope `admin` allows admin only; `main` allows opco, partner, and client roles.
+ * JWT callback revalidates ACTIVE + not-deleted so suspend/delete kicks in within ~30s.
  */
 
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { z } from "zod";
 
+import {
+  loadActiveAuthUser,
+  shouldRevalidateAuthUser,
+} from "@/lib/auth/active-user";
 import { verifyPassword } from "@/lib/auth/password";
 import { writeUserSessionAuditLog } from "@/lib/auth/audit";
+import {
+  AUTH_RATE_LIMITS,
+  consumeRateLimit,
+  normalizeRateLimitEmail,
+} from "@/lib/auth/rate-limit";
 import {
   isAuthLoginScope,
   roleAllowedForLoginScope,
   type AuthLoginScope,
 } from "@/lib/auth/scopes";
 import { isAppRole, normalizeRoleCode } from "@/lib/auth/types";
+import { buildAuthCookies } from "@/lib/auth/cookies";
 import prisma from "@/lib/prisma";
+import type { JWT } from "next-auth/jwt";
+
+function clearAuthClaims(token: JWT): JWT {
+  token.userId = undefined;
+  token.role = undefined;
+  token.opcoId = undefined;
+  token.partnerId = undefined;
+  token.error = "InactiveUser";
+  token.lastValidatedAt = Date.now();
+  return token;
+}
 
 const credentialsSchema = z.object({
   email: z.string().email(),
@@ -27,8 +49,13 @@ const credentialsSchema = z.object({
 export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
-    maxAge: 8 * 60 * 60,
+    // Short-lived sessions: suspended/deleted users lose access within this window at worst.
+    maxAge: 15 * 60,
+    // Refresh the JWT often so inactive/suspended users are dropped quickly.
+    updateAge: 60,
   },
+  // Explicit cookie flags (SameSite=Lax, HttpOnly, Secure on HTTPS) — see docs/AUTH_SESSION.md
+  cookies: buildAuthCookies(),
   pages: {
     signIn: "/login",
   },
@@ -47,6 +74,17 @@ export const authOptions: NextAuthOptions = {
         }
 
         const { email, password, scope: rawScope } = parsed.data;
+
+        const emailKey = normalizeRateLimitEmail(email);
+        const emailLimit = consumeRateLimit({
+          key: `login:email:${emailKey}`,
+          limit: AUTH_RATE_LIMITS.loginEmail.limit,
+          windowMs: AUTH_RATE_LIMITS.loginEmail.windowMs,
+        });
+        if (!emailLimit.allowed) {
+          return null;
+        }
+
         let scope: AuthLoginScope = "main";
         if (rawScope && isAuthLoginScope(rawScope)) {
           scope = rawScope;
@@ -54,7 +92,7 @@ export const authOptions: NextAuthOptions = {
 
         const user = await prisma.user.findFirst({
           where: {
-            email: email.toLowerCase(),
+            email: emailKey,
             isDeleted: false,
           },
           include: {
@@ -117,15 +155,61 @@ export const authOptions: NextAuthOptions = {
         token.role = user.role;
         token.opcoId = user.opcoId;
         token.partnerId = user.partnerId;
+        token.error = undefined;
+        token.lastValidatedAt = Date.now();
+        return token;
       }
+
+      if (!token.userId || token.error === "InactiveUser") {
+        if (token.error === "InactiveUser") {
+          return clearAuthClaims(token);
+        }
+        return token;
+      }
+
+      if (!shouldRevalidateAuthUser(token.lastValidatedAt)) {
+        return token;
+      }
+
+      const active = await loadActiveAuthUser(token.userId);
+      if (!active) {
+        return clearAuthClaims(token);
+      }
+
+      token.userId = active.id;
+      token.role = active.role;
+      token.opcoId = active.opcoId;
+      token.partnerId = active.partnerId;
+      token.email = active.email;
+      token.error = undefined;
+      token.lastValidatedAt = Date.now();
       return token;
     },
     async session({ session, token }) {
-      if (session.user && token.userId && token.role) {
+      if (
+        token.error === "InactiveUser" ||
+        !token.userId ||
+        !token.role ||
+        !isAppRole(token.role)
+      ) {
+        // Leave session without app claims so portal/API guards treat as logged out.
+        if (session.user) {
+          delete (session.user as { id?: string }).id;
+          delete (session.user as { role?: unknown }).role;
+          session.user.opcoId = null;
+          session.user.partnerId = null;
+        }
+        return session;
+      }
+
+      if (session.user) {
         session.user.id = token.userId;
         session.user.role = token.role;
         session.user.opcoId = token.opcoId ?? null;
         session.user.partnerId = token.partnerId ?? null;
+        if (token.email) {
+          session.user.email = token.email;
+        }
       }
       return session;
     },

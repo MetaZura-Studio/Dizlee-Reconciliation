@@ -118,6 +118,7 @@ function buildWhere(
   const where: Prisma.InvoiceWhereInput = {
     opcoId,
     invoiceType: { code: "CLIENT_TO_OPCO" },
+    isDeleted: false,
   };
 
   if (filters.year !== undefined) {
@@ -304,6 +305,7 @@ async function maybeAcknowledgeOpcoInvoice(
       id: invoiceId,
       opcoId,
       invoiceType: { code: "CLIENT_TO_OPCO" },
+      isDeleted: false,
     },
     include: {
       invoiceType: { select: { code: true } },
@@ -381,6 +383,7 @@ export async function getOpcoInvoiceDetailForOpco(
       id: invoiceId,
       opcoId,
       invoiceType: { code: "CLIENT_TO_OPCO" },
+      isDeleted: false,
     },
     include: invoiceDetailInclude,
   });
@@ -412,6 +415,7 @@ export async function getOpcoInvoiceDetailForViewer(
       id: invoiceId,
       opcoId,
       invoiceType: { code: "CLIENT_TO_OPCO" },
+      isDeleted: false,
     },
     include: invoiceDetailInclude,
   });

@@ -654,6 +654,7 @@ export async function listInvoices(
   const where: Prisma.InvoiceWhereInput = {
     month: filters.month,
     year: filters.year,
+    isDeleted: false,
   };
 
   if (filters.opcoId) {
@@ -741,7 +742,7 @@ export async function listInvoices(
 
 export async function getInvoiceDetail(id: string): Promise<InvoiceDetail | null> {
   const invoice = await prisma.invoice.findFirst({
-    where: { id: BigInt(id) },
+    where: { id: BigInt(id), isDeleted: false },
     include: {
       opco: { select: { name: true } },
       partner: { select: { name: true } },
@@ -805,7 +806,7 @@ async function maybeAcknowledgePartnerInvoice(
   actorUserId: string,
 ): Promise<boolean> {
   const invoice = await prisma.invoice.findFirst({
-    where: { id: BigInt(invoiceId) },
+    where: { id: BigInt(invoiceId), isDeleted: false },
     include: {
       invoiceType: { select: { code: true } },
       invoiceStatus: { select: { code: true } },

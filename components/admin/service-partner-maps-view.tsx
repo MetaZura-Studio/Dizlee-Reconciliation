@@ -20,6 +20,7 @@ import { IconPencil, IconTrash } from "@/components/ui/icons";
 import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
 import { ListPagination } from "@/components/ui/list-pagination";
 import { useToast } from "@/components/ui/toast";
+import type { OpcoListItem } from "@/lib/admin/opcos.shared";
 import type { PartnerListItem } from "@/lib/admin/partners.shared";
 import type { ServicePartnerMapListItem } from "@/lib/admin/service-partner-maps.shared";
 import { formatAppError } from "@/lib/errors/format";
@@ -27,11 +28,12 @@ import { paginateItems } from "@/lib/ui/list-pagination";
 import { ui } from "@/lib/ui/classes";
 import { nextSortState, type SortDirection } from "@/lib/ui/sort";
 
-type SortField = "serviceName" | "partnerName";
+type SortField = "opcoName" | "serviceName" | "partnerName";
 
 type ServicePartnerMapsViewProps = {
   initialMaps: ServicePartnerMapListItem[];
   partners: PartnerListItem[];
+  opcos: OpcoListItem[];
 };
 
 function compareMaps(
@@ -44,12 +46,16 @@ function compareMaps(
   if (sortBy === "partnerName") {
     return a.partnerName.localeCompare(b.partnerName) * dir;
   }
+  if (sortBy === "opcoName") {
+    return a.opcoName.localeCompare(b.opcoName) * dir;
+  }
   return a.serviceName.localeCompare(b.serviceName) * dir;
 }
 
 export function ServicePartnerMapsView({
   initialMaps,
   partners,
+  opcos,
 }: ServicePartnerMapsViewProps) {
   const [maps, setMaps] = useState(initialMaps);
   const [search, setSearch] = useState("");
@@ -73,6 +79,7 @@ export function ServicePartnerMapsView({
           return true;
         }
         return (
+          row.opcoName.toLowerCase().includes(query) ||
           row.serviceName.toLowerCase().includes(query) ||
           row.partnerName.toLowerCase().includes(query)
         );
@@ -177,7 +184,7 @@ export function ServicePartnerMapsView({
     <PageCard>
       <PageHeader
         title="Service–Partner maps"
-        description="Global Service/Application name → Partner. Used when OpCo reports have no Partner column (Iraq, Sudan)."
+        description="Per-OpCo Service/Application name → Partner. Used when OpCo reports have no Partner column."
         actions={
           <div className="flex flex-wrap gap-2">
             <Button
@@ -236,7 +243,7 @@ export function ServicePartnerMapsView({
                 setSearch(event.target.value);
                 setPage(1);
               }}
-              placeholder="Service or Partner name"
+              placeholder="OpCo, Service, or Partner name"
               className={ui.input}
             />
           </label>
@@ -261,7 +268,7 @@ export function ServicePartnerMapsView({
             title={maps.length === 0 ? "No mappings yet" : "No mappings found"}
             description={
               maps.length === 0
-                ? "Create a row or upload an Excel list of Service/Application → Partner."
+                ? "Create a row or upload an Excel list of OpCo, Partner, and Service."
                 : "No mappings match your search."
             }
           />
@@ -271,6 +278,12 @@ export function ServicePartnerMapsView({
               <DataTable>
                 <DataTableHead>
                   <tr>
+                    <SortableDataTableTh
+                      label="OpCo"
+                      active={sortBy === "opcoName"}
+                      direction={sortDir}
+                      onSort={() => applySort("opcoName")}
+                    />
                     <SortableDataTableTh
                       label="Service / Application"
                       active={sortBy === "serviceName"}
@@ -289,6 +302,9 @@ export function ServicePartnerMapsView({
                 <tbody>
                   {paged.items.map((row) => (
                     <DataTableRow key={row.id}>
+                      <DataTableTd className="text-foreground-muted">
+                        {row.opcoName}
+                      </DataTableTd>
                       <DataTableTd className="font-medium text-foreground">
                         {row.serviceName}
                       </DataTableTd>
@@ -340,6 +356,7 @@ export function ServicePartnerMapsView({
         mode={formMode}
         map={selected}
         partners={partners}
+        opcos={opcos}
         onClose={() => setFormOpen(false)}
         onSaved={(map, message) => void handleSaved(map, message)}
       />

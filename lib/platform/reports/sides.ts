@@ -26,5 +26,6 @@ export function laneReportWhere(
     year: params.year,
     month: params.month,
     version: reportVersionForSide(side),
+    isDeleted: false,
   };
 }

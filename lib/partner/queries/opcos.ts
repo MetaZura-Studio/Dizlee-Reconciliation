@@ -64,6 +64,8 @@ export async function isOpcoLinkedToPartner(
       partnerId,
       opcoId,
       ...ACTIVE_OPCO_PARTNER_LINK_FILTER,
+      opco: { isDeleted: false },
+      partner: { isDeleted: false },
     },
     select: {
       partnerId: true,

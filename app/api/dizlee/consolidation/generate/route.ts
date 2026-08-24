@@ -4,10 +4,15 @@
  */
 
 import { NextResponse } from "next/server";
-import { jsonError, unauthorized } from "@/lib/errors/respond";
+import {
+  jsonError,
+  unauthorized,
+  validationFailed,
+} from "@/lib/errors/respond";
 
 import { requireDizleeSession } from "@/lib/dizlee/auth";
 import { generateConsolidation } from "@/lib/dizlee/consolidation";
+import { generateConsolidationBodySchema } from "@/lib/dizlee/validation/api-bodies";
 
 export async function POST(request: Request) {
   const user = await requireDizleeSession();
@@ -16,23 +21,22 @@ export async function POST(request: Request) {
   }
 
   try {
-    const body = (await request.json()) as {
-      month?: number;
-      year?: number;
-      opcoId?: string;
-    };
+    let raw: unknown;
+    try {
+      raw = await request.json();
+    } catch {
+      return validationFailed();
+    }
 
-    if (!body.month || !body.year || !body.opcoId) {
-      return NextResponse.json(
-        { error: "Period and OpCo are required." },
-        { status: 400 },
-      );
+    const parsed = generateConsolidationBodySchema.safeParse(raw);
+    if (!parsed.success) {
+      return validationFailed(parsed.error.flatten().fieldErrors);
     }
 
     const result = await generateConsolidation({
-      month: body.month,
-      year: body.year,
-      opcoId: body.opcoId,
+      month: parsed.data.month,
+      year: parsed.data.year,
+      opcoId: parsed.data.opcoId,
       runByUserId: user.id,
     });
 

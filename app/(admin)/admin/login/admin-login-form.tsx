@@ -11,25 +11,23 @@ import { FullPageLoading } from "@/components/ui/loading";
 import { startNavigationProgress } from "@/components/ui/navigation-progress";
 import { useToast } from "@/components/ui/toast";
 import { ADMIN_DEFAULT_ROUTE } from "@/lib/admin/navigation";
+import { safeAdminCallbackUrl } from "@/lib/auth/safe-callback-url";
 import { ERROR_CATALOG } from "@/lib/errors/catalog";
-import { formatErrorDisplay } from "@/lib/errors/format";
+import { formatAppError } from "@/lib/errors/format";
 import { ui } from "@/lib/ui/classes";
 
 const LOGIN_ERROR_KEYS: Record<string, keyof typeof ERROR_CATALOG> = {
   AccessDenied: "UNAUTHORIZED",
   CredentialsSignin: "INVALID_CREDENTIALS",
+  RATE_LIMITED: "RATE_LIMITED",
 };
 
 function formatLoginError(code: string | null | undefined): string {
   if (!code) {
-    return formatErrorDisplay(
-      ERROR_CATALOG.SYSTEM_ERROR.code,
-      ERROR_CATALOG.SYSTEM_ERROR.message,
-    );
+    return formatAppError("SYSTEM_ERROR", "Login failed. Please try again.");
   }
   const key = LOGIN_ERROR_KEYS[code] ?? "INVALID_CREDENTIALS";
-  const def = ERROR_CATALOG[key];
-  return formatErrorDisplay(def.code, def.message);
+  return formatAppError(key);
 }
 
 export function AdminLoginForm() {
@@ -60,7 +58,11 @@ export function AdminLoginForm() {
       });
 
       if (!result?.ok) {
-        setError(formatLoginError("CredentialsSignin"));
+        setError(
+          formatLoginError(
+            result?.status === 429 ? "RATE_LIMITED" : "CredentialsSignin",
+          ),
+        );
         setIsSubmitting(false);
         return;
       }
@@ -77,9 +79,7 @@ export function AdminLoginForm() {
       }
 
       const destination =
-        callbackUrl && callbackUrl.startsWith("/admin") && callbackUrl !== "/admin/login"
-          ? callbackUrl
-          : ADMIN_DEFAULT_ROUTE;
+        safeAdminCallbackUrl(callbackUrl) ?? ADMIN_DEFAULT_ROUTE;
 
       startNavigationProgress();
       router.push(destination);

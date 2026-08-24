@@ -5,14 +5,14 @@
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { jsonError, unauthorized } from "@/lib/errors/respond";
-import { appErrorFromUnknown } from "@/lib/errors/app-error";
+import {
+  jsonError,
+  unauthorized,
+  validationFailed,
+} from "@/lib/errors/respond";
 
 import { requireDizleeSession } from "@/lib/dizlee/auth";
-import {
-  DEFAULT_REMINDER_MESSAGE_SOURCE,
-  type SendReportRemindersInput,
-} from "@/lib/dizlee/notifications/broadcast.shared";
+import { DEFAULT_REMINDER_MESSAGE_SOURCE } from "@/lib/dizlee/notifications/broadcast.shared";
 import {
   getReminderSettings,
   listReminderLanes,
@@ -20,6 +20,7 @@ import {
   sendReportReminders,
 } from "@/lib/dizlee/notifications/reminders";
 import { getReportFilterOptions } from "@/lib/dizlee/reports-monitoring";
+import { sendRemindersBodySchema } from "@/lib/dizlee/validation/api-bodies";
 
 export async function GET(request: NextRequest) {
   const user = await requireDizleeSession();
@@ -49,32 +50,25 @@ export async function POST(request: Request) {
   }
 
   try {
-    const body = (await request.json()) as {
-      month?: number;
-      year?: number;
-      laneKeys?: string[];
-      target?: "opco" | "partner" | "both";
-      messageSource?: SendReportRemindersInput["messageSource"];
-      subject?: string;
-      body?: string;
-      attachmentFileIds?: string[];
-    };
-
-    if (!body.month || !body.year) {
-      return jsonError(appErrorFromUnknown("Period is required.", 400));
+    let raw: unknown;
+    try {
+      raw = await request.json();
+    } catch {
+      return validationFailed();
     }
 
-    const target = body.target ?? "both";
-    if (target !== "opco" && target !== "partner" && target !== "both") {
-      return jsonError(appErrorFromUnknown("Invalid reminder target.", 400));
+    const parsed = sendRemindersBodySchema.safeParse(raw);
+    if (!parsed.success) {
+      return validationFailed(parsed.error.flatten().fieldErrors);
     }
 
+    const body = parsed.data;
     const result = await sendReportReminders({
       input: {
         month: body.month,
         year: body.year,
         laneKeys: body.laneKeys ?? [],
-        target,
+        target: body.target ?? "both",
         messageSource: body.messageSource ?? DEFAULT_REMINDER_MESSAGE_SOURCE,
         subject: body.subject,
         body: body.body,

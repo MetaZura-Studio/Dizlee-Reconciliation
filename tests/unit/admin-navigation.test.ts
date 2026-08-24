@@ -12,6 +12,7 @@ describe("admin navigation", () => {
   it("defines main navigation with Organization and Settings groups", () => {
     expect(ADMIN_MAIN_NAV_ITEMS.map((item) => item.label)).toEqual([
       "Dashboard",
+      "Notifications",
       "Users",
       "Organization",
       "Audit logs",
@@ -25,6 +26,7 @@ describe("admin navigation", () => {
       "OpCos",
       "Partners",
       "OpCo partners",
+      "Service–Partner maps",
     ]);
 
     const settings = ADMIN_MAIN_NAV_ITEMS.find((item) => item.label === "Settings");

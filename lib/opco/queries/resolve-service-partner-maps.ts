@@ -3,7 +3,11 @@
  */
 import type { ParsedReportLine } from "@/lib/opco/excel/parse-report";
 import { isPartnerLinkedToOpco } from "@/lib/opco/queries/partners";
-import type { ResolvedServicePartnerLine } from "@/lib/platform/service-partner-map";
+import {
+  matchLinkedPartner,
+  matchServiceMapRow,
+  type ResolvedServicePartnerLine,
+} from "@/lib/platform/service-partner-map";
 import { prisma } from "@/lib/prisma";
 
 export class ServicePartnerResolveError extends Error {
@@ -22,33 +26,70 @@ export type PartnerResolvedBucket = {
   lineItems: ParsedReportLine[];
 };
 
+function resolveLinePartner(params: {
+  line: ResolvedServicePartnerLine;
+  maps: Array<{
+    serviceKey: string;
+    serviceName: string;
+    partnerId: bigint;
+    partner: { name: string; isDeleted: boolean };
+  }>;
+  allPartners: Array<{ id: bigint; name: string }>;
+}): { partnerId: bigint; partnerName: string } | null {
+  const mapped = matchServiceMapRow(params.line, params.maps);
+  if (mapped && !mapped.partner.isDeleted) {
+    return { partnerId: mapped.partnerId, partnerName: mapped.partner.name };
+  }
+
+  const partner = matchLinkedPartner(params.line.serviceName, params.allPartners);
+  if (partner) {
+    return { partnerId: partner.id, partnerName: partner.name };
+  }
+
+  return null;
+}
+
 export async function resolveLookupLinesToPartnerBuckets(params: {
   opcoId: bigint;
   lines: ResolvedServicePartnerLine[];
 }): Promise<PartnerResolvedBucket[]> {
-  const keys = [...new Set(params.lines.map((line) => line.serviceKey))];
-  const maps = await prisma.servicePartnerMap.findMany({
-    where: {
-      isDeleted: false,
-      serviceKey: { in: keys },
-    },
-    select: {
-      serviceKey: true,
-      partnerId: true,
-      partner: { select: { name: true, isDeleted: true } },
-    },
-  });
+  const [maps, allPartners] = await Promise.all([
+    prisma.servicePartnerMap.findMany({
+      where: {
+        isDeleted: false,
+        opcoId: params.opcoId,
+      },
+      select: {
+        serviceKey: true,
+        serviceName: true,
+        partnerId: true,
+        partner: { select: { name: true, isDeleted: true } },
+      },
+    }),
+    prisma.partner.findMany({
+      where: { isDeleted: false },
+      select: { id: true, name: true },
+    }),
+  ]);
 
-  const mapByKey = new Map(
-    maps.map((row) => [row.serviceKey, row]),
-  );
+  const unmappedNames: string[] = [];
+  const resolved: Array<{
+    line: ResolvedServicePartnerLine;
+    partnerId: bigint;
+    partnerName: string;
+  }> = [];
 
-  const unmapped = keys.filter((key) => !mapByKey.has(key));
-  if (unmapped.length > 0) {
-    const samples = params.lines
-      .filter((line) => unmapped.includes(line.serviceKey))
-      .map((line) => line.serviceName);
-    const uniqueNames = [...new Set(samples)];
+  for (const line of params.lines) {
+    const partner = resolveLinePartner({ line, maps, allPartners });
+    if (!partner) {
+      unmappedNames.push(line.serviceName);
+      continue;
+    }
+    resolved.push({ line, ...partner });
+  }
+
+  if (unmappedNames.length > 0) {
+    const uniqueNames = [...new Set(unmappedNames)];
     throw new ServicePartnerResolveError(
       `No Service–Partner mapping for: ${uniqueNames.join(", ")}`,
       400,
@@ -60,24 +101,16 @@ export async function resolveLookupLinesToPartnerBuckets(params: {
     { partnerId: bigint; partnerName: string; lines: ResolvedServicePartnerLine[] }
   >();
 
-  for (const line of params.lines) {
-    const mapped = mapByKey.get(line.serviceKey);
-    if (!mapped || mapped.partner.isDeleted) {
-      throw new ServicePartnerResolveError(
-        `Partner mapping invalid for "${line.serviceName}"`,
-        400,
-      );
-    }
-
-    const partnerKey = mapped.partnerId.toString();
+  for (const row of resolved) {
+    const partnerKey = row.partnerId.toString();
     const existing = byPartner.get(partnerKey);
     if (existing) {
-      existing.lines.push(line);
+      existing.lines.push(row.line);
     } else {
       byPartner.set(partnerKey, {
-        partnerId: mapped.partnerId,
-        partnerName: mapped.partner.name,
-        lines: [line],
+        partnerId: row.partnerId,
+        partnerName: row.partnerName,
+        lines: [row.line],
       });
     }
   }

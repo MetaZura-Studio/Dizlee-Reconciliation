@@ -54,11 +54,16 @@ export function validateInvoiceUploadFile(file: File | null): string | null {
     return "Only .pdf files are supported";
   }
 
+  const clientMime = file.type?.trim().toLowerCase().split(";")[0]?.trim() ?? "";
   if (
-    file.type &&
-    !ALLOWED_INVOICE_MIME_TYPES.includes(
-      file.type as (typeof ALLOWED_INVOICE_MIME_TYPES)[number],
-    )
+    clientMime &&
+    (clientMime.includes("html") ||
+      clientMime.includes("svg") ||
+      clientMime.includes("javascript") ||
+      (!ALLOWED_INVOICE_MIME_TYPES.includes(
+        clientMime as (typeof ALLOWED_INVOICE_MIME_TYPES)[number],
+      ) &&
+        clientMime !== "application/octet-stream"))
   ) {
     return "Invalid PDF file type";
   }

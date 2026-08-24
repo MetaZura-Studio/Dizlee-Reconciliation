@@ -77,8 +77,9 @@ export function ReconciliationResultView({
 }: ReconciliationResultViewProps) {
   const router = useRouter();
   const toast = useToast();
-  const [detail] = useState(initialDetail);
+  const [detail, setDetail] = useState(initialDetail);
   const [confirming, setConfirming] = useState(false);
+  const [rerunning, setRerunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmSuccessOpen, setConfirmSuccessOpen] = useState(false);
   const [confirmSuccessMessage, setConfirmSuccessMessage] = useState(
@@ -112,6 +113,12 @@ export function ReconciliationResultView({
       if (!response.ok) {
         throw new Error(formatAppError(payload, "Failed to confirm reconciliation"));
       }
+      setDetail((current) => ({
+        ...current,
+        status: "COMPLETED",
+        statusCode: "COMPLETED",
+        canConfirm: false,
+      }));
       setConfirmSuccessMessage(
         (payload.data?.message as string | undefined) ??
           "Reconciliation confirmed.",
@@ -125,6 +132,41 @@ export function ReconciliationResultView({
       );
     } finally {
       setConfirming(false);
+    }
+  }
+
+  async function rerunReconciliation() {
+    setRerunning(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/dizlee/reconciliation/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          month: detail.period.month,
+          year: detail.period.year,
+          opcoId: detail.opcoId,
+          partnerId: detail.partnerId,
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(formatAppError(payload, "Failed to re-run reconciliation"));
+      }
+      const nextId = payload.data?.id as number | undefined;
+      if (nextId != null && nextId !== detail.id) {
+        router.push(`/dizlee/reconciliation/${nextId}`);
+        return;
+      }
+      router.refresh();
+    } catch (rerunError) {
+      setError(
+        rerunError instanceof Error
+          ? rerunError.message
+          : "Failed to re-run reconciliation",
+      );
+    } finally {
+      setRerunning(false);
     }
   }
 
@@ -228,7 +270,11 @@ export function ReconciliationResultView({
             />
           </p>
         </div>
-        <Button variant="dangerSolid" onClick={openAlertModal}>
+        <Button
+          variant="dangerSolid"
+          disabled={!detail.canConfirm}
+          onClick={openAlertModal}
+        >
           Alert OpCo / Partner
         </Button>
       </div>
@@ -261,14 +307,23 @@ export function ReconciliationResultView({
       </div>
 
       {detail.canConfirm ? (
-        <button
-          type="button"
-          disabled={confirming}
-          onClick={() => void confirmReconciliation()}
-          className="rounded-md bg-success px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-success/90 disabled:opacity-40"
-        >
-          {confirming ? "Confirming…" : "Confirm reconciliation"}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={confirming || rerunning}
+            onClick={() => void confirmReconciliation()}
+            className="rounded-md bg-success px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-success/90 disabled:opacity-40"
+          >
+            {confirming ? "Confirming…" : "Confirm reconciliation"}
+          </button>
+          <Button
+            variant="secondary"
+            disabled={confirming || rerunning}
+            onClick={() => void rerunReconciliation()}
+          >
+            {rerunning ? "Re-running…" : "Re-run"}
+          </Button>
+        </div>
       ) : null}
 
       <div className="overflow-hidden rounded-[28px] border border-border bg-surface shadow-[var(--shadow-md)]">

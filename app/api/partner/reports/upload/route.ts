@@ -14,7 +14,6 @@ import {
   reportUploadMetadataSchema,
   validateReportUploadFile,
 } from "@/lib/partner/validation/report-upload";
-import { storageDiagnostics } from "@/lib/platform/storage/object-storage";
 
 export async function POST(request: Request) {
   const session = await getPartnerSession();
@@ -74,6 +73,6 @@ export async function POST(request: Request) {
       message: "Report uploaded successfully",
     });
   } catch (error) {
-    return jsonError(error, { storage: storageDiagnostics() });
+    return jsonError(error);
   }
 }

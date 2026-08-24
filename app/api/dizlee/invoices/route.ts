@@ -5,7 +5,11 @@
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { jsonError, unauthorized } from "@/lib/errors/respond";
+import {
+  jsonError,
+  unauthorized,
+  validationFailed,
+} from "@/lib/errors/respond";
 
 import { requireDizleeSession } from "@/lib/dizlee/auth";
 import {
@@ -14,8 +18,8 @@ import {
   getInvoiceFilterOptions,
   listInvoices,
   parseInvoiceListFilters,
-  type CreateOpcoInvoiceInput,
 } from "@/lib/dizlee/invoices";
+import { createOpcoInvoiceBodySchema } from "@/lib/dizlee/validation/api-bodies";
 
 export async function GET(request: NextRequest) {
   const user = await requireDizleeSession();
@@ -58,8 +62,19 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const body = (await request.json()) as CreateOpcoInvoiceInput;
-    const data = await createOpcoInvoice(body, user.id);
+    let raw: unknown;
+    try {
+      raw = await request.json();
+    } catch {
+      return validationFailed();
+    }
+
+    const parsed = createOpcoInvoiceBodySchema.safeParse(raw);
+    if (!parsed.success) {
+      return validationFailed(parsed.error.flatten().fieldErrors);
+    }
+
+    const data = await createOpcoInvoice(parsed.data, user.id);
     return NextResponse.json({ data }, { status: 201 });
   } catch (error) {
     return jsonError(error);

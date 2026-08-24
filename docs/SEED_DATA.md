@@ -87,7 +87,7 @@ Full partner list: `prisma/seed-data/partners.ts`
 | File | Purpose |
 |------|---------|
 | `prisma/seed-data/opcos.ts` | 7 Zain OpCos with stable IDs |
-| `prisma/seed-data/partners.ts` | 51 partners with stable IDs |
+| `prisma/seed-data/partners.ts` | 72 partners with stable IDs |
 | `prisma/seed-data/opco-partner-links.ts` | Link matrix (109 lanes) |
 | `prisma/seed-data/currencies.ts` | Currency definitions |
 | `prisma/seed-data/currency-rates.ts` | Monthly USD rates |

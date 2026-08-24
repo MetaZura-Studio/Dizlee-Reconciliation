@@ -410,6 +410,7 @@ export function ReportUploadForm({ opcos }: ReportUploadFormProps) {
           filename={review.filename}
           fileSizeLabel={review.fileSizeLabel}
           subtitle={`${selectedOpcoName} — ${MONTHS[month - 1]} ${year}`}
+          side="partner"
           rawRows={review.rawRows}
           rawSheetName={review.sheetName}
           rawTruncated={review.truncated}

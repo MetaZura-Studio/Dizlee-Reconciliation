@@ -1,6 +1,6 @@
 /**
  * Bootstrap Service–Partner map rows for OpCos without a Partner column
- * (Iraq + Sudan). Keys are global; overlapping partners share one row.
+ * (Iraq + Sudan). Keys are unique per OpCo + service.
  */
 
 import { OPCO_PARTNER_LINK_SEEDS } from "./opco-partner-links";
@@ -9,6 +9,7 @@ import { PARTNER_SEEDS } from "./partners";
 const MAP_OPCO_SLUGS = new Set(["zain-iraq", "zain-sudan"]);
 
 export type ServicePartnerMapSeed = {
+  opcoSlug: string;
   serviceName: string;
   partnerSlug: string;
 };
@@ -27,8 +28,10 @@ for (const link of OPCO_PARTNER_LINK_SEEDS) {
   if (!name) {
     continue;
   }
-  if (!rows.has(link.partnerSlug)) {
-    rows.set(link.partnerSlug, {
+  const key = `${link.opcoSlug}::${link.partnerSlug}`;
+  if (!rows.has(key)) {
+    rows.set(key, {
+      opcoSlug: link.opcoSlug,
       serviceName: name,
       partnerSlug: link.partnerSlug,
     });

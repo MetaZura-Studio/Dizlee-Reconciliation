@@ -8,6 +8,10 @@ import { NextResponse } from "next/server";
 import { jsonError, unauthorized } from "@/lib/errors/respond";
 
 import { authOptions } from "@/lib/auth/options";
+import {
+  AUTH_RATE_LIMITS,
+  assertRateLimit,
+} from "@/lib/auth/rate-limit";
 import { changePasswordForUser } from "@/lib/auth/password-flow";
 import type { AppSessionUser } from "@/lib/auth/types";
 
@@ -17,16 +21,22 @@ export async function POST(request: Request) {
     return unauthorized();
   }
 
-  const sessionUser: AppSessionUser = {
-    id: session.user.id,
-    email: session.user.email ?? "",
-    name: session.user.name,
-    role: session.user.role,
-    opcoId: session.user.opcoId ?? null,
-    partnerId: session.user.partnerId ?? null,
-  };
-
   try {
+    assertRateLimit({
+      key: `change-password:user:${session.user.id}`,
+      limit: AUTH_RATE_LIMITS.changePasswordUser.limit,
+      windowMs: AUTH_RATE_LIMITS.changePasswordUser.windowMs,
+    });
+
+    const sessionUser: AppSessionUser = {
+      id: session.user.id,
+      email: session.user.email ?? "",
+      name: session.user.name,
+      role: session.user.role,
+      opcoId: session.user.opcoId ?? null,
+      partnerId: session.user.partnerId ?? null,
+    };
+
     const body = await request.json();
     await changePasswordForUser(sessionUser, body);
     return NextResponse.json({ success: true });

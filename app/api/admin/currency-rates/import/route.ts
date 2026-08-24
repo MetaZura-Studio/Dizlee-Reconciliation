@@ -16,6 +16,10 @@ import {
   parseCurrencyRatesExcel,
 } from "@/lib/admin/currency-rates-excel";
 import { listCurrencies } from "@/lib/admin/currencies";
+import {
+  assertExcelBufferMagic,
+  validateExcelUploadFile,
+} from "@/lib/platform/excel-upload";
 
 export async function POST(request: Request) {
   const user = await requireAdminApiSession();
@@ -33,15 +37,17 @@ export async function POST(request: Request) {
       );
     }
 
-    const name = file.name.toLowerCase();
-    if (!name.endsWith(".xlsx") && !name.endsWith(".xls")) {
-      return NextResponse.json(
-        { error: "File must be an Excel workbook (.xlsx)" },
-        { status: 400 },
-      );
+    const fileError = validateExcelUploadFile(file, { allowLegacyXls: true });
+    if (fileError) {
+      return NextResponse.json({ error: fileError }, { status: 400 });
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
+    const magicError = assertExcelBufferMagic(buffer, file.name);
+    if (magicError) {
+      return NextResponse.json({ error: magicError }, { status: 400 });
+    }
+
     const parsed = await parseCurrencyRatesExcel(buffer);
     if (parsed.rows.length === 0 && parsed.issues.length > 0) {
       return NextResponse.json(

@@ -486,125 +486,6 @@ async function loadReconciliationEvents(
   });
 }
 
-async function loadConsolidationEvents(
-  filters: ActivityFilters,
-): Promise<ActivityEvent[]> {
-  if (filters.opcoId) {
-    const rows = await prisma.consolidation.findMany({
-      where: {
-        month: filters.month,
-        year: filters.year,
-        opcoId: BigInt(filters.opcoId),
-        isDeleted: false,
-        ...(filters.partnerId
-          ? {
-              items: {
-                some: {
-                  isDeleted: false,
-                  partnerId: BigInt(filters.partnerId),
-                },
-              },
-            }
-          : {}),
-      },
-      orderBy: { generatedAt: "asc" },
-      include: {
-        opco: { select: { id: true, name: true } },
-        status: { select: { code: true } },
-        items: {
-          where: {
-            isDeleted: false,
-            ...(filters.partnerId
-              ? { partnerId: BigInt(filters.partnerId) }
-              : {}),
-          },
-          select: {
-            partnerId: true,
-            partnerName: true,
-            usageUsd: true,
-          },
-        },
-      },
-    });
-
-    return rows.map((row) => {
-      const totalUsd = toNumber(row.totalAmountUsd);
-      const partnerNote =
-        filters.partnerId && row.items[0]
-          ? ` · includes ${row.items[0].partnerName}`
-          : "";
-
-      return {
-        id: `CONSOLIDATION_GENERATED-${row.id}`,
-        type: "CONSOLIDATION_GENERATED" as const,
-        occurredAt: row.generatedAt.toISOString(),
-        title: "Consolidation generated",
-        summary: `${row.opco.name} · ${formatStatus(row.status.code)}${totalUsd !== null ? ` · ${totalUsd.toFixed(2)} USD` : ""}${partnerNote}`,
-        href: `/dizlee/consolidation/${row.id}`,
-        meta: {
-          status: formatStatus(row.status.code),
-          totalAmountUsd: totalUsd,
-          opcoName: row.opco.name,
-        },
-      };
-    });
-  }
-
-  // Partner-only: consolidations that include this partner
-  if (filters.partnerId) {
-    const rows = await prisma.consolidation.findMany({
-      where: {
-        month: filters.month,
-        year: filters.year,
-        isDeleted: false,
-        items: {
-          some: {
-            isDeleted: false,
-            partnerId: BigInt(filters.partnerId),
-          },
-        },
-      },
-      orderBy: { generatedAt: "asc" },
-      include: {
-        opco: { select: { id: true, name: true } },
-        status: { select: { code: true } },
-        items: {
-          where: {
-            isDeleted: false,
-            partnerId: BigInt(filters.partnerId),
-          },
-          select: { partnerName: true, usageUsd: true },
-        },
-      },
-    });
-
-    return rows.map((row) => {
-      const partnerUsd = row.items.reduce(
-        (sum, item) => sum + (toNumber(item.usageUsd) ?? 0),
-        0,
-      );
-      const partnerName = row.items[0]?.partnerName ?? "Partner";
-
-      return {
-        id: `CONSOLIDATION_GENERATED-${row.id}`,
-        type: "CONSOLIDATION_GENERATED" as const,
-        occurredAt: row.generatedAt.toISOString(),
-        title: "Consolidation generated",
-        summary: `${row.opco.name} includes ${partnerName} · ${formatStatus(row.status.code)} · partner ${partnerUsd.toFixed(2)} USD`,
-        href: `/dizlee/consolidation/${row.id}`,
-        meta: {
-          status: formatStatus(row.status.code),
-          opcoName: row.opco.name,
-          partnerName,
-          partnerAmountUsd: partnerUsd,
-        },
-      };
-    });
-  }
-
-  return [];
-}
-
 async function loadInvoiceEvents(
   filters: ActivityFilters,
 ): Promise<ActivityEvent[]> {
@@ -771,14 +652,12 @@ export async function listActivityTimeline(
     reports,
     reuploads,
     reconciliations,
-    consolidations,
     invoices,
   ] = await Promise.all([
     loadNotificationEvents(filters, scope),
     loadReportEvents(filters, lanes),
     loadReuploadEvents(filters),
     loadReconciliationEvents(filters),
-    loadConsolidationEvents(filters),
     loadInvoiceEvents(filters),
   ]);
 
@@ -790,7 +669,6 @@ export async function listActivityTimeline(
       ...reports,
       ...reuploads,
       ...reconciliations,
-      ...consolidations,
       ...invoices,
     ]),
     filters,

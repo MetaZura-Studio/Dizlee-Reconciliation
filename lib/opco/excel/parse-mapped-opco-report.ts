@@ -48,9 +48,11 @@ function parseDecimal(value: ExcelJS.CellValue): number | null {
   if (typeof value === "number" && Number.isFinite(value)) {
     return value;
   }
-  const parsed = Number.parseFloat(
-    cellText(value).replace(/,/g, "").replace(/\$/g, "").replace(/%/g, "").trim(),
-  );
+  const text = cellText(value).replace(/,/g, "").replace(/\$/g, "").replace(/%/g, "").trim();
+  if (!text || text === "-") {
+    return null;
+  }
+  const parsed = Number.parseFloat(text);
   return Number.isNaN(parsed) ? null : parsed;
 }
 
@@ -210,6 +212,10 @@ export async function parseOpcoReportWithMapping(
       return;
     }
     const amount = parseDecimal(row.getCell(revenueCol).value);
+    // No gross amount → service was listed but not used; do not store the row.
+    if (amount === null) {
+      return;
+    }
     const share =
       shareCol > 0 ? parseDecimal(row.getCell(shareCol).value) : null;
 

@@ -5,9 +5,13 @@ import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FieldLabel } from "@/components/ui/field";
 import { formatAppError } from "@/lib/errors/format";
+import {
+  MAX_NOTIFICATION_ATTACHMENTS,
+  NOTIFICATION_ATTACHMENT_ACCEPT,
+} from "@/lib/platform/notification-attachments.shared";
 import { ui } from "@/lib/ui/classes";
 
-export const MAX_NOTIFICATION_ATTACHMENTS = 5;
+export { MAX_NOTIFICATION_ATTACHMENTS };
 
 type PendingAttachment = {
   fileId: string;
@@ -91,8 +95,8 @@ export function NotificationAttachmentPicker({
       <div>
         <FieldLabel htmlFor="notification-attachments">Attachments</FieldLabel>
         <p className="mt-1 text-xs text-foreground-subtle">
-          Optional files included with the notification (max{" "}
-          {MAX_NOTIFICATION_ATTACHMENTS}, 10 MB each).
+          Optional files (max {MAX_NOTIFICATION_ATTACHMENTS}, 10 MB each). Allowed:
+          PDF, images (not SVG), Excel, CSV, TXT.
         </p>
       </div>
 
@@ -101,6 +105,7 @@ export function NotificationAttachmentPicker({
         id="notification-attachments"
         type="file"
         multiple
+        accept={NOTIFICATION_ATTACHMENT_ACCEPT}
         disabled={
           disabled || uploading || attachments.length >= MAX_NOTIFICATION_ATTACHMENTS
         }

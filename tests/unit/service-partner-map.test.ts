@@ -3,12 +3,38 @@ import { describe, expect, it } from "vitest";
 import {
   aggregateLinesByDescription,
   matchLinkedPartner,
+  matchServiceMapRow,
   normalizeServiceKey,
 } from "@/lib/platform/service-partner-map";
 
 describe("normalizeServiceKey", () => {
   it("trims and lowercases with collapsed spaces", () => {
     expect(normalizeServiceKey("  Shofha   Plus ")).toBe("shofha plus");
+  });
+});
+
+describe("matchServiceMapRow", () => {
+  const maps = [
+    { serviceKey: "premiumgames", serviceName: "PremiumGames" },
+    { serviceKey: "klikomicssub", serviceName: "KlikomicsSub" },
+  ];
+
+  it("matches spaced and concatenated service names", () => {
+    expect(
+      matchServiceMapRow(
+        { serviceKey: "premium games", serviceName: "Premium Games" },
+        maps,
+      )?.serviceName,
+    ).toBe("PremiumGames");
+  });
+
+  it("does not treat a shorter partner-like name as a different service key", () => {
+    expect(
+      matchServiceMapRow(
+        { serviceKey: "klikomics", serviceName: "Klikomics" },
+        maps,
+      ),
+    ).toBeNull();
   });
 });
 

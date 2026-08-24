@@ -223,6 +223,32 @@ describe("assertOpcoMappingReady", () => {
 });
 
 describe("parseOpcoReportWithMapping", () => {
+  it("skips rows with Partner and Service but no gross amount", async () => {
+    const buffer = await workbookFromRows(
+      ["Merchant Name", "Service Name", "Total Gross Revenue (BHD)"],
+      [
+        ["Google", "Play Gift Card", 100.5],
+        ["Netflix", "Unused Service", ""],
+        ["Centili", "Dash Row", "-"],
+        ["OSN", "Zero Listed", 0],
+      ],
+    );
+    const parsed = await parseOpcoReportWithMapping(buffer, {
+      serviceColumn: "Service Name",
+      partnerMode: "EXCEL_COLUMN",
+      partnerColumn: "Merchant Name",
+      revenueColumn: "Total Gross Revenue",
+      revenueShareColumn: null,
+      aggregateDailyRows: false,
+    });
+    expect(parsed.partnerColumnLines).toHaveLength(2);
+    expect(parsed.partnerColumnLines.map((line) => line.partnerName)).toEqual([
+      "Google",
+      "OSN",
+    ]);
+    expect(parsed.partnerColumnLines[1]?.amount).toBe(0);
+  });
+
   it("parses EXCEL_COLUMN Bahrain-style rows including (BHD) revenue header", async () => {
     const buffer = await workbookFromRows(
       ["Merchant Name", "Service Name", "Total Gross Revenue (BHD)"],

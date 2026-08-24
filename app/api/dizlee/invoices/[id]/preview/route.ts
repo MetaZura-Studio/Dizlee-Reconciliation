@@ -8,6 +8,7 @@ import { jsonError, unauthorized } from "@/lib/errors/respond";
 import { appErrorFromUnknown } from "@/lib/errors/app-error";
 
 import { requireDizleeSession } from "@/lib/dizlee/auth";
+import { buildFileResponseHeaders } from "@/lib/platform/file-response-headers";
 import { prisma } from "@/lib/prisma";
 import { readStoredObject } from "@/lib/platform/storage/object-storage";
 
@@ -25,7 +26,7 @@ export async function GET(_request: Request, context: RouteContext) {
 
   try {
     const invoice = await prisma.invoice.findFirst({
-      where: { id: BigInt(id) },
+      where: { id: BigInt(id), isDeleted: false },
       include: { file: true },
     });
 
@@ -36,10 +37,10 @@ export async function GET(_request: Request, context: RouteContext) {
     try {
       const buffer = await readStoredObject(invoice.file.storageKey);
       return new NextResponse(new Uint8Array(buffer), {
-        headers: {
-          "Content-Type": invoice.file.mimeType ?? "application/octet-stream",
-          "Content-Disposition": `inline; filename="${invoice.file.filename}"`,
-        },
+        headers: buildFileResponseHeaders({
+          filename: invoice.file.filename,
+          mimeType: invoice.file.mimeType ?? "application/octet-stream",
+        }),
       });
     } catch {
       return NextResponse.json(

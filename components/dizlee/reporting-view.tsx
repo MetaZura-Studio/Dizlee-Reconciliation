@@ -64,16 +64,6 @@ const usdFormatter = new Intl.NumberFormat("en-US", {
 
 type StatusFilter = "all" | ReportingLaneStatus;
 
-function formatDateTime(value: string | null): string {
-  if (!value) {
-    return "—";
-  }
-  return new Date(value).toLocaleString("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
-
 function overallStatusTone(
   status: ReportingLaneStatus,
 ): "success" | "warning" | "danger" | "neutral" {
@@ -224,7 +214,6 @@ export function ReportingView({
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 300);
   const [lanePage, setLanePage] = useState(1);
-  const [consolPage, setConsolPage] = useState(1);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -253,7 +242,6 @@ export function ReportingView({
         setOverview(payload.data as ReportingOverview);
         setFilterOptions(payload.filterOptions as ReportFilterOptions);
         setLanePage(1);
-        setConsolPage(1);
         setStatusFilter("all");
         setSearch("");
       } catch (loadError) {
@@ -276,7 +264,6 @@ export function ReportingView({
     setStatusFilter("all");
     setSearch("");
     setLanePage(1);
-    setConsolPage(1);
     void loadOverview({
       month: period.month,
       year: period.year,
@@ -320,11 +307,6 @@ export function ReportingView({
     [filteredLanes, lanePage],
   );
 
-  const pagedConsolidations = useMemo(
-    () => paginateItems(overview.consolidations, consolPage),
-    [overview.consolidations, consolPage],
-  );
-
   const setStatusAndResetPage = (next: StatusFilter) => {
     setStatusFilter(next);
     setLanePage(1);
@@ -339,7 +321,7 @@ export function ReportingView({
     <PageCard>
       <PageHeader
         title="Reporting"
-        description="Period overview for reports, invoices, reconciliation, and consolidation."
+        description="Period overview for reports, invoices, and reconciliation."
       />
 
       {error ? <div className={`mt-4 ${ui.alertError}`}>{error}</div> : null}
@@ -491,12 +473,7 @@ export function ReportingView({
 
       <section className="mt-6 space-y-3">
         <h2 className="text-sm font-semibold text-foreground">Billing snapshot</h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <KpiCard
-            label="Consolidations"
-            value={String(summary.consolidationsGenerated)}
-            tone="teal"
-          />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <KpiCard label="Invoices" value={String(summary.invoiceCount)} tone="blue" />
           <KpiCard
             label="Invoices paid"
@@ -513,7 +490,7 @@ export function ReportingView({
 
       <section className="mt-6 space-y-3">
         <h2 className="text-sm font-semibold text-foreground">Open in detail</h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <QuickLink
             href={`/dizlee/reports?${periodQuery}`}
             label="Reports"
@@ -528,11 +505,6 @@ export function ReportingView({
             href={`/dizlee/reconciliation?${periodQuery}`}
             label="Reconciliation"
             description="Compare and resolve pairs"
-          />
-          <QuickLink
-            href={`/dizlee/consolidation?${periodQuery}`}
-            label="Consolidation"
-            description="OpCo rollups and history"
           />
         </div>
       </section>
@@ -660,71 +632,6 @@ export function ReportingView({
               totalPages={pagedLanes.totalPages}
               noun="pair"
               onPageChange={setLanePage}
-              loading={loading}
-            />
-          </div>
-        )}
-      </section>
-
-      <section className="mt-8 space-y-4">
-        <div>
-          <h2 className="text-base font-semibold text-foreground">
-            Consolidation by OpCo
-          </h2>
-          <p className="mt-1 text-sm text-foreground-muted">
-            Generation status for OpCos in this period’s scope.
-          </p>
-        </div>
-
-        {pagedConsolidations.total === 0 ? (
-          <EmptyState
-            title="No OpCos in scope"
-            description="No OpCos in scope for this period."
-          />
-        ) : (
-          <div className="space-y-4">
-            <DataTableFrame>
-              <DataTable>
-                <DataTableHead>
-                  <tr>
-                    <DataTableTh>OpCo</DataTableTh>
-                    <DataTableTh>Status</DataTableTh>
-                    <DataTableTh>Generated at</DataTableTh>
-                    <DataTableTh className="text-right">Total USD</DataTableTh>
-                  </tr>
-                </DataTableHead>
-                <tbody>
-                  {pagedConsolidations.items.map((row) => (
-                    <DataTableRow key={row.opcoId}>
-                      <DataTableTd className="font-medium text-foreground">
-                        {row.opcoName}
-                      </DataTableTd>
-                      <DataTableTd>
-                        <StatusPill tone={presentTone(row.generated)}>
-                          {row.generated ? "Generated" : "Not generated"}
-                        </StatusPill>
-                      </DataTableTd>
-                      <DataTableTd className="text-foreground-muted">
-                        {formatDateTime(row.generatedAt)}
-                      </DataTableTd>
-                      <DataTableTd className="text-right text-foreground-muted">
-                        {row.totalAmountUsd !== null
-                          ? usdFormatter.format(row.totalAmountUsd)
-                          : "—"}
-                      </DataTableTd>
-                    </DataTableRow>
-                  ))}
-                </tbody>
-              </DataTable>
-            </DataTableFrame>
-
-            <ListPagination
-              total={pagedConsolidations.total}
-              page={pagedConsolidations.page}
-              totalPages={pagedConsolidations.totalPages}
-              noun="OpCo"
-              nounPlural="OpCos"
-              onPageChange={setConsolPage}
               loading={loading}
             />
           </div>

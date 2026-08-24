@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  DataTable,
-  DataTableFrame,
-  DataTableHead,
-  DataTableRow,
-  DataTableTd,
-  DataTableTh,
-} from "@/components/ui/data-table";
+import { ReportLineItemsTable } from "@/components/shared/report-line-items-table";
 import { Modal } from "@/components/ui/modal";
 import { ReportFilenameLink } from "@/components/shared/report-filename-link";
 import type { ReportDetail } from "@/lib/dizlee/reports";
@@ -106,56 +99,11 @@ export function ReportDetailModal({
           <div>
             <h3 className="text-sm font-semibold text-foreground">Parsed report data</h3>
             <div className="mt-3">
-              {detail.lineItems.length === 0 ? (
-                <p className="rounded-2xl border border-border bg-surface-muted px-3 py-4 text-sm text-foreground-subtle">
-                  No line items found in this report.
-                </p>
-              ) : (
-                <DataTableFrame>
-                  <DataTable>
-                    <DataTableHead>
-                      <DataTableRow>
-                        <DataTableTh>#</DataTableTh>
-                        <DataTableTh>Description</DataTableTh>
-                        <DataTableTh>Usage</DataTableTh>
-                        <DataTableTh>USD</DataTableTh>
-                        <DataTableTh>Amount</DataTableTh>
-                        <DataTableTh>Rate</DataTableTh>
-                        <DataTableTh>Unit</DataTableTh>
-                        <DataTableTh>Basis</DataTableTh>
-                      </DataTableRow>
-                    </DataTableHead>
-                    <tbody>
-                      {detail.lineItems.map((item, index) => (
-                        <DataTableRow key={`${item.lineNumber}-${index}`}>
-                          <DataTableTd className="text-foreground-subtle">
-                            {item.lineNumber}
-                          </DataTableTd>
-                          <DataTableTd>{item.description ?? "—"}</DataTableTd>
-                          <DataTableTd className="text-foreground-muted">
-                            {item.usageAmount ?? "—"}
-                          </DataTableTd>
-                          <DataTableTd className="text-foreground-muted">
-                            {item.usageUsd ?? "—"}
-                          </DataTableTd>
-                          <DataTableTd className="text-foreground-muted">
-                            {item.amount ?? "—"}
-                          </DataTableTd>
-                          <DataTableTd className="text-foreground-muted">
-                            {item.exchangeRate ?? "—"}
-                          </DataTableTd>
-                          <DataTableTd className="text-foreground-muted">
-                            {item.usageUnit ?? "—"}
-                          </DataTableTd>
-                          <DataTableTd className="text-foreground-muted">
-                            {item.reconciliationBasis ?? "—"}
-                          </DataTableTd>
-                        </DataTableRow>
-                      ))}
-                    </tbody>
-                  </DataTable>
-                </DataTableFrame>
-              )}
+              <ReportLineItemsTable
+                lineItems={detail.lineItems}
+                currencyCode={detail.currencyCode}
+                side={detail.side}
+              />
             </div>
           </div>
         </div>

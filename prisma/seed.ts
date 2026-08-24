@@ -289,13 +289,17 @@ async function seedOpcosAndPartners(
   }
 
   for (const mapping of SERVICE_PARTNER_MAP_SEEDS) {
+    const opcoId = opcoIds.get(mapping.opcoSlug);
     const partnerId = partnerIds.get(mapping.partnerSlug);
+    if (!opcoId) {
+      throw new Error(`Missing OpCo for service map seed: ${mapping.opcoSlug}`);
+    }
     if (!partnerId) {
       throw new Error(`Missing Partner for service map seed: ${mapping.partnerSlug}`);
     }
     const serviceKey = normalizeServiceKey(mapping.serviceName);
     await prisma.servicePartnerMap.upsert({
-      where: { serviceKey },
+      where: { opcoId_serviceKey: { opcoId, serviceKey } },
       update: {
         serviceName: mapping.serviceName,
         partnerId,
@@ -304,6 +308,7 @@ async function seedOpcosAndPartners(
         deletedByUserId: null,
       },
       create: {
+        opcoId,
         serviceName: mapping.serviceName,
         serviceKey,
         partnerId,

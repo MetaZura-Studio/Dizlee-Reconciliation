@@ -99,4 +99,34 @@ describe("compareReportLines", () => {
     expect(rows[0]?.opcoAmount).toBe(50);
     expect(rows[0]?.partnerAmount).toBe(50);
   });
+
+  it("treats partner amount as USD against OpCo USD", () => {
+    const rows = compareReportLines(
+      [
+        {
+          lineId: BigInt(1),
+          description: "GamesFort",
+          lineNumber: 1,
+          amount: 2648.14,
+          usageUsd: null,
+          usageAmount: null,
+        },
+      ],
+      [
+        {
+          lineId: BigInt(2),
+          description: "GamesFort",
+          lineNumber: 1,
+          amount: 2648.14,
+          usageUsd: null,
+          usageAmount: null,
+        },
+      ],
+      1,
+    );
+
+    expect(rows[0]?.matchStatus).toBe("MATCHED");
+    expect(rows[0]?.opcoAmount).toBe(2648.14);
+    expect(rows[0]?.partnerAmount).toBe(2648.14);
+  });
 });

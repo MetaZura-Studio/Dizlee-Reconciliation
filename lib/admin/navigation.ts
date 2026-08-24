@@ -16,7 +16,8 @@ export type AdminNavIcon =
   | "tolerance"
   | "settings"
   | "currencies"
-  | "bank";
+  | "bank"
+  | "notifications";
 
 export type AdminNavItem = {
   label: string;
@@ -36,6 +37,13 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     href: "/admin",
     icon: "dashboard",
     description: "Platform overview and recent activity.",
+    section: "main",
+  },
+  {
+    label: "Notifications",
+    href: "/admin/notifications",
+    icon: "notifications",
+    description: "Inbox for OpCo partner-link requests and other messages.",
     section: "main",
   },
   {

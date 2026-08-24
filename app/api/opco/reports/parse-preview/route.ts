@@ -12,13 +12,13 @@ import {
   toParsedLines,
 } from "@/lib/opco/excel/load-opco-mapping-parse";
 import { parseOpcoReportWithMapping } from "@/lib/opco/excel/parse-mapped-opco-report";
-import {
-  parseReportWorkbook,
-  ReportParseError,
-} from "@/lib/opco/excel/parse-report";
+import { parseReportWorkbook } from "@/lib/opco/excel/parse-report";
 import { getOpcoSession } from "@/lib/opco/auth";
+import { findUnlinkedPartnersInOpcoFile } from "@/lib/opco/queries/unlinked-partners-in-file";
+import { emptyUnlinkedPartnersInFile } from "@/lib/opco/unlinked-partners-in-file.shared";
 import { validateReportUploadFile } from "@/lib/opco/validation/report-upload";
 import { mapParsedLinesToPreview } from "@/lib/platform/report-preview";
+import { getOpcoReportFx } from "@/lib/platform/report-fx";
 
 export async function POST(request: Request) {
   const session = await getOpcoSession();
@@ -41,31 +41,58 @@ export async function POST(request: Request) {
 
     const uploadFile = file as File;
     const buffer = Buffer.from(await uploadFile.arrayBuffer());
+    const year = Number(formData.get("year"));
+    const month = Number(formData.get("month"));
+    const fx =
+      Number.isInteger(year) &&
+      Number.isInteger(month) &&
+      month >= 1 &&
+      month <= 12
+        ? await getOpcoReportFx({
+            opcoId: BigInt(session.opcoId),
+            month,
+            year,
+          })
+        : undefined;
     const { config } = await loadOpcoMappingParseConfig(BigInt(session.opcoId));
 
-    const lineItems = config
-      ? toParsedLines(
-          (
-            await parseOpcoReportWithMapping(buffer, config)
-          )[
-            config.partnerMode === "EXCEL_COLUMN"
-              ? "partnerColumnLines"
-              : config.partnerMode === "SERVICE_PARTNER_MAP"
-                ? "serviceMapLines"
-                : "pickerLines"
-          ],
-        )
-      : await parseReportWorkbook(buffer);
+    if (!config) {
+      const lineItems = await parseReportWorkbook(buffer);
+      const unmatched = emptyUnlinkedPartnersInFile();
+      return NextResponse.json({
+        filename: uploadFile.name,
+        lineItemCount: lineItems.length,
+        lineItems: mapParsedLinesToPreview(lineItems, fx),
+        currencyCode: fx?.currencyCode,
+        unlinkedPartnerNames: unmatched.unlinkedPartnerNames,
+        unknownPartnerNames: unmatched.unknownPartnerNames,
+      });
+    }
+
+    const parsedMapped = await parseOpcoReportWithMapping(buffer, config);
+    const mappedLines =
+      config.partnerMode === "EXCEL_COLUMN"
+        ? parsedMapped.partnerColumnLines
+        : config.partnerMode === "SERVICE_PARTNER_MAP"
+          ? parsedMapped.serviceMapLines
+          : parsedMapped.pickerLines;
+    const lineItems = toParsedLines(mappedLines);
+    const unmatched = await findUnlinkedPartnersInOpcoFile({
+      opcoId: BigInt(session.opcoId),
+      partnerMode: config.partnerMode,
+      partnerColumnLines: parsedMapped.partnerColumnLines,
+      serviceMapLines: parsedMapped.serviceMapLines,
+    });
 
     return NextResponse.json({
       filename: uploadFile.name,
       lineItemCount: lineItems.length,
-      lineItems: mapParsedLinesToPreview(lineItems),
+      lineItems: mapParsedLinesToPreview(lineItems, fx),
+      currencyCode: fx?.currencyCode,
+      unlinkedPartnerNames: unmatched.unlinkedPartnerNames,
+      unknownPartnerNames: unmatched.unknownPartnerNames,
     });
   } catch (error) {
-    if (error instanceof ReportParseError) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
-    }
     return jsonError(error);
   }
 }

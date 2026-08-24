@@ -107,7 +107,11 @@ export function ReportDetailModal({
               <div>
                 <h3 className="text-sm font-semibold text-foreground">Parsed line items</h3>
                 <div className="mt-4">
-                  <ReportLineItemsTable lineItems={detail.lineItems} />
+                  <ReportLineItemsTable
+                    lineItems={detail.lineItems}
+                    currencyCode={detail.currencyCode}
+                    side="partner"
+                  />
                 </div>
               </div>
             </div>

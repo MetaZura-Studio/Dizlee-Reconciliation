@@ -8,6 +8,11 @@ import { NextResponse } from "next/server";
 import { requireAdminApiSession } from "@/lib/admin/api-auth";
 import { uploadOpcoReportMappingSample } from "@/lib/admin/opco-report-mappings";
 import { jsonError, unauthorized } from "@/lib/errors/respond";
+import {
+  assertExcelBufferMagic,
+  DEFAULT_XLSX_MIME,
+  validateExcelUploadFile,
+} from "@/lib/platform/excel-upload";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -29,22 +34,23 @@ export async function POST(request: Request, context: RouteContext) {
         { status: 400 },
       );
     }
-    const name = file.name.toLowerCase();
-    if (!name.endsWith(".xlsx") && !name.endsWith(".xls")) {
-      return NextResponse.json(
-        { error: "File must be an Excel workbook (.xlsx)" },
-        { status: 400 },
-      );
+
+    const fileError = validateExcelUploadFile(file, { allowLegacyXls: true });
+    if (fileError) {
+      return NextResponse.json({ error: fileError }, { status: 400 });
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
+    const magicError = assertExcelBufferMagic(buffer, file.name);
+    if (magicError) {
+      return NextResponse.json({ error: magicError }, { status: 400 });
+    }
+
     const mapping = await uploadOpcoReportMappingSample({
       opcoIdRaw: id,
       actorUserId: BigInt(user.id),
       filename: file.name,
-      mimeType:
-        file.type ||
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      mimeType: file.type || DEFAULT_XLSX_MIME,
       buffer,
     });
 

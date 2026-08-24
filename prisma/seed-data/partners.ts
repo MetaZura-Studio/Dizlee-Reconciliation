@@ -1,5 +1,6 @@
 /**
  * Real OpCo-linked partners from the Zain OpCo/Partner roster (variants merged).
+ * Extra names appended from the OpCo-wise Partner-wise Service listing.
  */
 
 import type { SeedEntity } from "./helpers";
@@ -56,4 +57,26 @@ export const PARTNER_SEEDS: (SeedEntity & { id: number })[] = [
   { id: 49, slug: "tangerine", name: "Tangerine" },
   { id: 50, slug: "teliacom", name: "Teliacom" },
   { id: 51, slug: "track-mobile", name: "Track Mobile" },
+  { id: 52, slug: "actel", name: "Actel" },
+  { id: 53, slug: "bango", name: "Bango" },
+  { id: 54, slug: "deezer", name: "Deezer" },
+  { id: 55, slug: "eros", name: "EROS" },
+  { id: 56, slug: "gtaf", name: "GTAF" },
+  { id: 57, slug: "ipification", name: "Ipification" },
+  { id: 58, slug: "klikomics", name: "Klikomics" },
+  { id: 59, slug: "mcp", name: "MCP" },
+  { id: 60, slug: "nazara", name: "Nazara" },
+  { id: 61, slug: "qualtrics", name: "Qualtrics" },
+  { id: 62, slug: "shahid", name: "Shahid" },
+  { id: 63, slug: "sla-digital", name: "SLA Digital" },
+  { id: 64, slug: "timwetech", name: "TimweTech" },
+  { id: 65, slug: "yandex", name: "Yandex" },
+  { id: 66, slug: "zainbh-otts", name: "ZainBH OTTs" },
+  { id: 67, slug: "zaingroup", name: "ZainGroup" },
+  { id: 68, slug: "zainkw", name: "ZainKW" },
+  { id: 69, slug: "zainsd-cp", name: "ZainSD_CP" },
+  { id: 70, slug: "zoodmall", name: "ZoodMall" },
+  { id: 71, slug: "karti", name: "Karti" },
+  { id: 72, slug: "shofha", name: "Shofha" },
+  { id: 73, slug: "gamebar", name: "GameBar" },
 ];

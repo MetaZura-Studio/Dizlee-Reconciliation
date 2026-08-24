@@ -10,6 +10,7 @@ import type {
   OpcoPartnerLinksPageData,
   OpcoPartnerLinksView,
   PartnerLinkItem,
+  PartnerLinkRequestItem,
 } from "@/lib/admin/opco-partner-links.shared";
 import {
   getOpcoPartnerLinksSchema,
@@ -22,6 +23,12 @@ import {
 } from "@/lib/platform/opco-partner-links";
 import { prisma } from "@/lib/prisma";
 import { DomainError } from "@/lib/errors/app-error";
+import { notifyOpcoUsers } from "@/lib/platform/notify-opco";
+import {
+  parsePartnerLinkRequestBody,
+  partnerLinkRequestBodyPrefix,
+  PARTNER_LINK_REQUEST_SUBJECT_PREFIX,
+} from "@/lib/platform/partner-link-request";
 
 export type {
   OpcoListItem,
@@ -40,6 +47,37 @@ export class OpcoPartnerLinksError extends DomainError {
 
 function mapOpco(row: { id: bigint; name: string }): OpcoListItem {
   return { id: row.id.toString(), name: row.name };
+}
+
+async function listRecentPartnerLinkRequests(
+  opcoId: bigint,
+): Promise<PartnerLinkRequestItem[]> {
+  const rows = await prisma.notification.findMany({
+    where: {
+      subject: { startsWith: PARTNER_LINK_REQUEST_SUBJECT_PREFIX },
+      body: { startsWith: partnerLinkRequestBodyPrefix(opcoId.toString()) },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 8,
+    select: { id: true, body: true, createdAt: true },
+  });
+
+  const items: PartnerLinkRequestItem[] = [];
+  for (const row of rows) {
+    const parsed = parsePartnerLinkRequestBody(row.body);
+    if (!parsed) {
+      continue;
+    }
+    items.push({
+      id: row.id.toString(),
+      createdAt: row.createdAt.toISOString(),
+      periodLabel: parsed.periodLabel,
+      message: parsed.message,
+      unlinkedPartnerNames: parsed.unlinkedPartnerNames,
+      unknownPartnerNames: parsed.unknownPartnerNames,
+    });
+  }
+  return items;
 }
 
 async function listActivePartners() {
@@ -93,12 +131,13 @@ export async function getPartnerLinksForOpco(
     throw new OpcoPartnerLinksError("OpCo not found", 404);
   }
 
-  const [partners, links] = await Promise.all([
+  const [partners, links, recentLinkRequests] = await Promise.all([
     listActivePartners(),
     prisma.opcoPartnerLink.findMany({
       where: { opcoId },
       select: { partnerId: true, isDeleted: true },
     }),
+    listRecentPartnerLinkRequests(opcoId),
   ]);
 
   const activeLinked = new Set(
@@ -120,6 +159,7 @@ export async function getPartnerLinksForOpco(
     partners: partnerItems,
     linkedCount,
     totalPartners: partnerItems.length,
+    recentLinkRequests,
   };
 }
 
@@ -244,6 +284,26 @@ export async function savePartnerLinksForOpco(
       removed: diff.removed,
     },
   });
+
+  if (diff.added > 0) {
+    const newlyLinkedIds = new Set(
+      diff.toActivate.filter((id) => !currentlyLinkedIds.includes(id)),
+    );
+    const addedNames = partners
+      .filter((partner) => newlyLinkedIds.has(partner.id.toString()))
+      .map((partner) => partner.name);
+    if (addedNames.length > 0) {
+      await notifyOpcoUsers({
+        opcoId,
+        fromUserId: actorUserId,
+        subject: "You can upload the report",
+        body:
+          addedNames.length === 1
+            ? `Admin linked partner ${addedNames[0]} to your OpCo. You can upload the report now.`
+            : `Admin linked partners ${addedNames.join(", ")} to your OpCo. You can upload the report now.`,
+      });
+    }
+  }
 
   return getPartnerLinksForOpco(opco.id.toString());
 }

@@ -1,24 +1,30 @@
 /**
- * OpCo–partner lane matrix from the Zain OpCo/Partner roster.
+ * OpCo–partner lane matrix from the OpCo-wise Partner-wise Service listing.
  * Raw pairs are deduped before export as `OPCO_PARTNER_LINK_SEEDS`.
  */
 
 import { dedupeLinks, type SeedLink } from "./helpers";
 
 const RAW_LINKS: SeedLink[] = [
-  // zain-kuwait (30)
+  // zain-kuwait
   ...[
+    "actel",
     "arpuplus",
+    "bango",
+    "blackbox",
     "boku",
+    "centili",
     "constantconcept",
+    "crowdmedia",
     "dharam",
     "digitalvirgo",
     "dotconvertecs",
-    "dv-amea",
     "eklectic",
     "futuratechnologies",
+    "google",
     "infomedia",
-    "intech",
+    "ipification",
+    "kgroup",
     "marvel-media",
     "mdg",
     "media-ranch",
@@ -26,26 +32,30 @@ const RAW_LINKS: SeedLink[] = [
     "mobibase",
     "mobilearts",
     "mobimind",
+    "nazara",
     "newry",
     "nextboom",
     "numbase",
     "nxtvas",
     "onmobile",
     "qadisha-group",
+    "qualtrics",
     "renxo",
     "sammedia",
     "sigma",
     "tangerine",
-    "teliacom",
-    "track-mobile",
+    "zaingroup",
+    "zoodmall",
   ].map((partnerSlug) => ({ opcoSlug: "zain-kuwait", partnerSlug })),
 
-  // zain-ksa (23)
+  // zain-ksa
   ...[
     "anghami",
     "arpuplus",
+    "bango",
     "centili",
     "ddp",
+    "deezer",
     "dharam",
     "digitalvirgo",
     "ebtikar",
@@ -53,40 +63,60 @@ const RAW_LINKS: SeedLink[] = [
     "futuratechnologies",
     "gamemine",
     "google",
+    "gtaf",
     "infomedia",
-    "intech",
     "kgroup",
+    "klikomics",
     "marvel-media",
     "media-ranch",
+    "mediaworld",
     "mobilearts",
     "newry",
-    "nextboom",
     "novustech",
     "osn",
     "playhera",
+    "qualtrics",
+    "shahid",
     "starzplay",
+    "yandex",
+    "zainsd-cp",
+    "zoodmall",
   ].map((partnerSlug) => ({ opcoSlug: "zain-ksa", partnerSlug })),
 
-  // zain-jordan (8)
+  // zain-jordan
   ...[
     "arpuplus",
+    "bango",
+    "centili",
     "digitalvirgo",
     "dotconvertecs",
-    "futuratechnologies",
+    "gamebar",
     "gamemine",
     "marvel-media",
+    "mcp",
+    "mediaworld",
+    "mobibase",
+    "mobilearts",
+    "mobimind",
+    "novustech",
     "nxtvas",
+    "osn",
     "qadisha-group",
+    "zaingroup",
+    "zainkw",
+    "zoodmall",
   ].map((partnerSlug) => ({ opcoSlug: "zain-jordan", partnerSlug })),
 
-  // zain-iraq (25)
+  // zain-iraq
   ...[
     "albawaba",
     "alhorizon",
+    "bango",
     "blackbox",
     "centili",
     "constantconcept",
     "crosure",
+    "crowdmedia",
     "ddp",
     "digitalizehub",
     "digitalvirgo",
@@ -94,53 +124,76 @@ const RAW_LINKS: SeedLink[] = [
     "dotconvertecs",
     "gamemine",
     "infomedia",
+    "ipification",
     "jivamob",
+    "klikomics",
     "marvel-media",
+    "mcp",
     "mdg",
     "media-ranch",
     "mobibase",
-    "mobibox",
+    "mobilearts",
     "mobimind",
-    "nextboom",
+    "newry",
+    "numbase",
     "parajoy",
     "qadisha-group",
+    "qualtrics",
     "sammedia",
     "tangerine",
+    "zaingroup",
+    "zoodmall",
   ].map((partnerSlug) => ({ opcoSlug: "zain-iraq", partnerSlug })),
 
-  // zain-bahrain (20)
+  // zain-bahrain
   ...[
     "arpuplus",
     "boku",
+    "centili",
     "crowdmedia",
     "digitalvirgo",
     "dotconvertecs",
     "eklectic",
+    "eros",
     "futuratechnologies",
     "gamemine",
     "infomedia",
-    "intech",
+    "jivamob",
+    "kgroup",
     "marvel-media",
+    "mcp",
+    "mediaworld",
     "mobibase",
     "newry",
     "numbase",
     "nxtvas",
     "osn",
     "qadisha-group",
+    "qualtrics",
     "sammedia",
     "sigma",
     "tangerine",
+    "timwetech",
+    "zainbh-otts",
+    "zaingroup",
+    "zainkw",
   ].map((partnerSlug) => ({ opcoSlug: "zain-bahrain", partnerSlug })),
 
-  // zain-sudan (3)
+  // zain-sudan
   ...[
     "arpuplus",
+    "bango",
     "digitalvirgo",
-    "mobibox",
+    "gamemine",
+    "mobilearts",
+    "qualtrics",
+    "sla-digital",
+    "zaingroup",
+    "zainkw",
   ].map((partnerSlug) => ({ opcoSlug: "zain-sudan", partnerSlug })),
 
   // zain-south-sudan (0)
-  // no partners yet
+  // no partners in the listing
 ];
 
 export const OPCO_PARTNER_LINK_SEEDS = dedupeLinks(RAW_LINKS);

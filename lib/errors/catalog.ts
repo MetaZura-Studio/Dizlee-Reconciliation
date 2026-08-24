@@ -1,6 +1,6 @@
 /**
  * Single source of truth for application error codes.
- * Users see: ERROR {code} — {message}
+ * Server logs: ERROR {code} — {key}. Clients see simple messages only.
  * HTTP status is separate and used only for the response protocol.
  */
 
@@ -12,536 +12,552 @@ export type ErrorDefinition = {
 
 /**
  * Catalog keyed by stable machine id.
- * Ranges: 1xxx auth, 11xx common, 2xxx org, 21xx users, 22xx currencies/settings,
- * 3xxx reports, 4xxx invoices, 5xxx recon/consolidation, 6xxx notifications, 9xxx system.
+ * Ranges (3-digit): 100–119 auth, 120–149 common, 150–179 org, 180–199 users,
+ * 200–249 settings, 250–319 reports/storage, 320–359 invoices,
+ * 360–399 recon/consolidation, 400–449 notifications, 900–909 system.
  */
 export const ERROR_CATALOG = {
-  // Auth 1000–1099
+  // Auth 100–119
   INVALID_CREDENTIALS: {
-    code: 1001,
+    code: 100,
     message: "INVALID CREDENTIALS",
     status: 401,
   },
-  USER_NOT_FOUND: { code: 1002, message: "USER NOT FOUND", status: 404 },
-  USER_NOT_ACTIVE: { code: 1003, message: "USER NOT ACTIVE", status: 403 },
+  USER_NOT_FOUND: { code: 101, message: "USER NOT FOUND", status: 404 },
+  USER_NOT_ACTIVE: { code: 102, message: "USER NOT ACTIVE", status: 403 },
   PASSWORD_LINK_INVALID: {
-    code: 1004,
+    code: 103,
     message: "PASSWORD LINK INVALID",
     status: 400,
   },
   PASSWORD_LINK_EXPIRED: {
-    code: 1005,
+    code: 104,
     message: "PASSWORD LINK EXPIRED",
     status: 400,
   },
   CURRENT_PASSWORD_INCORRECT: {
-    code: 1006,
+    code: 105,
     message: "CURRENT PASSWORD INCORRECT",
     status: 400,
   },
   PASSWORD_MUST_DIFFER: {
-    code: 1007,
+    code: 106,
     message: "PASSWORD MUST DIFFER",
     status: 400,
   },
-  PASSWORD_NOT_SET: { code: 1008, message: "PASSWORD NOT SET", status: 400 },
+  PASSWORD_NOT_SET: { code: 107, message: "PASSWORD NOT SET", status: 400 },
   ACCOUNT_NOT_ACTIVE: {
-    code: 1009,
+    code: 108,
     message: "ACCOUNT NOT ACTIVE",
     status: 403,
   },
+  RATE_LIMITED: {
+    code: 109,
+    message: "TOO MANY ATTEMPTS TRY AGAIN LATER",
+    status: 429,
+  },
 
-  // Common 1100–1199
-  UNAUTHORIZED: { code: 1101, message: "UNAUTHORIZED", status: 401 },
+  // Common 120–149
+  UNAUTHORIZED: { code: 120, message: "UNAUTHORIZED", status: 401 },
   VALIDATION_FAILED: {
-    code: 1102,
+    code: 121,
     message: "VALIDATION FAILED",
     status: 400,
   },
-  INVALID_REQUEST: { code: 1103, message: "INVALID REQUEST", status: 400 },
-  INVALID_ID: { code: 1104, message: "INVALID ID", status: 400 },
-  NOT_FOUND: { code: 1105, message: "NOT FOUND", status: 404 },
-  FILE_REQUIRED: { code: 1106, message: "FILE REQUIRED", status: 400 },
-  FILE_NOT_FOUND: { code: 1107, message: "FILE NOT FOUND", status: 404 },
-  FILE_EMPTY: { code: 1108, message: "FILE EMPTY", status: 400 },
+  INVALID_REQUEST: { code: 122, message: "INVALID REQUEST", status: 400 },
+  INVALID_ID: { code: 123, message: "INVALID ID", status: 400 },
+  NOT_FOUND: { code: 124, message: "NOT FOUND", status: 404 },
+  FILE_REQUIRED: { code: 125, message: "FILE REQUIRED", status: 400 },
+  FILE_NOT_FOUND: { code: 126, message: "FILE NOT FOUND", status: 404 },
+  FILE_EMPTY: { code: 127, message: "FILE EMPTY", status: 400 },
   FILE_NAME_REQUIRED: {
-    code: 1109,
+    code: 128,
     message: "FILE NAME REQUIRED",
     status: 400,
   },
-  FILE_TOO_LARGE: { code: 1110, message: "FILE TOO LARGE", status: 400 },
+  FILE_TOO_LARGE: { code: 129, message: "FILE TOO LARGE", status: 400 },
+  ATTACHMENT_TYPE_NOT_ALLOWED: {
+    code: 130,
+    message: "ATTACHMENT TYPE NOT ALLOWED",
+    status: 400,
+  },
   INVALID_EXCEL_FILE: {
-    code: 1111,
+    code: 131,
     message: "INVALID EXCEL FILE",
     status: 400,
   },
   CRON_SECRET_MISSING: {
-    code: 1112,
+    code: 132,
     message: "CRON SECRET MISSING",
     status: 500,
   },
-  PERIOD_REQUIRED: { code: 1113, message: "PERIOD REQUIRED", status: 400 },
+  PERIOD_REQUIRED: { code: 133, message: "PERIOD REQUIRED", status: 400 },
   MONTH_YEAR_REQUIRED: {
-    code: 1114,
+    code: 134,
     message: "MONTH AND YEAR REQUIRED",
     status: 400,
   },
 
-  // Admin org 2000–2099
-  OPCO_NOT_FOUND: { code: 2001, message: "OPCO NOT FOUND", status: 404 },
-  INVALID_OPCO_ID: { code: 2002, message: "INVALID OPCO ID", status: 400 },
-  PARTNER_NOT_FOUND: { code: 2003, message: "PARTNER NOT FOUND", status: 404 },
+  // Admin org 150–179
+  OPCO_NOT_FOUND: { code: 150, message: "OPCO NOT FOUND", status: 404 },
+  INVALID_OPCO_ID: { code: 135, message: "INVALID OPCO ID", status: 400 },
+  PARTNER_NOT_FOUND: { code: 151, message: "PARTNER NOT FOUND", status: 404 },
   INVALID_PARTNER_ID: {
-    code: 2004,
+    code: 136,
     message: "INVALID PARTNER ID",
     status: 400,
   },
   CURRENCY_NOT_FOUND: {
-    code: 2005,
+    code: 152,
     message: "CURRENCY NOT FOUND",
     status: 404,
   },
   OPCO_PARTNER_NOT_LINKED: {
-    code: 2006,
+    code: 153,
     message: "OPCO PARTNER NOT LINKED",
     status: 403,
   },
-  SELECT_OPCO: { code: 2007, message: "SELECT OPCO", status: 400 },
-  SELECT_PARTNER: { code: 2008, message: "SELECT PARTNER", status: 400 },
-  OPCO_REQUIRED: { code: 2009, message: "OPCO REQUIRED", status: 400 },
+  SELECT_OPCO: { code: 154, message: "SELECT OPCO", status: 400 },
+  SELECT_PARTNER: { code: 155, message: "SELECT PARTNER", status: 400 },
+  OPCO_REQUIRED: { code: 156, message: "OPCO REQUIRED", status: 400 },
   SELECT_OPCO_OR_PARTNER: {
-    code: 2010,
+    code: 157,
     message: "SELECT OPCO OR PARTNER",
     status: 400,
   },
   SELECT_AT_LEAST_ONE_OPCO: {
-    code: 2011,
+    code: 158,
     message: "SELECT AT LEAST ONE OPCO",
     status: 400,
   },
   SELECT_AT_LEAST_ONE_PARTNER: {
-    code: 2012,
+    code: 159,
     message: "SELECT AT LEAST ONE PARTNER",
     status: 400,
   },
   SELECTED_OPCOS_NOT_FOUND: {
-    code: 2013,
+    code: 160,
     message: "SELECTED OPCOS NOT FOUND",
     status: 400,
   },
   SELECTED_PARTNERS_NOT_FOUND: {
-    code: 2014,
+    code: 161,
     message: "SELECTED PARTNERS NOT FOUND",
     status: 400,
   },
   OPCO_ID_PARTNER_ID_REQUIRED: {
-    code: 2015,
+    code: 162,
     message: "OPCO ID AND PARTNER ID REQUIRED",
     status: 400,
   },
 
-  // Users 2100–2199
+  // Users 180–199
   EMAIL_ALREADY_EXISTS: {
-    code: 2101,
+    code: 180,
     message: "EMAIL ALREADY EXISTS",
     status: 409,
   },
   ADMIN_ACCOUNT_FORBIDDEN: {
-    code: 2102,
+    code: 181,
     message: "ADMIN ACCOUNT FORBIDDEN",
     status: 403,
   },
   CANNOT_DELETE_OWN_ACCOUNT: {
-    code: 2103,
+    code: 182,
     message: "CANNOT DELETE OWN ACCOUNT",
     status: 400,
   },
   ACTIVE_STATUS_LOOKUP_MISSING: {
-    code: 2104,
+    code: 183,
     message: "ACTIVE STATUS LOOKUP MISSING",
     status: 500,
   },
 
-  // Currencies / rates / settings 2200–2299
+  // Currencies / rates / settings 200–249
   CURRENCY_ISO_EXISTS: {
-    code: 2201,
+    code: 200,
     message: "CURRENCY ISO EXISTS",
     status: 409,
   },
-  CURRENCY_IN_USE: { code: 2202, message: "CURRENCY IN USE", status: 409 },
-  INVALID_MONTH: { code: 2203, message: "INVALID MONTH", status: 400 },
-  INVALID_YEAR: { code: 2204, message: "INVALID YEAR", status: 400 },
+  CURRENCY_IN_USE: { code: 201, message: "CURRENCY IN USE", status: 409 },
+  INVALID_MONTH: { code: 202, message: "INVALID MONTH", status: 400 },
+  INVALID_YEAR: { code: 203, message: "INVALID YEAR", status: 400 },
   INVALID_CURRENCY_ID: {
-    code: 2205,
+    code: 137,
     message: "INVALID CURRENCY ID",
     status: 400,
   },
   RATE_BASE_CURRENCY_INVALID: {
-    code: 2206,
+    code: 204,
     message: "RATE BASE CURRENCY INVALID",
     status: 400,
   },
   EMAIL_SETTINGS_LOAD_FAILED: {
-    code: 2207,
+    code: 205,
     message: "EMAIL SETTINGS LOAD FAILED",
     status: 500,
   },
-  EMAIL_DISABLED: { code: 2208, message: "EMAIL DISABLED", status: 400 },
+  EMAIL_DISABLED: { code: 206, message: "EMAIL DISABLED", status: 400 },
   SMTP_NOT_CONFIGURED: {
-    code: 2209,
+    code: 207,
     message: "SMTP NOT CONFIGURED",
     status: 400,
   },
   SMTP_CREDENTIALS_MISSING: {
-    code: 2210,
+    code: 208,
     message: "SMTP CREDENTIALS MISSING",
     status: 400,
   },
-  TEST_EMAIL_FAILED: { code: 2211, message: "TEST EMAIL FAILED", status: 500 },
+  TEST_EMAIL_FAILED: { code: 209, message: "TEST EMAIL FAILED", status: 500 },
   EMAIL_TEMPLATE_NOT_FOUND: {
-    code: 2212,
+    code: 210,
     message: "EMAIL TEMPLATE NOT FOUND",
     status: 404,
   },
   TEMPLATE_VERSION_NOT_FOUND: {
-    code: 2213,
+    code: 211,
     message: "TEMPLATE VERSION NOT FOUND",
     status: 404,
   },
   TEMPLATE_VERSION_ALREADY_LIVE: {
-    code: 2214,
+    code: 212,
     message: "TEMPLATE VERSION ALREADY LIVE",
     status: 400,
   },
   BANK_DETAILS_INVALID: {
-    code: 2215,
+    code: 213,
     message: "BANK DETAILS INVALID",
     status: 400,
   },
   REMINDER_SETTINGS_INVALID: {
-    code: 2216,
+    code: 214,
     message: "REMINDER SETTINGS INVALID",
     status: 400,
   },
-  TOLERANCE_INVALID: { code: 2217, message: "TOLERANCE INVALID", status: 400 },
+  TOLERANCE_INVALID: { code: 215, message: "TOLERANCE INVALID", status: 400 },
   INVALID_REMINDER_TARGET: {
-    code: 2218,
+    code: 216,
     message: "INVALID REMINDER TARGET",
     status: 400,
   },
 
-  // Reports 3000–3099
-  REPORT_NOT_FOUND: { code: 3001, message: "REPORT NOT FOUND", status: 404 },
-  INVALID_REPORT_ID: { code: 3002, message: "INVALID REPORT ID", status: 400 },
+  // Reports / storage 250–319
+  REPORT_NOT_FOUND: { code: 250, message: "REPORT NOT FOUND", status: 404 },
+  INVALID_REPORT_ID: { code: 138, message: "INVALID REPORT ID", status: 400 },
   REPORT_ALREADY_EXISTS: {
-    code: 3003,
+    code: 251,
     message: "REPORT ALREADY EXISTS",
     status: 409,
   },
   REPORT_STATUS_CONFIG_MISSING: {
-    code: 3004,
+    code: 252,
     message: "REPORT STATUS CONFIG MISSING",
     status: 500,
   },
   REPORT_PARSE_FAILED: {
-    code: 3005,
+    code: 253,
     message: "REPORT PARSE FAILED",
     status: 400,
   },
   REPORT_NO_WORKSHEETS: {
-    code: 3006,
+    code: 254,
     message: "REPORT NO WORKSHEETS",
     status: 400,
   },
   REPORT_NO_LINE_ITEMS: {
-    code: 3007,
+    code: 255,
     message: "REPORT NO LINE ITEMS",
     status: 400,
   },
   REPORT_COLUMNS_UNRECOGNIZED: {
-    code: 3008,
+    code: 256,
     message: "REPORT COLUMNS UNRECOGNIZED",
     status: 400,
   },
   REPORT_FILE_LOAD_FAILED: {
-    code: 3009,
+    code: 257,
     message: "REPORT FILE LOAD FAILED",
     status: 500,
   },
   REUPLOAD_NOT_ALLOWED: {
-    code: 3010,
+    code: 258,
     message: "REUPLOAD NOT ALLOWED",
     status: 403,
   },
   REUPLOAD_REQUEST_NOT_FOUND: {
-    code: 3011,
+    code: 259,
     message: "REUPLOAD REQUEST NOT FOUND",
     status: 404,
   },
   REUPLOAD_REQUEST_EXISTS: {
-    code: 3012,
+    code: 260,
     message: "REUPLOAD REQUEST EXISTS",
     status: 409,
   },
   REUPLOAD_REQUEST_UNAVAILABLE: {
-    code: 3013,
+    code: 261,
     message: "REUPLOAD REQUEST UNAVAILABLE",
     status: 400,
   },
   REUPLOAD_APPROVED_REQUIRED: {
-    code: 3014,
+    code: 262,
     message: "REUPLOAD APPROVED REQUIRED",
     status: 403,
   },
   REUPLOAD_ONLY_SUBMITTED: {
-    code: 3015,
+    code: 263,
     message: "REUPLOAD ONLY SUBMITTED",
     status: 400,
   },
   REUPLOAD_SUBMIT_FAILED: {
-    code: 3016,
+    code: 264,
     message: "REUPLOAD SUBMIT FAILED",
     status: 500,
   },
   INVALID_UPLOAD_DETAILS: {
-    code: 3017,
+    code: 265,
     message: "INVALID UPLOAD DETAILS",
     status: 400,
   },
   STORAGE_NOT_CONFIGURED: {
-    code: 3018,
+    code: 266,
     message: "STORAGE NOT CONFIGURED",
     status: 500,
   },
   STORAGE_OBJECT_NOT_FOUND: {
-    code: 3019,
+    code: 267,
     message: "STORAGE OBJECT NOT FOUND",
     status: 404,
   },
   STORAGE_READ_FAILED: {
-    code: 3020,
+    code: 268,
     message: "STORAGE READ FAILED",
     status: 500,
   },
   STORAGE_WRITE_FAILED: {
-    code: 3021,
+    code: 269,
     message: "STORAGE WRITE FAILED",
     status: 500,
   },
+  OPCO_UNLINKED_PARTNERS_IN_FILE: {
+    code: 270,
+    message: "OPCO UNLINKED PARTNERS IN FILE",
+    status: 409,
+  },
 
-  // Invoices 4000–4099
-  INVOICE_NOT_FOUND: { code: 4001, message: "INVOICE NOT FOUND", status: 404 },
+  // Invoices 320–359
+  INVOICE_NOT_FOUND: { code: 320, message: "INVOICE NOT FOUND", status: 404 },
   INVALID_INVOICE_ID: {
-    code: 4002,
+    code: 321,
     message: "INVALID INVOICE ID",
     status: 400,
   },
   INVOICE_ALREADY_EXISTS: {
-    code: 4003,
+    code: 322,
     message: "INVOICE ALREADY EXISTS",
     status: 409,
   },
   INVOICE_NUMBER_IN_USE: {
-    code: 4004,
+    code: 323,
     message: "INVOICE NUMBER IN USE",
     status: 409,
   },
   INVOICE_ALREADY_PAID: {
-    code: 4005,
+    code: 324,
     message: "INVOICE ALREADY PAID",
     status: 400,
   },
   INVOICE_PERIOD_MONTH_INVALID: {
-    code: 4006,
+    code: 325,
     message: "INVOICE PERIOD MONTH INVALID",
     status: 400,
   },
   INVOICE_PERIOD_YEAR_INVALID: {
-    code: 4007,
+    code: 326,
     message: "INVOICE PERIOD YEAR INVALID",
     status: 400,
   },
   INVOICE_PERIOD_FUTURE: {
-    code: 4008,
+    code: 327,
     message: "INVOICE PERIOD FUTURE",
     status: 400,
   },
   INVOICE_LINE_ITEMS_REQUIRED: {
-    code: 4009,
+    code: 328,
     message: "INVOICE LINE ITEMS REQUIRED",
     status: 400,
   },
   INVOICE_LINE_ITEM_INVALID: {
-    code: 4010,
+    code: 329,
     message: "INVOICE LINE ITEM INVALID",
     status: 400,
   },
   INVOICE_BANK_ACCOUNT_REQUIRED: {
-    code: 4011,
+    code: 330,
     message: "INVOICE BANK ACCOUNT REQUIRED",
     status: 400,
   },
   INVOICE_STATUS_LOOKUP_MISSING: {
-    code: 4012,
+    code: 331,
     message: "INVOICE STATUS LOOKUP MISSING",
     status: 500,
   },
   INVOICE_CREATE_LOAD_FAILED: {
-    code: 4013,
+    code: 332,
     message: "INVOICE CREATE LOAD FAILED",
     status: 500,
   },
   INVOICE_UPDATE_LOAD_FAILED: {
-    code: 4014,
+    code: 333,
     message: "INVOICE UPDATE LOAD FAILED",
     status: 500,
   },
   INVOICE_PREVIEW_FAILED: {
-    code: 4015,
+    code: 334,
     message: "INVOICE PREVIEW FAILED",
     status: 500,
   },
   INVOICE_FILE_UNAVAILABLE: {
-    code: 4016,
+    code: 335,
     message: "INVOICE FILE UNAVAILABLE",
     status: 404,
   },
   INVOICE_MARK_PAID_FORBIDDEN: {
-    code: 4017,
+    code: 336,
     message: "INVOICE MARK PAID FORBIDDEN",
     status: 400,
   },
   INVOICE_UPLOAD_FAILED: {
-    code: 4018,
+    code: 337,
     message: "INVOICE UPLOAD FAILED",
     status: 400,
   },
 
-  // Reconciliation / consolidation 5000–5099
+  // Reconciliation / consolidation 360–399
   RECONCILIATION_NOT_FOUND: {
-    code: 5001,
+    code: 360,
     message: "RECONCILIATION NOT FOUND",
     status: 404,
   },
   INVALID_RECONCILIATION_ID: {
-    code: 5002,
+    code: 361,
     message: "INVALID RECONCILIATION ID",
     status: 400,
   },
   OPCO_REPORT_NOT_FOUND: {
-    code: 5003,
+    code: 362,
     message: "OPCO REPORT NOT FOUND",
     status: 404,
   },
   PARTNER_REPORT_NOT_FOUND: {
-    code: 5004,
+    code: 363,
     message: "PARTNER REPORT NOT FOUND",
     status: 404,
   },
   REPORTS_OPCO_MISMATCH: {
-    code: 5005,
+    code: 364,
     message: "REPORTS OPCO MISMATCH",
     status: 400,
   },
   LANE_ALREADY_RECONCILED: {
-    code: 5006,
+    code: 365,
     message: "LANE ALREADY RECONCILED",
     status: 400,
   },
   RECONCILIATION_CONFIRM_FORBIDDEN: {
-    code: 5007,
+    code: 366,
     message: "RECONCILIATION CONFIRM FORBIDDEN",
     status: 400,
   },
   RECONCILIATION_ALREADY_CONFIRMED: {
-    code: 5008,
+    code: 367,
     message: "RECONCILIATION ALREADY CONFIRMED",
     status: 400,
   },
   CONSOLIDATION_NOT_FOUND: {
-    code: 5009,
+    code: 368,
     message: "CONSOLIDATION NOT FOUND",
     status: 404,
   },
   INVALID_CONSOLIDATION_ID: {
-    code: 5010,
+    code: 139,
     message: "INVALID CONSOLIDATION ID",
     status: 400,
   },
   CONSOLIDATION_NO_PARTNERS: {
-    code: 5011,
+    code: 369,
     message: "CONSOLIDATION NO PARTNERS",
     status: 400,
   },
   CONSOLIDATION_NO_LINE_ITEMS: {
-    code: 5012,
+    code: 370,
     message: "CONSOLIDATION NO LINE ITEMS",
     status: 400,
   },
   PERIOD_OPCO_REQUIRED: {
-    code: 5013,
+    code: 140,
     message: "PERIOD AND OPCO REQUIRED",
     status: 400,
   },
   PERIOD_OPCO_PARTNER_REQUIRED: {
-    code: 5014,
+    code: 141,
     message: "PERIOD OPCO AND PARTNER REQUIRED",
     status: 400,
   },
 
-  // Notifications 6000–6099
+  // Notifications 400–449
   NOTIFICATION_NOT_FOUND: {
-    code: 6001,
+    code: 400,
     message: "NOTIFICATION NOT FOUND",
     status: 404,
   },
   INVALID_NOTIFICATION_ID: {
-    code: 6002,
+    code: 142,
     message: "INVALID NOTIFICATION ID",
     status: 400,
   },
-  SUBJECT_REQUIRED: { code: 6003, message: "SUBJECT REQUIRED", status: 400 },
-  SUBJECT_TOO_LONG: { code: 6004, message: "SUBJECT TOO LONG", status: 400 },
+  SUBJECT_REQUIRED: { code: 143, message: "SUBJECT REQUIRED", status: 400 },
+  SUBJECT_TOO_LONG: { code: 144, message: "SUBJECT TOO LONG", status: 400 },
   MESSAGE_BODY_REQUIRED: {
-    code: 6005,
+    code: 145,
     message: "MESSAGE BODY REQUIRED",
     status: 400,
   },
   TEMPLATE_NOT_FOUND: {
-    code: 6006,
+    code: 217,
     message: "TEMPLATE NOT FOUND",
     status: 400,
   },
   EXPIRY_DATE_INVALID: {
-    code: 6007,
+    code: 146,
     message: "EXPIRY DATE INVALID",
     status: 400,
   },
   ATTACHMENTS_INVALID: {
-    code: 6008,
+    code: 401,
     message: "ATTACHMENTS INVALID",
     status: 400,
   },
   NOTIFICATION_LOAD_FAILED: {
-    code: 6009,
+    code: 402,
     message: "NOTIFICATION LOAD FAILED",
     status: 500,
   },
   NOTIFICATION_DISMISS_FAILED: {
-    code: 6010,
+    code: 403,
     message: "NOTIFICATION DISMISS FAILED",
     status: 500,
   },
-  NO_REMINDERS_SENT: { code: 6011, message: "NO REMINDERS SENT", status: 400 },
+  NO_REMINDERS_SENT: { code: 404, message: "NO REMINDERS SENT", status: 400 },
   NO_MISSING_INVOICES: {
-    code: 6012,
+    code: 405,
     message: "NO MISSING INVOICES",
     status: 400,
   },
 
-  // System 9000–9099
-  SYSTEM_ERROR: { code: 9000, message: "SYSTEM ERROR", status: 500 },
-  UNMAPPED_ERROR: { code: 9001, message: "UNMAPPED ERROR", status: 500 },
+  // System 900–909
+  SYSTEM_ERROR: { code: 900, message: "SYSTEM ERROR", status: 500 },
+  UNMAPPED_ERROR: { code: 901, message: "UNMAPPED ERROR", status: 500 },
 } as const satisfies Record<string, ErrorDefinition>;
 
 export type ErrorKey = keyof typeof ERROR_CATALOG;
@@ -576,6 +592,8 @@ const MESSAGE_ALIASES: Record<string, ErrorKey> = {
   "File is empty.": "FILE_EMPTY",
   "File name is required.": "FILE_NAME_REQUIRED",
   "Each attachment must be 10 MB or smaller.": "FILE_TOO_LARGE",
+  "Attachment type is not allowed. Use PDF, images (not SVG), Excel, CSV, or TXT.":
+    "ATTACHMENT_TYPE_NOT_ALLOWED",
   "File must be an Excel workbook (.xlsx)": "INVALID_EXCEL_FILE",
   "Upload an Excel file in the file field": "FILE_REQUIRED",
   "CRON_SECRET is not configured.": "CRON_SECRET_MISSING",

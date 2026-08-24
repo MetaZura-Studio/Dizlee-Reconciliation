@@ -1,6 +1,7 @@
 /**
  * POST — Partner portal.
  * Parse an uploaded report file and return validation preview before submit.
+ * Partner amounts are USD; no local-currency conversion.
  */
 
 import { NextResponse } from "next/server";
@@ -34,11 +35,20 @@ export async function POST(request: Request) {
     const uploadFile = file as File;
     const buffer = Buffer.from(await uploadFile.arrayBuffer());
     const lineItems = await parseReportWorkbook(buffer);
+    const preview = mapParsedLinesToPreview(lineItems, {
+      currencyCode: "USD",
+      rateToUsd: 1,
+    });
 
     return NextResponse.json({
       filename: uploadFile.name,
       lineItemCount: lineItems.length,
-      lineItems: mapParsedLinesToPreview(lineItems),
+      lineItems: preview.map((item) => ({
+        ...item,
+        amountUsd: item.amount,
+        exchangeRate: null,
+      })),
+      currencyCode: "USD",
     });
   } catch (error) {
     return jsonError(error);

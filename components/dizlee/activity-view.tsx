@@ -200,7 +200,7 @@ export function ActivityView({
     <PageCard>
       <PageHeader
         title="Dizlee - Activity"
-        description="Chronological timeline of intimations, reports, reconciliation, consolidation, and invoices for an OpCo and/or Partner in a selected month."
+        description="Chronological timeline of intimations, reports, reconciliation, and invoices for an OpCo and/or Partner in a selected month."
       />
 
       <FilterToolbar className="mt-4">
