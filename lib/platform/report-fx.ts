@@ -45,6 +45,37 @@ export function applyReportFxToAmount(
   };
 }
 
+type FxSnapshotLine = {
+  amount: number | null;
+  exchangeRate: number | null;
+  usageUsd: number | null;
+};
+
+/**
+ * Stamp Admin monthly FX onto parsed lines before DB insert (historical snapshot).
+ * When rate is missing, lines are left unchanged.
+ */
+export function snapshotFxOntoParsedLines<T extends FxSnapshotLine>(
+  lines: T[],
+  rateToUsd: number | null,
+): T[] {
+  if (rateToUsd === null || !Number.isFinite(rateToUsd) || rateToUsd <= 0) {
+    return lines;
+  }
+
+  return lines.map((line) => {
+    const converted = applyReportFxToAmount(line.amount, rateToUsd);
+    return {
+      ...line,
+      exchangeRate: rateToUsd,
+      usageUsd:
+        converted.amountUsd !== null
+          ? Number(converted.amountUsd)
+          : line.usageUsd,
+    };
+  });
+}
+
 export async function getReportFx(params: {
   currencyId: bigint;
   month: number;

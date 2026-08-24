@@ -1,7 +1,9 @@
 import { RevenueShareView } from "@/components/dizlee/revenue-share-view";
 import { currentPeriod } from "@/lib/dizlee/dashboard";
-import { getReportFilterOptions } from "@/lib/dizlee/reports";
-import { parseRevenueShareFilters } from "@/lib/dizlee/revenue-share";
+import {
+  listRevenueShareDashboard,
+  parseRevenueShareFilters,
+} from "@/lib/dizlee/revenue-share";
 
 type DizleeRevenueSharePageProps = {
   searchParams: Promise<{
@@ -24,13 +26,15 @@ export default async function DizleeRevenueSharePage({
 
   const filters = parseRevenueShareFilters(query);
   const fallback = currentPeriod();
-  const filterOptions = await getReportFilterOptions();
+  const month = filters.month ?? fallback.month;
+  const year = filters.year ?? fallback.year;
+  const initialDashboard = await listRevenueShareDashboard({ month, year });
 
   return (
     <RevenueShareView
-      initialMonth={filters.month ?? fallback.month}
-      initialYear={filters.year ?? fallback.year}
-      initialFilterOptions={filterOptions}
+      initialMonth={month}
+      initialYear={year}
+      initialDashboard={initialDashboard}
     />
   );
 }

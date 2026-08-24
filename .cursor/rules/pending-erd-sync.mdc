@@ -42,6 +42,15 @@ When the user later asks to update the ERD / [`04_DATABASE_SCHEMA_FOR_CURSOR.md`
 - Add unique `uq_service_partner_maps_opco_service_key` (`opco_id`, `service_key`)
 - Same service name may map to different partners on different OpCos
 
+### Applied migration — revenue share reports (generated Excel)
+- Migration: `prisma/migrations/20260824120000_revenue_share_reports`
+- Table `revenue_share_reports`: one generated RS Excel per OpCo + month + year
+- Columns: `opco_id`, `month`, `year`, `file_id`, `generated_at`, `generated_by_user_id`, soft-delete/audit
+- Unique: `uq_revenue_share_reports` (`opco_id`, `year`, `month`)
+- Index: `idx_revenue_share_reports_period` (`year`, `month`)
+- Local/blob folder: `revenue-share` under object storage (`.uploads/revenue-share/` locally)
+- No line-item child table — Excel file is the artifact
+
 ## Source of truth until ERD is refreshed
 1. [`prisma/schema.prisma`](prisma/schema.prisma)
 2. Files under [`prisma/migrations/`](prisma/migrations/)

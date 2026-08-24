@@ -58,6 +58,50 @@ export type RevenueShareReport = {
   lines: RevenueShareLine[];
 };
 
+export type RevenueShareDashboardStatus =
+  | "READY"
+  | "OPCO_REPORT_MISSING"
+  | "PARTNERS_REPORT_MISSING"
+  | "GENERATED";
+
+export type RevenueShareDashboardPartner = {
+  partnerId: string;
+  partnerName: string;
+  hasPartnerReport: boolean;
+};
+
+export type RevenueShareDashboardRow = {
+  opcoId: string;
+  opcoName: string;
+  hasOpcoReport: boolean;
+  status: RevenueShareDashboardStatus;
+  generatedReportId: number | null;
+  partners: RevenueShareDashboardPartner[];
+};
+
+export type RevenueShareDashboardSummary = {
+  total: number;
+  ready: number;
+  pendingMissing: number;
+  generated: number;
+};
+
+export type RevenueShareDashboard = {
+  period: DashboardPeriod;
+  summary: RevenueShareDashboardSummary;
+  rows: RevenueShareDashboardRow[];
+};
+
+export type PersistedRevenueShareReport = {
+  id: number;
+  opcoId: string;
+  opcoName: string;
+  month: number;
+  year: number;
+  filename: string;
+  generatedAt: string;
+};
+
 export class RevenueShareError extends DomainError {
   constructor(keyOrMessage: string, status?: number) {
     super("RevenueShareError", keyOrMessage, status);
@@ -253,6 +297,45 @@ export function revenueShareReadinessFromPartnerRows(
   };
 }
 
+/** Maps readiness + stored generation into dashboard status (Generated wins). */
+export function deriveRevenueShareDashboardStatus(input: {
+  hasGeneratedReport: boolean;
+  ready: boolean;
+  submittedPartnerCount: number;
+}): RevenueShareDashboardStatus {
+  if (input.hasGeneratedReport) {
+    return "GENERATED";
+  }
+  if (input.submittedPartnerCount === 0) {
+    return "OPCO_REPORT_MISSING";
+  }
+  if (!input.ready) {
+    return "PARTNERS_REPORT_MISSING";
+  }
+  return "READY";
+}
+
+export function summarizeRevenueShareDashboardRows(
+  rows: Array<{ status: RevenueShareDashboardStatus }>,
+): RevenueShareDashboardSummary {
+  const summary: RevenueShareDashboardSummary = {
+    total: rows.length,
+    ready: 0,
+    pendingMissing: 0,
+    generated: 0,
+  };
+  for (const row of rows) {
+    if (row.status === "READY") {
+      summary.ready += 1;
+    } else if (row.status === "GENERATED") {
+      summary.generated += 1;
+    } else {
+      summary.pendingMissing += 1;
+    }
+  }
+  return summary;
+}
+
 const reportSelect = {
   partnerId: true,
   version: true,
@@ -431,5 +514,206 @@ export async function buildRevenueShareReport(params: {
     vatPercent: readiness.vatPercent,
     period: readiness.period,
     lines,
+  };
+}
+
+export async function listRevenueShareDashboard(params: {
+  month: number;
+  year: number;
+}): Promise<RevenueShareDashboard> {
+  const period = periodFromParts(params.month, params.year);
+  const [opcos, generatedRows] = await Promise.all([
+    prisma.opco.findMany({
+      where: { isDeleted: false },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+    prisma.revenueShareReport.findMany({
+      where: {
+        month: params.month,
+        year: params.year,
+        isDeleted: false,
+      },
+      select: { id: true, opcoId: true },
+    }),
+  ]);
+
+  const generatedByOpco = new Map(
+    generatedRows.map((row) => [row.opcoId.toString(), row.id]),
+  );
+
+  const rows: RevenueShareDashboardRow[] = [];
+  for (const opco of opcos) {
+    const opcoId = opco.id.toString();
+    const readiness = await getRevenueShareReadiness({
+      month: params.month,
+      year: params.year,
+      opcoId,
+    });
+    const generatedReportId = generatedByOpco.get(opcoId) ?? null;
+    const status = deriveRevenueShareDashboardStatus({
+      hasGeneratedReport: generatedReportId != null,
+      ready: readiness.ready,
+      submittedPartnerCount: readiness.partners.length,
+    });
+
+    rows.push({
+      opcoId,
+      opcoName: opco.name,
+      hasOpcoReport: readiness.partners.length > 0,
+      status,
+      generatedReportId,
+      partners: readiness.partners.map((partner) => ({
+        partnerId: partner.partnerId,
+        partnerName: partner.partnerName,
+        hasPartnerReport: partner.hasPartnerReport,
+      })),
+    });
+  }
+
+  return {
+    period,
+    summary: summarizeRevenueShareDashboardRows(rows),
+    rows,
+  };
+}
+
+export async function getPersistedRevenueShareReport(
+  id: number,
+): Promise<{
+  id: number;
+  opcoId: string;
+  month: number;
+  year: number;
+  file: { id: bigint; filename: string; storageKey: string; mimeType: string | null };
+} | null> {
+  const row = await prisma.revenueShareReport.findFirst({
+    where: { id, isDeleted: false },
+    select: {
+      id: true,
+      opcoId: true,
+      month: true,
+      year: true,
+      file: {
+        select: {
+          id: true,
+          filename: true,
+          storageKey: true,
+          mimeType: true,
+        },
+      },
+    },
+  });
+  if (!row) {
+    return null;
+  }
+  return {
+    id: row.id,
+    opcoId: row.opcoId.toString(),
+    month: row.month,
+    year: row.year,
+    file: row.file,
+  };
+}
+
+export async function generateAndPersistRevenueShareReport(params: {
+  month: number;
+  year: number;
+  opcoId: string;
+  actorUserId: string;
+}): Promise<{
+  report: PersistedRevenueShareReport;
+  buffer: Buffer;
+  filename: string;
+  mimeType: string;
+}> {
+  const built = await buildRevenueShareReport({
+    month: params.month,
+    year: params.year,
+    opcoId: params.opcoId,
+  });
+  const { buildRevenueShareWorkbook, revenueShareExportFilename } = await import(
+    "@/lib/dizlee/revenue-share/export-excel"
+  );
+  const buffer = await buildRevenueShareWorkbook(built);
+  const filename = revenueShareExportFilename(
+    built.opcoName,
+    built.period.month,
+    built.period.year,
+  );
+  const mimeType =
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+  const actorUserId = BigInt(params.actorUserId);
+  const opcoId = BigInt(params.opcoId);
+
+  const { saveStoredObject } = await import(
+    "@/lib/platform/storage/object-storage"
+  );
+  const saved = await saveStoredObject({
+    folder: "revenue-share",
+    buffer,
+    filename,
+    mimeType,
+  });
+
+  const file = await prisma.file.create({
+    data: {
+      filename,
+      storageKey: saved.storageKey,
+      mimeType,
+      sizeBytes: saved.sizeBytes,
+      checksum: saved.checksum,
+      uploadedByUserId: actorUserId,
+    },
+  });
+
+  const generatedAt = new Date();
+  const existing = await prisma.revenueShareReport.findFirst({
+    where: {
+      opcoId,
+      month: params.month,
+      year: params.year,
+    },
+  });
+
+  const row = existing
+    ? await prisma.revenueShareReport.update({
+        where: { id: existing.id },
+        data: {
+          fileId: file.id,
+          generatedAt,
+          generatedByUserId: actorUserId,
+          updatedByUserId: actorUserId,
+          isDeleted: false,
+          deletedAt: null,
+          deletedByUserId: null,
+        },
+      })
+    : await prisma.revenueShareReport.create({
+        data: {
+          opcoId,
+          month: params.month,
+          year: params.year,
+          fileId: file.id,
+          generatedAt,
+          generatedByUserId: actorUserId,
+          createdByUserId: actorUserId,
+          updatedByUserId: actorUserId,
+        },
+      });
+
+  return {
+    report: {
+      id: row.id,
+      opcoId: params.opcoId,
+      opcoName: built.opcoName,
+      month: params.month,
+      year: params.year,
+      filename,
+      generatedAt: generatedAt.toISOString(),
+    },
+    buffer,
+    filename,
+    mimeType,
   };
 }

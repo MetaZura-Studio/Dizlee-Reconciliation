@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { applyReportFxToAmount, formatFxNumber } from "@/lib/platform/report-fx";
+import {
+  applyReportFxToAmount,
+  formatFxNumber,
+  snapshotFxOntoParsedLines,
+} from "@/lib/platform/report-fx";
 import { mapParsedLinesToPreview } from "@/lib/platform/report-preview";
 
 describe("applyReportFxToAmount", () => {
@@ -16,6 +20,34 @@ describe("applyReportFxToAmount", () => {
       exchangeRate: null,
       amountUsd: null,
     });
+  });
+});
+
+describe("snapshotFxOntoParsedLines", () => {
+  const sampleLine = {
+    lineNumber: 1,
+    description: "7adir",
+    usageAmount: null as number | null,
+    usageUsd: null as number | null,
+    amount: 28 as number | null,
+    revenueSharePercent: null as number | null,
+    exchangeRate: null as number | null,
+    usageUnit: null as string | null,
+    reconciliationBasis: null as string | null,
+    sourceColumns: {},
+  };
+
+  it("stamps exchange rate and USD amount onto lines", () => {
+    const [line] = snapshotFxOntoParsedLines([sampleLine], 0.2667);
+    expect(line.exchangeRate).toBe(0.2667);
+    expect(line.usageUsd).toBe(7.4676);
+    expect(line.amount).toBe(28);
+  });
+
+  it("leaves lines unchanged when monthly rate is missing", () => {
+    const [line] = snapshotFxOntoParsedLines([sampleLine], null);
+    expect(line.exchangeRate).toBeNull();
+    expect(line.usageUsd).toBeNull();
   });
 });
 

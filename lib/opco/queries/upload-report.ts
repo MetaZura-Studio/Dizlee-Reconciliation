@@ -13,6 +13,10 @@ import { saveReportFileLocally } from "@/lib/opco/storage/save-report-file";
 import { writePlatformAuditLog } from "@/lib/platform/audit-log";
 import { notifyDizleeUsers } from "@/lib/platform/notify-dizlee";
 import {
+  getOpcoReportFx,
+  snapshotFxOntoParsedLines,
+} from "@/lib/platform/report-fx";
+import {
   OPCO_REPORT_VERSION,
   laneReportWhere,
 } from "@/lib/platform/reports/sides";
@@ -69,6 +73,13 @@ export async function createReportUpload(
     throw new ReportUploadError("Report status configuration is missing", 500);
   }
 
+  const fx = await getOpcoReportFx({
+    opcoId: input.opcoId,
+    month: input.month,
+    year: input.year,
+  });
+  const lineItems = snapshotFxOntoParsedLines(input.lineItems, fx.rateToUsd);
+
   const existingReport = await prisma.report.findFirst({
     where: laneReportWhere("opco", {
       opcoId: input.opcoId,
@@ -118,7 +129,7 @@ export async function createReportUpload(
         uploadedByUserId: input.userId,
         updatedByUserId: input.userId,
         lineItems: {
-          create: input.lineItems.map((item) => ({
+          create: lineItems.map((item) => ({
             lineNumber: item.lineNumber,
             description: item.description,
             usageAmount: item.usageAmount,
@@ -151,6 +162,7 @@ export async function createReportUpload(
         month: input.month,
         year: input.year,
         filename: input.filename,
+        exchangeRate: fx.rateToUsd,
       },
     });
 
