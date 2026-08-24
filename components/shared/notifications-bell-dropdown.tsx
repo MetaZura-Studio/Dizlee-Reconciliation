@@ -132,30 +132,48 @@ export function NotificationsBellDropdown({
     };
   }, [inboxUpdatedEvent, loadItems, open, refreshCount]);
 
-  useEffect(() => {
-    if (!open) {
-      setPanelPos(null);
+  function measurePanelPos() {
+    const rect = rootRef.current?.getBoundingClientRect();
+    if (!rect) {
       return;
     }
-    void loadItems();
-    function updatePosition() {
-      const rect = rootRef.current?.getBoundingClientRect();
-      if (!rect) {
-        return;
-      }
-      setPanelPos({
-        top: rect.bottom + 8,
-        right: Math.max(8, window.innerWidth - rect.right),
-      });
+    setPanelPos({
+      top: rect.bottom + 8,
+      right: Math.max(8, window.innerWidth - rect.right),
+    });
+  }
+
+  function closePanel() {
+    setOpen(false);
+    setPanelPos(null);
+  }
+
+  function togglePanel() {
+    if (open) {
+      closePanel();
+      return;
     }
-    updatePosition();
+    setOpen(true);
+    void loadItems();
+    requestAnimationFrame(() => {
+      measurePanelPos();
+    });
+  }
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    function updatePosition() {
+      measurePanelPos();
+    }
     window.addEventListener("resize", updatePosition);
     window.addEventListener("scroll", updatePosition, true);
     return () => {
       window.removeEventListener("resize", updatePosition);
       window.removeEventListener("scroll", updatePosition, true);
     };
-  }, [loadItems, open]);
+  }, [open]);
 
   useEffect(() => {
     if (!open) {
@@ -167,12 +185,12 @@ export function NotificationsBellDropdown({
         if (panel?.contains(event.target as Node)) {
           return;
         }
-        setOpen(false);
+        closePanel();
       }
     }
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        setOpen(false);
+        closePanel();
       }
     }
     document.addEventListener("mousedown", onPointerDown);
@@ -217,7 +235,7 @@ export function NotificationsBellDropdown({
       inboxHref,
     );
 
-    setOpen(false);
+    closePanel();
     setNavigatingId(null);
     router.push(href);
   }
@@ -239,7 +257,7 @@ export function NotificationsBellDropdown({
         aria-expanded={open}
         aria-haspopup="dialog"
         title="Notifications"
-        onClick={() => setOpen((value) => !value)}
+        onClick={togglePanel}
       >
         <IconBell className="h-5 w-5" />
         <BellBadge count={unreadCount} />
@@ -330,7 +348,7 @@ export function NotificationsBellDropdown({
             <Link
               href={inboxHref}
               className="flex w-full items-center justify-center rounded-2xl bg-surface-muted px-3 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-primary-muted hover:text-primary"
-              onClick={() => setOpen(false)}
+              onClick={closePanel}
             >
               See all notifications
             </Link>
