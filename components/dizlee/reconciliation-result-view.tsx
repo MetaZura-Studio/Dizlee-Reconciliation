@@ -7,7 +7,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { ReportFilenameLink } from "@/components/shared/report-filename-link";
 import {
@@ -100,10 +100,6 @@ export function ReconciliationResultView({
   const [alertAttachments, setAlertAttachments] = useState<PendingAttachment[]>(
     [],
   );
-
-  useEffect(() => {
-    setDetail(initialDetail);
-  }, [initialDetail]);
 
   async function confirmReconciliation() {
     setConfirming(true);

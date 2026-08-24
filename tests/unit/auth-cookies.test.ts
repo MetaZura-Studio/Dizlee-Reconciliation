@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildAuthCookies,
-  useSecureAuthCookies,
+  secureAuthCookiesEnabled,
 } from "@/lib/auth/cookies";
 
 describe("buildAuthCookies", () => {
@@ -32,13 +32,13 @@ describe("buildAuthCookies", () => {
   });
 });
 
-describe("useSecureAuthCookies", () => {
+describe("secureAuthCookiesEnabled", () => {
   it("follows NEXTAUTH_URL scheme when set", () => {
     const prev = process.env.NEXTAUTH_URL;
     process.env.NEXTAUTH_URL = "https://app.example.com";
-    expect(useSecureAuthCookies()).toBe(true);
+    expect(secureAuthCookiesEnabled()).toBe(true);
     process.env.NEXTAUTH_URL = "http://localhost:3000";
-    expect(useSecureAuthCookies()).toBe(false);
+    expect(secureAuthCookiesEnabled()).toBe(false);
     process.env.NEXTAUTH_URL = prev;
   });
 });

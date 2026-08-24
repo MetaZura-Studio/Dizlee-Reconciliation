@@ -73,7 +73,7 @@ export async function POST(request: Request, context: RouteContext) {
     }
 
     const { config } = await loadOpcoMappingParseConfig(opcoId);
-    let lineItems = config
+    const lineItems = config
       ? await lineItemsForPartner(buffer, opcoId, existing.partnerId, config)
       : await parseReportWorkbook(buffer);
 

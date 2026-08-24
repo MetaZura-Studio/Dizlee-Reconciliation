@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { FieldLegend } from "@/components/ui/field";
@@ -48,31 +48,28 @@ function getInitialValues(
   };
 }
 
-export function ServicePartnerMapFormModal({
-  open,
+type ServicePartnerMapFormBodyProps = {
+  mode: "create" | "edit";
+  map: ServicePartnerMapListItem | null;
+  partners: PartnerListItem[];
+  opcos: OpcoListItem[];
+  onClose: () => void;
+  onSaved: (map: ServicePartnerMapListItem, message: string) => void;
+};
+
+function ServicePartnerMapFormBody({
   mode,
   map,
   partners,
   opcos,
   onClose,
   onSaved,
-}: ServicePartnerMapFormModalProps) {
+}: ServicePartnerMapFormBodyProps) {
   const [values, setValues] = useState<FormValues>(() =>
     getInitialValues(mode, map, partners, opcos),
   );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (open) {
-      setValues(getInitialValues(mode, map, partners, opcos));
-      setError(null);
-    }
-  }, [open, mode, map, partners, opcos]);
-
-  if (!open) {
-    return null;
-  }
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -117,85 +114,116 @@ export function ServicePartnerMapFormModal({
       : activeOpcos;
 
   return (
-    <PortalOverlay onClose={onClose}>
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="service-partner-map-form-title"
-        className={ui.modal}
-      >
-        <div className="flex items-start justify-between gap-4">
-          <h2
-            id="service-partner-map-form-title"
-            className="text-lg font-semibold tracking-tight text-foreground"
-          >
-            {mode === "create" ? "Create mapping" : "Edit mapping"}
-          </h2>
-          <ModalCloseButton onClick={onClose} disabled={submitting} />
-        </div>
-
-        <form className="mt-4 space-y-4" onSubmit={(event) => void submit(event)}>
-          <label className="block text-sm">
-            <FieldLegend required>OpCo</FieldLegend>
-            <select
-              value={values.opcoId}
-              onChange={(event) =>
-                setValues((prev) => ({ ...prev, opcoId: event.target.value }))
-              }
-              className={ui.select}
-              required
-            >
-              {opcoOptions.map((opco) => (
-                <option key={opco.id} value={opco.id}>
-                  {opco.name}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="block text-sm">
-            <FieldLegend required>Service / Application name</FieldLegend>
-            <input
-              value={values.serviceName}
-              onChange={(event) =>
-                setValues((prev) => ({ ...prev, serviceName: event.target.value }))
-              }
-              className={ui.input}
-              required
-              maxLength={255}
-            />
-          </label>
-
-          <label className="block text-sm">
-            <FieldLegend required>Partner</FieldLegend>
-            <select
-              value={values.partnerId}
-              onChange={(event) =>
-                setValues((prev) => ({ ...prev, partnerId: event.target.value }))
-              }
-              className={ui.select}
-              required
-            >
-              {activePartners.map((partner) => (
-                <option key={partner.id} value={partner.id}>
-                  {partner.name}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          {error ? <p className={ui.alertError}>{error}</p> : null}
-
-          <div className="flex justify-end gap-3 pt-2">
-            <Button type="button" variant="secondary" onClick={onClose} disabled={submitting}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={submitting || activePartners.length === 0 || opcoOptions.length === 0}>
-              {submitting ? "Saving…" : "Save"}
-            </Button>
-          </div>
-        </form>
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="service-partner-map-form-title"
+      className={ui.modal}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <h2
+          id="service-partner-map-form-title"
+          className="text-lg font-semibold tracking-tight text-foreground"
+        >
+          {mode === "create" ? "Create mapping" : "Edit mapping"}
+        </h2>
+        <ModalCloseButton onClick={onClose} disabled={submitting} />
       </div>
+
+      <form className="mt-4 space-y-4" onSubmit={(event) => void submit(event)}>
+        <label className="block text-sm">
+          <FieldLegend required>OpCo</FieldLegend>
+          <select
+            value={values.opcoId}
+            onChange={(event) =>
+              setValues((prev) => ({ ...prev, opcoId: event.target.value }))
+            }
+            className={ui.select}
+            required
+          >
+            {opcoOptions.map((opco) => (
+              <option key={opco.id} value={opco.id}>
+                {opco.name}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="block text-sm">
+          <FieldLegend required>Service / Application name</FieldLegend>
+          <input
+            value={values.serviceName}
+            onChange={(event) =>
+              setValues((prev) => ({ ...prev, serviceName: event.target.value }))
+            }
+            className={ui.input}
+            required
+            maxLength={255}
+          />
+        </label>
+
+        <label className="block text-sm">
+          <FieldLegend required>Partner</FieldLegend>
+          <select
+            value={values.partnerId}
+            onChange={(event) =>
+              setValues((prev) => ({ ...prev, partnerId: event.target.value }))
+            }
+            className={ui.select}
+            required
+          >
+            {activePartners.map((partner) => (
+              <option key={partner.id} value={partner.id}>
+                {partner.name}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {error ? <p className={ui.alertError}>{error}</p> : null}
+
+        <div className="flex justify-end gap-3 pt-2">
+          <Button type="button" variant="secondary" onClick={onClose} disabled={submitting}>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            disabled={submitting || activePartners.length === 0 || opcoOptions.length === 0}
+          >
+            {submitting ? "Saving…" : "Save"}
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+export function ServicePartnerMapFormModal({
+  open,
+  mode,
+  map,
+  partners,
+  opcos,
+  onClose,
+  onSaved,
+}: ServicePartnerMapFormModalProps) {
+  if (!open) {
+    return null;
+  }
+
+  const formKey = `${mode}:${map?.id ?? "new"}`;
+
+  return (
+    <PortalOverlay onClose={onClose}>
+      <ServicePartnerMapFormBody
+        key={formKey}
+        mode={mode}
+        map={map}
+        partners={partners}
+        opcos={opcos}
+        onClose={onClose}
+        onSaved={onSaved}
+      />
     </PortalOverlay>
   );
 }

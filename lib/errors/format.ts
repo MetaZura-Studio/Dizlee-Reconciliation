@@ -6,7 +6,6 @@
 
 import type { AppErrorPayload } from "@/lib/errors/app-error";
 import {
-  ERROR_CATALOG,
   isErrorKey,
   resolveErrorKeyFromMessage,
   type ErrorKey,

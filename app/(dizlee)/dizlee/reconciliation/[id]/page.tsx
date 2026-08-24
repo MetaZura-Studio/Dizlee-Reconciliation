@@ -27,6 +27,7 @@ export default async function ReconciliationResultPage({
 
   return (
     <ReconciliationResultView
+      key={`${detail.id}-${detail.runAt}`}
       initialDetail={detail}
       initialAlertTemplates={initialAlertTemplates}
     />

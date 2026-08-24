@@ -10,7 +10,7 @@ import type { CookiesOptions } from "next-auth";
  * Prefer HTTPS detection from NEXTAUTH_URL; fall back to production NODE_ENV.
  * Local http://localhost must keep secure:false or the browser will drop cookies.
  */
-export function useSecureAuthCookies(): boolean {
+export function secureAuthCookiesEnabled(): boolean {
   const url = process.env.NEXTAUTH_URL?.trim();
   if (url) {
     return url.startsWith("https://");
@@ -20,7 +20,7 @@ export function useSecureAuthCookies(): boolean {
 
 /** Session + CSRF cookies with locked SameSite / HttpOnly / Secure. */
 export function buildAuthCookies(
-  secure = useSecureAuthCookies(),
+  secure = secureAuthCookiesEnabled(),
 ): Partial<CookiesOptions> {
   const prefix = secure ? "__Secure-" : "";
   const hostPrefix = secure ? "__Host-" : "";
