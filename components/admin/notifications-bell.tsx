@@ -1,9 +1,14 @@
+/**
+ * Admin floating notifications bell with dropdown list and deep links.
+ */
+
 "use client";
 
-import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
-
-import { IconBell } from "@/components/ui/icons";
+import {
+  NotificationsBellDropdown,
+  parseResultListItems,
+  parseUnreadCountField,
+} from "@/components/shared/notifications-bell-dropdown";
 
 type NotificationsBellProps = {
   initialUnreadCount?: number;
@@ -12,56 +17,17 @@ type NotificationsBellProps = {
 export function AdminNotificationsBell({
   initialUnreadCount = 0,
 }: NotificationsBellProps) {
-  const [unreadCount, setUnreadCount] = useState(initialUnreadCount);
-  const [prevInitialUnreadCount, setPrevInitialUnreadCount] =
-    useState(initialUnreadCount);
-
-  if (initialUnreadCount !== prevInitialUnreadCount) {
-    setPrevInitialUnreadCount(initialUnreadCount);
-    setUnreadCount(initialUnreadCount);
-  }
-
-  const refreshCount = useCallback(async () => {
-    try {
-      const response = await fetch("/api/admin/notifications/unread-count");
-      const payload = (await response.json()) as { unreadCount?: number };
-      if (response.ok) {
-        setUnreadCount(payload.unreadCount ?? 0);
-      }
-    } catch {
-      // Keep the last known count if refresh fails.
-    }
-  }, []);
-
-  useEffect(() => {
-    const handleUpdate = () => {
-      void refreshCount();
-    };
-    window.addEventListener("admin-inbox-updated", handleUpdate);
-    window.addEventListener("focus", handleUpdate);
-    return () => {
-      window.removeEventListener("admin-inbox-updated", handleUpdate);
-      window.removeEventListener("focus", handleUpdate);
-    };
-  }, [refreshCount]);
-
   return (
-    <Link
-      href="/admin/notifications"
-      className="relative inline-flex items-center rounded-md p-2 text-foreground-muted transition-colors hover:bg-surface-muted hover:text-foreground"
-      aria-label={
-        unreadCount > 0
-          ? `Notifications, ${unreadCount} unread`
-          : "Notifications"
-      }
-      title="Notifications inbox"
-    >
-      <IconBell className="h-5 w-5" />
-      {unreadCount > 0 ? (
-        <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-primary-foreground">
-          {unreadCount > 9 ? "9+" : unreadCount}
-        </span>
-      ) : null}
-    </Link>
+    <NotificationsBellDropdown
+      portal="admin"
+      inboxHref="/admin/notifications"
+      listUrl="/api/admin/notifications?page=1&unreadOnly=false"
+      detailUrl={(id) => `/api/admin/notifications/${id}`}
+      unreadCountUrl="/api/admin/notifications/unread-count"
+      inboxUpdatedEvent="admin-inbox-updated"
+      initialUnreadCount={initialUnreadCount}
+      parseUnreadCount={parseUnreadCountField}
+      parseListItems={parseResultListItems}
+    />
   );
 }

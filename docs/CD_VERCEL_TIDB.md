@@ -146,6 +146,7 @@ Repo secrets are only needed if you add a custom Actions deploy later (`VERCEL_T
 6. [ ] Smoke: login Admin + Dizlee, open dashboard  
 7. [ ] Confirm cron appears under Vercel → Settings → Cron Jobs  
 8. [ ] When ready: merge `develop` → `main` for production (separate TiDB + env)
+9. [ ] Run [`PRE_PRODUCTION_SECURITY_CHECKLIST.md`](PRE_PRODUCTION_SECURITY_CHECKLIST.md) (auth, IDOR, cron, env)
 
 ---
 

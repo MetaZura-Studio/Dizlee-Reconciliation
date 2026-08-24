@@ -1,9 +1,11 @@
 import { InvoiceBankDetailsForm } from "@/components/admin/invoice-bank-details-form";
+import { PageCard, PageHeader, FormLayout } from "@/components/ui/page";
 import {
   getInvoiceBankDetailsView,
   InvoiceBankDetailsError,
   type InvoiceBankDetailsListView,
 } from "@/lib/admin/invoice-bank-details";
+import { ui } from "@/lib/ui/classes";
 
 export default async function AdminInvoiceBankDetailsPage() {
   let settings: InvoiceBankDetailsListView | null = null;
@@ -20,26 +22,24 @@ export default async function AdminInvoiceBankDetailsPage() {
 
   if (errorMessage) {
     return (
-      <div className="mx-auto max-w-3xl space-y-3">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Invoice bank details
-        </h1>
-        <p className="rounded-md border border-danger-border bg-danger-muted px-3 py-2 text-sm text-danger">
-          {errorMessage}
-        </p>
-      </div>
+      <PageCard>
+        <FormLayout>
+          <PageHeader title="Invoice bank details" />
+          <p className={ui.alertError}>{errorMessage}</p>
+        </FormLayout>
+      </PageCard>
     );
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Invoice bank details
-        </h1>
-      </div>
-
-      <InvoiceBankDetailsForm initialSettings={settings!} />
-    </div>
+    <PageCard>
+      <FormLayout>
+        <PageHeader
+          title="Invoice bank details"
+          description="Bank and signatory details used on digital Dizlee invoices."
+        />
+        <InvoiceBankDetailsForm initialSettings={settings!} />
+      </FormLayout>
+    </PageCard>
   );
 }

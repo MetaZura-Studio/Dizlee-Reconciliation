@@ -1,9 +1,14 @@
+/**
+ * Partner floating notifications bell with dropdown list and deep links.
+ */
+
 "use client";
 
-import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
-
-import { IconBell } from "@/components/ui/icons";
+import {
+  NotificationsBellDropdown,
+  parseResultListItems,
+  parseUnreadCountField,
+} from "@/components/shared/notifications-bell-dropdown";
 
 type NotificationsBellProps = {
   initialUnreadCount?: number;
@@ -12,59 +17,17 @@ type NotificationsBellProps = {
 export function NotificationsBell({
   initialUnreadCount = 0,
 }: NotificationsBellProps) {
-  const [unreadCount, setUnreadCount] = useState(initialUnreadCount);
-  const [prevInitialUnreadCount, setPrevInitialUnreadCount] =
-    useState(initialUnreadCount);
-
-  if (initialUnreadCount !== prevInitialUnreadCount) {
-    setPrevInitialUnreadCount(initialUnreadCount);
-    setUnreadCount(initialUnreadCount);
-  }
-
-  const refreshCount = useCallback(async () => {
-    try {
-      const response = await fetch("/api/partner/notifications/unread-count");
-      const payload = (await response.json()) as { unreadCount?: number };
-
-      if (response.ok) {
-        setUnreadCount(payload.unreadCount ?? 0);
-      }
-    } catch {
-      // Keep the last known count if refresh fails.
-    }
-  }, []);
-
-  useEffect(() => {
-    const handleUpdate = () => {
-      void refreshCount();
-    };
-
-    window.addEventListener("partner-inbox-updated", handleUpdate);
-    window.addEventListener("focus", handleUpdate);
-
-    return () => {
-      window.removeEventListener("partner-inbox-updated", handleUpdate);
-      window.removeEventListener("focus", handleUpdate);
-    };
-  }, [refreshCount]);
-
   return (
-    <Link
-      href="/partner/notifications"
-      className="relative inline-flex items-center rounded-md p-2 text-foreground-muted transition-colors hover:bg-surface-muted hover:text-foreground"
-      aria-label={
-        unreadCount > 0
-          ? `Notifications, ${unreadCount} unread`
-          : "Notifications"
-      }
-      title="Notifications inbox"
-    >
-      <IconBell className="h-5 w-5" />
-      {unreadCount > 0 ? (
-        <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-primary-foreground">
-          {unreadCount > 9 ? "9+" : unreadCount}
-        </span>
-      ) : null}
-    </Link>
+    <NotificationsBellDropdown
+      portal="partner"
+      inboxHref="/partner/notifications"
+      listUrl="/api/partner/notifications?page=1&unreadOnly=false"
+      detailUrl={(id) => `/api/partner/notifications/${id}`}
+      unreadCountUrl="/api/partner/notifications/unread-count"
+      inboxUpdatedEvent="partner-inbox-updated"
+      initialUnreadCount={initialUnreadCount}
+      parseUnreadCount={parseUnreadCountField}
+      parseListItems={parseResultListItems}
+    />
   );
 }

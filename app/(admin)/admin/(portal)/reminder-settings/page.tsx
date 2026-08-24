@@ -1,9 +1,11 @@
 import { ReminderSettingsForm } from "@/components/admin/reminder-settings-form";
+import { PageCard, PageHeader, FormLayout, HelpPanel } from "@/components/ui/page";
 import {
   getReminderSettings,
   ReminderSettingsError,
   type ReminderSettingsView,
 } from "@/lib/admin/reminder-settings";
+import { ui } from "@/lib/ui/classes";
 
 export default async function AdminReminderSettingsPage() {
   let settings: ReminderSettingsView | null = null;
@@ -20,27 +22,29 @@ export default async function AdminReminderSettingsPage() {
 
   if (errorMessage) {
     return (
-      <div className="mx-auto max-w-3xl space-y-3">
-        <h1 className="text-2xl font-semibold tracking-tight">Reminder Settings</h1>
-        <p className="rounded-md border border-danger-border bg-danger-muted px-3 py-2 text-sm text-danger">
-          {errorMessage}
-        </p>
-      </div>
+      <PageCard>
+        <FormLayout>
+          <PageHeader title="Reminder Settings" />
+          <p className={ui.alertError}>{errorMessage}</p>
+        </FormLayout>
+      </PageCard>
     );
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight">Reminder Settings</h1>
-        <p className="text-sm text-foreground-muted">
-          Monthly emails for report submission: pick a due day, then emails before
-          it (intimations) and after it (reminders). Example: due 10 → email on 7
-          and 11.
-        </p>
-      </div>
-
-      <ReminderSettingsForm initialSettings={settings!} />
-    </div>
+    <PageCard>
+      <FormLayout>
+        <PageHeader
+          title="Reminder Settings"
+          description="Monthly emails for report submission: due day, intimations before, and reminders after."
+        />
+        <HelpPanel title="Example">
+          <p>
+            Due day 10 → send intimation on the 7th and reminder on the 11th.
+          </p>
+        </HelpPanel>
+        <ReminderSettingsForm initialSettings={settings!} />
+      </FormLayout>
+    </PageCard>
   );
 }

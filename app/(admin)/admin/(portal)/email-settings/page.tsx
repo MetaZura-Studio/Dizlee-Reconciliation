@@ -1,9 +1,11 @@
 import { EmailSettingsForm } from "@/components/admin/email-settings-form";
+import { PageCard, PageHeader, FormLayout } from "@/components/ui/page";
 import {
   EmailSettingsError,
   getEmailSettings,
   type EmailSettingsView,
 } from "@/lib/admin/email-settings";
+import { ui } from "@/lib/ui/classes";
 
 export default async function AdminEmailSettingsPage() {
   let settings: EmailSettingsView | null = null;
@@ -20,30 +22,29 @@ export default async function AdminEmailSettingsPage() {
 
   if (errorMessage) {
     return (
-      <div className="mx-auto max-w-3xl space-y-3">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Email Notification Settings
-        </h1>
-        <p className="rounded-md border border-danger-border bg-danger-muted px-3 py-2 text-sm text-danger">
-          {errorMessage}
-        </p>
-      </div>
+      <PageCard>
+        <FormLayout>
+          <PageHeader title="Email Notification Settings" />
+          <p className={ui.alertError}>{errorMessage}</p>
+        </FormLayout>
+      </PageCard>
     );
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Email Notification Settings
-        </h1>
-        <p className="text-sm text-foreground-muted">
-          Configure SMTP host, port, and sender. Credentials stay in{" "}
-          <code>.env</code>.
-        </p>
-      </div>
-
-      <EmailSettingsForm initialSettings={settings!} />
-    </div>
+    <PageCard>
+      <FormLayout>
+        <PageHeader
+          title="Email Notification Settings"
+          description={
+            <>
+              Configure SMTP host, port, and sender. Credentials stay in{" "}
+              <code>.env</code>.
+            </>
+          }
+        />
+        <EmailSettingsForm initialSettings={settings!} />
+      </FormLayout>
+    </PageCard>
   );
 }

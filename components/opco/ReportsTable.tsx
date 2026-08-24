@@ -27,7 +27,7 @@ import { IconButton } from "@/components/ui/icon-button";
 import { IconEye, IconRefresh, IconUpload } from "@/components/ui/icons";
 import { ListSearch, OrFiltersDivider } from "@/components/ui/list-search";
 import { LoadingOverlay } from "@/components/ui/loading";
-import { FilterToolbar } from "@/components/ui/page";
+import { FilterToolbar, DataLayout } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
 import { useToast } from "@/components/ui/toast";
 import { formatPeriodLabel, getDefaultPeriod } from "@/lib/opco/period";
@@ -312,7 +312,7 @@ export function ReportsTable({
   const showingTo = Math.min(result.page * result.pageSize, result.totalCount);
 
   return (
-    <div className="space-y-4">
+    <DataLayout className="max-w-none gap-3 sm:gap-4">
       <ListSearch
         value={search}
         onChange={handleSearchChange}
@@ -322,7 +322,7 @@ export function ReportsTable({
 
       <OrFiltersDivider className="mt-0" />
 
-      <FilterToolbar className="mt-4">
+      <FilterToolbar>
         <div className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           <label className="text-sm">
             <span className={ui.label}>Period (month)</span>
@@ -572,6 +572,6 @@ export function ReportsTable({
           onClose={closeDetail}
         />
       ) : null}
-    </div>
+    </DataLayout>
   );
 }

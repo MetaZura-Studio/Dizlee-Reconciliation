@@ -8,6 +8,7 @@ import {
 } from "@/components/shared/report-upload-review-modal";
 import { Button } from "@/components/ui/button";
 import { FieldLabel } from "@/components/ui/field";
+import { LoadingOverlay } from "@/components/ui/loading";
 import { Modal } from "@/components/ui/modal";
 import { formatPeriodLabel } from "@/lib/partner/period";
 import type { PartnerReportListItem } from "@/lib/partner/queries/reports";
@@ -142,6 +143,11 @@ export function ReportReuploadDialog({
   return (
     <>
       <Modal open={!review} title="Reupload corrected file" onClose={onClose}>
+        <LoadingOverlay
+          active={isLoadingPreview}
+          label="Opening preview…"
+          className="min-h-[8rem]"
+        >
         <p className="text-sm text-foreground-muted">
           {report.opcoName} — {formatPeriodLabel(report.year, report.month)}
         </p>
@@ -164,9 +170,6 @@ export function ReportReuploadDialog({
               disabled={isLoadingPreview || isConfirming}
               className="mt-1 block w-full text-sm disabled:opacity-60"
             />
-            {isLoadingPreview ? (
-              <p className="mt-2 text-sm text-foreground-muted">Loading preview…</p>
-            ) : null}
           </div>
 
           {error ? <p className={ui.alertError}>{error}</p> : null}
@@ -182,6 +185,7 @@ export function ReportReuploadDialog({
             </Button>
           </div>
         </div>
+        </LoadingOverlay>
       </Modal>
 
       {review ? (

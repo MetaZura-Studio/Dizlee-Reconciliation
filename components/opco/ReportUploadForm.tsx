@@ -15,6 +15,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { FieldLabel, Select } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
+import {
+  FormLayout,
+  HelpPanel,
+  PageSection,
+} from "@/components/ui/page";
+import { LoadingOverlay, LoadingSpinner } from "@/components/ui/loading";
 import type { LinkedPartner } from "@/lib/opco/queries/partners";
 import { getDefaultPeriod } from "@/lib/opco/period";
 import { validateReportUploadFile } from "@/lib/opco/validation/report-upload";
@@ -328,36 +334,52 @@ export function ReportUploadForm({
 
   return (
     <>
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,28rem)_minmax(0,18rem)] lg:items-start">
-        <div className="space-y-5">
-          {partnerFromServiceMap ? (
-            <div className={ui.alertWarning}>
-              Partner is resolved automatically from the Excel Partner /
-              Merchant / Vendor column (or Admin Service–Partner maps for
-              Iraq/Sudan). One report is created per Partner found in the file.
-            </div>
-          ) : (
+      <LoadingOverlay
+        active={isLoadingPreview}
+        label="Opening preview…"
+        className="min-h-[12rem]"
+      >
+      <FormLayout>
+        <PageSection
+          title="Period & partner"
+          description={
+            partnerFromServiceMap
+              ? "Select the billing period. Partners are resolved from the file or Admin maps."
+              : "Select the partner and billing period for this upload."
+          }
+        >
+          <div
+            className={cn(
+              "grid max-w-2xl gap-4",
+              partnerFromServiceMap
+                ? "sm:grid-cols-2"
+                : "sm:grid-cols-3",
+            )}
+          >
+            {!partnerFromServiceMap ? (
+              <div className="sm:col-span-1">
+                <FieldLabel htmlFor="partnerId" required>
+                  Partner
+                </FieldLabel>
+                <Select
+                  id="partnerId"
+                  name="partnerId"
+                  value={partnerId}
+                  onChange={(event) => setPartnerId(event.target.value)}
+                  required
+                >
+                  {partners.map((partner) => (
+                    <option key={partner.id} value={partner.id}>
+                      {partner.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            ) : null}
             <div>
-              <FieldLabel htmlFor="partnerId" required>Partner</FieldLabel>
-              <Select
-                id="partnerId"
-                name="partnerId"
-                value={partnerId}
-                onChange={(event) => setPartnerId(event.target.value)}
-                required
-              >
-                {partners.map((partner) => (
-                  <option key={partner.id} value={partner.id}>
-                    {partner.name}
-                  </option>
-                ))}
-              </Select>
-            </div>
-          )}
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <FieldLabel htmlFor="month" required>Month</FieldLabel>
+              <FieldLabel htmlFor="month" required>
+                Month
+              </FieldLabel>
               <Select
                 id="month"
                 name="month"
@@ -373,7 +395,9 @@ export function ReportUploadForm({
               </Select>
             </div>
             <div>
-              <FieldLabel htmlFor="year" required>Year</FieldLabel>
+              <FieldLabel htmlFor="year" required>
+                Year
+              </FieldLabel>
               <Select
                 id="year"
                 name="year"
@@ -391,85 +415,107 @@ export function ReportUploadForm({
               </Select>
             </div>
           </div>
+          {partnerFromServiceMap ? (
+            <p className="mt-3 text-xs text-foreground-subtle">
+              One report is created per partner found in the Excel Partner /
+              Merchant / Vendor column (or Service–Partner maps for Iraq/Sudan).
+            </p>
+          ) : null}
+        </PageSection>
 
-          <div>
-            <FieldLabel required>Excel report (.xlsx)</FieldLabel>
-            <input
-              ref={fileInputRef}
-              id="file"
-              name="file"
-              type="file"
-              accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-              onChange={handleFileChange}
-              disabled={isLoadingPreview || isConfirming}
-              className="sr-only"
-            />
-            <div
-              role="button"
-              tabIndex={0}
-              onClick={handleChooseFile}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  handleChooseFile();
-                }
-              }}
-              onDragEnter={(event) => {
+        <PageSection
+          title="Excel file"
+          description="Drop your monthly .xlsx workbook. You will preview the sheet before confirming."
+        >
+          <input
+            ref={fileInputRef}
+            id="file"
+            name="file"
+            type="file"
+            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            onChange={handleFileChange}
+            disabled={isLoadingPreview || isConfirming}
+            className="sr-only"
+          />
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={handleChooseFile}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
                 event.preventDefault();
-                setIsDragging(true);
-              }}
-              onDragOver={(event) => {
-                event.preventDefault();
-                setIsDragging(true);
-              }}
-              onDragLeave={(event) => {
-                event.preventDefault();
-                setIsDragging(false);
-              }}
-              onDrop={handleDrop}
-              className={cn(
-                "mt-1.5 flex min-h-[9.5rem] cursor-pointer flex-col items-center justify-center rounded-[22px] border border-dashed px-4 py-6 text-center transition-colors",
-                isDragging
-                  ? "border-primary bg-primary-muted/50"
-                  : "border-border-strong bg-surface-muted/40 hover:border-primary hover:bg-primary-muted/30",
-                (isLoadingPreview || isConfirming) && "pointer-events-none opacity-60",
-              )}
-            >
-              <p className="text-sm font-medium text-foreground">
-                {isLoadingPreview
-                  ? "Opening preview…"
-                  : file
-                    ? file.name
-                    : "Drop .xlsx here or browse"}
-              </p>
-              <p className="mt-1 text-xs text-foreground-subtle">
-                {file
-                  ? formatFileSizeLabel(file.size)
-                  : "Excel workbook only (.xlsx)"}
-              </p>
-              {!file ? (
-                <span className={`mt-4 ${ui.btnSecondary}`}>Choose file</span>
-              ) : (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="mt-4"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    handleChooseDifferentFile();
-                  }}
-                >
-                  Replace file
-                </Button>
-              )}
-            </div>
+                handleChooseFile();
+              }
+            }}
+            onDragEnter={(event) => {
+              event.preventDefault();
+              setIsDragging(true);
+            }}
+            onDragOver={(event) => {
+              event.preventDefault();
+              setIsDragging(true);
+            }}
+            onDragLeave={(event) => {
+              event.preventDefault();
+              setIsDragging(false);
+            }}
+            onDrop={handleDrop}
+            className={cn(
+              "relative flex min-h-[11rem] cursor-pointer flex-col items-center justify-center rounded-[22px] border border-dashed px-6 py-8 text-center transition-colors sm:min-h-[12.5rem]",
+              isDragging
+                ? "border-primary bg-primary-muted/50"
+                : "border-border-strong bg-surface hover:border-primary hover:bg-primary-muted/20",
+              (isLoadingPreview || isConfirming) &&
+                "pointer-events-none opacity-60",
+            )}
+          >
+            {isLoadingPreview ? (
+              <>
+                <LoadingSpinner />
+                <p className="mt-4 text-base font-medium text-foreground">
+                  Opening preview…
+                </p>
+                <p className="mt-1.5 text-sm text-foreground-subtle">
+                  Reading your Excel workbook
+                </p>
+              </>
+            ) : (
+              <>
+            <p className="text-base font-medium text-foreground">
+              {file ? file.name : "Drop .xlsx here or browse"}
+            </p>
+            <p className="mt-1.5 text-sm text-foreground-subtle">
+              {file
+                ? formatFileSizeLabel(file.size)
+                : "Excel workbook only (.xlsx)"}
+            </p>
+            {!file ? (
+              <span className={`mt-5 ${ui.btnSecondary}`}>Choose file</span>
+            ) : (
+              <Button
+                type="button"
+                variant="secondary"
+                className="mt-5"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleChooseDifferentFile();
+                }}
+              >
+                Replace file
+              </Button>
+            )}
+              </>
+            )}
           </div>
 
-          {error ? <p className={ui.alertError}>{error}</p> : null}
+          {error ? <p className={`mt-4 ${ui.alertError}`}>{error}</p> : null}
 
           {success ? (
-            <div className="rounded-md border border-border bg-surface-muted/50 p-4 text-sm">
-              <div className="flex flex-wrap gap-3">
+            <div className="mt-4 rounded-[18px] border border-border bg-surface p-4">
+              <p className="text-sm font-medium text-foreground">
+                Upload complete
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
                 <Link href="/opco/reports" className={ui.btnSecondary}>
                   View reports history
                 </Link>
@@ -486,32 +532,34 @@ export function ReportUploadForm({
               </div>
             </div>
           ) : null}
-        </div>
+        </PageSection>
 
-        <aside className="rounded-[22px] border border-border bg-surface-muted/50 p-4 sm:p-5">
-          <h2 className="text-sm font-semibold text-foreground">Before you upload</h2>
-          <ul className="mt-3 space-y-2.5 text-sm text-foreground-muted">
+        <HelpPanel title="Quick tips">
+          <ul className="list-disc space-y-1.5 pl-4">
             <li>Use the standard monthly Excel template (.xlsx).</li>
             <li>
               {partnerFromServiceMap
-                ? `Choose the correct period (${MONTHS[month - 1]} ${year}). Partners come from the file or Admin mappings.`
-                : `Choose the correct partner and period (${MONTHS[month - 1]} ${year}).`}
+                ? `Period: ${MONTHS[month - 1]} ${year}. Partners come from the file or Admin mappings.`
+                : `Partner and period: ${selectedPartnerName} — ${MONTHS[month - 1]} ${year}.`}
             </li>
-            <li>You will preview the sheet before confirming upload.</li>
             <li>
-              Uploading again for the same partner and period may create a new
-              version or require reupload approval.
+              Re-uploading the same partner and period may create a new version
+              or need approval.
             </li>
           </ul>
-          <p className="mt-4 text-xs text-foreground-subtle">
+          <p className="text-xs text-foreground-subtle">
             Need an older file?{" "}
-            <Link href="/opco/reports" className="underline hover:text-foreground">
+            <Link
+              href="/opco/reports"
+              className="underline hover:text-foreground"
+            >
               Open reports history
             </Link>
             .
           </p>
-        </aside>
-      </div>
+        </HelpPanel>
+      </FormLayout>
+      </LoadingOverlay>
 
       {review ? (
         <ReportUploadReviewModal
