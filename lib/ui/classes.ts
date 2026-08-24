@@ -8,7 +8,14 @@
 export const ui = {
   page: "min-h-screen bg-canvas text-foreground antialiased",
   pageCard:
-    "w-full rounded-[24px] border border-border bg-surface p-4 shadow-[var(--shadow-md)] sm:rounded-[28px] sm:p-6 lg:p-8",
+    "w-full rounded-[24px] border border-border bg-surface p-4 shadow-[var(--shadow-md)] sm:rounded-[28px] sm:p-5 lg:p-6",
+  pageStack: "mx-auto flex w-full max-w-6xl flex-col gap-4 sm:gap-5",
+  formLayout: "w-full space-y-5 sm:space-y-6",
+  dataLayout: "mx-auto flex w-full max-w-7xl flex-col gap-4 sm:gap-5",
+  sectionCard:
+    "rounded-[22px] border border-border bg-surface-muted/40 p-4 sm:p-5",
+  helpPanel:
+    "rounded-[22px] border border-border bg-surface-muted/50 p-4 text-sm text-foreground-muted sm:p-5",
   card: "rounded-[28px] border border-border bg-surface shadow-[var(--shadow-md)]",
   cardPadding:
     "rounded-[28px] border border-border bg-surface p-4 shadow-[var(--shadow-sm)] sm:p-5",
@@ -47,7 +54,7 @@ export const ui = {
   sidebar:
     "flex shrink-0 flex-col rounded-[32px] border border-border bg-white/80 shadow-[var(--shadow-md)] backdrop-blur-md",
   header:
-    "rounded-[28px] border border-border bg-white/80 shadow-[var(--shadow-sm)] backdrop-blur-md",
+    "rounded-[28px] border border-border bg-surface shadow-[var(--shadow-sm)]",
   tableWrap:
     "w-full overflow-x-auto overflow-y-hidden rounded-[28px] border border-border bg-surface shadow-[var(--shadow-md)]",
   table: "w-full min-w-[40rem] border-separate border-spacing-0 text-sm",
@@ -80,7 +87,7 @@ export const ui = {
   pageTitle: "text-xl font-semibold tracking-tight text-foreground sm:text-2xl",
   pageSubtitle: "mt-1 text-sm text-foreground-muted",
   filterToolbar:
-    "flex w-full flex-wrap items-end gap-3 rounded-[24px] border border-border bg-surface-muted/60 p-3 sm:p-4",
+    "flex w-full flex-wrap items-end gap-2.5 rounded-[22px] border border-border bg-surface-muted/50 p-3 sm:gap-3 sm:p-3.5",
   emptyState:
     "rounded-3xl border border-dashed border-border-strong bg-surface px-6 py-12 text-center",
 } as const;

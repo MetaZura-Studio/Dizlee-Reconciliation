@@ -26,13 +26,7 @@ export default async function OpcoUploadPage() {
     <PageCard>
       <PageHeader
         title="Upload Report"
-        description={
-          autoResolvePartners
-            ? partnerMode === "SERVICE_PARTNER_MAP"
-              ? "Upload one monthly Excel. Partner is resolved from Admin Service–Partner maps."
-              : "Upload one monthly Excel. Partner is taken from the mapped Excel column."
-            : "Upload a monthly Excel report for a linked partner."
-        }
+        description="Upload one monthly Excel. Partners resolve from the file or Admin maps when configured."
       />
       <ReportUploadForm
         partners={partners}

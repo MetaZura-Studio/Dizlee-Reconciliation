@@ -25,7 +25,7 @@ import { IconButton } from "@/components/ui/icon-button";
 import { IconEye } from "@/components/ui/icons";
 import { ListSearch, OrFiltersDivider } from "@/components/ui/list-search";
 import { LoadingOverlay } from "@/components/ui/loading";
-import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
+import { FilterToolbar, DataLayout, PageCard, PageHeader } from "@/components/ui/page";
 import { ui } from "@/lib/ui/classes";
 import { nextSortState } from "@/lib/ui/sort";
 import { useDebouncedValue } from "@/lib/ui/use-debounced-value";
@@ -296,6 +296,7 @@ export function ReportsListView({
         }
       />
 
+      <DataLayout className="max-w-none gap-3 sm:gap-4">
       <ReportsTabs active="reports" />
 
       <ListSearch
@@ -306,7 +307,7 @@ export function ReportsListView({
 
       <OrFiltersDivider />
 
-      <FilterToolbar className="mt-4">
+      <FilterToolbar>
         <div className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           <label className="text-sm">
             <span className={ui.label}>Period (month)</span>
@@ -503,6 +504,7 @@ export function ReportsListView({
           }}
         />
       ) : null}
+      </DataLayout>
     </PageCard>
   );
 }

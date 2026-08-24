@@ -350,7 +350,6 @@ export function AppShell({
     "/";
   const mainItems = navItems.filter((item) => !item.footer);
   const footerItems = navItems.filter((item) => item.footer);
-  const showHeader = headerLeft != null || headerRight != null;
 
   return (
     <div className="h-dvh overflow-hidden bg-canvas p-2 sm:p-3 lg:p-4">
@@ -424,26 +423,21 @@ export function AppShell({
           </div>
         </aside>
 
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 sm:gap-3 lg:gap-4">
-          {showHeader ? (
-            <header
-              className={cn(
-                ui.header,
-                "relative z-40 flex shrink-0 items-center gap-4 px-4 py-3 sm:px-5",
-              )}
-            >
-              {headerLeft ? (
-                <div className="min-w-0 flex-1">{headerLeft}</div>
-              ) : null}
-              {headerRight ? (
-                <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
-                  {headerRight}
-                </div>
-              ) : null}
-            </header>
-          ) : null}
-          <main className="min-h-0 w-full flex-1 overflow-auto rounded-[24px] border border-border bg-white/50 p-3 shadow-[var(--shadow-sm)] backdrop-blur-sm sm:rounded-[28px] sm:p-4 lg:p-6">
-            {children}
+        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+          <main className="relative z-0 flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[24px] border border-border bg-surface shadow-[var(--shadow-sm)] sm:rounded-[28px]">
+            {headerLeft ? (
+              <div className="pointer-events-none absolute left-8 top-8 z-40 max-w-[min(100%,24rem)] sm:left-10 sm:top-10 lg:left-12 lg:top-12">
+                <div className="pointer-events-auto">{headerLeft}</div>
+              </div>
+            ) : null}
+            {headerRight ? (
+              <div className="pointer-events-none absolute right-8 top-8 z-40 sm:right-10 sm:top-10 lg:right-12 lg:top-12">
+                <div className="pointer-events-auto">{headerRight}</div>
+              </div>
+            ) : null}
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain p-4 pt-5 sm:p-5 sm:pt-6 lg:p-6 lg:pt-7">
+              {children}
+            </div>
           </main>
         </div>
       </div>

@@ -12,6 +12,7 @@ import {
   DataTableTh,
 } from "@/components/ui/data-table";
 import { ModalCloseButton } from "@/components/ui/modal-close-button";
+import { LoadingOverlay } from "@/components/ui/loading";
 import type { ReportPreviewLineItem } from "@/lib/platform/report-preview";
 import { ui } from "@/lib/ui/classes";
 
@@ -100,12 +101,17 @@ export function ReportUploadReviewModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]">
-      <div
-        className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-[28px] border border-border bg-surface shadow-[var(--shadow-md)]"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="report-upload-review-title"
+      <LoadingOverlay
+        active={confirming}
+        label={confirmingLabel}
+        className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-[28px]"
       >
+        <div
+          className="flex max-h-[90vh] w-full flex-col overflow-hidden rounded-[28px] border border-border bg-surface shadow-[var(--shadow-md)]"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="report-upload-review-title"
+        >
         <div className="flex items-start justify-between gap-4 border-b border-border px-6 py-4">
           <div>
             <h2
@@ -202,7 +208,8 @@ export function ReportUploadReviewModal({
             {confirming ? confirmingLabel : confirmLabel}
           </Button>
         </div>
-      </div>
+        </div>
+      </LoadingOverlay>
     </div>
   );
 }

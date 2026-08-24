@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingOverlay } from "@/components/ui/loading";
-import { PageCard, PageHeader } from "@/components/ui/page";
+import { PageCard, PageHeader, PageStack } from "@/components/ui/page";
 import type {
   DashboardData,
   DirectionPanel,
@@ -316,7 +316,7 @@ export function DashboardView({ initialData }: DashboardViewProps) {
       {error ? <div className={ui.alertError}>{error}</div> : null}
 
       <LoadingOverlay active={loading} className="min-h-[12rem]">
-      <div className="space-y-8">
+      <PageStack className="max-w-none gap-5 sm:gap-6">
         <BillingSectionView billing={billing} kpis={kpis} month={month} year={year} />
 
         <ReportsReconSectionView
@@ -387,7 +387,7 @@ export function DashboardView({ initialData }: DashboardViewProps) {
             />
           )}
         </DashboardSection>
-      </div>
+      </PageStack>
       </LoadingOverlay>
     </PageCard>
   );
