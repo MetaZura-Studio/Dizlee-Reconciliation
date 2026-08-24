@@ -16,6 +16,8 @@ import {
 } from "@/lib/platform/reports/sides";
 import { writePlatformAuditLog } from "@/lib/platform/audit-log";
 import { notifyDizleeUsers } from "@/lib/platform/notify-dizlee";
+import { snapshotFxOntoParsedLines } from "@/lib/platform/report-fx";
+import { BASE_CURRENCY_RATE } from "@/lib/platform/currency-rates";
 import { formatPeriodLabel } from "@/lib/partner/period";
 import prisma from "@/lib/prisma";
 import { DomainError } from "@/lib/errors/app-error";
@@ -69,6 +71,12 @@ export async function createReportUpload(
     throw new ReportUploadError("Report status configuration is missing", 500);
   }
 
+  // Partner amounts are USD; snapshot rate 1 for historical display.
+  const lineItems = snapshotFxOntoParsedLines(
+    input.lineItems,
+    BASE_CURRENCY_RATE,
+  );
+
   const existingReport = await prisma.report.findFirst({
     where: laneReportWhere("partner", {
       opcoId: input.opcoId,
@@ -118,7 +126,7 @@ export async function createReportUpload(
         uploadedByUserId: input.userId,
         updatedByUserId: input.userId,
         lineItems: {
-          create: input.lineItems.map((item) => ({
+          create: lineItems.map((item) => ({
             lineNumber: item.lineNumber,
             description: item.description,
             usageAmount: item.usageAmount,
@@ -151,6 +159,7 @@ export async function createReportUpload(
         month: input.month,
         year: input.year,
         filename: input.filename,
+        exchangeRate: BASE_CURRENCY_RATE,
       },
     });
 

@@ -117,6 +117,30 @@ Relationships:
 - `opcos` 1 —— 0..1 `opco_report_mappings`
 - `files` 0..1 —— * sample for mapping
 
+### `revenue_share_reports`
+One generated Dizlee Revenue Share Excel per OpCo + period (file-backed; no line-item child table).
+
+| Column | Type | Notes |
+|--------|------|--------|
+| `id` | `INT` PK | |
+| `opco_id` | `BIGINT NOT NULL` → `opcos.id` | |
+| `month` | `INT NOT NULL` | |
+| `year` | `INT NOT NULL` | |
+| `file_id` | `BIGINT NOT NULL` → `files.id` | Stored `.xlsx` |
+| `generated_at` | `DATETIME(3) NOT NULL` | |
+| `generated_by_user_id` | `BIGINT NOT NULL` → `users.id` | |
+| soft-delete / audit | standard | |
+
+Unique: `uq_revenue_share_reports` (`opco_id`, `year`, `month`)  
+Index: `idx_revenue_share_reports_period` (`year`, `month`)  
+Migration: `20260824120000_revenue_share_reports`  
+Object storage folder: `revenue-share` (local path `.uploads/revenue-share/...`)
+
+Relationships:
+- `opcos` 1 —— * `revenue_share_reports`
+- `files` 1 —— * `revenue_share_reports`
+- `users` 1 —— * generated-by
+
 ---
 
 ## 3. Lookup / seed notes (not new tables)

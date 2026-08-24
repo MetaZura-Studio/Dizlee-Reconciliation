@@ -11,6 +11,10 @@ import type { ParsedReportLine } from "@/lib/opco/excel/parse-report";
 import { getOpcoLookupId } from "@/lib/opco/lookups";
 import { mapReuploadEligibility } from "@/lib/opco/reupload/eligibility";
 import { saveReportFileLocally } from "@/lib/opco/storage/save-report-file";
+import {
+  getOpcoReportFx,
+  snapshotFxOntoParsedLines,
+} from "@/lib/platform/report-fx";
 import { OPCO_REPORT_VERSION } from "@/lib/platform/reports/sides";
 import prisma from "@/lib/prisma";
 import { DomainError } from "@/lib/errors/app-error";
@@ -124,8 +128,15 @@ export async function reuploadCorrectedReport(
     },
   });
 
+  const fx = await getOpcoReportFx({
+    opcoId: input.opcoId,
+    month: report.month,
+    year: report.year,
+  });
+  const lineItems = snapshotFxOntoParsedLines(input.lineItems, fx.rateToUsd);
+
   await prisma.reportLineItem.createMany({
-    data: input.lineItems.map((item) => ({
+    data: lineItems.map((item) => ({
       reportId: input.reportId,
       lineNumber: item.lineNumber,
       description: item.description,
@@ -152,6 +163,6 @@ export async function reuploadCorrectedReport(
 
   return {
     reportId: input.reportId.toString(),
-    lineItemCount: input.lineItems.length,
+    lineItemCount: lineItems.length,
   };
 }

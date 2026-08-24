@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildRevenueShareLine,
+  deriveRevenueShareDashboardStatus,
   netRevenueFromGross,
   regulatoryFeeFromVatPercent,
   resolveRevenueSharePercent,
   revenueSharePercentFromSource,
   revenueShareReadinessFromPartnerRows,
+  summarizeRevenueShareDashboardRows,
 } from "@/lib/dizlee/revenue-share";
 import { revenueShareExportFilename } from "@/lib/dizlee/revenue-share/export-excel";
 import {
@@ -140,5 +142,65 @@ describe("revenueShareReadinessFromPartnerRows", () => {
     expect(result.partners).toHaveLength(1);
     expect(result.missing).toEqual([]);
     expect(result.ready).toBe(true);
+  });
+});
+
+describe("deriveRevenueShareDashboardStatus", () => {
+  it("prefers Generated when a stored report exists", () => {
+    expect(
+      deriveRevenueShareDashboardStatus({
+        hasGeneratedReport: true,
+        ready: true,
+        submittedPartnerCount: 2,
+      }),
+    ).toBe("GENERATED");
+  });
+
+  it("marks OpCo report missing when nothing was submitted", () => {
+    expect(
+      deriveRevenueShareDashboardStatus({
+        hasGeneratedReport: false,
+        ready: false,
+        submittedPartnerCount: 0,
+      }),
+    ).toBe("OPCO_REPORT_MISSING");
+  });
+
+  it("marks partners missing when OpCo file is in but partners are not", () => {
+    expect(
+      deriveRevenueShareDashboardStatus({
+        hasGeneratedReport: false,
+        ready: false,
+        submittedPartnerCount: 3,
+      }),
+    ).toBe("PARTNERS_REPORT_MISSING");
+  });
+
+  it("is Ready when submissions are complete and nothing generated yet", () => {
+    expect(
+      deriveRevenueShareDashboardStatus({
+        hasGeneratedReport: false,
+        ready: true,
+        submittedPartnerCount: 2,
+      }),
+    ).toBe("READY");
+  });
+});
+
+describe("summarizeRevenueShareDashboardRows", () => {
+  it("counts ready, pending, and generated", () => {
+    expect(
+      summarizeRevenueShareDashboardRows([
+        { status: "READY" },
+        { status: "GENERATED" },
+        { status: "OPCO_REPORT_MISSING" },
+        { status: "PARTNERS_REPORT_MISSING" },
+      ]),
+    ).toEqual({
+      total: 4,
+      ready: 1,
+      pendingMissing: 2,
+      generated: 1,
+    });
   });
 });

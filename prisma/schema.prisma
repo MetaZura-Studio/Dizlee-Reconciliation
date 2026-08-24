@@ -113,12 +113,13 @@ model Opco {
   updatedByUser     User?             @relation("OpcoUpdatedBy", fields: [updatedByUserId], references: [id])
   users             User[]            @relation("UserOpco")
   opcoPartnerLinks  OpcoPartnerLink[]
-  reports           Report[]
-  consolidations    Consolidation[]
-  reconciliations   Reconciliation[]
-  invoices          Invoice[]
-  reportMapping     OpcoReportMapping?
-  servicePartnerMaps ServicePartnerMap[]
+  reports             Report[]
+  consolidations      Consolidation[]
+  reconciliations     Reconciliation[]
+  invoices            Invoice[]
+  reportMapping       OpcoReportMapping?
+  servicePartnerMaps  ServicePartnerMap[]
+  revenueShareReports RevenueShareReport[]
 
   @@map("opcos")
 }
@@ -229,6 +230,7 @@ model User {
   reconciliationsRun      Reconciliation[] @relation("ReconciliationRunner")
   invoicesUploaded        Invoice[] @relation("InvoiceUploader")
   invoiceActivityLogs     InvoiceActivityLog[]
+  revenueShareReportsGenerated RevenueShareReport[] @relation("RevenueShareReportGenerator")
 
   @@map("users")
 }
@@ -321,6 +323,7 @@ model File {
   notificationAttachments  NotificationAttachment[]
   invoices                 Invoice[]
   opcoReportMappings       OpcoReportMapping[]
+  revenueShareReports      RevenueShareReport[]
 
   @@map("files")
 }
@@ -582,6 +585,32 @@ model Consolidation {
 
   @@unique([opcoId, year, month], map: "uq_consolidations")
   @@map("consolidations")
+}
+
+/// Generated Dizlee Revenue Share Excel for one OpCo + period (file-backed, not line items).
+model RevenueShareReport {
+  id                Int      @id @default(autoincrement())
+  opcoId            BigInt   @map("opco_id")
+  month             Int
+  year              Int
+  fileId            BigInt   @map("file_id")
+  generatedAt       DateTime @map("generated_at")
+  generatedByUserId BigInt   @map("generated_by_user_id")
+  createdByUserId   BigInt?  @map("created_by_user_id")
+  updatedByUserId   BigInt?  @map("updated_by_user_id")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  isDeleted         Boolean  @default(false) @map("is_deleted")
+  deletedByUserId   BigInt?  @map("deleted_by_user_id")
+  deletedAt         DateTime? @map("deleted_at")
+
+  opco        Opco @relation(fields: [opcoId], references: [id])
+  file        File @relation(fields: [fileId], references: [id])
+  generatedBy User @relation("RevenueShareReportGenerator", fields: [generatedByUserId], references: [id])
+
+  @@unique([opcoId, year, month], map: "uq_revenue_share_reports")
+  @@index([year, month], map: "idx_revenue_share_reports_period")
+  @@map("revenue_share_reports")
 }
 
 model ConsolidationItem {

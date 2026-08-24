@@ -11,6 +11,8 @@ import type { ParsedReportLine } from "@/lib/partner/excel/parse-report";
 import { getPartnerLookupId } from "@/lib/partner/lookups";
 import { mapReuploadEligibility } from "@/lib/partner/reupload/eligibility";
 import { saveReportFileLocally } from "@/lib/partner/storage/save-report-file";
+import { BASE_CURRENCY_RATE } from "@/lib/platform/currency-rates";
+import { snapshotFxOntoParsedLines } from "@/lib/platform/report-fx";
 import { PARTNER_REPORT_VERSION } from "@/lib/platform/reports/sides";
 import prisma from "@/lib/prisma";
 import { DomainError } from "@/lib/errors/app-error";
@@ -124,8 +126,13 @@ export async function reuploadCorrectedReport(
     },
   });
 
+  const lineItems = snapshotFxOntoParsedLines(
+    input.lineItems,
+    BASE_CURRENCY_RATE,
+  );
+
   await prisma.reportLineItem.createMany({
-    data: input.lineItems.map((item) => ({
+    data: lineItems.map((item) => ({
       reportId: input.reportId,
       lineNumber: item.lineNumber,
       description: item.description,
@@ -152,6 +159,6 @@ export async function reuploadCorrectedReport(
 
   return {
     reportId: input.reportId.toString(),
-    lineItemCount: input.lineItems.length,
+    lineItemCount: lineItems.length,
   };
 }
