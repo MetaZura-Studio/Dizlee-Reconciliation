@@ -47,12 +47,14 @@ export async function POST(request: NextRequest) {
       actorUserId: user.id,
     });
 
-    const headers = buildFileResponseHeaders({
-      filename: result.filename,
-      mimeType: result.mimeType,
-      forceAttachment: true,
-    });
-    headers.set("X-Revenue-Share-Report-Id", String(result.report.id));
+    const headers = {
+      ...buildFileResponseHeaders({
+        filename: result.filename,
+        mimeType: result.mimeType,
+        forceAttachment: true,
+      }),
+      "X-Revenue-Share-Report-Id": String(result.report.id),
+    };
 
     return new NextResponse(new Uint8Array(result.buffer), { headers });
   } catch (error) {
