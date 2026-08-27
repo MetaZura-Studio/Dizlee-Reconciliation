@@ -18,6 +18,7 @@ import type {
   AdminInboxListResult,
 } from "@/lib/admin/notifications";
 import { formatAppError } from "@/lib/errors/format";
+import { parseNotificationMetadata } from "@/lib/platform/notification-metadata";
 import { parsePartnerLinkRequestBody } from "@/lib/platform/partner-link-request";
 import { cn, ui } from "@/lib/ui/classes";
 
@@ -33,12 +34,6 @@ function buildInboxQuery(filters: AdminInboxFilters): string {
     page: String(filters.page),
     unreadOnly: String(filters.unreadOnly),
   }).toString();
-}
-
-function displayBody(body: string): string {
-  return body
-    .replace(/^\s*\[opcoId=\d+\]\s*\n?/, "")
-    .trim();
 }
 
 type NotificationsInboxProps = {
@@ -58,9 +53,16 @@ export function AdminNotificationsInbox({
   const [markingAllRead, setMarkingAllRead] = useState(false);
 
   const unreadOnly = result.filters.unreadOnly;
-  const linkRequest = detail
+  const metadata = detail
+    ? parseNotificationMetadata(detail.metadataJson)
+    : null;
+  const linkRequestFromBody = detail
     ? parsePartnerLinkRequestBody(detail.body)
     : null;
+  const linkRequestOpcoId =
+    metadata?.type === "PARTNER_LINK_REQUEST"
+      ? metadata.opcoId
+      : linkRequestFromBody?.opcoId || null;
 
   const refreshList = useCallback(
     (filters: AdminInboxFilters) => {
@@ -293,14 +295,14 @@ export function AdminNotificationsInbox({
                 </p>
               </div>
               <p className="whitespace-pre-wrap text-sm text-foreground-muted">
-                {displayBody(detail.body)}
+                {detail.body}
               </p>
-              {linkRequest ? (
+              {linkRequestOpcoId ? (
                 <Link
-                  href={`/admin/opco-partners?opcoId=${encodeURIComponent(linkRequest.opcoId)}`}
+                  href={`/admin/opco-partners?tab=requests&opcoId=${encodeURIComponent(linkRequestOpcoId)}`}
                   className="inline-flex text-sm font-medium text-primary underline"
                 >
-                  Open OpCo partners and add the links
+                  Open Requests and Accept or Reject
                 </Link>
               ) : null}
             </div>

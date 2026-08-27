@@ -40,13 +40,6 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     section: "main",
   },
   {
-    label: "Notifications",
-    href: "/admin/notifications",
-    icon: "notifications",
-    description: "Inbox for OpCo partner-link requests and other messages.",
-    section: "main",
-  },
-  {
     label: "Users",
     href: "/admin/users",
     icon: "users",
@@ -148,6 +141,13 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
         section: "main",
       },
     ],
+  },
+  {
+    label: "Notifications",
+    href: "/admin/notifications",
+    icon: "notifications",
+    description: "Inbox for OpCo partner-link requests and other messages.",
+    section: "main",
   },
 ];
 

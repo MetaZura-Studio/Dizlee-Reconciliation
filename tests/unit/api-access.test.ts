@@ -15,6 +15,7 @@ describe("isPublicApiPath", () => {
     expect(isPublicApiPath("/api/auth/forgot-password")).toBe(true);
     expect(isPublicApiPath("/api/auth/set-password")).toBe(true);
     expect(isPublicApiPath("/api/auth/callback/credentials")).toBe(true);
+    expect(isPublicApiPath("/api/admin-auth/callback/credentials")).toBe(true);
     expect(isPublicApiPath("/api/admin/cron/submission-reminders")).toBe(true);
     expect(isPublicApiPath("/api/auth/change-password")).toBe(false);
   });

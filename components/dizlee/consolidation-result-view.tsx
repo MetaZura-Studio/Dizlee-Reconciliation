@@ -27,6 +27,7 @@ import type {
 import { ui } from "@/lib/ui/classes";
 import { paginateItems } from "@/lib/ui/list-pagination";
 import { nextSortState, type SortDirection } from "@/lib/ui/sort";
+import { formatUsd } from "@/lib/platform/format-money";
 
 type ItemSortField =
   | "partner"
@@ -49,18 +50,6 @@ function formatDateTime(value: string): string {
     dateStyle: "medium",
     timeStyle: "short",
   });
-}
-
-function formatUsd(value: number | null): string {
-  if (value === null) {
-    return "—";
-  }
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
 }
 
 function statusTone(status: string): "success" | "info" | "warning" | "neutral" {

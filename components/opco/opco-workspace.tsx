@@ -1,6 +1,6 @@
 /**
  * OpCo portal shell with navigation, notifications bell, and sign-out.
- * Frames dashboard, reports, invoices, and inbox routes for OpCo users.
+ * Frames dashboard, nested Reports (upload / history / re-upload), invoices, and inbox.
  */
 
 "use client";
@@ -128,8 +128,20 @@ export function OpcoWorkspace({
   const navItems = useMemo<AppShellNavItem[]>(
     () => [
       { href: "/opco", label: "Dashboard", icon: "home" },
-      { href: "/opco/upload", label: "Upload Report", icon: "file" },
-      { href: "/opco/reports", label: "Reports history", icon: "file" },
+      {
+        href: "/opco/reports",
+        label: "Reports",
+        icon: "file",
+        children: [
+          { href: "/opco/upload", label: "Upload Report", icon: "file" },
+          { href: "/opco/reports", label: "Report History", icon: "file" },
+          {
+            href: "/opco/reports/reupload",
+            label: "Re Upload Report",
+            icon: "file",
+          },
+        ],
+      },
       { href: "/opco/invoices", label: "Invoices", icon: "invoice" },
       {
         href: "/opco/notifications",

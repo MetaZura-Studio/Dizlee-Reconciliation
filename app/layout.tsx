@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { headers } from "next/headers";
 
 import { AuthProvider } from "./providers";
 import "./globals.css";
@@ -23,11 +24,14 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Opt into dynamic rendering so Next can apply the per-request CSP nonce.
+  await headers();
+
   return (
     <html lang="en">
       <body

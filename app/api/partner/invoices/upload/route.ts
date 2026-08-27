@@ -10,6 +10,7 @@ import { appErrorFromUnknown } from "@/lib/errors/app-error";
 import { getPartnerSession } from "@/lib/partner/auth";
 import { createPartnerInvoice } from "@/lib/partner/queries/upload-invoice";
 import {
+  assertPdfBufferMagic,
   partnerInvoiceUploadMetadataSchema,
   validateInvoiceUploadFile,
 } from "@/lib/partner/validation/invoice-upload";
@@ -52,6 +53,10 @@ export async function POST(request: Request) {
 
     const uploadFile = file as File;
     const buffer = Buffer.from(await uploadFile.arrayBuffer());
+    const magicError = assertPdfBufferMagic(buffer);
+    if (magicError) {
+      return jsonError(appErrorFromUnknown(magicError, 400));
+    }
     const result = await createPartnerInvoice({
       partnerId: BigInt(session.partnerId),
       userId: BigInt(session.userId),

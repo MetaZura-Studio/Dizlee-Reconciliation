@@ -12,21 +12,11 @@ export type PartnerLinkItem = {
   linked: boolean;
 };
 
-export type PartnerLinkRequestItem = {
-  id: string;
-  createdAt: string;
-  periodLabel: string;
-  message: string;
-  unlinkedPartnerNames: string[];
-  unknownPartnerNames: string[];
-};
-
 export type OpcoPartnerLinksView = {
   opco: OpcoListItem;
   partners: PartnerLinkItem[];
   linkedCount: number;
   totalPartners: number;
-  recentLinkRequests: PartnerLinkRequestItem[];
 };
 
 export type OpcoPartnerLinksPageData = {

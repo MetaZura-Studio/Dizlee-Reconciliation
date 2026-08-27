@@ -3,10 +3,14 @@
  * Consumed by intimations, history, and inbox list/detail formatters.
  */
 
+import { stripPartnerLinkRequestMachinePrefix } from "@/lib/platform/partner-link-request";
+
 const BODY_PREVIEW_LENGTH = 120;
 
 export function trimNotificationPreview(body: string): string {
-  const normalized = body.replace(/\s+/g, " ").trim();
+  const normalized = stripPartnerLinkRequestMachinePrefix(body)
+    .replace(/\s+/g, " ")
+    .trim();
   if (normalized.length <= BODY_PREVIEW_LENGTH) {
     return normalized;
   }

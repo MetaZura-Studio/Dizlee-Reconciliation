@@ -25,7 +25,7 @@ export function ReportFilenameLink({
         target="_blank"
         rel="noopener noreferrer"
         className={`${linkClassName} ${className}`}
-        title="View original uploaded file"
+        title="Open original uploaded file"
       >
         {filename}
       </a>
@@ -41,7 +41,7 @@ export function ReportFilenameLink({
       type="button"
       onClick={onClick}
       className={`${linkClassName} ${className}`}
-      title="View parsed report data"
+      title="View raw uploaded file"
     >
       {filename}
     </button>

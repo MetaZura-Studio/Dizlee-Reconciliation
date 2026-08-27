@@ -47,6 +47,7 @@ import type {
   SortDirection,
 } from "@/lib/dizlee/invoices";
 import { formatAppError } from "@/lib/errors/format";
+import { formatMoney } from "@/lib/platform/format-money";
 
 const MONTHS = [
   "January",
@@ -75,14 +76,6 @@ function formatPeriod(month: number, year: number): string {
     month: "short",
     year: "numeric",
   });
-}
-
-function formatMoney(amount: number, currencyCode: string): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: currencyCode,
-    maximumFractionDigits: 2,
-  }).format(amount);
 }
 
 function paymentTone(status: string): "success" | "warning" | "neutral" {

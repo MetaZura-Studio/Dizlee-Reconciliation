@@ -58,6 +58,8 @@ model Lookup {
   auditEntityTypes        AuditLog[]               @relation("AuditEntityType")
   reportStatuses          Report[]                 @relation("ReportStatus")
   reportChangeRequestStatuses ReportChangeRequest[] @relation("ReportChangeRequestStatus")
+  opcoReportSubmissionStatuses OpcoReportSubmission[] @relation("OpcoReportSubmissionStatus")
+  opcoSubmissionChangeRequestStatuses OpcoSubmissionChangeRequest[] @relation("OpcoSubmissionChangeRequestStatus")
   consolidationStatuses   Consolidation[]          @relation("ConsolidationStatus")
   reconciliationStatuses  Reconciliation[]         @relation("ReconciliationStatus")
   reconciliationMatchStatuses ReconciliationItem[] @relation("ReconciliationMatchStatus")
@@ -113,7 +115,9 @@ model Opco {
   updatedByUser     User?             @relation("OpcoUpdatedBy", fields: [updatedByUserId], references: [id])
   users             User[]            @relation("UserOpco")
   opcoPartnerLinks  OpcoPartnerLink[]
+  partnerLinkRequests OpcoPartnerLinkRequest[]
   reports             Report[]
+  reportSubmissions   OpcoReportSubmission[]
   consolidations      Consolidation[]
   reconciliations     Reconciliation[]
   invoices            Invoice[]
@@ -146,6 +150,7 @@ model Partner {
   reconciliations   Reconciliation[]
   invoices          Invoice[]
   servicePartnerMaps ServicePartnerMap[]
+  revenueShareReportItems RevenueShareReportItem[]
 
   @@map("partners")
 }
@@ -226,11 +231,15 @@ model User {
   reportsUploaded         Report[]  @relation("ReportUploader")
   reportChangeRequests    ReportChangeRequest[] @relation("ReportChangeRequester")
   reportChangeDecisions   ReportChangeRequest[] @relation("ReportChangeDecider")
+  opcoSubmissionChangeRequests OpcoSubmissionChangeRequest[] @relation("OpcoSubmissionChangeRequester")
+  opcoSubmissionChangeDecisions OpcoSubmissionChangeRequest[] @relation("OpcoSubmissionChangeDecider")
   consolidationsRun       Consolidation[] @relation("ConsolidationRunner")
   reconciliationsRun      Reconciliation[] @relation("ReconciliationRunner")
   invoicesUploaded        Invoice[] @relation("InvoiceUploader")
   invoiceActivityLogs     InvoiceActivityLog[]
   revenueShareReportsGenerated RevenueShareReport[] @relation("RevenueShareReportGenerator")
+  opcoPartnerLinkRequestsRequested OpcoPartnerLinkRequest[] @relation("OpcoPartnerLinkRequester")
+  opcoPartnerLinkRequestsDecided OpcoPartnerLinkRequest[] @relation("OpcoPartnerLinkDecider")
 
   @@map("users")
 }
@@ -271,6 +280,31 @@ model OpcoPartnerLink {
 
   @@id([opcoId, partnerId])
   @@map("opco_partner_links")
+}
+
+/// OpCo request for Admin to link missing Partners (Accept/Reject workflow).
+model OpcoPartnerLinkRequest {
+  id                BigInt    @id @default(autoincrement())
+  opcoId            BigInt    @map("opco_id")
+  requestedByUserId BigInt    @map("requested_by_user_id")
+  month             Int
+  year              Int
+  message           String    @db.Text
+  partnerNamesJson  String    @map("partner_names_json") @db.Text
+  status            String    @default("PENDING") @db.VarChar(32)
+  decisionNote      String?   @map("decision_note") @db.Text
+  decidedByUserId   BigInt?   @map("decided_by_user_id")
+  decidedAt         DateTime? @map("decided_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  opco        Opco  @relation(fields: [opcoId], references: [id])
+  requestedBy User  @relation("OpcoPartnerLinkRequester", fields: [requestedByUserId], references: [id])
+  decidedBy   User? @relation("OpcoPartnerLinkDecider", fields: [decidedByUserId], references: [id])
+
+  @@index([status, createdAt], map: "idx_opco_partner_link_requests_status_created")
+  @@index([opcoId], map: "idx_opco_partner_link_requests_opco_id")
+  @@map("opco_partner_link_requests")
 }
 
 model OpcoReportMapping {
@@ -320,6 +354,7 @@ model File {
   uploadedByUser           User?                    @relation("FileUploader", fields: [uploadedByUserId], references: [id])
   updatedByUser            User?                    @relation("FileUpdatedBy", fields: [updatedByUserId], references: [id])
   reports                  Report[]
+  opcoReportSubmissions    OpcoReportSubmission[]
   notificationAttachments  NotificationAttachment[]
   invoices                 Invoice[]
   opcoReportMappings       OpcoReportMapping[]
@@ -365,6 +400,8 @@ model Notification {
   id              BigInt    @id @default(autoincrement())
   subject         String    @db.VarChar(255)
   body            String    @db.Text
+  /// Machine-readable CTA / grouping payload (JSON string).
+  metadataJson    String?   @map("metadata_json") @db.Text
   statusId        Int       @map("status_id")
   priority        String?   @db.VarChar(32)
   expiresAt       DateTime? @map("expires_at")
@@ -482,6 +519,54 @@ model EmailTemplateVersion {
 
 // ===== SHAHRUKH: OpCo Portal models =====
 
+/// One OpCo monthly raw Excel (all partners); partner `Report` rows link here after split.
+model OpcoReportSubmission {
+  id              BigInt    @id @default(autoincrement())
+  opcoId          BigInt    @map("opco_id")
+  month           Int
+  year            Int
+  fileId          BigInt    @map("file_id")
+  statusId        Int       @map("status_id")
+  createdByUserId BigInt?   @map("created_by_user_id")
+  updatedByUserId BigInt?   @map("updated_by_user_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  isDeleted       Boolean   @default(false) @map("is_deleted")
+  deletedByUserId BigInt?   @map("deleted_by_user_id")
+  deletedAt       DateTime? @map("deleted_at")
+
+  opco           Opco                         @relation(fields: [opcoId], references: [id])
+  file           File                         @relation(fields: [fileId], references: [id])
+  status         Lookup                       @relation("OpcoReportSubmissionStatus", fields: [statusId], references: [id])
+  reports        Report[]
+  changeRequests OpcoSubmissionChangeRequest[]
+
+  @@unique([opcoId, year, month], map: "uq_opco_report_submissions")
+  @@index([year, month], map: "idx_opco_report_submissions_period")
+  @@map("opco_report_submissions")
+}
+
+model OpcoSubmissionChangeRequest {
+  id                BigInt    @id @default(autoincrement())
+  submissionId      BigInt    @map("submission_id")
+  requestedByUserId BigInt    @map("requested_by_user_id")
+  statusId          Int       @map("status_id")
+  reason            String?   @db.Text
+  decisionNote      String?   @map("decision_note") @db.Text
+  decidedByUserId   BigInt?   @map("decided_by_user_id")
+  decidedAt         DateTime? @map("decided_at")
+  completedAt       DateTime? @map("completed_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  submission  OpcoReportSubmission @relation(fields: [submissionId], references: [id])
+  requestedBy User                 @relation("OpcoSubmissionChangeRequester", fields: [requestedByUserId], references: [id])
+  decidedBy   User?                @relation("OpcoSubmissionChangeDecider", fields: [decidedByUserId], references: [id])
+  status      Lookup               @relation("OpcoSubmissionChangeRequestStatus", fields: [statusId], references: [id])
+
+  @@map("opco_submission_change_requests")
+}
+
 model Report {
   id                BigInt   @id @default(autoincrement())
   month             Int
@@ -489,6 +574,7 @@ model Report {
   opcoId            BigInt   @map("opco_id")
   partnerId         BigInt   @map("partner_id")
   fileId            BigInt?  @map("file_id")
+  submissionId      BigInt?  @map("submission_id")
   currencyId        BigInt   @map("currency_id")
   statusId          Int      @map("status_id")
   version           Int      @default(1)
@@ -504,6 +590,7 @@ model Report {
   opco                   Opco                  @relation(fields: [opcoId], references: [id])
   partner                Partner               @relation(fields: [partnerId], references: [id])
   file                   File?                 @relation(fields: [fileId], references: [id])
+  submission             OpcoReportSubmission? @relation(fields: [submissionId], references: [id])
   currency               Currency              @relation(fields: [currencyId], references: [id])
   status                 Lookup                @relation("ReportStatus", fields: [statusId], references: [id])
   uploadedByUser         User?                 @relation("ReportUploader", fields: [uploadedByUserId], references: [id])
@@ -513,6 +600,7 @@ model Report {
   partnerReconciliations Reconciliation[]      @relation("PartnerReport")
 
   @@unique([opcoId, partnerId, year, month, version], map: "uq_reports")
+  @@index([submissionId], map: "idx_reports_submission_id")
   @@map("reports")
 }
 
@@ -587,7 +675,7 @@ model Consolidation {
   @@map("consolidations")
 }
 
-/// Generated Dizlee Revenue Share Excel for one OpCo + period (file-backed, not line items).
+/// Generated Dizlee Revenue Share Excel for one OpCo + period (file + row snapshot).
 model RevenueShareReport {
   id                Int      @id @default(autoincrement())
   opcoId            BigInt   @map("opco_id")
@@ -604,13 +692,37 @@ model RevenueShareReport {
   deletedByUserId   BigInt?  @map("deleted_by_user_id")
   deletedAt         DateTime? @map("deleted_at")
 
-  opco        Opco @relation(fields: [opcoId], references: [id])
-  file        File @relation(fields: [fileId], references: [id])
-  generatedBy User @relation("RevenueShareReportGenerator", fields: [generatedByUserId], references: [id])
+  opco        Opco                     @relation(fields: [opcoId], references: [id])
+  file        File                     @relation(fields: [fileId], references: [id])
+  generatedBy User                     @relation("RevenueShareReportGenerator", fields: [generatedByUserId], references: [id])
+  items       RevenueShareReportItem[]
 
   @@unique([opcoId, year, month], map: "uq_revenue_share_reports")
   @@index([year, month], map: "idx_revenue_share_reports_period")
   @@map("revenue_share_reports")
+}
+
+/// Snapshot rows for a generated Revenue Share report (replaced on regenerate; no audit columns).
+model RevenueShareReportItem {
+  id                     BigInt   @id @default(autoincrement())
+  revenueShareReportId   Int      @map("revenue_share_report_id")
+  partnerId              BigInt?  @map("partner_id")
+  partnerName            String   @map("partner_name") @db.VarChar(255)
+  serviceName            String   @map("service_name") @db.VarChar(255)
+  opcoAmountUsd          Decimal? @map("opco_amount_usd") @db.Decimal(18, 4)
+  partnerAmountUsd       Decimal? @map("partner_amount_usd") @db.Decimal(18, 4)
+  regulatoryFeePercent   Decimal  @map("regulatory_fee_percent") @db.Decimal(5, 2)
+  regulatoryFeeAmount    Decimal  @map("regulatory_fee_amount") @db.Decimal(18, 4)
+  netRevenue             Decimal  @map("net_revenue") @db.Decimal(18, 4)
+  revenueSharePercent    Decimal? @map("revenue_share_percent") @db.Decimal(18, 4)
+  sortOrder              Int      @map("sort_order")
+
+  report  RevenueShareReport @relation(fields: [revenueShareReportId], references: [id])
+  partner Partner?           @relation(fields: [partnerId], references: [id])
+
+  @@index([revenueShareReportId], map: "idx_rs_report_items_report_id")
+  @@index([revenueShareReportId, sortOrder], map: "idx_rs_report_items_report_sort")
+  @@map("revenue_share_report_items")
 }
 
 model ConsolidationItem {

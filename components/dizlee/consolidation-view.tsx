@@ -46,6 +46,7 @@ import {
   getPeriodYearOptions,
 } from "@/lib/platform/period";
 import { formatAppError } from "@/lib/errors/format";
+import { formatUsd } from "@/lib/platform/format-money";
 
 const MONTHS = [
   "January",
@@ -74,18 +75,6 @@ function formatPeriod(month: number, year: number): string {
     month: "short",
     year: "numeric",
   });
-}
-
-function formatUsd(value: number | null): string {
-  if (value === null) {
-    return "—";
-  }
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
 }
 
 type PartnerSortField = "partner" | "report";

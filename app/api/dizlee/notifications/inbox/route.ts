@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
       userId: user.id,
       page: filters.page,
       unreadOnly: filters.unreadOnly,
+      search: filters.search,
     });
     return NextResponse.json({ data });
   } catch (error) {

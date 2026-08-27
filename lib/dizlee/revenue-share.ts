@@ -41,6 +41,7 @@ export type RevenueShareReadiness = {
 };
 
 export type RevenueShareLine = {
+  partnerId: string;
   partnerName: string;
   serviceName: string;
   opcoAmountUsd: number | null;
@@ -169,6 +170,7 @@ export function netRevenueFromGross(grossAmount: number, regulatoryFee: number):
 }
 
 export function buildRevenueShareLine(input: {
+  partnerId: string;
   partnerName: string;
   serviceName: string;
   opcoAmountUsd: number | null;
@@ -184,6 +186,7 @@ export function buildRevenueShareLine(input: {
   const grossForFee = opcoAmountUsd ?? 0;
   const regulatoryFee = regulatoryFeeFromVatPercent(grossForFee, input.vatPercent);
   return {
+    partnerId: input.partnerId,
     partnerName: input.partnerName,
     serviceName: input.serviceName,
     opcoAmountUsd,
@@ -195,6 +198,39 @@ export function buildRevenueShareLine(input: {
       sourceColumns: source,
     }),
   };
+}
+
+/** Maps in-memory RS lines into Prisma createMany rows (hard-replaced on regenerate). */
+export function mapRevenueShareLinesToItemCreates(params: {
+  revenueShareReportId: number;
+  regulatoryFeePercent: number;
+  lines: RevenueShareLine[];
+}): Array<{
+  revenueShareReportId: number;
+  partnerId: bigint | null;
+  partnerName: string;
+  serviceName: string;
+  opcoAmountUsd: number | null;
+  partnerAmountUsd: number | null;
+  regulatoryFeePercent: number;
+  regulatoryFeeAmount: number;
+  netRevenue: number;
+  revenueSharePercent: number | null;
+  sortOrder: number;
+}> {
+  return params.lines.map((line, index) => ({
+    revenueShareReportId: params.revenueShareReportId,
+    partnerId: /^\d+$/.test(line.partnerId) ? BigInt(line.partnerId) : null,
+    partnerName: line.partnerName,
+    serviceName: line.serviceName,
+    opcoAmountUsd: line.opcoAmountUsd,
+    partnerAmountUsd: line.partnerAmountUsd,
+    regulatoryFeePercent: params.regulatoryFeePercent,
+    regulatoryFeeAmount: line.regulatoryFee,
+    netRevenue: line.netRevenue,
+    revenueSharePercent: line.revenueSharePercent,
+    sortOrder: index,
+  }));
 }
 
 export function parseRevenueShareFilters(searchParams: URLSearchParams): {
@@ -496,6 +532,7 @@ export async function buildRevenueShareReport(params: {
       const partnerLine = partnerByService.get(key);
       lines.push(
         buildRevenueShareLine({
+          partnerId: partner.partnerId,
           partnerName: partner.partnerName,
           serviceName: opco?.serviceName ?? partnerLine?.serviceName ?? "—",
           opcoAmountUsd: opco ? opco.amount : null,
@@ -701,6 +738,21 @@ export async function generateAndPersistRevenueShareReport(params: {
           updatedByUserId: actorUserId,
         },
       });
+
+  const itemRows = mapRevenueShareLinesToItemCreates({
+    revenueShareReportId: row.id,
+    regulatoryFeePercent: built.vatPercent,
+    lines: built.lines,
+  });
+
+  await prisma.revenueShareReportItem.deleteMany({
+    where: { revenueShareReportId: row.id },
+  });
+  if (itemRows.length > 0) {
+    await prisma.revenueShareReportItem.createMany({
+      data: itemRows,
+    });
+  }
 
   return {
     report: {

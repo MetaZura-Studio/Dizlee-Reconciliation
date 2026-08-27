@@ -1,5 +1,6 @@
 import { DizleeLogo } from "@/components/brand/dizlee-logo";
 import type { InvoiceBankDetails } from "@/lib/dizlee/invoice-bank-details";
+import { formatMoney } from "@/lib/platform/format-money";
 import { cn } from "@/lib/ui/classes";
 
 export type DizleeOpcoInvoiceLine = {
@@ -22,18 +23,6 @@ export type DizleeOpcoInvoiceDocumentProps = {
   subtitle?: string | null;
   className?: string;
 };
-
-function formatMoney(amount: number, currencyCode: string): string {
-  try {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: currencyCode,
-      maximumFractionDigits: 2,
-    }).format(amount);
-  } catch {
-    return `${amount.toFixed(2)} ${currencyCode}`;
-  }
-}
 
 function formatDate(value: string): string {
   const date = new Date(value);

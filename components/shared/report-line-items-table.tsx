@@ -1,11 +1,26 @@
 import type { ReportPreviewLineItem } from "@/lib/platform/report-preview";
 import type { ReportUploaderSide } from "@/lib/platform/reports/sides";
+import { formatMoney } from "@/lib/platform/format-money";
 
 type ReportLineItemsTableProps = {
   lineItems: ReportPreviewLineItem[];
   currencyCode?: string;
   side?: ReportUploaderSide;
 };
+
+function displayMoney(
+  raw: string | null | undefined,
+  currencyIso: string,
+): string {
+  if (raw == null || raw === "" || raw === "—") {
+    return "—";
+  }
+  const numeric = Number(String(raw).replace(/,/g, ""));
+  if (!Number.isFinite(numeric)) {
+    return raw;
+  }
+  return formatMoney(numeric, currencyIso, { style: "decimal" });
+}
 
 export function ReportLineItemsTable({
   lineItems,
@@ -41,7 +56,7 @@ export function ReportLineItemsTable({
                   {item.description ?? "—"}
                 </td>
                 <td className="px-4 py-3 text-foreground-muted">
-                  {item.amountUsd ?? item.amount ?? "—"}
+                  {displayMoney(item.amountUsd ?? item.amount, "USD")}
                 </td>
               </tr>
             ))}
@@ -51,6 +66,7 @@ export function ReportLineItemsTable({
     );
   }
 
+  const localIso = currencyCode?.trim() || "USD";
   const localLabel = currencyCode
     ? `Amount (${currencyCode})`
     : "Amount (local)";
@@ -73,14 +89,14 @@ export function ReportLineItemsTable({
               <td className="px-4 py-3 text-foreground-subtle">{item.lineNumber}</td>
               <td className="px-4 py-3 text-foreground">{item.description ?? "—"}</td>
               <td className="px-4 py-3 text-foreground-muted">
-                {item.amount ?? "—"}
+                {displayMoney(item.amount, localIso)}
                 {item.amount && currencyCode ? ` ${currencyCode}` : ""}
               </td>
               <td className="px-4 py-3 text-foreground-muted">
                 {item.exchangeRate ?? "—"}
               </td>
               <td className="px-4 py-3 text-foreground-muted">
-                {item.amountUsd ?? "—"}
+                {displayMoney(item.amountUsd, "USD")}
               </td>
             </tr>
           ))}

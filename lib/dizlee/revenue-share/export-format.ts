@@ -3,20 +3,12 @@
  * Uses Admin currency decimalPrecision (e.g. USD 2, KWD/BHD/JOD 3).
  */
 
-import { CURRENCY_SEEDS } from "@/prisma/seed-data/currencies";
+import {
+  decimalPrecisionForCurrency,
+  formatMoney,
+} from "@/lib/platform/format-money";
 
-const precisionByIso = new Map(
-  CURRENCY_SEEDS.map((currency) => [
-    currency.isoCode.toUpperCase(),
-    currency.decimalPrecision,
-  ]),
-);
-
-/** Decimal places for an ISO currency code; defaults to 2 when unknown. */
-export function decimalPrecisionForCurrency(isoCode: string): number {
-  const precision = precisionByIso.get(isoCode.trim().toUpperCase());
-  return precision === undefined ? 2 : precision;
-}
+export { decimalPrecisionForCurrency };
 
 /** Money with thousand separators and currency-specific fraction digits. */
 export function formatExportMoney(
@@ -26,11 +18,9 @@ export function formatExportMoney(
   if (value === null || value === undefined || !Number.isFinite(value)) {
     return "";
   }
-  const digits = decimalPrecisionForCurrency(currencyIsoCode);
-  return value.toLocaleString("en-US", {
-    minimumFractionDigits: digits,
-    maximumFractionDigits: digits,
-    useGrouping: true,
+  return formatMoney(value, currencyIsoCode, {
+    style: "decimal",
+    empty: "",
   });
 }
 
@@ -40,8 +30,6 @@ export function formatExportPercent(value: number | null | undefined): string {
     return "";
   }
   const rounded = Number(value.toFixed(2));
-  const text = Number.isInteger(rounded)
-    ? String(rounded)
-    : String(rounded);
+  const text = Number.isInteger(rounded) ? String(rounded) : String(rounded);
   return `${text}%`;
 }

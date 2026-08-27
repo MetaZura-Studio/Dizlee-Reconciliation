@@ -14,9 +14,12 @@ export function isPublicApiPath(pathname: string): boolean {
   if (pathname.startsWith("/api/admin/cron")) {
     return true;
   }
-  // NextAuth + forgot/set password are public; change-password is not.
+  // NextAuth (main + admin) + forgot/set password are public; change-password is not.
   if (pathname.startsWith("/api/auth/")) {
     return pathname !== "/api/auth/change-password";
+  }
+  if (pathname.startsWith("/api/admin-auth/")) {
+    return true;
   }
   return false;
 }

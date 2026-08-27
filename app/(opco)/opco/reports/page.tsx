@@ -1,7 +1,5 @@
 import { ReportsTable } from "@/components/opco/ReportsTable";
 import { PageCard, PageHeader } from "@/components/ui/page";
-import { parseStoredSampleHeaders } from "@/lib/admin/opco-report-mapping-excel";
-import { getOpcoReportMappingByOpcoId } from "@/lib/admin/opco-report-mappings";
 import { requireOpcoSession } from "@/lib/opco/auth";
 import {
   getOpcoReportFilterOptions,
@@ -36,27 +34,18 @@ export default async function OpcoReportsPage({ searchParams }: OpcoReportsPageP
     toSearchParams(await searchParams),
   );
 
-  const [result, filterOptions, mapping] = await Promise.all([
+  const [result, filterOptions] = await Promise.all([
     searchReportsForOpco(opcoId, filters),
     getOpcoReportFilterOptions(opcoId),
-    getOpcoReportMappingByOpcoId(opcoId),
   ]);
-
-  const preferredSheetName = mapping
-    ? parseStoredSampleHeaders(mapping.headersJson).sheetName
-    : null;
 
   return (
     <PageCard>
       <PageHeader
-        title="Reports history"
-        description="Search by filename or partner, or filter by period and status."
+        title="Report History"
+        description="Search by filename or partner, or filter by period and status. Use Re Upload Report to replace the monthly raw Excel file."
       />
-      <ReportsTable
-        initialResult={result}
-        filterOptions={filterOptions}
-        preferredSheetName={preferredSheetName}
-      />
+      <ReportsTable initialResult={result} filterOptions={filterOptions} />
     </PageCard>
   );
 }

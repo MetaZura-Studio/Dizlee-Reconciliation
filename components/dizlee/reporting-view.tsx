@@ -39,6 +39,7 @@ import type {
   ReportingOverview,
 } from "@/lib/dizlee/reporting";
 import { formatAppError } from "@/lib/errors/format";
+import { formatUsd } from "@/lib/platform/format-money";
 
 const MONTHS = [
   "January",
@@ -54,13 +55,6 @@ const MONTHS = [
   "November",
   "December",
 ];
-
-const usdFormatter = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
 
 type StatusFilter = "all" | ReportingLaneStatus;
 
@@ -482,7 +476,7 @@ export function ReportingView({
           />
           <KpiCard
             label="Revenue paid (USD)"
-            value={usdFormatter.format(summary.totalRevenuePaidUsd)}
+            value={formatUsd(summary.totalRevenuePaidUsd)}
             tone="amber"
           />
         </div>

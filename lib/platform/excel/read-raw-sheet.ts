@@ -3,8 +3,8 @@
  */
 import ExcelJS from "exceljs";
 
-const MAX_PREVIEW_ROWS = 250;
-const MAX_PREVIEW_COLS = 60;
+const MAX_PREVIEW_ROWS = 1000;
+const MAX_PREVIEW_COLS = 80;
 
 function cellToDisplay(value: ExcelJS.CellValue): string {
   if (value === null || value === undefined) {

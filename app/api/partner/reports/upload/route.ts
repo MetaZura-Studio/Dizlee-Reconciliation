@@ -14,6 +14,7 @@ import {
   reportUploadMetadataSchema,
   validateReportUploadFile,
 } from "@/lib/partner/validation/report-upload";
+import { assertExcelBufferMagic } from "@/lib/platform/excel-upload";
 
 export async function POST(request: Request) {
   const session = await getPartnerSession();
@@ -52,6 +53,10 @@ export async function POST(request: Request) {
 
     const uploadFile = file as File;
     const buffer = Buffer.from(await uploadFile.arrayBuffer());
+    const magicError = assertExcelBufferMagic(buffer, uploadFile.name);
+    if (magicError) {
+      return jsonError(appErrorFromUnknown(magicError, 400));
+    }
     const lineItems = await parseReportWorkbook(buffer);
     const result = await createReportUpload({
       partnerId: BigInt(session.partnerId),

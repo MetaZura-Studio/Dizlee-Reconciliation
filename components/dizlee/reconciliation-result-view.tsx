@@ -22,6 +22,7 @@ import { useToast } from "@/components/ui/toast";
 import type { ReconciliationAlertTemplates } from "@/lib/dizlee/notifications/reconciliation-alerts";
 import type { ReconciliationDetail } from "@/lib/dizlee/reconciliation";
 import { reportRawFilePreviewUrl } from "@/lib/platform/reports/preview-url";
+import { formatUsd } from "@/lib/platform/format-money";
 import { formatAppError } from "@/lib/errors/format";
 
 function formatDateTime(value: string): string {
@@ -36,18 +37,6 @@ function formatPeriod(month: number, year: number): string {
     month: "short",
     year: "numeric",
   });
-}
-
-function formatUsd(value: number | null): string {
-  if (value === null) {
-    return "—";
-  }
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
 }
 
 function isMatchedStatus(status: string): boolean {

@@ -139,13 +139,32 @@ function getStore(storageKey: string) {
   return store;
 }
 
-function isNavActive(pathname: string, href: string, rootHref: string) {
+function isNavActive(
+  pathname: string,
+  href: string,
+  rootHref: string,
+  siblingHrefs: string[] = [],
+) {
   const pathOnly = href.split("?")[0] ?? href;
   const rootPathOnly = rootHref.split("?")[0] ?? rootHref;
   if (pathOnly === rootPathOnly) {
     return pathname === pathOnly;
   }
-  return pathname === pathOnly || pathname.startsWith(`${pathOnly}/`);
+  const matches =
+    pathname === pathOnly || pathname.startsWith(`${pathOnly}/`);
+  if (!matches) {
+    return false;
+  }
+  // Prefer a longer sibling match (e.g. /reports/reupload over /reports).
+  return !siblingHrefs.some((sibling) => {
+    const siblingPath = sibling.split("?")[0] ?? sibling;
+    if (siblingPath === pathOnly || siblingPath.length <= pathOnly.length) {
+      return false;
+    }
+    return (
+      pathname === siblingPath || pathname.startsWith(`${siblingPath}/`)
+    );
+  });
 }
 
 function NavLinkItem({
@@ -154,14 +173,16 @@ function NavLinkItem({
   rootHref,
   collapsed,
   nested = false,
+  siblingHrefs = [],
 }: {
   item: AppShellNavItem;
   pathname: string;
   rootHref: string;
   collapsed: boolean;
   nested?: boolean;
+  siblingHrefs?: string[];
 }) {
-  const active = isNavActive(pathname, item.href, rootHref);
+  const active = isNavActive(pathname, item.href, rootHref, siblingHrefs);
   const badgeCount = item.badge && item.badge > 0 ? item.badge : 0;
   const className = cn(
     active ? ui.navItemActive : ui.navItem,
@@ -234,8 +255,9 @@ function NavGroupItem({
   collapsed: boolean;
 }) {
   const children = item.children ?? [];
+  const childHrefs = children.map((child) => child.href);
   const childActive = children.some((child) =>
-    isNavActive(pathname, child.href, rootHref),
+    isNavActive(pathname, child.href, rootHref, childHrefs),
   );
   const [userOpen, setUserOpen] = useState(false);
   const open = childActive || userOpen;
@@ -290,6 +312,7 @@ function NavGroupItem({
               rootHref={rootHref}
               collapsed={collapsed}
               nested
+              siblingHrefs={childHrefs}
             />
           ))
         : null}

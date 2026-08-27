@@ -7,6 +7,7 @@ import {
   BASE_CURRENCY_RATE,
   getMonthlyRatesForPeriod,
 } from "@/lib/platform/currency-rates";
+import { decimalPrecisionForCurrency } from "@/lib/platform/format-money";
 import { prisma } from "@/lib/prisma";
 
 export type ReportFx = {
@@ -36,12 +37,14 @@ export function applyReportFxToAmount(
         ? null
         : Number(amount);
 
+  const usdDigits = decimalPrecisionForCurrency(BASE_CURRENCY_ISO_CODE);
+
   return {
     exchangeRate: formatFxNumber(rateToUsd),
     amountUsd:
       local === null || !Number.isFinite(local)
         ? null
-        : formatFxNumber(local * rateToUsd, 4),
+        : formatFxNumber(local * rateToUsd, usdDigits),
   };
 }
 

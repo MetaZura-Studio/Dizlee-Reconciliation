@@ -310,6 +310,7 @@ export async function listCompareLanes(
       where: {
         month: filters.month,
         year: filters.year,
+        isDeleted: false,
         ...(filters.entityId && filters.searchBy === "opco"
           ? { opcoId: BigInt(filters.entityId) }
           : {}),
@@ -326,6 +327,7 @@ export async function listCompareLanes(
       where: {
         month: filters.month,
         year: filters.year,
+        isDeleted: false,
         ...(filters.entityId && filters.searchBy === "opco"
           ? { opcoId: BigInt(filters.entityId) }
           : {}),
@@ -498,22 +500,38 @@ export async function runReconciliation(params: {
     );
   }
 
-  const existing = await prisma.reconciliation.findFirst({
+  const existingActive = await prisma.reconciliation.findFirst({
     where: {
       opcoId: BigInt(params.opcoId),
       partnerId: BigInt(params.partnerId),
       month: params.month,
       year: params.year,
+      isDeleted: false,
     },
     include: { status: true },
   });
 
-  if (existing?.status.code === "COMPLETED") {
+  if (existingActive?.status.code === "COMPLETED") {
     throw new ReconciliationError(
       "Lane is already reconciled and cannot be re-run.",
       409,
     );
   }
+
+  // Soft-deleted rows still occupy the unique key — revive them on re-run.
+  const existing =
+    existingActive ??
+    (await prisma.reconciliation.findFirst({
+      where: {
+        opcoId: BigInt(params.opcoId),
+        partnerId: BigInt(params.partnerId),
+        month: params.month,
+        year: params.year,
+        isDeleted: true,
+      },
+      include: { status: true },
+      orderBy: { deletedAt: "desc" },
+    }));
 
   const toCompareLine = (line: {
     id: bigint;
@@ -601,6 +619,9 @@ export async function runReconciliation(params: {
         runByUserId,
         runAt,
         updatedByUserId: runByUserId,
+        isDeleted: false,
+        deletedAt: null,
+        deletedByUserId: null,
       },
     });
 
@@ -672,6 +693,7 @@ export async function listReconciliationHistory(filters: {
   sortDir: SortDirection;
 }): Promise<ReconciliationHistoryResult> {
   const where = {
+    isDeleted: false,
     ...(filters.month ? { month: filters.month } : {}),
     ...(filters.year ? { year: filters.year } : {}),
     ...(filters.search
@@ -746,7 +768,7 @@ export async function getReconciliationDetail(
 ): Promise<ReconciliationDetail | null> {
   const [reconciliation, tolerancePercent] = await Promise.all([
     prisma.reconciliation.findFirst({
-      where: { id },
+      where: { id, isDeleted: false },
       include: {
         opco: { select: { name: true } },
         partner: { select: { name: true } },
@@ -754,6 +776,7 @@ export async function getReconciliationDetail(
         partnerReport: { include: { file: { select: { filename: true } } } },
         status: { select: { code: true } },
         items: {
+          where: { isDeleted: false },
           orderBy: { serviceCode: "asc" },
           include: { matchStatus: { select: { code: true } } },
         },
@@ -803,7 +826,7 @@ export async function confirmReconciliation(
   userId: string,
 ): Promise<void> {
   const reconciliation = await prisma.reconciliation.findFirst({
-    where: { id },
+    where: { id, isDeleted: false },
     include: { status: true },
   });
 

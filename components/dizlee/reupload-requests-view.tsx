@@ -1,6 +1,6 @@
 /**
- * Queue of partner and OpCo file re-upload requests awaiting Dizlee approval.
- * Operators approve or reject replacements for already submitted files.
+ * Queue of partner and OpCo file re-upload requests for Dizlee review.
+ * Shows pending requests plus approved/rejected history for the selected period.
  */
 
 "use client";
@@ -9,7 +9,10 @@ import { useCallback, useEffect, useState } from "react";
 
 import { ReportsTabs } from "@/components/dizlee/reports-tabs";
 import { ReportFilenameLink } from "@/components/shared/report-filename-link";
-import { reportRawFilePreviewUrl } from "@/lib/platform/reports/preview-url";
+import {
+  dizleeSubmissionRawFilePreviewUrl,
+  reportRawFilePreviewUrl,
+} from "@/lib/platform/reports/preview-url";
 import { Button } from "@/components/ui/button";
 import {
   DataTable,
@@ -24,8 +27,10 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Modal } from "@/components/ui/modal";
 import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
 import { LoadingOverlay } from "@/components/ui/loading";
+import { StatusPill } from "@/components/ui/status-pill";
 import { cn, ui } from "@/lib/ui/classes";
 import { nextSortState, type SortDirection } from "@/lib/ui/sort";
+import { reportStatusTone } from "@/lib/ui/status-tones";
 import type { ReportFilterOptions } from "@/lib/dizlee/reports";
 import {
   getCurrentPeriod,
@@ -394,12 +399,14 @@ export function ReuploadRequestsView({
                         onSort={() => applySort("requested")}
                       />
                       <DataTableTh>Reason</DataTableTh>
+                      <DataTableTh>Status</DataTableTh>
                       <DataTableTh>Actions</DataTableTh>
                     </tr>
                 </DataTableHead>
                 <tbody>
                   {items.map((row) => {
                     const busy = actionId === row.id;
+                    const isPending = row.decisionStatus === "PENDING";
                     return (
                       <DataTableRow key={row.id}>
                         <DataTableTd className="text-foreground-muted">
@@ -412,7 +419,9 @@ export function ReuploadRequestsView({
                             filename={row.filename}
                             href={
                               row.filename
-                                ? reportRawFilePreviewUrl("dizlee", row.reportId)
+                                ? row.kind === "submission"
+                                  ? dizleeSubmissionRawFilePreviewUrl(row.reportId)
+                                  : reportRawFilePreviewUrl("dizlee", row.reportId)
                                 : undefined
                             }
                           />
@@ -427,21 +436,28 @@ export function ReuploadRequestsView({
                           {row.reason ?? "—"}
                         </DataTableTd>
                         <DataTableTd>
-                          <div className="flex gap-2">
-                            <Button
-                              disabled={busy}
-                              onClick={() => void approve(row.id)}
-                            >
-                              Approve
-                            </Button>
-                            <Button
-                              variant="secondary"
-                              disabled={busy}
-                              onClick={() => openReject(row)}
-                            >
-                              Reject
-                            </Button>
-                          </div>
+                          <StatusPill tone={reportStatusTone(row.decisionStatus)}>
+                            {row.decisionLabel}
+                          </StatusPill>
+                        </DataTableTd>
+                        <DataTableTd>
+                          {isPending ? (
+                            <div className="flex gap-2">
+                              <Button
+                                disabled={busy}
+                                onClick={() => void approve(row.id)}
+                              >
+                                Approve
+                              </Button>
+                              <Button
+                                variant="secondary"
+                                disabled={busy}
+                                onClick={() => openReject(row)}
+                              >
+                                Reject
+                              </Button>
+                            </div>
+                          ) : null}
                         </DataTableTd>
                       </DataTableRow>
                     );
@@ -476,8 +492,8 @@ export function ReuploadRequestsView({
         ) : (
           <EmptyState
             className="mt-6"
-            title="No pending reupload requests"
-            description="Pending change requests from OpCos and Partners will appear here."
+            title="No reupload requests"
+            description="Change requests from OpCos and Partners for this period will appear here."
           />
         )}
         </LoadingOverlay>

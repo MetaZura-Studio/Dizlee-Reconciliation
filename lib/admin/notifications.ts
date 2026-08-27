@@ -6,12 +6,15 @@
 import type { Prisma } from "@prisma/client";
 
 import { DomainError } from "@/lib/errors/app-error";
+import { stripPartnerLinkRequestMachinePrefix } from "@/lib/platform/partner-link-request";
 import { prisma } from "@/lib/prisma";
 
 const BODY_PREVIEW_LENGTH = 120;
 
 function trimNotificationPreview(body: string): string {
-  const normalized = body.replace(/\s+/g, " ").trim();
+  const normalized = stripPartnerLinkRequestMachinePrefix(body)
+    .replace(/\s+/g, " ")
+    .trim();
   if (normalized.length <= BODY_PREVIEW_LENGTH) {
     return normalized;
   }
@@ -52,6 +55,7 @@ export type AdminInboxDetail = {
   id: string;
   subject: string;
   body: string;
+  metadataJson: string | null;
   receivedAt: string;
   fromName: string;
   isRead: boolean;
@@ -194,7 +198,8 @@ export async function getAdminInboxNotificationDetail(params: {
   return {
     id: row.id.toString(),
     subject: row.subject,
-    body: row.body,
+    body: stripPartnerLinkRequestMachinePrefix(row.body),
+    metadataJson: row.metadataJson,
     receivedAt: (row.sentAt ?? row.createdAt).toISOString(),
     fromName: fromUser?.name ?? fromUser?.email ?? "System",
     isRead: Boolean(read),

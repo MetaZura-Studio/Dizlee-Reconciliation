@@ -78,3 +78,17 @@ export function validateInvoiceUploadFile(file: File | null): string | null {
 
   return null;
 }
+
+/** PDF files start with the ASCII signature `%PDF-`. */
+export function assertPdfBufferMagic(buffer: Buffer): string | null {
+  if (buffer.length < 5) {
+    return "Uploaded file is empty";
+  }
+
+  const signature = buffer.subarray(0, 5).toString("ascii");
+  if (signature !== "%PDF-") {
+    return "File content is not a valid PDF";
+  }
+
+  return null;
+}

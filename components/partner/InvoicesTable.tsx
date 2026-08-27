@@ -33,6 +33,7 @@ import { IconEye } from "@/components/ui/icons";
 import { FilterToolbar } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
 import { formatPeriodLabel } from "@/lib/partner/period";
+import { formatMoney } from "@/lib/platform/format-money";
 import {
   getMaxMonthForYear,
   getPeriodYearOptions,
@@ -72,10 +73,7 @@ const MONTHS = [
 ];
 
 function formatCurrency(amount: number, currencyCode: string): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: currencyCode,
-  }).format(amount);
+  return formatMoney(amount, currencyCode);
 }
 
 function buildInvoicesQuery(filters: PartnerInvoiceListFilters): string {

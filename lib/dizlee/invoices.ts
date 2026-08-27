@@ -23,6 +23,7 @@ import {
   BASE_CURRENCY_RATE,
   getMonthlyRatesForPeriod,
 } from "@/lib/platform/currency-rates";
+import { formatMoney, roundMoney } from "@/lib/platform/format-money";
 import { prisma } from "@/lib/prisma";
 import { isFuturePeriod } from "@/lib/platform/period";
 import { notifyOpcoUsers } from "@/lib/platform/notify-opco";
@@ -378,10 +379,6 @@ export async function getCreateOpcoInvoiceFormOptions(params?: {
   };
 }
 
-function roundMoney(value: number): number {
-  return Math.round(value * 100) / 100;
-}
-
 function buildInvoiceNumber(
   opcoId: bigint,
   month: number,
@@ -448,7 +445,7 @@ export async function createOpcoInvoice(
 
   const currency = await prisma.currency.findFirst({
     where: { id: currencyId },
-    select: { id: true },
+    select: { id: true, isoCode: true },
   });
   if (!currency) {
     throw new InvoiceActionError("Currency not found.", 404);
@@ -517,7 +514,10 @@ export async function createOpcoInvoice(
           description: item.description,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
-          lineTotal: roundMoney(item.quantity * item.unitPrice),
+          lineTotal: roundMoney(
+            item.quantity * item.unitPrice,
+            currency.isoCode,
+          ),
           sortOrder: index,
           createdByUserId: actorId,
           updatedByUserId: actorId,
@@ -547,14 +547,7 @@ export async function createOpcoInvoice(
     opcoId,
     fromUserId: actorId,
     subject: "Invoice received from Dizlee",
-    body: `Dizlee sent invoice ${detail.invoiceNumber ?? `#${detail.id}`} for ${detail.period.label}. Total ${new Intl.NumberFormat(
-      "en-US",
-      {
-        style: "currency",
-        currency: detail.currencyCode,
-        maximumFractionDigits: 2,
-      },
-    ).format(detail.totalAmount)}.`,
+    body: `Dizlee sent invoice ${detail.invoiceNumber ?? `#${detail.id}`} for ${detail.period.label}. Total ${formatMoney(detail.totalAmount, detail.currencyCode)}.`,
   });
 
   return detail;

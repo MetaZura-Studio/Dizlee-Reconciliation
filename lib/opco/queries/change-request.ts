@@ -88,6 +88,17 @@ export async function createReportChangeRequest(
     fromUserId: input.userId,
     subject: "OpCo report reupload requested",
     body: `${report.opco.name} requested a reupload for ${report.partner.name} (${periodLabel}). Reason: ${input.reason}`,
+    metadata: {
+      type: "OPCO_REUPLOAD_REQUEST",
+      opcoId: report.opcoId.toString(),
+      opcoName: report.opco.name,
+      partnerId: report.partnerId.toString(),
+      partnerName: report.partner.name,
+      reportId: input.reportId.toString(),
+      changeRequestId: changeRequest.id.toString(),
+      month: report.month,
+      year: report.year,
+    },
   });
 
   await writePlatformAuditLog({

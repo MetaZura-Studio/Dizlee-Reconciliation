@@ -5,12 +5,10 @@ import { useState } from "react";
 import { ModalCloseButton } from "@/components/ui/modal-close-button";
 import type { PartnerInvoiceLifecycleDetail } from "@/lib/partner/invoices/lifecycle";
 import type { PartnerInvoiceDetail } from "@/lib/partner/queries/invoices";
+import { formatMoney } from "@/lib/platform/format-money";
 
 function formatCurrency(amount: number, currencyCode: string): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: currencyCode,
-  }).format(amount);
+  return formatMoney(amount, currencyCode);
 }
 
 function formatDateTime(value: string | null): string {

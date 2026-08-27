@@ -82,6 +82,11 @@ export type OpcoReportDetail = {
   canReupload: boolean;
 };
 
+/** Report ready for OpCo to upload a corrected file (approved change request). */
+export type OpcoReuploadQueueItem = OpcoReportListItem & {
+  reuploadReason: string | null;
+};
+
 export type OpcoReportFilterOptions = {
   partners: Array<{ id: string; name: string }>;
   statuses: Array<{ code: string; label: string }>;
@@ -289,6 +294,132 @@ export async function searchReportsForOpco(
     totalCount,
     filters,
   };
+}
+
+/**
+ * Reports with Dizlee-approved, unfinished change requests — ready for OpCo re-upload.
+ */
+export async function listReuploadReadyReportsForOpco(
+  opcoId: bigint,
+): Promise<OpcoReuploadQueueItem[]> {
+  const rows = await prisma.report.findMany({
+    where: {
+      opcoId,
+      version: OPCO_REPORT_VERSION,
+      isDeleted: false,
+      status: { code: "CHANGE_REQUESTED" },
+      changeRequests: {
+        some: {
+          decidedAt: { not: null },
+          completedAt: null,
+          status: { code: "APPROVED" },
+        },
+      },
+    },
+    orderBy: [{ year: "desc" }, { month: "desc" }, { createdAt: "desc" }],
+    include: {
+      partner: { select: { id: true, name: true } },
+      status: { select: { code: true, label: true } },
+      file: { select: { filename: true } },
+      changeRequests: {
+        select: {
+          reason: true,
+          decidedAt: true,
+          completedAt: true,
+          status: { select: { code: true } },
+        },
+        orderBy: { createdAt: "desc" },
+      },
+      _count: { select: { lineItems: true } },
+    },
+  });
+
+  const items: OpcoReuploadQueueItem[] = [];
+
+  for (const report of rows) {
+    if (!mapReuploadEligibility(report.status.code, report.changeRequests)) {
+      continue;
+    }
+
+    const approvedRequest = report.changeRequests.find(
+      (request) =>
+        request.decidedAt !== null &&
+        request.completedAt === null &&
+        request.status.code === "APPROVED",
+    );
+
+    items.push({
+      id: report.id.toString(),
+      partnerId: report.partner.id.toString(),
+      partnerName: report.partner.name,
+      year: report.year,
+      month: report.month,
+      statusLabel: report.status.label,
+      statusCode: report.status.code,
+      filename: report.file?.filename ?? null,
+      lineItemCount: report._count.lineItems,
+      uploadedAt: report.createdAt.toISOString(),
+      hasPendingChangeRequest: report.changeRequests.some(
+        (request) => request.decidedAt === null,
+      ),
+      canReupload: true,
+      reuploadReason: approvedRequest?.reason ?? null,
+    });
+  }
+
+  return items;
+}
+
+const REUPLOAD_REQUESTABLE_STATUSES = ["SUBMITTED", "APPROVED", "RESUBMITTED"] as const;
+
+/**
+ * Reports OpCo can request Dizlee approval to re-upload (no pending undecided CR).
+ */
+export async function listReuploadRequestableReportsForOpco(
+  opcoId: bigint,
+): Promise<OpcoReportListItem[]> {
+  const rows = await prisma.report.findMany({
+    where: {
+      opcoId,
+      version: OPCO_REPORT_VERSION,
+      isDeleted: false,
+      status: { code: { in: [...REUPLOAD_REQUESTABLE_STATUSES] } },
+      NOT: {
+        changeRequests: {
+          some: { decidedAt: null },
+        },
+      },
+    },
+    orderBy: [{ year: "desc" }, { month: "desc" }, { createdAt: "desc" }],
+    include: {
+      partner: { select: { id: true, name: true } },
+      status: { select: { code: true, label: true } },
+      file: { select: { filename: true } },
+      changeRequests: {
+        select: {
+          decidedAt: true,
+          completedAt: true,
+          status: { select: { code: true } },
+        },
+      },
+      _count: { select: { lineItems: true } },
+    },
+  });
+
+  return rows.map((report) => ({
+    id: report.id.toString(),
+    partnerId: report.partner.id.toString(),
+    partnerName: report.partner.name,
+    year: report.year,
+    month: report.month,
+    statusLabel: report.status.label,
+    statusCode: report.status.code,
+    filename: report.file?.filename ?? null,
+    lineItemCount: report._count.lineItems,
+    uploadedAt: report.createdAt.toISOString(),
+    hasPendingChangeRequest: false,
+    canReupload: mapReuploadEligibility(report.status.code, report.changeRequests),
+  }));
 }
 
 export async function getReportDetailForOpco(

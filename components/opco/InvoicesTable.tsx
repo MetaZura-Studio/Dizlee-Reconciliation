@@ -26,6 +26,8 @@ import { ListSearch, OrFiltersDivider } from "@/components/ui/list-search";
 import { LoadingOverlay } from "@/components/ui/loading";
 import { FilterToolbar } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
+import { formatAppError } from "@/lib/errors/format";
+import { formatMoney } from "@/lib/platform/format-money";
 import { formatPeriodLabel, getDefaultPeriod } from "@/lib/opco/period";
 import {
   getMaxMonthForYear,
@@ -45,7 +47,6 @@ import type {
   OpcoInvoiceSortField,
   OpcoSortDirection,
 } from "@/lib/opco/queries/invoices";
-import { formatAppError } from "@/lib/errors/format";
 
 const MONTHS = [
   "January",
@@ -63,10 +64,7 @@ const MONTHS = [
 ];
 
 function formatCurrency(amount: number, currencyCode: string): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: currencyCode,
-  }).format(amount);
+  return formatMoney(amount, currencyCode);
 }
 
 function buildInvoicesQuery(filters: OpcoInvoiceListFilters): string {

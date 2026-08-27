@@ -17,18 +17,22 @@ describe("resolveNotificationHref", () => {
     ).toBe("/dizlee/reports/reupload");
   });
 
-  it("routes Admin partner link requests to OpCo partners with opcoId", () => {
+  it("routes Admin partner link requests to OpCo partners Requests tab", () => {
     expect(
       resolveNotificationHref(
         "admin",
         {
           id: "2",
           subject: "Partner link request: Zain Kuwait",
-          body: "[opcoId=42]\nPeriod: August 2026",
+          body: "Period: August 2026",
+          metadataJson: JSON.stringify({
+            type: "PARTNER_LINK_REQUEST",
+            opcoId: "42",
+          }),
         },
         "/admin/notifications",
       ),
-    ).toBe("/admin/opco-partners?opcoId=42");
+    ).toBe("/admin/opco-partners?tab=requests&opcoId=42");
   });
 
   it("routes OpCo reupload approval to reports history", () => {

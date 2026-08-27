@@ -6,7 +6,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { AppShell, type AppShellNavItem } from "@/components/layout/app-shell";
@@ -59,17 +59,10 @@ function mapNavItem(item: {
   };
 }
 
-const NAV: AppShellNavItem[] = [
-  ...ADMIN_MAIN_NAV_ITEMS.map(mapNavItem),
-  ...ADMIN_FOOTER_NAV_ITEMS.map((item) => ({
-    ...mapNavItem(item),
-    footer: true as const,
-  })),
-];
-
 type AdminWorkspaceProps = {
   user: AdminSessionUser;
   unreadCount?: number;
+  pendingPartnerLinkRequests?: number;
   children: React.ReactNode;
 };
 
@@ -169,13 +162,41 @@ function AdminProfileMenu({
   );
 }
 
-export function AdminWorkspace({ user, unreadCount = 0, children }: AdminWorkspaceProps) {
+export function AdminWorkspace({
+  user,
+  unreadCount = 0,
+  pendingPartnerLinkRequests = 0,
+  children,
+}: AdminWorkspaceProps) {
+  const navItems = useMemo<AppShellNavItem[]>(
+    () => [
+      ...ADMIN_MAIN_NAV_ITEMS.map((item) => {
+        const mapped = mapNavItem(item);
+        if (mapped.href === "/admin/notifications" && unreadCount > 0) {
+          return { ...mapped, badge: unreadCount };
+        }
+        if (
+          mapped.href === "/admin/opco-partners" &&
+          pendingPartnerLinkRequests > 0
+        ) {
+          return { ...mapped, badge: pendingPartnerLinkRequests };
+        }
+        return mapped;
+      }),
+      ...ADMIN_FOOTER_NAV_ITEMS.map((item) => ({
+        ...mapNavItem(item),
+        footer: true as const,
+      })),
+    ],
+    [unreadCount, pendingPartnerLinkRequests],
+  );
+
   return (
     <AppShell
       brand=""
       subtitle="Admin workspace"
       storageKey="admin-sidebar-collapsed"
-      navItems={NAV}
+      navItems={navItems}
       headerRight={<AdminNotificationsBell initialUnreadCount={unreadCount} />}
       footerSlot={(collapsed, toggleCollapsed) => (
         <AdminProfileMenu

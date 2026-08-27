@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildRevenueShareLine,
   deriveRevenueShareDashboardStatus,
+  mapRevenueShareLinesToItemCreates,
   netRevenueFromGross,
   regulatoryFeeFromVatPercent,
   resolveRevenueSharePercent,
@@ -43,6 +44,7 @@ describe("revenue share formulas", () => {
   it("builds an export line from OpCo USD, Partner USD, and OpCo fee %", () => {
     expect(
       buildRevenueShareLine({
+        partnerId: "42",
         partnerName: "ArpuPlus",
         serviceName: "Games",
         opcoAmountUsd: 200,
@@ -52,6 +54,7 @@ describe("revenue share formulas", () => {
         sourceColumns: { revenue_share_percent: 99 },
       }),
     ).toEqual({
+      partnerId: "42",
       partnerName: "ArpuPlus",
       serviceName: "Games",
       opcoAmountUsd: 200,
@@ -59,6 +62,37 @@ describe("revenue share formulas", () => {
       regulatoryFee: 20,
       netRevenue: 180,
       revenueSharePercent: 25,
+    });
+  });
+
+  it("maps lines to DB item creates with sort order and fee percent", () => {
+    const line = buildRevenueShareLine({
+      partnerId: "7",
+      partnerName: "Timwe",
+      serviceName: "SMS",
+      opcoAmountUsd: 100,
+      partnerAmountUsd: 95,
+      vatPercent: 5,
+      revenueSharePercent: 30,
+    });
+    const rows = mapRevenueShareLinesToItemCreates({
+      revenueShareReportId: 11,
+      regulatoryFeePercent: 5,
+      lines: [line],
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      revenueShareReportId: 11,
+      partnerId: 7n,
+      partnerName: "Timwe",
+      serviceName: "SMS",
+      opcoAmountUsd: 100,
+      partnerAmountUsd: 95,
+      regulatoryFeePercent: 5,
+      regulatoryFeeAmount: 5,
+      netRevenue: 95,
+      revenueSharePercent: 30,
+      sortOrder: 0,
     });
   });
 

@@ -17,7 +17,6 @@ export default async function OpcoUploadPage() {
   ]);
 
   const partnerMode = mapping?.partnerMode ?? "EXCEL_COLUMN";
-  const autoResolvePartners = partnerMode !== "UPLOAD_PICKER";
   const preferredSheetName = mapping
     ? parseStoredSampleHeaders(mapping.headersJson).sheetName
     : null;
@@ -26,11 +25,11 @@ export default async function OpcoUploadPage() {
     <PageCard>
       <PageHeader
         title="Upload Report"
-        description="Upload one monthly Excel. Partners resolve from the file or Admin maps when configured."
+        description="Upload one monthly Excel with all partners. The system splits and stores partner data for Report History."
       />
       <ReportUploadForm
         partners={partners}
-        partnerFromServiceMap={autoResolvePartners}
+        partnerFromServiceMap={partnerMode !== "UPLOAD_PICKER"}
         preferredSheetName={preferredSheetName}
       />
     </PageCard>

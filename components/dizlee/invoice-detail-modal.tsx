@@ -16,6 +16,7 @@ import {
 import { Modal } from "@/components/ui/modal";
 import { StatusPill } from "@/components/ui/status-pill";
 import type { InvoiceDetail } from "@/lib/dizlee/invoices";
+import { formatMoney } from "@/lib/platform/format-money";
 import { ui } from "@/lib/ui/classes";
 import { invoiceStatusTone, paymentLabelTone } from "@/lib/ui/status-tones";
 
@@ -37,14 +38,6 @@ function formatDateTime(value: string): string {
     dateStyle: "medium",
     timeStyle: "short",
   });
-}
-
-function formatMoney(amount: number, currencyCode: string): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: currencyCode,
-    maximumFractionDigits: 2,
-  }).format(amount);
 }
 
 type InvoiceDetailModalProps = {

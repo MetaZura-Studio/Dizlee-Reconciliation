@@ -5,6 +5,15 @@
 
 import { NotificationError } from "@/lib/dizlee/notifications/intimations";
 import { trimNotificationPreview } from "@/lib/dizlee/notifications/shared";
+import {
+  notificationCategory,
+  opcoNameFromMetadata,
+  parseNotificationMetadata,
+  resolveNotificationAction,
+  type NotificationAction,
+  type NotificationCategory,
+  type NotificationMetadata,
+} from "@/lib/platform/notification-metadata";
 import { prisma } from "@/lib/prisma";
 
 export type InboxListItem = {
@@ -15,6 +24,10 @@ export type InboxListItem = {
   fromName: string;
   priority: string | null;
   isRead: boolean;
+  category: NotificationCategory;
+  opcoName: string | null;
+  metadata: NotificationMetadata | null;
+  action: NotificationAction | null;
 };
 
 export type InboxListResult = {
@@ -35,6 +48,10 @@ export type InboxDetail = {
   priority: string | null;
   isRead: boolean;
   readAt: string | null;
+  category: NotificationCategory;
+  opcoName: string | null;
+  metadata: NotificationMetadata | null;
+  action: NotificationAction | null;
 };
 
 const PAGE_SIZE = 10;
@@ -42,15 +59,27 @@ const PAGE_SIZE = 10;
 export function parseInboxFilters(searchParams: URLSearchParams): {
   page: number;
   unreadOnly: boolean;
+  search: string;
 } {
   const page = Number(searchParams.get("page"));
   return {
     page: Number.isInteger(page) && page >= 1 ? page : 1,
     unreadOnly: searchParams.get("unreadOnly") === "true",
+    search: (searchParams.get("search") ?? "").trim(),
   };
 }
 
-function inboxWhere(userId: bigint, unreadOnly: boolean) {
+function inboxWhere(userId: bigint, unreadOnly: boolean, search = "") {
+  const searchFilter =
+    search.length > 0
+      ? {
+          OR: [
+            { subject: { contains: search } },
+            { body: { contains: search } },
+          ],
+        }
+      : {};
+
   return {
     isDeleted: false,
     recipients: {
@@ -60,6 +89,7 @@ function inboxWhere(userId: bigint, unreadOnly: boolean) {
         recipientId: userId,
       },
     },
+    ...searchFilter,
     ...(unreadOnly
       ? {
           reads: {
@@ -69,6 +99,19 @@ function inboxWhere(userId: bigint, unreadOnly: boolean) {
           },
         }
       : {}),
+  };
+}
+
+function mapInboxFields(row: {
+  subject: string;
+  metadataJson: string | null;
+}) {
+  const metadata = parseNotificationMetadata(row.metadataJson);
+  return {
+    metadata,
+    category: notificationCategory(metadata, row.subject),
+    opcoName: opcoNameFromMetadata(metadata),
+    action: resolveNotificationAction(metadata, row.subject),
   };
 }
 
@@ -84,9 +127,11 @@ export async function listInboxNotifications(params: {
   userId: string;
   page: number;
   unreadOnly: boolean;
+  search?: string;
 }): Promise<InboxListResult> {
   const userId = BigInt(params.userId);
-  const where = inboxWhere(userId, params.unreadOnly);
+  const search = params.search?.trim() ?? "";
+  const where = inboxWhere(userId, params.unreadOnly, search);
 
   const [totalCount, unreadCount, rows] = await Promise.all([
     prisma.notification.count({ where }),
@@ -122,6 +167,7 @@ export async function listInboxNotifications(params: {
   return {
     items: rows.map((row) => {
       const fromUser = row.recipients[0]?.fromUser;
+      const mapped = mapInboxFields(row);
       return {
         id: row.id.toString(),
         subject: row.subject,
@@ -130,6 +176,7 @@ export async function listInboxNotifications(params: {
         fromName: fromUser?.name ?? fromUser?.email ?? "System",
         priority: row.priority,
         isRead: row.reads.length > 0,
+        ...mapped,
       };
     }),
     page,
@@ -184,6 +231,7 @@ export async function getInboxNotificationDetail(params: {
 
   const fromUser = row.recipients[0]?.fromUser;
   const read = row.reads[0];
+  const mapped = mapInboxFields(row);
 
   return {
     id: row.id.toString(),
@@ -194,6 +242,7 @@ export async function getInboxNotificationDetail(params: {
     priority: row.priority,
     isRead: Boolean(read),
     readAt: read?.readAt.toISOString() ?? null,
+    ...mapped,
   };
 }
 

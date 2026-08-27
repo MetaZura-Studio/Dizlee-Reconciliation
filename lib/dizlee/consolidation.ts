@@ -322,6 +322,24 @@ export async function generateConsolidation(params: {
     );
   }
 
+  // Soft-deleted consolidations still hold uq_consolidations — revive on regenerate.
+  const softDeletedConsolidation =
+    readiness.existingConsolidationId == null
+      ? await prisma.consolidation.findFirst({
+          where: {
+            opcoId: BigInt(params.opcoId),
+            month: params.month,
+            year: params.year,
+            isDeleted: true,
+          },
+          select: { id: true },
+          orderBy: { deletedAt: "desc" },
+        })
+      : null;
+
+  const existingConsolidationId =
+    readiness.existingConsolidationId ?? softDeletedConsolidation?.id ?? null;
+
   const reports = await prisma.report.findMany({
     where: {
       opcoId: BigInt(params.opcoId),
@@ -382,12 +400,12 @@ export async function generateConsolidation(params: {
   const completedStatusId = await getLookupId("CONSOLIDATION_STATUS", "COMPLETED");
   const runByUserId = BigInt(params.runByUserId);
   const generatedAt = new Date();
-  const regenerated = Boolean(readiness.existingConsolidationId);
+  const regenerated = Boolean(existingConsolidationId);
 
   let consolidationId: number;
 
-  if (readiness.existingConsolidationId) {
-    consolidationId = readiness.existingConsolidationId;
+  if (existingConsolidationId) {
+    consolidationId = existingConsolidationId;
 
     await prisma.$transaction([
       prisma.consolidationItem.deleteMany({
@@ -401,6 +419,9 @@ export async function generateConsolidation(params: {
           generatedAt,
           runByUserId,
           updatedByUserId: runByUserId,
+          isDeleted: false,
+          deletedAt: null,
+          deletedByUserId: null,
         },
       }),
     ]);

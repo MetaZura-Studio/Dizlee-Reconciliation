@@ -168,6 +168,15 @@ export async function createReportUpload(
       fromUserId: input.userId,
       subject: "Partner report uploaded",
       body: `${report.partner.name} uploaded a report for ${report.opco.name} (${periodLabel}).`,
+      metadata: {
+        type: "PARTNER_REPORT_UPLOAD",
+        opcoId: input.opcoId.toString(),
+        opcoName: report.opco.name,
+        partnerId: input.partnerId.toString(),
+        partnerName: report.partner.name,
+        month: input.month,
+        year: input.year,
+      },
     });
 
     return { reportId: report.id.toString() };

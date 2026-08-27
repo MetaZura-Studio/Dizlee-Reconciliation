@@ -3,12 +3,12 @@ import { describe, expect, it } from "vitest";
 import {
   formatPartnerLinkRequestBody,
   parsePartnerLinkRequestBody,
-  partnerLinkRequestBodyPrefix,
   partnerLinkRequestSubject,
+  stripPartnerLinkRequestMachinePrefix,
 } from "@/lib/platform/partner-link-request";
 
 describe("partner link request body", () => {
-  it("round-trips opco id, period, names, and message", () => {
+  it("formats a human-readable body without opcoId markers", () => {
     const record = {
       opcoId: "42",
       periodLabel: "April 2026",
@@ -17,13 +17,13 @@ describe("partner link request body", () => {
       message: "Please add these OpCo–Partner links so we can upload the report.",
     };
     const body = formatPartnerLinkRequestBody(record);
-    expect(body.startsWith(partnerLinkRequestBodyPrefix("42"))).toBe(true);
+    expect(body).not.toContain("opcoId");
     expect(body).toContain("Partners not linked: ArpuPlus, Foo Corp");
     expect(partnerLinkRequestSubject("Zain Bahrain")).toBe(
       "Partner link request: Zain Bahrain",
     );
     expect(parsePartnerLinkRequestBody(body)).toEqual({
-      opcoId: "42",
+      opcoId: "",
       periodLabel: "April 2026",
       unlinkedPartnerNames: ["ArpuPlus", "Foo Corp"],
       unknownPartnerNames: [],
@@ -31,7 +31,7 @@ describe("partner link request body", () => {
     });
   });
 
-  it("still parses the older two-line partner list", () => {
+  it("still parses the older two-line partner list with opcoId prefix", () => {
     const body = [
       "[opcoId=42]",
       "Period: April 2026",
@@ -47,6 +47,14 @@ describe("partner link request body", () => {
       unknownPartnerNames: ["Foo Corp"],
       message: "Please add these OpCo–Partner links so we can upload the report.",
     });
+  });
+
+  it("strips machine prefix for display", () => {
+    expect(
+      stripPartnerLinkRequestMachinePrefix(
+        "[opcoId=2]\nPeriod: August 2026\nPartners not linked: ArpuPlus",
+      ),
+    ).toBe("Period: August 2026\nPartners not linked: ArpuPlus");
   });
 
   it("returns null when the body is not a link request", () => {

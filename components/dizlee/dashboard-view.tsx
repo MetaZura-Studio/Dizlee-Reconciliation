@@ -34,6 +34,7 @@ import {
 } from "@/lib/platform/period";
 import { cn, ui } from "@/lib/ui/classes";
 import { formatAppError } from "@/lib/errors/format";
+import { formatUsd } from "@/lib/platform/format-money";
 
 type SectionTone = "billing" | "reports" | "uploads";
 
@@ -106,13 +107,6 @@ const MONTHS = [
   "November",
   "December",
 ];
-
-const usdFormatter = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
 
 function formatDateTime(value: string | null): string {
   if (!value) {
@@ -430,7 +424,7 @@ function BillingSectionView({
         <KpiCard label="Invoices" value={kpis.invoices} href={allInvoicesHref} tone="blue" />
         <KpiCard
           label="Total revenue (paid OpCos)"
-          value={usdFormatter.format(kpis.totalRevenuePaidUsd)}
+          value={formatUsd(kpis.totalRevenuePaidUsd)}
           href={paidInvoicesHref}
           tone="teal"
         />
@@ -442,7 +436,7 @@ function BillingSectionView({
         />
         <KpiCard
           label="Pending collection"
-          value={usdFormatter.format(kpis.pendingCollectionUsd)}
+          value={formatUsd(kpis.pendingCollectionUsd)}
           href={pendingInvoicesHref}
           tone="amber"
         />
@@ -459,7 +453,7 @@ function BillingSectionView({
         <DonutChart
           title="Revenue by OpCo (paid)"
           segments={billing.revenueByOpco}
-          formatValue={(value) => usdFormatter.format(value)}
+          formatValue={(value) => formatUsd(value)}
           getSegmentHref={(segment) =>
             segment.id
               ? invoicesLink(month, year, {

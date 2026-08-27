@@ -204,14 +204,19 @@ export function NotificationsBellDropdown({
   async function handleItemClick(item: BellNotificationItem) {
     setNavigatingId(item.id);
     let body: string | null = item.bodyPreview;
+    let metadataJson: string | null = null;
     try {
       const response = await fetch(detailUrl(item.id));
       if (response.ok) {
         const payload = (await response.json()) as {
-          detail?: { body?: string };
-          data?: { body?: string };
+          detail?: { body?: string; metadata?: unknown };
+          data?: { body?: string; metadata?: unknown };
         };
-        body = payload.detail?.body ?? payload.data?.body ?? body;
+        const detail = payload.detail ?? payload.data;
+        body = detail?.body ?? body;
+        if (detail?.metadata) {
+          metadataJson = JSON.stringify(detail.metadata);
+        }
       }
       setUnreadCount((count) => Math.max(0, count - (item.isRead ? 0 : 1)));
       setItems((prev) =>
@@ -231,6 +236,7 @@ export function NotificationsBellDropdown({
         subject: item.subject,
         bodyPreview: item.bodyPreview,
         body,
+        metadataJson,
       },
       inboxHref,
     );

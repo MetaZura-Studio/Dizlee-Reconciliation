@@ -1,6 +1,6 @@
 /**
  * OpCo-facing report list including own submissions and linked partner reports.
- * Supports preview, re-upload flows, and change requests where allowed.
+ * Browse/search with parsed detail preview; reupload workflow lives on Re Upload Report.
  */
 
 "use client";
@@ -9,8 +9,6 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { ReportDetailModal } from "@/components/opco/ReportDetailModal";
-import { ReportReuploadDialog } from "@/components/opco/ReportReuploadDialog";
-import { RequestChangeDialog } from "@/components/opco/RequestChangeDialog";
 import { ReportFilenameLink } from "@/components/shared/report-filename-link";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,12 +22,11 @@ import {
 } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { IconButton } from "@/components/ui/icon-button";
-import { IconEye, IconRefresh, IconUpload } from "@/components/ui/icons";
+import { IconEye } from "@/components/ui/icons";
 import { ListSearch, OrFiltersDivider } from "@/components/ui/list-search";
 import { LoadingOverlay } from "@/components/ui/loading";
 import { FilterToolbar, DataLayout } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
-import { useToast } from "@/components/ui/toast";
 import { formatPeriodLabel, getDefaultPeriod } from "@/lib/opco/period";
 import { reportRawFilePreviewUrl } from "@/lib/platform/reports/preview-url";
 import {
@@ -44,14 +41,11 @@ import type {
   OpcoReportDetail,
   OpcoReportFilterOptions,
   OpcoReportListFilters,
-  OpcoReportListItem,
   OpcoReportListResult,
   OpcoReportSortField,
   OpcoSortDirection,
 } from "@/lib/opco/queries/reports";
 import { formatAppError } from "@/lib/errors/format";
-
-const REQUESTABLE_STATUSES = new Set(["SUBMITTED", "APPROVED", "RESUBMITTED"]);
 
 const MONTHS = [
   "January",
@@ -67,12 +61,6 @@ const MONTHS = [
   "November",
   "December",
 ];
-
-function canRequestChange(report: OpcoReportListItem): boolean {
-  return (
-    REQUESTABLE_STATUSES.has(report.statusCode) && !report.hasPendingChangeRequest
-  );
-}
 
 function buildReportsQuery(filters: OpcoReportListFilters): string {
   const params = new URLSearchParams({
@@ -103,13 +91,11 @@ function buildReportsQuery(filters: OpcoReportListFilters): string {
 type ReportsTableProps = {
   initialResult: OpcoReportListResult;
   filterOptions: OpcoReportFilterOptions;
-  preferredSheetName?: string | null;
 };
 
 export function ReportsTable({
   initialResult,
   filterOptions: initialFilterOptions,
-  preferredSheetName = null,
 }: ReportsTableProps) {
   const defaults = getDefaultPeriod();
   const { filters: initialFilters } = initialResult;
@@ -132,13 +118,6 @@ export function ReportsTable({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const skipSearchEffect = useRef(true);
-
-  const [changeRequestReport, setChangeRequestReport] =
-    useState<OpcoReportListItem | null>(null);
-  const [reuploadReport, setReuploadReport] = useState<OpcoReportListItem | null>(
-    null,
-  );
-  const toast = useToast();
 
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -294,16 +273,6 @@ export function ReportsTable({
     setDetail(null);
   }
 
-  function handleRequestSuccess() {
-    toast.success("Reupload request submitted. Dizlee has been notified.");
-    void loadReports({ ...result.filters });
-  }
-
-  function handleReuploadSuccess() {
-    toast.success("Corrected report uploaded successfully.");
-    void loadReports({ ...result.filters });
-  }
-
   const yearOptions = getPeriodYearOptions();
   const maxMonth = year === "" ? 12 : getMaxMonthForYear(Number(year));
 
@@ -456,6 +425,11 @@ export function ReportsTable({
                               Reupload pending review
                             </p>
                           ) : null}
+                          {row.canReupload ? (
+                            <p className="mt-1 text-xs text-primary">
+                              Ready to re-upload
+                            </p>
+                          ) : null}
                         </div>
                       </DataTableTd>
                       <DataTableTd className="text-foreground-muted">
@@ -477,31 +451,12 @@ export function ReportsTable({
                         })}
                       </DataTableTd>
                       <DataTableTd>
-                        <div className="flex gap-2">
-                          <IconButton
-                            label="View parsed report"
-                            onClick={() => void openDetail(row.id)}
-                          >
-                            <IconEye />
-                          </IconButton>
-                          {canRequestChange(row) ? (
-                            <IconButton
-                              label="Request reupload"
-                              onClick={() => setChangeRequestReport(row)}
-                            >
-                              <IconRefresh />
-                            </IconButton>
-                          ) : null}
-                          {row.canReupload ? (
-                            <IconButton
-                              label="Reupload corrected file"
-                              variant="primary"
-                              onClick={() => setReuploadReport(row)}
-                            >
-                              <IconUpload />
-                            </IconButton>
-                          ) : null}
-                        </div>
+                        <IconButton
+                          label="View parsed report"
+                          onClick={() => void openDetail(row.id)}
+                        >
+                          <IconEye />
+                        </IconButton>
                       </DataTableTd>
                     </DataTableRow>
                   ))}
@@ -546,23 +501,6 @@ export function ReportsTable({
           />
         )}
         </LoadingOverlay>
-      ) : null}
-
-      {changeRequestReport ? (
-        <RequestChangeDialog
-          report={changeRequestReport}
-          onClose={() => setChangeRequestReport(null)}
-          onSuccess={handleRequestSuccess}
-        />
-      ) : null}
-
-      {reuploadReport ? (
-        <ReportReuploadDialog
-          report={reuploadReport}
-          preferredSheetName={preferredSheetName}
-          onClose={() => setReuploadReport(null)}
-          onSuccess={handleReuploadSuccess}
-        />
       ) : null}
 
       {detailOpen ? (
