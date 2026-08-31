@@ -13,7 +13,7 @@ const mockedTransaction = vi.fn(async (ops: unknown[]) => ops);
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
-    $transaction: (...args: unknown[]) => mockedTransaction(...args),
+    $transaction: (ops: unknown) => mockedTransaction(ops as unknown[]),
     reconciliation: {
       findMany: (...args: unknown[]) => mockedReconciliationFindMany(...args),
       deleteMany: (...args: unknown[]) => mockedReconciliationDeleteMany(...args),
@@ -59,14 +59,14 @@ describe("hardDeleteAllOpcoPeriodWork", () => {
     mockedReconciliationDeleteMany.mockResolvedValue({ count: 2 });
 
     const count = await hardDeleteAllOpcoPeriodReconciliations({
-      opcoId: 5n,
+      opcoId: BigInt(5),
       year: 2026,
       month: 8,
     });
 
     expect(count).toBe(2);
     expect(mockedReconciliationFindMany).toHaveBeenCalledWith({
-      where: { opcoId: 5n, year: 2026, month: 8 },
+      where: { opcoId: BigInt(5), year: 2026, month: 8 },
       select: { id: true },
     });
     expect(mockedTransaction).toHaveBeenCalled();
@@ -82,7 +82,7 @@ describe("hardDeleteAllOpcoPeriodWork", () => {
 
     await expect(
       hardDeleteOpcoPeriodConsolidation({
-        opcoId: 5n,
+        opcoId: BigInt(5),
         year: 2026,
         month: 8,
       }),
@@ -90,7 +90,7 @@ describe("hardDeleteAllOpcoPeriodWork", () => {
 
     await expect(
       hardDeleteOpcoPeriodRevenueShareReport({
-        opcoId: 5n,
+        opcoId: BigInt(5),
         year: 2026,
         month: 8,
       }),
@@ -104,7 +104,7 @@ describe("hardDeleteAllOpcoPeriodWork", () => {
 
     await expect(
       hardDeleteAllOpcoPeriodWork({
-        opcoId: 5n,
+        opcoId: BigInt(5),
         year: 2026,
         month: 8,
       }),

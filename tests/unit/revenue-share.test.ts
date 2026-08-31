@@ -83,7 +83,7 @@ describe("revenue share formulas", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
       revenueShareReportId: 11,
-      partnerId: 7n,
+      partnerId: BigInt(7),
       partnerName: "Timwe",
       serviceName: "SMS",
       opcoAmountUsd: 100,
