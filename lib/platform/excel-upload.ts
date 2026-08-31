@@ -3,7 +3,7 @@
  * Used by Admin imports and OpCo/Partner report uploads.
  */
 
-export const MAX_EXCEL_UPLOAD_BYTES = 10 * 1024 * 1024;
+export const MAX_EXCEL_UPLOAD_BYTES = 20 * 1024 * 1024;
 
 export const XLSX_EXTENSIONS = [".xlsx"] as const;
 export const EXCEL_EXTENSIONS_WITH_LEGACY = [".xlsx", ".xls"] as const;
@@ -88,7 +88,7 @@ export function validateExcelUploadFile(
   }
 
   if (file.size > maxBytes) {
-    return "File exceeds the 10 MB upload limit";
+    return `File exceeds the ${maxBytes / (1024 * 1024)} MB upload limit`;
   }
 
   return null;

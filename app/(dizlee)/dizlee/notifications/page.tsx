@@ -1,28 +1,12 @@
-import { NotificationHistoryView } from "@/components/dizlee/notification-history-view";
+import { Suspense } from "react";
+import { redirect } from "next/navigation";
+
 import { NotificationsInboxView } from "@/components/dizlee/notifications-inbox-view";
-import { IntimationsView } from "@/components/dizlee/intimations-view";
-import { RemindersView } from "@/components/dizlee/reminders-view";
-import {
-  getIntimationFormOptions,
-  listIntimations,
-  parseIntimationListFilters,
-} from "@/lib/dizlee/notifications/intimations";
-import {
-  getNotificationHistoryDetail,
-  listNotificationHistory,
-  parseNotificationHistoryFilters,
-} from "@/lib/dizlee/notifications/history";
 import {
   getInboxNotificationDetail,
   listInboxNotifications,
   parseInboxFilters,
 } from "@/lib/dizlee/notifications/inbox";
-import {
-  getReminderSettings,
-  listReminderLanes,
-  parseReminderFilters,
-} from "@/lib/dizlee/notifications/reminders";
-import { getReportFilterOptions } from "@/lib/dizlee/reports-monitoring";
 import { requireDizleeSession } from "@/lib/dizlee/auth";
 
 type DizleeNotificationsPageProps = {
@@ -30,14 +14,28 @@ type DizleeNotificationsPageProps = {
     tab?: string;
     page?: string;
     id?: string;
-    month?: string;
-    year?: string;
-    opcoId?: string;
-    partnerId?: string;
-    missing?: string;
     unreadOnly?: string;
+    filter?: string;
+    search?: string;
   }>;
 };
+
+function buildRedirectQuery(
+  params: Record<string, string | undefined>,
+  tab?: string,
+): string {
+  const query = new URLSearchParams();
+  if (tab) {
+    query.set("tab", tab);
+  }
+  for (const [key, value] of Object.entries(params)) {
+    if (value && key !== "tab") {
+      query.set(key, value);
+    }
+  }
+  const serialized = query.toString();
+  return serialized ? `?${serialized}` : "";
+}
 
 export default async function DizleeNotificationsPage({
   searchParams,
@@ -49,6 +47,19 @@ export default async function DizleeNotificationsPage({
 
   const params = await searchParams;
 
+  if (
+    params.tab === "intimations" ||
+    params.tab === "reminders" ||
+    params.tab === "outbox" ||
+    params.tab === "history"
+  ) {
+    const tab =
+      params.tab === "history" || params.tab === "outbox"
+        ? "outbox"
+        : params.tab;
+    redirect(`/dizlee/communications${buildRedirectQuery(params, tab)}`);
+  }
+
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
     if (value && key !== "tab" && key !== "id") {
@@ -56,78 +67,28 @@ export default async function DizleeNotificationsPage({
     }
   }
 
-  if (params.tab === "reminders") {
-    if (!query.get("missing")) {
-      query.set("missing", "any");
-    }
-
-    const filters = parseReminderFilters(query);
-    const [initialResult, initialSettings, initialFilterOptions] =
-      await Promise.all([
-        listReminderLanes(filters),
-        getReminderSettings(),
-        getReportFilterOptions(),
-      ]);
-
-    return (
-      <RemindersView
-        initialResult={initialResult}
-        initialSettings={initialSettings}
-        initialFilterOptions={initialFilterOptions}
-      />
-    );
-  }
-
-  if (params.tab === "history") {
-    const filters = parseNotificationHistoryFilters(query);
-    const initialResult = await listNotificationHistory(filters);
-    const initialDetail = params.id
-      ? await getNotificationHistoryDetail(params.id)
-      : null;
-
-    return (
-      <NotificationHistoryView
-        initialResult={initialResult}
-        initialDetail={initialDetail}
-        initialSelectedId={params.id ?? null}
-      />
-    );
-  }
-
-  if (params.tab === "inbox") {
-    const filters = parseInboxFilters(query);
-    const initialResult = await listInboxNotifications({
-      userId: user.id,
-      page: filters.page,
-      unreadOnly: filters.unreadOnly,
-    });
-    const initialDetail = params.id
-      ? await getInboxNotificationDetail({
-          userId: user.id,
-          notificationId: params.id,
-        })
-      : null;
-
-    return (
-      <NotificationsInboxView
-        initialResult={initialResult}
-        initialDetail={initialDetail}
-        initialSelectedId={params.id ?? null}
-      />
-    );
-  }
-
-  const filters = parseIntimationListFilters(query);
-
-  const [initialResult, initialFormOptions] = await Promise.all([
-    listIntimations(filters),
-    getIntimationFormOptions(),
-  ]);
+  const inboxFilters = parseInboxFilters(query);
+  const initialResult = await listInboxNotifications({
+    userId: user.id,
+    page: inboxFilters.page,
+    readFilter: inboxFilters.readFilter,
+    search: inboxFilters.search,
+  });
+  const initialDetail = params.id
+    ? await getInboxNotificationDetail({
+        userId: user.id,
+        notificationId: params.id,
+      })
+    : null;
 
   return (
-    <IntimationsView
-      initialResult={initialResult}
-      initialFormOptions={initialFormOptions}
-    />
+    <Suspense fallback={null}>
+      <NotificationsInboxView
+        key={inboxFilters.readFilter}
+        initialResult={initialResult}
+        initialDetail={initialDetail}
+        initialSelectedId={params.id ?? null}
+      />
+    </Suspense>
   );
 }

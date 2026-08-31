@@ -30,7 +30,7 @@ import { LoadingOverlay } from "@/components/ui/loading";
 import { FilterToolbar, DataLayout } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
 import { useToast } from "@/components/ui/toast";
-import { formatPeriodLabel, getDefaultPeriod } from "@/lib/partner/period";
+import { getDefaultPeriod } from "@/lib/partner/period";
 import { reportRawFilePreviewUrl } from "@/lib/platform/reports/preview-url";
 import {
   getMaxMonthForYear,
@@ -49,6 +49,7 @@ import type {
   PartnerReportSortField,
   PartnerSortDirection,
 } from "@/lib/partner/queries/reports";
+import { formatAppDate, formatAppMonthYear } from "@/lib/platform/format-datetime";
 import { formatAppError } from "@/lib/errors/format";
 
 const REQUESTABLE_STATUSES = new Set(["SUBMITTED", "APPROVED", "RESUBMITTED"]);
@@ -426,27 +427,29 @@ export function ReportsTable({
                       active={sortBy === "period"}
                       direction={sortDir}
                       onSort={() => applySort("period")}
+                      align="center"
                     />
-                    <DataTableTh>Status</DataTableTh>
+                    <DataTableTh align="center">Status</DataTableTh>
                     <DataTableTh>File</DataTableTh>
-                    <DataTableTh>Lines</DataTableTh>
+                    <DataTableTh align="right">Lines</DataTableTh>
                     <SortableDataTableTh
                       label="Uploaded"
                       active={sortBy === "uploaded"}
                       direction={sortDir}
                       onSort={() => applySort("uploaded")}
+                      align="center"
                     />
-                    <DataTableTh>Actions</DataTableTh>
+                    <DataTableTh align="center">Actions</DataTableTh>
                   </tr>
                 </DataTableHead>
                 <tbody>
                   {result.items.map((row) => (
                     <DataTableRow key={row.id}>
                       <DataTableTd>{row.opcoName}</DataTableTd>
-                      <DataTableTd className="text-foreground-muted">
-                        {formatPeriodLabel(row.year, row.month)}
+                      <DataTableTd className="text-foreground-muted" align="center">
+                        {formatAppMonthYear(row.month, row.year)}
                       </DataTableTd>
-                      <DataTableTd>
+                      <DataTableTd align="center">
                         <div>
                           <StatusPill tone={reportStatusTone(row.statusCode)}>
                             {row.statusLabel}
@@ -468,16 +471,14 @@ export function ReportsTable({
                           }
                         />
                       </DataTableTd>
-                      <DataTableTd className="text-foreground-muted">
+                      <DataTableTd className="text-foreground-muted" align="right">
                         {row.lineItemCount}
                       </DataTableTd>
-                      <DataTableTd className="text-foreground-muted">
-                        {new Date(row.uploadedAt).toLocaleDateString("en-US", {
-                          dateStyle: "medium",
-                        })}
+                      <DataTableTd className="text-foreground-muted" align="center">
+                        {formatAppDate(row.uploadedAt)}
                       </DataTableTd>
-                      <DataTableTd>
-                        <div className="flex gap-2">
+                      <DataTableTd align="center">
+                        <div className="flex justify-center gap-2">
                           <IconButton
                             label="View parsed report"
                             onClick={() => void openDetail(row.id)}

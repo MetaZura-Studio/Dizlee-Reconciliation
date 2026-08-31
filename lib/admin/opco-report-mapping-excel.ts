@@ -400,3 +400,112 @@ export function selectStoredSheet(
     sheets: stored.sheets,
   };
 }
+
+/** 1-based column index for a mapped header label (same rules as report parse). */
+export function findColumnIndex(
+  headerRow: ExcelJS.Row,
+  targetHeader: string | null | undefined,
+): number {
+  if (!targetHeader?.trim()) {
+    return 0;
+  }
+  const target = normalizeHeaderKey(targetHeader);
+  let exact = 0;
+  let prefix = 0;
+  headerRow.eachCell({ includeEmpty: false }, (cell, columnNumber) => {
+    const header = normalizeHeaderKey(cellText(cell.value));
+    if (!header) {
+      return;
+    }
+    if (header === target) {
+      exact = columnNumber;
+      return;
+    }
+    if (
+      !prefix &&
+      (header.startsWith(`${target}_`) || target.startsWith(`${header}_`))
+    ) {
+      prefix = columnNumber;
+    }
+  });
+  return exact || prefix;
+}
+
+export const DISTINCT_COLUMN_VALUES_LIMIT = 200;
+
+export type DistinctColumnValuesParams = {
+  sheetName: string;
+  headerRowNumber: number;
+  columnHeader: string;
+};
+
+/** Distinct non-empty cell values for one column in the sample sheet. */
+export async function extractDistinctColumnValues(
+  buffer: ArrayBuffer | Buffer | Uint8Array,
+  params: DistinctColumnValuesParams,
+): Promise<string[]> {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(buffer as unknown as ExcelJS.Buffer);
+
+  const sheetName = params.sheetName.trim();
+  const worksheet =
+    workbook.getWorksheet(sheetName) ??
+    workbook.worksheets.find(
+      (sheet) => sheet.name.trim().toLowerCase() === sheetName.toLowerCase(),
+    );
+  if (!worksheet) {
+    return [];
+  }
+
+  let headerRowNumber = Math.max(1, params.headerRowNumber);
+  let columnIndex = findColumnIndex(
+    worksheet.getRow(headerRowNumber),
+    params.columnHeader,
+  );
+
+  if (columnIndex <= 0) {
+    const scanLimit = Math.min(
+      Math.max(worksheet.actualRowCount || 1, 1),
+      HEADER_SCAN_MAX_ROWS,
+    );
+    for (let rowNumber = 1; rowNumber <= scanLimit; rowNumber += 1) {
+      const candidate = findColumnIndex(
+        worksheet.getRow(rowNumber),
+        params.columnHeader,
+      );
+      if (candidate > 0) {
+        headerRowNumber = rowNumber;
+        columnIndex = candidate;
+        break;
+      }
+    }
+  }
+
+  if (columnIndex <= 0) {
+    return [];
+  }
+
+  const seen = new Set<string>();
+  const values: string[] = [];
+  const lastRow = Math.max(
+    worksheet.actualRowCount || 0,
+    worksheet.rowCount || 0,
+    headerRowNumber,
+  );
+
+  for (
+    let rowNumber = headerRowNumber + 1;
+    rowNumber <= lastRow && values.length < DISTINCT_COLUMN_VALUES_LIMIT;
+    rowNumber += 1
+  ) {
+    const text = cellText(worksheet.getRow(rowNumber).getCell(columnIndex).value);
+    if (!text || seen.has(text)) {
+      continue;
+    }
+    seen.add(text);
+    values.push(text);
+  }
+
+  values.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+  return values;
+}

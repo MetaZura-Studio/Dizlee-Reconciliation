@@ -37,7 +37,11 @@ export const updateOpcoReportMappingSchema = z
       .trim()
       .min(1, "Select a Revenue column")
       .max(255),
-    revenueShareColumn: optionalHeader,
+    revenueShareColumn: z
+      .string()
+      .trim()
+      .min(1, "Select a Revenue share % column")
+      .max(255),
     rowFilterColumn: optionalHeader,
     rowFilterValue: optionalHeader,
     aggregateDailyRows: z.boolean().optional().default(false),

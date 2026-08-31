@@ -6,6 +6,7 @@
 
 import type { AppErrorPayload } from "@/lib/errors/app-error";
 import {
+  ERROR_CATALOG,
   isErrorKey,
   resolveErrorKeyFromMessage,
   type ErrorKey,
@@ -100,6 +101,30 @@ function extractErrorKey(input: unknown): ErrorKey | null {
   return null;
 }
 
+function humanReadableApiMessage(input: unknown): string | null {
+  if (!input || typeof input !== "object") {
+    return null;
+  }
+  const nested = (input as { error?: unknown }).error;
+  if (!nested || typeof nested !== "object") {
+    return null;
+  }
+  const payload = nested as Partial<AppErrorPayload>;
+  if (typeof payload.message !== "string" || !payload.message.trim()) {
+    return null;
+  }
+  if (typeof payload.key === "string" && isErrorKey(payload.key)) {
+    const catalogMsg = ERROR_CATALOG[payload.key].message;
+    if (
+      payload.key === "UNMAPPED_ERROR" &&
+      payload.message.trim() !== catalogMsg
+    ) {
+      return payload.message.trim();
+    }
+  }
+  return null;
+}
+
 /**
  * Returns a short user-facing message.
  * Prefer `fallbackMessage` from the call site (e.g. "Failed to upload report").
@@ -112,6 +137,10 @@ export function formatAppError(
 ): string {
   if (fallbackMessage?.trim()) {
     const key = extractErrorKey(input);
+    const apiMessage = humanReadableApiMessage(input);
+    if (apiMessage) {
+      return apiMessage;
+    }
     // Auth / rate-limit: prefer specific copy over generic fallback.
     if (
       key &&
@@ -151,6 +180,10 @@ export function formatAppError(
 
     const key = extractErrorKey(input);
     if (key) {
+      const apiMessage = humanReadableApiMessage(input);
+      if (apiMessage) {
+        return apiMessage;
+      }
       return clientMessageForKey(key);
     }
   }

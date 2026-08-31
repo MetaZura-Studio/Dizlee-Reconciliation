@@ -35,14 +35,8 @@ import {
 } from "@/lib/admin/audit-logs.shared";
 import { cn, ui } from "@/lib/ui/classes";
 import { nextSortState } from "@/lib/ui/sort";
+import { formatAppDateTime } from "@/lib/platform/format-datetime";
 import { formatAppError } from "@/lib/errors/format";
-
-function formatDateTime(value: string): string {
-  return new Date(value).toLocaleString("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
 
 function SearchIcon({ className }: { className?: string }) {
   return (
@@ -362,6 +356,7 @@ export function AuditLogsView({
                     active={filters.sortBy === "createdAt"}
                     direction={filters.sortDir}
                     onSort={() => applySort("createdAt")}
+                    align="center"
                   />
                   <SortableDataTableTh
                     label="Actor"
@@ -388,8 +383,8 @@ export function AuditLogsView({
               <tbody>
                 {result.items.map((item: AuditLogListItem) => (
                   <DataTableRow key={item.id} className="align-top">
-                    <DataTableTd className="whitespace-nowrap text-foreground-muted">
-                      {formatDateTime(item.createdAt)}
+                    <DataTableTd className="whitespace-nowrap text-foreground-muted" align="center">
+                      {formatAppDateTime(item.createdAt)}
                     </DataTableTd>
                     <DataTableTd className="text-foreground-muted">
                       <div className="font-medium">{item.actorName}</div>

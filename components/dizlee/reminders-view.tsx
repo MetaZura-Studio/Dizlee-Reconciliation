@@ -7,8 +7,7 @@
 
 import { useCallback, useState } from "react";
 
-import { KpiCard } from "@/components/dizlee/kpi-card";
-import { NotificationsTabs } from "@/components/dizlee/notifications-tabs";
+import { CommunicationsTabs } from "@/components/dizlee/communications-tabs";
 import { Button } from "@/components/ui/button";
 import {
   DataTable,
@@ -44,6 +43,7 @@ import {
   getMaxMonthForYear,
   getPeriodYearOptions,
 } from "@/lib/platform/period";
+import { formatAppDateTime } from "@/lib/platform/format-datetime";
 import { formatAppError } from "@/lib/errors/format";
 
 const MONTHS = [
@@ -70,16 +70,6 @@ function getTemplateContent(
     subject: template?.subject ?? "",
     body: template?.body ?? "",
   };
-}
-
-function formatDateTime(value: string | null): string {
-  if (!value) {
-    return "—";
-  }
-  return new Date(value).toLocaleString("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
 }
 
 function reportMonitoringStatusTone(
@@ -297,11 +287,11 @@ export function RemindersView({
   return (
     <PageCard>
       <PageHeader
-        title="Notifications"
+        title="Communications"
         description="Send report submission reminders for missing uploads (UC-09)."
       />
 
-      <NotificationsTabs active="reminders" />
+      <CommunicationsTabs active="reminders" />
 
       {error ? <div className={`mt-4 ${ui.alertError}`}>{error}</div> : null}
       <div className={cn(ui.cardPadding, "mt-4 text-sm text-foreground-muted")}>
@@ -416,25 +406,13 @@ export function RemindersView({
         </div>
       </FilterToolbar>
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard label="OpCo–Partner pairs" value={result.summary.linkedLanes} />
-        <KpiCard label="OpCo missing" value={result.summary.opcoMissing} />
-        <KpiCard label="Partner missing" value={result.summary.partnerMissing} />
-        <KpiCard
-          label="Selected pairs"
-          value={selectedLaneKeys.length || "All"}
-        />
-      </div>
-      <p className="mt-1 text-xs text-foreground-subtle">
-        {selectedLaneKeys.length === 0
-          ? "Empty selection sends to all pairs with missing reports"
-          : "Only selected pairs"}
-      </p>
-
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        <div className={cn(ui.cardPaddingLg, "lg:col-span-2")}>
+      <div className="mt-6 grid gap-6 lg:grid-cols-5">
+        <div className={cn(ui.cardPaddingLg, "min-w-0 lg:col-span-3")}>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-medium text-foreground">OpCo–Partner pairs</h2>
+            <h2 className="text-lg font-medium text-foreground">
+              {MONTHS[result.filters.month - 1]} {result.filters.year} OpCo–Partner
+              pairs
+            </h2>
             <Button variant="ghost" onClick={selectMissingOnPage}>
               Select missing on page
             </Button>
@@ -451,20 +429,26 @@ export function RemindersView({
           ) : (
             <LoadingOverlay active={loading} className="mt-4 min-h-[12rem]">
             <>
-              <DataTableFrame className="mt-0">
-                <DataTable>
+              <DataTableFrame className="mt-0 w-fit max-w-full">
+                <DataTable className="min-w-0 w-auto table-auto">
                   <DataTableHead>
                     <tr>
-                      <DataTableTh className="w-10">{" "}</DataTableTh>
-                      <DataTableTh>OpCo / Partner</DataTableTh>
-                      <DataTableTh>OpCo report</DataTableTh>
-                      <DataTableTh>Partner report</DataTableTh>
+                      <DataTableTh className="w-10 px-3" align="center">{" "}</DataTableTh>
+                      <DataTableTh className="whitespace-nowrap px-3">
+                        OpCo / Partner
+                      </DataTableTh>
+                      <DataTableTh className="whitespace-nowrap px-3" align="center">
+                        OpCo report
+                      </DataTableTh>
+                      <DataTableTh className="whitespace-nowrap px-3" align="center">
+                        Partner report
+                      </DataTableTh>
                     </tr>
                   </DataTableHead>
                   <tbody>
                     {result.items.map((lane) => (
                       <DataTableRow key={lane.laneKey}>
-                        <DataTableTd>
+                        <DataTableTd className="px-3" align="center">
                           <input
                             type="checkbox"
                             checked={selectedLaneKeys.includes(lane.laneKey)}
@@ -472,10 +456,10 @@ export function RemindersView({
                             className="rounded border-border"
                           />
                         </DataTableTd>
-                        <DataTableTd>
+                        <DataTableTd className="whitespace-nowrap px-3">
                           {lane.opcoName} / {lane.partnerName}
                         </DataTableTd>
-                        <DataTableTd>
+                        <DataTableTd className="whitespace-nowrap px-3" align="center">
                           <StatusPill
                             tone={reportMonitoringStatusTone(lane.opcoReport.status)}
                           >
@@ -483,11 +467,11 @@ export function RemindersView({
                           </StatusPill>
                           {lane.opcoReport.uploadedAt ? (
                             <p className="mt-1 text-xs text-foreground-subtle">
-                              {formatDateTime(lane.opcoReport.uploadedAt)}
+                              {formatAppDateTime(lane.opcoReport.uploadedAt)}
                             </p>
                           ) : null}
                         </DataTableTd>
-                        <DataTableTd>
+                        <DataTableTd className="whitespace-nowrap px-3" align="center">
                           <StatusPill
                             tone={reportMonitoringStatusTone(lane.partnerReport.status)}
                           >
@@ -495,7 +479,7 @@ export function RemindersView({
                           </StatusPill>
                           {lane.partnerReport.uploadedAt ? (
                             <p className="mt-1 text-xs text-foreground-subtle">
-                              {formatDateTime(lane.partnerReport.uploadedAt)}
+                              {formatAppDateTime(lane.partnerReport.uploadedAt)}
                             </p>
                           ) : null}
                         </DataTableTd>
@@ -533,7 +517,7 @@ export function RemindersView({
           )}
         </div>
 
-        <div className={ui.cardPaddingLg}>
+        <div className={cn(ui.cardPaddingLg, "min-w-0 lg:col-span-2")}>
           <h2 className="text-lg font-medium text-foreground">Reminder message</h2>
           <p className="mt-1 text-sm text-foreground-subtle">
             Choose an admin template and edit before sending.

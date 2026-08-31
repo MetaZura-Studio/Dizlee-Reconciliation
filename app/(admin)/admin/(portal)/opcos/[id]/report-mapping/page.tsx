@@ -1,6 +1,7 @@
 import { OpcoReportMappingForm } from "@/components/admin/opco-report-mapping-form";
 import {
   getOpcoReportMapping,
+  getOpcoReportMappingColumnValues,
   OpcoReportMappingError,
 } from "@/lib/admin/opco-report-mappings";
 
@@ -22,8 +23,20 @@ export default async function AdminOpcoReportMappingPage({ params }: PageProps) 
   const { id } = await params;
 
   let mapping;
+  let initialFilterValues: string[] = [];
   try {
     mapping = await getOpcoReportMapping(id);
+    if (mapping.rowFilterColumn && mapping.sampleFileName) {
+      try {
+        const result = await getOpcoReportMappingColumnValues(
+          id,
+          mapping.rowFilterColumn,
+        );
+        initialFilterValues = result.values;
+      } catch {
+        initialFilterValues = [];
+      }
+    }
   } catch (error) {
     return (
       <div className="w-full space-y-3">
@@ -37,7 +50,10 @@ export default async function AdminOpcoReportMappingPage({ params }: PageProps) 
 
   return (
     <div className="w-full">
-      <OpcoReportMappingForm initialMapping={mapping} />
+      <OpcoReportMappingForm
+        initialMapping={mapping}
+        initialFilterValues={initialFilterValues}
+      />
     </div>
   );
 }

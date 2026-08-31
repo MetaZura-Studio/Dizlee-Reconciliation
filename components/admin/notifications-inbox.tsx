@@ -20,14 +20,8 @@ import type {
 import { formatAppError } from "@/lib/errors/format";
 import { parseNotificationMetadata } from "@/lib/platform/notification-metadata";
 import { parsePartnerLinkRequestBody } from "@/lib/platform/partner-link-request";
+import { formatAppDateTime } from "@/lib/platform/format-datetime";
 import { cn, ui } from "@/lib/ui/classes";
-
-function formatDateTime(value: string): string {
-  return new Date(value).toLocaleString("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
 
 function buildInboxQuery(filters: AdminInboxFilters): string {
   return new URLSearchParams({
@@ -226,7 +220,7 @@ export function AdminNotificationsInbox({
                     {item.bodyPreview}
                   </p>
                   <p className="mt-2 text-xs text-foreground-subtle">
-                    From {item.fromName} · {formatDateTime(item.receivedAt)}
+                    From {item.fromName} · {formatAppDateTime(item.receivedAt)}
                   </p>
                 </button>
               ))
@@ -291,7 +285,7 @@ export function AdminNotificationsInbox({
                   {detail.subject}
                 </h3>
                 <p className="mt-1 text-sm text-foreground-subtle">
-                  From {detail.fromName} · {formatDateTime(detail.receivedAt)}
+                  From {detail.fromName} · {formatAppDateTime(detail.receivedAt)}
                 </p>
               </div>
               <p className="whitespace-pre-wrap text-sm text-foreground-muted">

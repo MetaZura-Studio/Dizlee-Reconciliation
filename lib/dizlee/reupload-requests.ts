@@ -451,7 +451,7 @@ async function approveOpcoSubmissionReuploadRequest(
     requesterUserId: request.requestedByUserId,
     fromUserId: deciderId,
     subject: "Reupload request approved",
-    body: `Your reupload request for ${request.submission.opco.name} monthly report (${periodLabel}) was approved. You may upload a corrected monthly Excel from Re Upload Report.`,
+    body: `Your reupload request for ${request.submission.opco.name} monthly report (${periodLabel}) was approved. You may upload a corrected monthly Excel from Report History.`,
   });
 
   await writePlatformAuditLog({

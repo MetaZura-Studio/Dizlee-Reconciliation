@@ -1,6 +1,6 @@
 /**
- * Soft-delete reconciliations (and period consolidation) when OpCo data changes
- * after a reupload so Dizlee must re-run affected lanes.
+ * Invalidate reconciliations / consolidation / revenue share after report reupload.
+ * Partner-lane path: soft-delete. OpCo monthly submission path: hard-delete period work.
  */
 
 import { prisma } from "@/lib/prisma";
@@ -105,4 +105,119 @@ export async function softDeleteOpcoPeriodConsolidation(params: {
   ]);
 
   return true;
+}
+
+/** Hard-delete every reconciliation (+ items) for an OpCo period. */
+export async function hardDeleteAllOpcoPeriodReconciliations(params: {
+  opcoId: bigint;
+  year: number;
+  month: number;
+}): Promise<number> {
+  const rows = await prisma.reconciliation.findMany({
+    where: {
+      opcoId: params.opcoId,
+      year: params.year,
+      month: params.month,
+    },
+    select: { id: true },
+  });
+
+  if (rows.length === 0) {
+    return 0;
+  }
+
+  const ids = rows.map((row) => row.id);
+
+  await prisma.$transaction([
+    prisma.reconciliationItem.deleteMany({
+      where: { reconciliationId: { in: ids } },
+    }),
+    prisma.reconciliation.deleteMany({
+      where: { id: { in: ids } },
+    }),
+  ]);
+
+  return rows.length;
+}
+
+/** Hard-delete consolidation (+ items) for an OpCo period. */
+export async function hardDeleteOpcoPeriodConsolidation(params: {
+  opcoId: bigint;
+  year: number;
+  month: number;
+}): Promise<boolean> {
+  const existing = await prisma.consolidation.findMany({
+    where: {
+      opcoId: params.opcoId,
+      year: params.year,
+      month: params.month,
+    },
+    select: { id: true },
+  });
+
+  if (existing.length === 0) {
+    return false;
+  }
+
+  const ids = existing.map((row) => row.id);
+
+  await prisma.$transaction([
+    prisma.consolidationItem.deleteMany({
+      where: { consolidationId: { in: ids } },
+    }),
+    prisma.consolidation.deleteMany({
+      where: { id: { in: ids } },
+    }),
+  ]);
+
+  return true;
+}
+
+/** Hard-delete revenue share report (+ items) for an OpCo period. */
+export async function hardDeleteOpcoPeriodRevenueShareReport(params: {
+  opcoId: bigint;
+  year: number;
+  month: number;
+}): Promise<boolean> {
+  const existing = await prisma.revenueShareReport.findMany({
+    where: {
+      opcoId: params.opcoId,
+      year: params.year,
+      month: params.month,
+    },
+    select: { id: true },
+  });
+
+  if (existing.length === 0) {
+    return false;
+  }
+
+  const ids = existing.map((row) => row.id);
+
+  await prisma.$transaction([
+    prisma.revenueShareReportItem.deleteMany({
+      where: { revenueShareReportId: { in: ids } },
+    }),
+    prisma.revenueShareReport.deleteMany({
+      where: { id: { in: ids } },
+    }),
+  ]);
+
+  return true;
+}
+
+/** Wipe all Dizlee period work for an OpCo monthly file replace. */
+export async function hardDeleteAllOpcoPeriodWork(params: {
+  opcoId: bigint;
+  year: number;
+  month: number;
+}): Promise<{
+  reconciliations: number;
+  consolidation: boolean;
+  revenueShare: boolean;
+}> {
+  const reconciliations = await hardDeleteAllOpcoPeriodReconciliations(params);
+  const consolidation = await hardDeleteOpcoPeriodConsolidation(params);
+  const revenueShare = await hardDeleteOpcoPeriodRevenueShareReport(params);
+  return { reconciliations, consolidation, revenueShare };
 }

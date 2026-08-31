@@ -1,7 +1,10 @@
 import { Suspense } from "react";
 
 import { OpcoPartnersView } from "@/components/admin/opco-partners-view";
-import { countPendingPartnerLinkRequests } from "@/lib/admin/opco-partner-link-requests";
+import {
+  countPendingPartnerLinkRequests,
+  listAdminPartnerLinkRequests,
+} from "@/lib/admin/opco-partner-link-requests";
 import {
   getOpcoPartnerLinksPageData,
   OpcoPartnerLinksError,
@@ -19,15 +22,22 @@ export default async function AdminOpcoPartnersPage({
   const initialTab = params.tab === "requests" ? "requests" : "links";
   let pageData: OpcoPartnerLinksPageData | null = null;
   let pendingRequestCount = 0;
+  let initialRequests: Awaited<
+    ReturnType<typeof listAdminPartnerLinkRequests>
+  > = [];
   let errorMessage: string | null = null;
 
   try {
-    const [data, pendingCount] = await Promise.all([
+    const [data, pendingCount, requests] = await Promise.all([
       getOpcoPartnerLinksPageData(params.opcoId),
       countPendingPartnerLinkRequests(),
+      initialTab === "requests"
+        ? listAdminPartnerLinkRequests({ status: "PENDING" })
+        : Promise.resolve([]),
     ]);
     pageData = data;
     pendingRequestCount = pendingCount;
+    initialRequests = requests;
   } catch (error) {
     errorMessage =
       error instanceof OpcoPartnerLinksError
@@ -61,6 +71,7 @@ export default async function AdminOpcoPartnersPage({
           initialData={pageData!}
           initialTab={initialTab}
           initialPendingRequestCount={pendingRequestCount}
+          initialRequests={initialRequests}
         />
       </Suspense>
     </div>

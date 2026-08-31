@@ -1,6 +1,7 @@
+import { LocalizedCellText } from "@/lib/ui/arabic-text";
+import { formatMoney } from "@/lib/platform/format-money";
 import type { ReportPreviewLineItem } from "@/lib/platform/report-preview";
 import type { ReportUploaderSide } from "@/lib/platform/reports/sides";
-import { formatMoney } from "@/lib/platform/format-money";
 
 type ReportLineItemsTableProps = {
   lineItems: ReportPreviewLineItem[];
@@ -37,32 +38,35 @@ export function ReportLineItemsTable({
 
   if (side === "partner") {
     return (
-      <div className="overflow-x-auto rounded-xl border border-border">
-        <table className="min-w-full divide-y divide-border text-sm">
-          <thead className="bg-surface-muted text-left text-foreground-muted">
-            <tr>
-              <th className="px-4 py-3 font-medium">#</th>
-              <th className="px-4 py-3 font-medium">Service name</th>
-              <th className="px-4 py-3 font-medium">Amount (USD)</th>
+      <table className="w-full table-fixed divide-y divide-border text-sm">
+        <colgroup>
+          <col className="w-1/3" />
+          <col className="w-1/3" />
+          <col className="w-1/3" />
+        </colgroup>
+        <thead className="bg-surface-muted text-foreground-muted">
+          <tr>
+            <th className="px-4 py-3 text-center font-medium">#</th>
+            <th className="px-4 py-3 text-left font-medium">Service name</th>
+            <th className="px-4 py-3 text-right font-medium">Amount (USD)</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {lineItems.map((item, index) => (
+            <tr key={`${item.lineNumber}-${index}`}>
+              <td className="px-4 py-3 text-center tabular-nums text-foreground-subtle">
+                {item.lineNumber}
+              </td>
+              <td className="truncate px-4 py-3 text-left text-foreground">
+                <LocalizedCellText>{item.description ?? "—"}</LocalizedCellText>
+              </td>
+              <td className="px-4 py-3 text-right tabular-nums text-foreground-muted">
+                {displayMoney(item.amountUsd ?? item.amount, "USD")}
+              </td>
             </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {lineItems.map((item, index) => (
-              <tr key={`${item.lineNumber}-${index}`}>
-                <td className="px-4 py-3 text-foreground-subtle">
-                  {item.lineNumber}
-                </td>
-                <td className="px-4 py-3 text-foreground">
-                  {item.description ?? "—"}
-                </td>
-                <td className="px-4 py-3 text-foreground-muted">
-                  {displayMoney(item.amountUsd ?? item.amount, "USD")}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          ))}
+        </tbody>
+      </table>
     );
   }
 
@@ -72,36 +76,44 @@ export function ReportLineItemsTable({
     : "Amount (local)";
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-border">
-      <table className="min-w-full divide-y divide-border text-sm">
-        <thead className="bg-surface-muted text-left text-foreground-muted">
-          <tr>
-            <th className="px-4 py-3 font-medium">#</th>
-            <th className="px-4 py-3 font-medium">Description</th>
-            <th className="px-4 py-3 font-medium">{localLabel}</th>
-            <th className="px-4 py-3 font-medium">USD rate</th>
-            <th className="px-4 py-3 font-medium">Amount (USD)</th>
+    <table className="w-full table-fixed divide-y divide-border text-sm">
+      <colgroup>
+        <col className="w-1/5" />
+        <col className="w-1/5" />
+        <col className="w-1/5" />
+        <col className="w-1/5" />
+        <col className="w-1/5" />
+      </colgroup>
+      <thead className="bg-surface-muted text-foreground-muted">
+        <tr>
+          <th className="px-4 py-3 text-center font-medium">#</th>
+          <th className="px-4 py-3 text-left font-medium">Description</th>
+          <th className="px-4 py-3 text-right font-medium">{localLabel}</th>
+          <th className="px-4 py-3 text-right font-medium">USD rate</th>
+          <th className="px-4 py-3 text-right font-medium">Amount (USD)</th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-border">
+        {lineItems.map((item, index) => (
+          <tr key={`${item.lineNumber}-${index}`}>
+            <td className="px-4 py-3 text-center tabular-nums text-foreground-subtle">
+              {item.lineNumber}
+            </td>
+            <td className="truncate px-4 py-3 text-left text-foreground">
+              <LocalizedCellText>{item.description ?? "—"}</LocalizedCellText>
+            </td>
+            <td className="px-4 py-3 text-right tabular-nums text-foreground-muted">
+              {displayMoney(item.amount, localIso)}
+            </td>
+            <td className="px-4 py-3 text-right tabular-nums text-foreground-muted">
+              {item.exchangeRate ?? "—"}
+            </td>
+            <td className="px-4 py-3 text-right tabular-nums text-foreground-muted">
+              {displayMoney(item.amountUsd, "USD")}
+            </td>
           </tr>
-        </thead>
-        <tbody className="divide-y divide-border">
-          {lineItems.map((item, index) => (
-            <tr key={`${item.lineNumber}-${index}`}>
-              <td className="px-4 py-3 text-foreground-subtle">{item.lineNumber}</td>
-              <td className="px-4 py-3 text-foreground">{item.description ?? "—"}</td>
-              <td className="px-4 py-3 text-foreground-muted">
-                {displayMoney(item.amount, localIso)}
-                {item.amount && currencyCode ? ` ${currencyCode}` : ""}
-              </td>
-              <td className="px-4 py-3 text-foreground-muted">
-                {item.exchangeRate ?? "—"}
-              </td>
-              <td className="px-4 py-3 text-foreground-muted">
-                {displayMoney(item.amountUsd, "USD")}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+        ))}
+      </tbody>
+    </table>
   );
 }

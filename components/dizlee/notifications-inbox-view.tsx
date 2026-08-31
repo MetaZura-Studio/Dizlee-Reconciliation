@@ -6,9 +6,10 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
-import { NotificationsTabs } from "@/components/dizlee/notifications-tabs";
+import { NotificationsInboxTabs } from "@/components/dizlee/notifications-inbox-tabs";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
@@ -22,18 +23,19 @@ import {
 import { LoadingOverlay } from "@/components/ui/loading";
 import { PageCard, PageHeader } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
-import type { InboxDetail, InboxListResult } from "@/lib/dizlee/notifications/inbox";
+import {
+  parseInboxFilters,
+  type InboxReadFilter,
+} from "@/lib/dizlee/notifications/inbox-filters";
+import type {
+  InboxDetail,
+  InboxListResult,
+} from "@/lib/dizlee/notifications/inbox";
 import { formatAppError } from "@/lib/errors/format";
+import { formatAppDateTime } from "@/lib/platform/format-datetime";
 import { formatNotificationTime } from "@/lib/platform/notification-deep-links";
 import type { NotificationCategory } from "@/lib/platform/notification-metadata";
 import { cn, ui } from "@/lib/ui/classes";
-
-function formatDateTime(value: string): string {
-  return new Date(value).toLocaleString("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
 
 function categoryLabel(category: NotificationCategory): string {
   if (category === "request") {
@@ -112,8 +114,13 @@ export function NotificationsInboxView({
   initialDetail,
   initialSelectedId,
 }: NotificationsInboxViewProps) {
+  const searchParams = useSearchParams();
+  const readFilter = useMemo(
+    () => parseInboxFilters(new URLSearchParams(searchParams.toString())).readFilter,
+    [searchParams],
+  );
+
   const [result, setResult] = useState(initialResult);
-  const [unreadOnly, setUnreadOnly] = useState(false);
   const [search, setSearch] = useState("");
   const [searchDraft, setSearchDraft] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);
@@ -124,13 +131,17 @@ export function NotificationsInboxView({
   const [markingAllRead, setMarkingAllRead] = useState(false);
 
   const loadList = useCallback(
-    async (page = 1, onlyUnread = unreadOnly, searchTerm = search) => {
+    async (
+      page = 1,
+      filter: InboxReadFilter = readFilter,
+      searchTerm = search,
+    ) => {
       setLoading(true);
       setError(null);
       try {
         const params = new URLSearchParams({
           page: String(page),
-          unreadOnly: String(onlyUnread),
+          filter,
         });
         if (searchTerm.trim()) {
           params.set("search", searchTerm.trim());
@@ -149,7 +160,7 @@ export function NotificationsInboxView({
         setLoading(false);
       }
     },
-    [search, unreadOnly],
+    [readFilter, search],
   );
 
   const loadDetail = useCallback(
@@ -164,7 +175,7 @@ export function NotificationsInboxView({
           throw new Error(formatAppError(payload, "Failed to load notification"));
         }
         setDetail(payload.data as InboxDetail);
-        await loadList(result.page, unreadOnly, search);
+        await loadList(result.page, readFilter, search);
         window.dispatchEvent(new CustomEvent("dizlee-inbox-updated"));
       } catch (loadError) {
         setError(
@@ -177,7 +188,7 @@ export function NotificationsInboxView({
         setDetailLoading(false);
       }
     },
-    [loadList, result.page, search, unreadOnly],
+    [loadList, result.page, search, readFilter],
   );
 
   const markAllRead = useCallback(async () => {
@@ -195,7 +206,7 @@ export function NotificationsInboxView({
       if (!response.ok) {
         throw new Error(formatAppError(payload, "Failed to mark all as read"));
       }
-      await loadList(result.page, unreadOnly, search);
+      await loadList(result.page, readFilter, search);
       window.dispatchEvent(new CustomEvent("dizlee-inbox-updated"));
     } catch (markError) {
       setError(
@@ -206,15 +217,15 @@ export function NotificationsInboxView({
     } finally {
       setMarkingAllRead(false);
     }
-  }, [loadList, markingAllRead, result.page, result.unreadCount, search, unreadOnly]);
+  }, [loadList, markingAllRead, result.page, result.unreadCount, search, readFilter]);
 
   useEffect(() => {
     const handleFocus = () => {
-      void loadList(result.page, unreadOnly, search);
+      void loadList(result.page, readFilter, search);
     };
     window.addEventListener("focus", handleFocus);
     return () => window.removeEventListener("focus", handleFocus);
-  }, [loadList, result.page, search, unreadOnly]);
+  }, [loadList, result.page, search, readFilter]);
 
   return (
     <PageCard>
@@ -222,34 +233,20 @@ export function NotificationsInboxView({
         title="Notifications"
         description="Messages from OpCos, including partner-link and reupload requests so they can upload reports."
         actions={
-          <>
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={result.unreadCount === 0 || markingAllRead || loading}
-              onClick={() => void markAllRead()}
-              className="inline-flex items-center gap-2"
-            >
-              <IconCheck className="h-4 w-4" />
-              {markingAllRead ? "Marking…" : "Mark all as read"}
-            </Button>
-            <label className="flex items-center gap-2 rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground-muted">
-              <input
-                type="checkbox"
-                checked={unreadOnly}
-                onChange={(event) => {
-                  setUnreadOnly(event.target.checked);
-                  void loadList(1, event.target.checked, search);
-                }}
-                className="rounded border-border"
-              />
-              Unread only
-            </label>
-          </>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={result.unreadCount === 0 || markingAllRead || loading}
+            onClick={() => void markAllRead()}
+            className="inline-flex items-center gap-2"
+          >
+            <IconCheck className="h-4 w-4" />
+            {markingAllRead ? "Marking…" : "Mark all as read"}
+          </Button>
         }
       />
 
-      <NotificationsTabs active="inbox" />
+      <NotificationsInboxTabs active={readFilter} />
 
       {error ? <div className={`mt-4 ${ui.alertError}`}>{error}</div> : null}
 
@@ -264,7 +261,7 @@ export function NotificationsInboxView({
               onSubmit={(event) => {
                 event.preventDefault();
                 setSearch(searchDraft);
-                void loadList(1, unreadOnly, searchDraft);
+                void loadList(1, readFilter, searchDraft);
               }}
             >
               <label className="relative flex-1">
@@ -291,11 +288,13 @@ export function NotificationsInboxView({
               <EmptyState
                 className="border-0 bg-transparent shadow-none"
                 title={
-                  unreadOnly
+                  readFilter === "unread"
                     ? "No unread notifications"
-                    : search
-                      ? "No matching notifications"
-                      : "Your inbox is empty"
+                    : readFilter === "read"
+                      ? "No read notifications"
+                      : search
+                        ? "No matching notifications"
+                        : "Your inbox is empty"
                 }
               />
             ) : (
@@ -397,7 +396,7 @@ export function NotificationsInboxView({
                   <span>From {detail.fromName}</span>
                 )}
                 <span>·</span>
-                <span>{formatDateTime(detail.receivedAt)}</span>
+                <span>{formatAppDateTime(detail.receivedAt)}</span>
               </p>
 
               <p className="mt-4 text-sm text-foreground-muted">

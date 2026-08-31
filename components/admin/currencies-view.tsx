@@ -226,7 +226,7 @@ export function CurrenciesView({
                       direction={sortDir}
                       onSort={() => applySort("symbol")}
                     />
-                    <DataTableTh align="right">Actions</DataTableTh>
+                    <DataTableTh align="center">Actions</DataTableTh>
                   </tr>
                 </DataTableHead>
                 <tbody>
@@ -238,8 +238,8 @@ export function CurrenciesView({
                       <DataTableTd className="text-foreground-muted">
                         {currency.symbol ?? "—"}
                       </DataTableTd>
-                      <DataTableTd align="right">
-                        <div className="flex justify-end gap-2">
+                      <DataTableTd align="center">
+                        <div className="flex justify-center gap-2">
                           <IconButton
                             label="Edit currency"
                             onClick={() => openEdit(currency)}

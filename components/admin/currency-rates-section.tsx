@@ -500,8 +500,8 @@ export function CurrencyRatesSection({
                         direction={sortDir}
                         onSort={applyCurrencySort}
                       />
-                      <DataTableTh>1 unit = ? USD</DataTableTh>
-                      <DataTableTh>Status</DataTableTh>
+                      <DataTableTh align="right">1 unit = ? USD</DataTableTh>
+                      <DataTableTh align="center">Status</DataTableTh>
                     </tr>
                   </DataTableHead>
                   <tbody>
@@ -520,13 +520,13 @@ export function CurrencyRatesSection({
                               </span>
                             ) : null}
                           </DataTableTd>
-                          <DataTableTd>
+                          <DataTableTd align="right">
                             {row.isBase ? (
                               <span className="text-foreground-muted">
                                 1.00 (USD locked)
                               </span>
                             ) : (
-                              <div className="flex max-w-xs items-center gap-2">
+                              <div className="ml-auto flex max-w-xs items-center gap-2">
                                 <span className="shrink-0 text-xs text-foreground-subtle">
                                   1 {row.isoCode} =
                                 </span>
@@ -557,7 +557,7 @@ export function CurrencyRatesSection({
                               </div>
                             )}
                           </DataTableTd>
-                          <DataTableTd>
+                          <DataTableTd align="center">
                             {row.isBase ? (
                               <StatusPill tone="neutral">Locked</StatusPill>
                             ) : missing ? (

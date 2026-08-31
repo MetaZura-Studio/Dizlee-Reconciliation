@@ -23,21 +23,8 @@ import type { ReconciliationAlertTemplates } from "@/lib/dizlee/notifications/re
 import type { ReconciliationDetail } from "@/lib/dizlee/reconciliation";
 import { reportRawFilePreviewUrl } from "@/lib/platform/reports/preview-url";
 import { formatUsd } from "@/lib/platform/format-money";
+import { formatAppDateTime, formatAppMonthYear } from "@/lib/platform/format-datetime";
 import { formatAppError } from "@/lib/errors/format";
-
-function formatDateTime(value: string): string {
-  return new Date(value).toLocaleString("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
-
-function formatPeriod(month: number, year: number): string {
-  return new Date(year, month - 1, 1).toLocaleString("en-US", {
-    month: "short",
-    year: "numeric",
-  });
-}
 
 function isMatchedStatus(status: string): boolean {
   return status.replaceAll(" ", "_").toUpperCase() === "MATCHED";
@@ -243,7 +230,7 @@ export function ReconciliationResultView({
             {detail.opcoName} / {detail.partnerName}
           </h1>
           <p className="mt-1 text-sm text-foreground-subtle">
-            {formatPeriod(detail.period.month, detail.period.year)} ·{" "}
+            {formatAppMonthYear(detail.period.month, detail.period.year)} ·{" "}
             {detail.status}
           </p>
           <p className="mt-1 text-xs text-foreground-subtle">
@@ -322,19 +309,19 @@ export function ReconciliationResultView({
               <th className="px-4 py-3 text-left font-medium text-foreground-muted">
                 Service
               </th>
-              <th className="px-4 py-3 text-left font-medium text-foreground-muted">
+              <th className="px-4 py-3 text-right font-medium text-foreground-muted">
                 OpCo (USD)
               </th>
-              <th className="px-4 py-3 text-left font-medium text-foreground-muted">
+              <th className="px-4 py-3 text-right font-medium text-foreground-muted">
                 Partner (USD)
               </th>
-              <th className="px-4 py-3 text-left font-medium text-foreground-muted">
+              <th className="px-4 py-3 text-right font-medium text-foreground-muted">
                 Variance
               </th>
-              <th className="px-4 py-3 text-left font-medium text-foreground-muted">
+              <th className="px-4 py-3 text-right font-medium text-foreground-muted">
                 Confirmed
               </th>
-              <th className="px-4 py-3 text-left font-medium text-foreground-muted">
+              <th className="px-4 py-3 text-center font-medium text-foreground-muted">
                 Status
               </th>
             </tr>
@@ -345,11 +332,11 @@ export function ReconciliationResultView({
                 <td className="px-4 py-3 font-medium">
                   {item.description ?? item.serviceCode}
                 </td>
-                <td className="px-4 py-3">{formatUsd(item.opcoAmount)}</td>
-                <td className="px-4 py-3">{formatUsd(item.partnerAmount)}</td>
-                <td className="px-4 py-3">{formatUsd(item.varianceAmount)}</td>
-                <td className="px-4 py-3">{formatUsd(item.confirmedValue)}</td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 text-right tabular-nums">{formatUsd(item.opcoAmount)}</td>
+                <td className="px-4 py-3 text-right tabular-nums">{formatUsd(item.partnerAmount)}</td>
+                <td className="px-4 py-3 text-right tabular-nums">{formatUsd(item.varianceAmount)}</td>
+                <td className="px-4 py-3 text-right tabular-nums">{formatUsd(item.confirmedValue)}</td>
+                <td className="px-4 py-3 text-center">
                   <span className={statusBadgeClass(item.matchStatus)}>
                     {item.matchStatus}
                   </span>
@@ -361,7 +348,7 @@ export function ReconciliationResultView({
       </div>
 
       <p className="text-xs text-foreground-subtle">
-        Run at {formatDateTime(detail.runAt)}
+        Run at {formatAppDateTime(detail.runAt)}
       </p>
 
       {alertOpen ? (

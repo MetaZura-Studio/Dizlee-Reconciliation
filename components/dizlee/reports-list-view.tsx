@@ -44,6 +44,7 @@ import type {
   ReportSortField,
   SortDirection,
 } from "@/lib/dizlee/reports";
+import { formatAppDateTime, formatAppMonthYear } from "@/lib/platform/format-datetime";
 import { formatAppError } from "@/lib/errors/format";
 
 const MONTHS = [
@@ -60,20 +61,6 @@ const MONTHS = [
   "November",
   "December",
 ];
-
-function formatDateTime(value: string): string {
-  return new Date(value).toLocaleString("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
-
-function formatPeriod(month: number, year: number): string {
-  return new Date(year, month - 1, 1).toLocaleString("en-US", {
-    month: "short",
-    year: "numeric",
-  });
-}
 
 function buildQuery(filters: ReportListFilters): string {
   const params = new URLSearchParams({
@@ -399,6 +386,7 @@ export function ReportsListView({
                       active={sortBy === "period"}
                       direction={sortDir}
                       onSort={() => applySort("period")}
+                      align="center"
                     />
                     <SortableDataTableTh
                       label="OpCo"
@@ -418,16 +406,17 @@ export function ReportsListView({
                       active={sortBy === "uploaded"}
                       direction={sortDir}
                       onSort={() => applySort("uploaded")}
+                      align="center"
                     />
                     <DataTableTh>Uploaded by</DataTableTh>
-                    <DataTableTh>Action</DataTableTh>
+                    <DataTableTh align="center">Action</DataTableTh>
                   </tr>
                 </DataTableHead>
                 <tbody>
                   {items.map((row) => (
                     <DataTableRow key={row.id}>
-                      <DataTableTd className="text-foreground-muted">
-                        {formatPeriod(row.period.month, row.period.year)}
+                      <DataTableTd className="text-foreground-muted" align="center">
+                        {formatAppMonthYear(row.period.month, row.period.year)}
                       </DataTableTd>
                       <DataTableTd>{row.opcoName}</DataTableTd>
                       <DataTableTd>{row.partnerName}</DataTableTd>
@@ -441,13 +430,13 @@ export function ReportsListView({
                           }
                         />
                       </DataTableTd>
-                      <DataTableTd className="text-foreground-muted">
-                        {formatDateTime(row.uploadedAt)}
+                      <DataTableTd className="text-foreground-muted" align="center">
+                        {formatAppDateTime(row.uploadedAt)}
                       </DataTableTd>
                       <DataTableTd className="text-foreground-muted">
                         {row.uploadedBy}
                       </DataTableTd>
-                      <DataTableTd>
+                      <DataTableTd align="center">
                         <IconButton
                           label="View parsed report"
                           onClick={() => void openDetail(row.id)}

@@ -1,5 +1,10 @@
 import type { NextConfig } from "next";
 
+import { MAX_EXCEL_UPLOAD_BYTES } from "@/lib/platform/excel-upload";
+
+/** Headroom above app Excel cap for multipart encoding overhead. */
+const UPLOAD_BODY_LIMIT_BYTES = MAX_EXCEL_UPLOAD_BYTES + 5 * 1024 * 1024;
+
 /**
  * Browser security headers for all routes.
  * Content-Security-Policy is set per-request in middleware.ts (nonce-based).
@@ -40,6 +45,10 @@ function securityHeaders(): { key: string; value: string }[] {
 }
 
 const nextConfig: NextConfig = {
+  experimental: {
+    // Default Next proxy body buffer is 10MB; Excel uploads allow 20MB.
+    proxyClientMaxBodySize: UPLOAD_BODY_LIMIT_BYTES,
+  },
   async headers() {
     return [
       {

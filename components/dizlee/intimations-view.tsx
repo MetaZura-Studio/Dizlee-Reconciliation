@@ -7,7 +7,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 
-import { NotificationsTabs } from "@/components/dizlee/notifications-tabs";
+import { CommunicationsTabs } from "@/components/dizlee/communications-tabs";
 import { Button } from "@/components/ui/button";
 import { FieldLegend } from "@/components/ui/field";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -26,12 +26,12 @@ import type {
   IntimationFormOptions,
   IntimationListResult,
 } from "@/lib/dizlee/notifications/broadcast.shared";
+import { formatAppDateTime } from "@/lib/platform/format-datetime";
 import { formatAppError } from "@/lib/errors/format";
 
 const PRIORITY_OPTIONS = [
   { value: "", label: "Normal" },
   { value: "HIGH", label: "High" },
-  { value: "LOW", label: "Low" },
 ];
 
 const AUDIENCE_OPTIONS: Array<{ value: BroadcastAudience; label: string }> = [
@@ -62,21 +62,19 @@ const MONTHS = [
   "December",
 ];
 
-function formatDateTime(value: string): string {
-  return new Date(value).toLocaleString("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
-
 function priorityTone(priority: string | null): "danger" | "info" | "neutral" {
   if (priority === "HIGH") {
     return "danger";
   }
-  if (priority === "LOW") {
-    return "info";
-  }
   return "neutral";
+}
+
+function priorityLabel(priority: string | null): string | null {
+  const normalized = priority?.trim().toUpperCase() ?? "";
+  if (normalized === "HIGH") {
+    return "High";
+  }
+  return null;
 }
 
 function currentPeriodDefaults() {
@@ -105,7 +103,6 @@ export function IntimationsView({
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [priority, setPriority] = useState("");
-  const [expiresAt, setExpiresAt] = useState("");
   const [selectedOpcoIds, setSelectedOpcoIds] = useState<string[]>([]);
   const [selectedPartnerIds, setSelectedPartnerIds] = useState<string[]>([]);
 
@@ -239,8 +236,7 @@ export function IntimationsView({
           body,
           opcoIds: showOpcos ? selectedOpcoIds : [],
           partnerIds: showPartners ? selectedPartnerIds : [],
-          priority: priority || null,
-          expiresAt: expiresAt || null,
+          priority: priority === "HIGH" ? "HIGH" : null,
         }),
       });
       const payload = await response.json();
@@ -252,7 +248,6 @@ export function IntimationsView({
       setSubject("");
       setBody("");
       setPriority("");
-      setExpiresAt("");
       setMessageSource("custom");
       setSelectedOpcoIds([]);
       setSelectedPartnerIds([]);
@@ -269,11 +264,11 @@ export function IntimationsView({
   return (
     <PageCard>
       <PageHeader
-        title="Notifications"
+        title="Communications"
         description="Send in-app messages to OpCos and/or Partners."
       />
 
-      <NotificationsTabs active="intimations" />
+      <CommunicationsTabs active="intimations" />
 
       {error ? <div className={`mt-4 ${ui.alertError}`}>{error}</div> : null}
       <div className="mt-4 grid gap-6 lg:grid-cols-2">
@@ -396,32 +391,20 @@ export function IntimationsView({
               </p>
             ) : null}
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="block text-sm">
-                <span className={ui.label}>Priority</span>
-                <select
-                  value={priority}
-                  onChange={(event) => setPriority(event.target.value)}
-                  className={ui.select}
-                >
-                  {PRIORITY_OPTIONS.map((option) => (
-                    <option key={option.value || "normal"} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="block text-sm">
-                <span className={ui.label}>Expires (optional)</span>
-                <input
-                  type="datetime-local"
-                  value={expiresAt}
-                  onChange={(event) => setExpiresAt(event.target.value)}
-                  className={ui.input}
-                />
-              </label>
-            </div>
+            <label className="block text-sm sm:max-w-xs">
+              <span className={ui.label}>Priority</span>
+              <select
+                value={priority}
+                onChange={(event) => setPriority(event.target.value)}
+                className={ui.select}
+              >
+                {PRIORITY_OPTIONS.map((option) => (
+                  <option key={option.value || "normal"} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
 
             {showOpcos ? (
               <div>
@@ -548,16 +531,18 @@ export function IntimationsView({
                 description="Sent notifications will appear here."
               />
             ) : (
-              result.items.map((item) => (
+              result.items.map((item) => {
+                const statusLabel = priorityLabel(item.priority);
+                return (
                 <article
                   key={item.id}
                   className={cn(ui.cardPadding, "shadow-none")}
                 >
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <h3 className="font-medium text-foreground">{item.subject}</h3>
-                    {item.priority ? (
+                    {statusLabel ? (
                       <StatusPill tone={priorityTone(item.priority)}>
-                        {item.priority}
+                        {statusLabel}
                       </StatusPill>
                     ) : null}
                   </div>
@@ -566,10 +551,11 @@ export function IntimationsView({
                     To: {item.recipientSummary || `${item.recipientCount} recipient(s)`}
                   </p>
                   <p className="mt-1 text-xs text-foreground-subtle">
-                    {formatDateTime(item.sentAt)} · {item.sentBy}
+                    {formatAppDateTime(item.sentAt)} · {item.sentBy}
                   </p>
                 </article>
-              ))
+                );
+              })
             )}
             </LoadingOverlay>
           </div>

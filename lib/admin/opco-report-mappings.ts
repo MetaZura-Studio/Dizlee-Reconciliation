@@ -3,6 +3,7 @@
  */
 import { writeSettingsAuditLog } from "@/lib/admin/audit";
 import {
+  extractDistinctColumnValues,
   extractExcelHeaderCatalog,
   parseStoredSampleHeaders,
   selectStoredSheet,
@@ -74,6 +75,7 @@ function mapView(row: {
     stored.sheetName &&
       row.serviceColumn &&
       row.revenueColumn &&
+      row.revenueShareColumn &&
       (partnerMode !== "EXCEL_COLUMN" || row.partnerColumn),
   );
 
@@ -398,6 +400,75 @@ export async function updateOpcoReportMapping(
   });
 
   return mapView(updated);
+}
+
+export async function getOpcoReportMappingColumnValues(
+  opcoIdRaw: string,
+  columnHeaderRaw: string,
+): Promise<{ values: string[] }> {
+  if (!/^\d+$/.test(opcoIdRaw)) {
+    throw new OpcoReportMappingError("Invalid OpCo id", 400);
+  }
+
+  const columnHeader = columnHeaderRaw.trim();
+  if (!columnHeader) {
+    throw new OpcoReportMappingError("Select a column to list values from", 400);
+  }
+
+  const opcoId = BigInt(opcoIdRaw);
+  const row = await prisma.opcoReportMapping.findFirst({
+    where: { opcoId },
+    select: {
+      headersJson: true,
+      sampleFileId: true,
+      sampleFile: {
+        select: { storageKey: true },
+      },
+    },
+  });
+  if (!row) {
+    throw new OpcoReportMappingError("OpCo report mapping not found", 404);
+  }
+
+  const stored = parseStoredSampleHeaders(row.headersJson);
+  if (!stored.sheetName) {
+    throw new OpcoReportMappingError(
+      "Select which Excel sheet to use before choosing filter values",
+      400,
+    );
+  }
+
+  const sheetEntry =
+    stored.sheets.find((sheet) => sheet.sheetName === stored.sheetName) ?? null;
+  const sheetHeaders = sheetEntry?.headers ?? stored.headers;
+  const headerRowNumber =
+    sheetEntry?.headerRowNumber ?? stored.headerRowNumber ?? 1;
+
+  if (!sheetHeaders.includes(columnHeader)) {
+    throw new OpcoReportMappingError(
+      "That column is not available on the selected sample sheet",
+      400,
+    );
+  }
+
+  const storageKey = row.sampleFile?.storageKey;
+  if (!storageKey) {
+    throw new OpcoReportMappingError(
+      row.sampleFileId
+        ? "Sample file is no longer available — upload the Excel sample again"
+        : "Upload a sample Excel before choosing filter values",
+      400,
+    );
+  }
+
+  const buffer = await readStoredObject(storageKey);
+  const values = await extractDistinctColumnValues(buffer, {
+    sheetName: stored.sheetName,
+    headerRowNumber,
+    columnHeader,
+  });
+
+  return { values };
 }
 
 export async function getOpcoReportMappingByOpcoId(opcoId: bigint) {

@@ -110,12 +110,14 @@ export function PartnerSubmissionsTable({ partners }: PartnerSubmissionsTablePro
                 active={sortBy === "status"}
                 direction={sortDir}
                 onSort={() => applySort("status")}
+                align="center"
               />
               <SortableDataTableTh
                 label="Last upload"
                 active={sortBy === "uploaded"}
                 direction={sortDir}
                 onSort={() => applySort("uploaded")}
+                align="center"
               />
             </tr>
           </DataTableHead>
@@ -125,12 +127,12 @@ export function PartnerSubmissionsTable({ partners }: PartnerSubmissionsTablePro
                 <DataTableTd className="font-medium text-foreground">
                   {partner.partnerName}
                 </DataTableTd>
-                <DataTableTd>
+                <DataTableTd align="center">
                   <StatusPill tone={submissionStatusTone(partner.status)}>
                     {STATUS_LABELS[partner.status]}
                   </StatusPill>
                 </DataTableTd>
-                <DataTableTd className="text-foreground-muted">
+                <DataTableTd className="text-foreground-muted" align="center">
                   {partner.uploadedAt
                     ? new Date(partner.uploadedAt).toLocaleString()
                     : "—"}

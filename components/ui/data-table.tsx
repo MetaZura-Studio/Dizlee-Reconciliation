@@ -1,11 +1,14 @@
 /**
  * Accessible table frame, header/body rows, and sortable column headers wired to shared sort direction types.
+ * Column alignment: heading and cell must use the same align value (left | center | right).
  */
 
 import type { ReactNode, TableHTMLAttributes } from "react";
 
-import { cn, ui } from "@/lib/ui/classes";
+import { cn, tableAlignClass, ui, type TableAlign } from "@/lib/ui/classes";
 import type { SortDirection } from "@/lib/ui/sort";
+
+export type { TableAlign };
 
 export function DataTableFrame({
   children,
@@ -46,16 +49,10 @@ export function DataTableTh({
 }: {
   children: ReactNode;
   className?: string;
-  align?: "left" | "right";
+  align?: TableAlign;
 }) {
   return (
-    <th
-      className={cn(
-        ui.tableHeadCell,
-        align === "right" ? "text-right" : "text-left",
-        className,
-      )}
-    >
+    <th className={cn(ui.tableHeadCell, tableAlignClass(align), className)}>
       {children}
     </th>
   );
@@ -73,7 +70,7 @@ export function SortableDataTableTh({
   active: boolean;
   direction: SortDirection;
   onSort: () => void;
-  align?: "left" | "right";
+  align?: TableAlign;
   className?: string;
 }) {
   const ariaSort = active
@@ -82,22 +79,25 @@ export function SortableDataTableTh({
       : "descending"
     : "none";
 
+  const justify =
+    align === "right"
+      ? "justify-end"
+      : align === "center"
+        ? "justify-center"
+        : "justify-start";
+
   return (
     <th
-      className={cn(
-        ui.tableHeadCell,
-        align === "right" ? "text-right" : "text-left",
-        className,
-      )}
+      className={cn(ui.tableHeadCell, tableAlignClass(align), className)}
       aria-sort={ariaSort}
     >
       <button
         type="button"
         onClick={onSort}
         className={cn(
-          "inline-flex items-center gap-1 font-semibold tracking-wide transition-colors hover:text-foreground",
+          "inline-flex w-full items-center gap-1 font-semibold tracking-wide transition-colors hover:text-foreground",
+          justify,
           active ? "text-foreground" : "text-foreground-muted",
-          align === "right" ? "ml-auto" : "",
         )}
       >
         <span>{label}</span>
@@ -117,7 +117,7 @@ export function DataTableTd({
 }: {
   children?: ReactNode;
   className?: string;
-  align?: "left" | "right";
+  align?: TableAlign;
   colSpan?: number;
 }) {
   return (
@@ -125,7 +125,7 @@ export function DataTableTd({
       colSpan={colSpan}
       className={cn(
         ui.tableCell,
-        align === "right" ? "text-right tabular-nums" : "text-left",
+        tableAlignClass(align, { tabular: align === "right" }),
         className,
       )}
     >

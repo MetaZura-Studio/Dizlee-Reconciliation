@@ -270,9 +270,9 @@ export function RevenueShareView({
                 <DataTableHead>
                   <DataTableRow>
                     <DataTableTh>OpCo</DataTableTh>
-                    <DataTableTh>OpCo report</DataTableTh>
-                    <DataTableTh>Status</DataTableTh>
-                    <DataTableTh>Action</DataTableTh>
+                    <DataTableTh align="center">OpCo report</DataTableTh>
+                    <DataTableTh align="center">Status</DataTableTh>
+                    <DataTableTh align="center">Action</DataTableTh>
                   </DataTableRow>
                 </DataTableHead>
                 <tbody>
@@ -286,18 +286,18 @@ export function RevenueShareView({
                             {row.opcoName}
                           </span>
                         </DataTableTd>
-                        <DataTableTd>
+                        <DataTableTd align="center">
                           <StatusPill
                             tone={row.hasOpcoReport ? "success" : "danger"}
                           >
                             {row.hasOpcoReport ? "Received" : "Missing"}
                           </StatusPill>
                         </DataTableTd>
-                        <DataTableTd>
+                        <DataTableTd align="center">
                           <StatusPill tone={meta.tone}>{meta.label}</StatusPill>
                         </DataTableTd>
-                        <DataTableTd>
-                          <div className="flex flex-wrap items-center gap-2">
+                        <DataTableTd align="center">
+                          <div className="flex flex-wrap items-center justify-center gap-2">
                             {row.status === "READY" ||
                             row.status === "GENERATED" ? (
                               <Button

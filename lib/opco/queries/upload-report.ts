@@ -243,7 +243,7 @@ export async function createOpcoMonthlySubmissionUpload(
 
   if (existingSubmission) {
     throw new ReportUploadError(
-      "A monthly report file already exists for this period. Use Re Upload Report after Dizlee approval to replace it.",
+      "A monthly report file already exists for this period. Use Report History after Dizlee approval to replace it.",
       409,
     );
   }

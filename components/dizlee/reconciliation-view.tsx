@@ -51,6 +51,7 @@ import {
   getPeriodYearOptions,
 } from "@/lib/platform/period";
 import { reportRawFilePreviewUrl } from "@/lib/platform/reports/preview-url";
+import { formatAppDateTime, formatAppMonthYear } from "@/lib/platform/format-datetime";
 import { formatAppError } from "@/lib/errors/format";
 
 const MONTHS = [
@@ -67,20 +68,6 @@ const MONTHS = [
   "November",
   "December",
 ];
-
-function formatDateTime(value: string): string {
-  return new Date(value).toLocaleString("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
-
-function formatPeriod(month: number, year: number): string {
-  return new Date(year, month - 1, 1).toLocaleString("en-US", {
-    month: "short",
-    year: "numeric",
-  });
-}
 
 function stateTone(
   state: CompareLaneRow["state"],
@@ -120,7 +107,7 @@ function lastReminderLabel(lane: CompareLaneRow): string {
   }
 
   const latest = times.sort((a, b) => (a < b ? 1 : -1))[0];
-  return `Last notice: ${formatDateTime(latest)}`;
+  return `Last notice: ${formatAppDateTime(latest)}`;
 }
 
 function buildLaneQuery(filters: CompareLaneFilters): string {
@@ -627,6 +614,7 @@ export function ReconciliationView({
                             active={compareSortBy === "period"}
                             direction={compareSortDir}
                             onSort={() => applyCompareSort("period")}
+                            align="center"
                           />
                           <SortableDataTableTh
                             label="OpCo"
@@ -642,9 +630,9 @@ export function ReconciliationView({
                           />
                           <DataTableTh>OpCo report</DataTableTh>
                           <DataTableTh>Partner report</DataTableTh>
-                          <DataTableTh>State</DataTableTh>
+                          <DataTableTh align="center">State</DataTableTh>
                           <DataTableTh>Outcome</DataTableTh>
-                          <DataTableTh>Actions</DataTableTh>
+                          <DataTableTh align="center">Actions</DataTableTh>
                         </tr>
                       </DataTableHead>
                       <tbody>
@@ -653,8 +641,8 @@ export function ReconciliationView({
                           const busy = actionId === key || Boolean(reconcilingLabel);
                           return (
                             <DataTableRow key={key}>
-                              <DataTableTd className="text-foreground-muted">
-                                {formatPeriod(lane.period.month, lane.period.year)}
+                              <DataTableTd className="text-foreground-muted" align="center">
+                                {formatAppMonthYear(lane.period.month, lane.period.year)}
                               </DataTableTd>
                               <DataTableTd>{lane.opcoName}</DataTableTd>
                               <DataTableTd>{lane.partnerName}</DataTableTd>
@@ -684,7 +672,7 @@ export function ReconciliationView({
                                   }
                                 />
                               </DataTableTd>
-                              <DataTableTd>
+                              <DataTableTd align="center">
                                 <StatusPill tone={stateTone(lane.state)}>
                                   {lane.state.replaceAll("_", " ")}
                                 </StatusPill>
@@ -692,8 +680,8 @@ export function ReconciliationView({
                               <DataTableTd className="text-foreground-muted">
                                 {lane.outcome ?? "—"}
                               </DataTableTd>
-                              <DataTableTd>
-                                <div className="flex flex-wrap items-center gap-2">
+                              <DataTableTd align="center">
+                                <div className="flex flex-wrap items-center justify-center gap-2">
                                   {lane.canRun ? (
                                     <Button
                                       disabled={busy}
@@ -780,6 +768,7 @@ export function ReconciliationView({
                           active={historySortBy === "period"}
                           direction={historySortDir}
                           onSort={() => applyHistorySort("period")}
+                          align="center"
                         />
                         <SortableDataTableTh
                           label="OpCo"
@@ -793,39 +782,40 @@ export function ReconciliationView({
                           direction={historySortDir}
                           onSort={() => applyHistorySort("partner")}
                         />
-                        <DataTableTh>Status</DataTableTh>
-                        <DataTableTh>Matched</DataTableTh>
-                        <DataTableTh>Unmatched</DataTableTh>
+                        <DataTableTh align="center">Status</DataTableTh>
+                        <DataTableTh align="right">Matched</DataTableTh>
+                        <DataTableTh align="right">Unmatched</DataTableTh>
                         <SortableDataTableTh
                           label="Run at"
                           active={historySortBy === "runAt"}
                           direction={historySortDir}
                           onSort={() => applyHistorySort("runAt")}
+                          align="center"
                         />
-                        <DataTableTh>Action</DataTableTh>
+                        <DataTableTh align="center">Action</DataTableTh>
                       </tr>
                     </DataTableHead>
                     <tbody>
                       {history.items.map((row) => (
                         <DataTableRow key={row.id}>
-                          <DataTableTd className="text-foreground-muted">
-                            {formatPeriod(row.period.month, row.period.year)}
+                          <DataTableTd className="text-foreground-muted" align="center">
+                            {formatAppMonthYear(row.period.month, row.period.year)}
                           </DataTableTd>
                           <DataTableTd>{row.opcoName}</DataTableTd>
                           <DataTableTd>{row.partnerName}</DataTableTd>
-                          <DataTableTd className="text-foreground-muted">
+                          <DataTableTd className="text-foreground-muted" align="center">
                             {row.status}
                           </DataTableTd>
-                          <DataTableTd className="text-foreground-muted">
+                          <DataTableTd align="right" className="text-foreground-muted">
                             {row.matchedCount}
                           </DataTableTd>
-                          <DataTableTd className="text-foreground-muted">
+                          <DataTableTd align="right" className="text-foreground-muted">
                             {row.unmatchedCount}
                           </DataTableTd>
-                          <DataTableTd className="text-foreground-muted">
-                            {formatDateTime(row.runAt)}
+                          <DataTableTd className="text-foreground-muted" align="center">
+                            {formatAppDateTime(row.runAt)}
                           </DataTableTd>
-                          <DataTableTd>
+                          <DataTableTd align="center">
                             <IconButton
                               label="View result"
                               onClick={() => openReconciliationResult(row.id)}

@@ -4,7 +4,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { AppError, appError, systemError } from "@/lib/errors/app-error";
+import { AppError, appError, DomainError, systemError } from "@/lib/errors/app-error";
 import {
   ERROR_CATALOG,
   isErrorKey,
@@ -72,6 +72,21 @@ describe("AppError", () => {
     expect(error.key).toBe("SYSTEM_ERROR");
     expect(error.status).toBe(500);
   });
+
+  it("DomainError preserves human-readable free-text messages", () => {
+    const error = new DomainError(
+      "OpcoReportMappingError",
+      "Upload a sample Excel before choosing filter values",
+      400,
+    );
+    expect(error.message).toBe(
+      "Upload a sample Excel before choosing filter values",
+    );
+    expect(error.toJSON().message).toBe(
+      "Upload a sample Excel before choosing filter values",
+    );
+    expect(error.status).toBe(400);
+  });
 });
 
 describe("formatAppError", () => {
@@ -100,6 +115,21 @@ describe("formatAppError", () => {
         "Failed to upload report",
       ),
     ).toBe("Failed to upload report");
+  });
+
+  it("surfaces human-readable domain errors over upload fallback", () => {
+    expect(
+      formatAppError(
+        {
+          error: {
+            code: 901,
+            key: "UNMAPPED_ERROR" as ErrorKey,
+            message: "Upload a sample Excel before choosing filter values",
+          },
+        },
+        "Failed to load filter values",
+      ),
+    ).toBe("Upload a sample Excel before choosing filter values");
   });
 
   it("uses auth-specific copy for login failures", () => {

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   OPCO_REPORTS_UPLOADED_SUBJECT,
+  buildOpcoReportResubmittedBody,
   buildOpcoReportUploadBody,
   mergeOpcoReportUploadPartners,
   notificationCategory,
@@ -181,5 +182,20 @@ describe("resolveNotificationHref with metadata", () => {
         "/dizlee/notifications?tab=inbox",
       ),
     ).toBe("/dizlee/reports?opcoId=5&month=8&year=2026");
+  });
+});
+
+describe("buildOpcoReportResubmittedBody", () => {
+  it("states that period recon work was deleted and must be redone", () => {
+    const body = buildOpcoReportResubmittedBody({
+      opcoName: "Zain Bahrain",
+      periodLabel: "August 2026",
+      partners: [{ id: "9", name: "Digital Virgo" }],
+    });
+    expect(body).toContain(
+      "All reconciliations, consolidation, and revenue-share results for this OpCo and period were deleted",
+    );
+    expect(body).toContain("must be redone from scratch");
+    expect(body).toContain("Digital Virgo");
   });
 });

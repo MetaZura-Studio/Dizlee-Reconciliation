@@ -4,9 +4,8 @@
 
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { SubmissionRequestChangeDialog } from "@/components/opco/submission-request-change-dialog";
 import { SubmissionReuploadDialog } from "@/components/opco/submission-reupload-dialog";
@@ -20,7 +19,6 @@ import {
   DataTableTd,
   DataTableTh,
 } from "@/components/ui/data-table";
-import { EmptyState } from "@/components/ui/empty-state";
 import { IconButton } from "@/components/ui/icon-button";
 import { IconRefresh, IconUpload } from "@/components/ui/icons";
 import { StatusPill } from "@/components/ui/status-pill";
@@ -28,14 +26,11 @@ import { useToast } from "@/components/ui/toast";
 import type { OpcoSubmissionListItem } from "@/lib/opco/queries/submissions";
 import { readRawExcelSheetPreview } from "@/lib/platform/excel/read-raw-sheet";
 import { opcoSubmissionRawFilePreviewUrl } from "@/lib/platform/reports/preview-url";
-import { ui } from "@/lib/ui/classes";
 import { reportStatusTone } from "@/lib/ui/status-tones";
 import { formatAppError } from "@/lib/errors/format";
 
 type ReuploadReportsViewProps = {
   items: OpcoSubmissionListItem[];
-  currentPeriodLabel: string;
-  hasFileForCurrentPeriod: boolean;
   preferredSheetName?: string | null;
 };
 
@@ -52,23 +47,16 @@ type RawPreviewState = {
 };
 
 export function ReuploadReportsView({
-  items: initialItems,
-  currentPeriodLabel,
-  hasFileForCurrentPeriod,
+  items,
   preferredSheetName = null,
 }: ReuploadReportsViewProps) {
   const router = useRouter();
   const toast = useToast();
-  const [items, setItems] = useState(initialItems);
   const [reuploadSubmission, setReuploadSubmission] =
     useState<OpcoSubmissionListItem | null>(null);
   const [changeRequestSubmission, setChangeRequestSubmission] =
     useState<OpcoSubmissionListItem | null>(null);
   const [rawPreview, setRawPreview] = useState<RawPreviewState | null>(null);
-
-  useEffect(() => {
-    setItems(initialItems);
-  }, [initialItems]);
 
   function handleReuploadSuccess() {
     setReuploadSubmission(null);
@@ -77,20 +65,6 @@ export function ReuploadReportsView({
   }
 
   function handleRequestSuccess() {
-    if (changeRequestSubmission) {
-      setItems((current) =>
-        current.map((row) =>
-          row.id === changeRequestSubmission.id
-            ? {
-                ...row,
-                hasPendingChangeRequest: true,
-                canRequestReupload: false,
-                canReupload: false,
-              }
-            : row,
-        ),
-      );
-    }
     setChangeRequestSubmission(null);
     toast.success("Reupload request submitted. Dizlee has been notified.");
     router.refresh();
@@ -165,51 +139,29 @@ export function ReuploadReportsView({
     }
   }
 
-  if (!hasFileForCurrentPeriod && items.length === 0) {
-    return (
-      <EmptyState
-        title={`No file uploaded for ${currentPeriodLabel}`}
-        description="Upload your monthly Excel first. After Dizlee approves a reupload request, you can replace that file here."
-        action={
-          <Link href="/opco/upload" className={ui.btnPrimary}>
-            Upload report
-          </Link>
-        }
-      />
-    );
+  if (items.length === 0) {
+    return null;
   }
 
   return (
     <div className="space-y-6">
-      {!hasFileForCurrentPeriod ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed border-border bg-surface-muted/40 px-4 py-4">
-          <p className="text-sm text-foreground-muted">
-            No file uploaded for {currentPeriodLabel}.
-          </p>
-          <Link href="/opco/upload" className={ui.btnSecondary}>
-            Upload report
-          </Link>
-        </div>
-      ) : null}
-
-      {items.length > 0 ? (
-        <DataTableFrame>
+      <DataTableFrame>
           <DataTable>
             <DataTableHead>
               <tr>
-                <DataTableTh>Period</DataTableTh>
-                <DataTableTh>Status</DataTableTh>
+                <DataTableTh align="center">Period</DataTableTh>
+                <DataTableTh align="center">Status</DataTableTh>
                 <DataTableTh>Raw file</DataTableTh>
-                <DataTableTh>Actions</DataTableTh>
+                <DataTableTh align="center">Actions</DataTableTh>
               </tr>
             </DataTableHead>
             <tbody>
               {items.map((row) => (
                 <DataTableRow key={row.id}>
-                  <DataTableTd className="font-medium text-foreground">
+                  <DataTableTd className="font-medium text-foreground" align="center">
                     {row.periodLabel}
                   </DataTableTd>
-                  <DataTableTd>
+                  <DataTableTd align="center">
                     {row.hasPendingChangeRequest ? (
                       <StatusPill tone={reportStatusTone("PENDING")}>
                         Request submitted
@@ -236,8 +188,8 @@ export function ReuploadReportsView({
                       }
                     />
                   </DataTableTd>
-                  <DataTableTd>
-                    <div className="flex gap-2">
+                  <DataTableTd align="center">
+                    <div className="flex justify-center gap-2">
                       {row.canRequestReupload ? (
                         <IconButton
                           label="Request reupload"
@@ -269,8 +221,7 @@ export function ReuploadReportsView({
               ))}
             </tbody>
           </DataTable>
-        </DataTableFrame>
-      ) : null}
+      </DataTableFrame>
 
       {reuploadSubmission ? (
         <SubmissionReuploadDialog

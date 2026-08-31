@@ -24,6 +24,7 @@ import {
   type EmailTemplatesPageData,
 } from "@/lib/admin/email-templates.shared";
 import { cn, ui } from "@/lib/ui/classes";
+import { formatAppDateTime } from "@/lib/platform/format-datetime";
 import { formatAppError } from "@/lib/errors/format";
 
 type WorkTab = "edit" | "preview" | "versions";
@@ -70,13 +71,6 @@ const TEMPLATE_CATEGORY_FILTERS: Array<{
 ];
 
 const TEMPLATE_GROUP_ORDER = EMAIL_TEMPLATE_CATEGORIES;
-
-function formatDateTime(value: string): string {
-  return new Date(value).toLocaleString("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
 
 function toFormState(template: EmailTemplateDetail): EditorFormState {
   return {
@@ -792,7 +786,7 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
                               {version.subject}
                             </p>
                             <p className="text-xs text-foreground-subtle">
-                              {formatDateTime(version.createdAt)}
+                              {formatAppDateTime(version.createdAt)}
                               {version.changeNote
                                 ? ` · ${version.changeNote}`
                                 : ""}
@@ -846,7 +840,7 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
         {previewVersion ? (
           <div className="space-y-4">
             <p className="text-sm text-foreground-muted">
-              Saved {formatDateTime(previewVersion.createdAt)}
+              Saved {formatAppDateTime(previewVersion.createdAt)}
               {previewVersion.changeNote
                 ? ` · ${previewVersion.changeNote}`
                 : ""}

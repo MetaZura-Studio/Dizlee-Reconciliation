@@ -11,6 +11,7 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import { formatAppDate, formatAppMonthYear } from "@/lib/platform/format-datetime";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
@@ -32,13 +33,12 @@ import { IconButton } from "@/components/ui/icon-button";
 import { IconEye } from "@/components/ui/icons";
 import { FilterToolbar } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
-import { formatPeriodLabel } from "@/lib/partner/period";
 import { formatMoney } from "@/lib/platform/format-money";
 import {
   getMaxMonthForYear,
   getPeriodYearOptions,
 } from "@/lib/platform/period";
-import { ui } from "@/lib/ui/classes";
+import { ui, type TableAlign } from "@/lib/ui/classes";
 import { nextSortState } from "@/lib/ui/sort";
 import { invoiceStatusTone, paymentLabelTone } from "@/lib/ui/status-tones";
 import type {
@@ -55,6 +55,15 @@ import type {
 const SORTABLE_COLUMNS: Record<string, PartnerInvoiceSortField> = {
   period: "period",
   uploadedAt: "uploaded",
+};
+
+const COLUMN_ALIGN: Record<string, TableAlign> = {
+  period: "center",
+  statusLabel: "center",
+  paymentStatusLabel: "center",
+  total: "right",
+  uploadedAt: "center",
+  actions: "center",
 };
 
 const MONTHS = [
@@ -198,7 +207,7 @@ export function InvoicesTable({ initialResult, filterOptions }: InvoicesTablePro
       columnHelper.display({
         id: "period",
         header: "Period",
-        cell: ({ row }) => formatPeriodLabel(row.original.year, row.original.month),
+        cell: ({ row }) => formatAppMonthYear(row.original.month, row.original.year),
       }),
       columnHelper.accessor("statusLabel", {
         header: "Status",
@@ -224,10 +233,7 @@ export function InvoicesTable({ initialResult, filterOptions }: InvoicesTablePro
       }),
       columnHelper.accessor("uploadedAt", {
         header: "Uploaded",
-        cell: (info) =>
-          new Date(info.getValue()).toLocaleDateString("en-US", {
-            dateStyle: "medium",
-          }),
+        cell: (info) => formatAppDate(info.getValue()),
       }),
       columnHelper.display({
         id: "actions",
@@ -381,11 +387,15 @@ export function InvoicesTable({ initialResult, filterOptions }: InvoicesTablePro
                             active={sortBy === sortField}
                             direction={sortDir}
                             onSort={() => applySort(sortField)}
+                            align={COLUMN_ALIGN[header.column.id] ?? "left"}
                           />
                         );
                       }
                       return (
-                        <DataTableTh key={header.id}>
+                        <DataTableTh
+                          key={header.id}
+                          align={COLUMN_ALIGN[header.column.id] ?? "left"}
+                        >
                           {header.isPlaceholder
                             ? null
                             : flexRender(
@@ -402,7 +412,11 @@ export function InvoicesTable({ initialResult, filterOptions }: InvoicesTablePro
                 {table.getRowModel().rows.map((row) => (
                   <DataTableRow key={row.id}>
                     {row.getVisibleCells().map((cell) => (
-                      <DataTableTd key={cell.id} className="align-top">
+                      <DataTableTd
+                        key={cell.id}
+                        className="align-top"
+                        align={COLUMN_ALIGN[cell.column.id] ?? "left"}
+                      >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </DataTableTd>
                     ))}

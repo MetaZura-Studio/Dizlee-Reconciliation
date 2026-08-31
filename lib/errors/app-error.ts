@@ -84,12 +84,16 @@ export function appErrorFromUnknown(
  */
 export class DomainError extends AppError {
   constructor(domainName: string, keyOrMessage: string, status?: number) {
-    const key = isErrorKey(keyOrMessage)
+    const resolvedKey = isErrorKey(keyOrMessage)
       ? keyOrMessage
-      : (resolveErrorKeyFromMessage(keyOrMessage) ?? "UNMAPPED_ERROR");
+      : resolveErrorKeyFromMessage(keyOrMessage);
+    const key = resolvedKey ?? "UNMAPPED_ERROR";
     super(key, {
       status: status ?? ERROR_CATALOG[key].status,
     });
     this.name = domainName;
+    if (!resolvedKey && keyOrMessage.trim()) {
+      this.message = keyOrMessage.trim();
+    }
   }
 }

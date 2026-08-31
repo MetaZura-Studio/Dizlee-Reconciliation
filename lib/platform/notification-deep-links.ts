@@ -9,6 +9,7 @@ import {
   parseNotificationMetadata,
   resolveNotificationAction,
 } from "@/lib/platform/notification-metadata";
+import { formatAppDate } from "@/lib/platform/format-datetime";
 import { PARTNER_LINK_REQUEST_SUBJECT_PREFIX } from "@/lib/platform/partner-link-request";
 
 export type NotificationPortal = "opco" | "partner" | "dizlee" | "admin";
@@ -152,8 +153,5 @@ export function formatNotificationTime(iso: string): string {
   if (diffDay < 7) {
     return `${diffDay}d`;
   }
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
+  return formatAppDate(date);
 }

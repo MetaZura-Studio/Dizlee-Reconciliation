@@ -135,11 +135,6 @@ export function OpcoWorkspace({
         children: [
           { href: "/opco/upload", label: "Upload Report", icon: "file" },
           { href: "/opco/reports", label: "Report History", icon: "file" },
-          {
-            href: "/opco/reports/reupload",
-            label: "Re Upload Report",
-            icon: "file",
-          },
         ],
       },
       { href: "/opco/invoices", label: "Invoices", icon: "invoice" },

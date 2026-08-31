@@ -7,7 +7,7 @@
 
 import type { Prisma } from "@prisma/client";
 
-import { formatPeriodLabel } from "@/lib/opco/period";
+import { formatPeriodLabel, getDefaultPeriod } from "@/lib/opco/period";
 import { getLinkedPartnersForOpco } from "@/lib/opco/queries/partners";
 import { mapReuploadEligibility } from "@/lib/opco/reupload/eligibility";
 import { OPCO_REPORT_VERSION } from "@/lib/platform/reports/sides";
@@ -222,6 +222,22 @@ export function parseOpcoReportListFilters(
     sortDir: sortDir === "asc" ? "asc" : "desc",
     page: Number.isInteger(page) && page >= 1 ? page : 1,
   };
+}
+
+/** Report History page: default to current month when URL has no period (API keeps "all"). */
+export function parseOpcoReportListFiltersForPage(
+  searchParams: URLSearchParams,
+): OpcoReportListFilters {
+  const filters = parseOpcoReportListFilters(searchParams);
+  const hasPeriodInUrl =
+    searchParams.has("year") || searchParams.has("month");
+
+  if (!hasPeriodInUrl && !filters.search) {
+    const defaults = getDefaultPeriod();
+    return { ...filters, year: defaults.year, month: defaults.month };
+  }
+
+  return filters;
 }
 
 export async function getOpcoReportFilterOptions(

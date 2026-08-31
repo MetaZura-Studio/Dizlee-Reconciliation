@@ -15,6 +15,17 @@ import {
 } from "@/components/ui/data-table";
 import { ModalCloseButton } from "@/components/ui/modal-close-button";
 import { LoadingOverlay } from "@/components/ui/loading";
+import {
+  formatPreviewCellValue,
+  LocalizedCellText,
+  previewCellAlign,
+} from "@/lib/ui/arabic-text";
+import {
+  reportPreviewBackdropClass,
+  reportPreviewBodyClass,
+  reportPreviewShellClasses,
+  reportPreviewTableScrollClass,
+} from "@/lib/ui/report-preview-modal";
 
 type ReportRawFilePreviewModalProps = {
   filename: string;
@@ -71,14 +82,17 @@ export function ReportRawFilePreviewModal({
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-stretch justify-center bg-black/40 p-2 backdrop-blur-[2px] sm:items-center sm:p-4">
+    <div className={reportPreviewBackdropClass}>
       <LoadingOverlay
         active={loading}
         label="Loading raw file…"
-        className="flex h-[96vh] w-full max-w-[96vw] flex-col overflow-hidden rounded-[28px] sm:h-[92vh]"
+        className={reportPreviewShellClasses(
+          loading || rawRows.length === 0 ? null : columnCount,
+          "overflow-hidden",
+        )}
       >
         <div
-          className="flex h-full w-full flex-col overflow-hidden rounded-[28px] border border-border bg-surface shadow-[var(--shadow-md)]"
+          className="flex h-full w-full flex-col overflow-hidden"
           role="dialog"
           aria-modal="true"
           aria-labelledby="report-raw-file-preview-title"
@@ -114,7 +128,7 @@ export function ReportRawFilePreviewModal({
             <ModalCloseButton onClick={onClose} />
           </div>
 
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-5 py-3">
+          <div className={reportPreviewBodyClass}>
             {error ? (
               <p className="text-sm text-danger">{error}</p>
             ) : !loading && rawRows.length === 0 ? (
@@ -130,39 +144,55 @@ export function ReportRawFilePreviewModal({
                     ? " · preview shows the first rows only"
                     : null}
                 </p>
-                <div className="min-h-0 flex-1 overflow-auto rounded-[20px] border border-border bg-surface">
+                <div className={reportPreviewTableScrollClass}>
                   <DataTable className="min-w-max">
                     <DataTableHead>
                       <tr>
-                        <DataTableTh className="sticky left-0 top-0 z-20 w-12 bg-surface">
+                        <DataTableTh
+                          align="center"
+                          className="sticky left-0 top-0 z-20 w-12 bg-surface"
+                        >
                           #
                         </DataTableTh>
-                        {Array.from({ length: columnCount }, (_, index) => (
-                          <DataTableTh
-                            key={index}
-                            className="sticky top-0 z-10 whitespace-nowrap bg-surface"
-                          >
-                            {headerCells[index]?.trim() || ""}
-                          </DataTableTh>
-                        ))}
+                        {Array.from({ length: columnCount }, (_, index) => {
+                          const headerText = headerCells[index]?.trim() || "";
+                          const display = formatPreviewCellValue(headerText);
+                          return (
+                            <DataTableTh
+                              key={index}
+                              align={previewCellAlign(headerText)}
+                              className="sticky top-0 z-10 whitespace-nowrap bg-surface"
+                            >
+                              <LocalizedCellText>{display}</LocalizedCellText>
+                            </DataTableTh>
+                          );
+                        })}
                       </tr>
                     </DataTableHead>
                     <tbody>
                       {bodyRows.map((row, rowIndex) => (
                         <DataTableRow key={rowIndex}>
-                          <DataTableTd className="sticky left-0 z-10 bg-surface text-foreground-subtle">
+                          <DataTableTd
+                            align="center"
+                            className="sticky left-0 z-10 bg-surface text-foreground-subtle"
+                          >
                             {rowIndex + 1}
                           </DataTableTd>
-                          {Array.from({ length: columnCount }, (_, colIndex) => (
-                            <DataTableTd
-                              key={colIndex}
-                              className="whitespace-nowrap text-foreground-muted"
-                            >
-                              <span title={row[colIndex] ?? ""}>
-                                {row[colIndex] ?? ""}
-                              </span>
-                            </DataTableTd>
-                          ))}
+                          {Array.from({ length: columnCount }, (_, colIndex) => {
+                            const cellValue = row[colIndex] ?? "";
+                            const display = formatPreviewCellValue(cellValue);
+                            return (
+                              <DataTableTd
+                                key={colIndex}
+                                align={previewCellAlign(cellValue)}
+                                className="whitespace-nowrap text-foreground-muted"
+                              >
+                                <LocalizedCellText title={cellValue}>
+                                  {display}
+                                </LocalizedCellText>
+                              </DataTableTd>
+                            );
+                          })}
                         </DataTableRow>
                       ))}
                     </tbody>

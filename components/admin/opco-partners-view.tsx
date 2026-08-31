@@ -5,7 +5,7 @@
 
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,7 @@ import type {
 import type { AdminPartnerLinkRequestItem } from "@/lib/admin/opco-partner-link-requests";
 import { paginateItems } from "@/lib/ui/list-pagination";
 import { cn, ui } from "@/lib/ui/classes";
+import { formatAppDateTime } from "@/lib/platform/format-datetime";
 import { formatAppError } from "@/lib/errors/format";
 
 type LinkStatusFilter = "all" | "linked" | "unlinked";
@@ -40,19 +41,14 @@ type OpcoPartnersViewProps = {
   initialData: OpcoPartnerLinksPageData;
   initialTab?: PageTab;
   initialPendingRequestCount?: number;
+  initialRequests?: AdminPartnerLinkRequestItem[];
 };
-
-function formatDateTime(value: string): string {
-  return new Date(value).toLocaleString("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
 
 export function OpcoPartnersView({
   initialData,
   initialTab = "links",
   initialPendingRequestCount = 0,
+  initialRequests = [],
 }: OpcoPartnersViewProps) {
   const toast = useToast();
   const router = useRouter();
@@ -84,7 +80,9 @@ export function OpcoPartnersView({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const [requests, setRequests] = useState<AdminPartnerLinkRequestItem[]>([]);
+  const [requests, setRequests] = useState<AdminPartnerLinkRequestItem[]>(
+    initialRequests,
+  );
   const [pendingRequestCount, setPendingRequestCount] = useState(
     initialPendingRequestCount,
   );
@@ -111,11 +109,41 @@ export function OpcoPartnersView({
     [pathname, router, searchParams],
   );
 
+  const loadRequests = useCallback(async () => {
+    setRequestsError(null);
+    setRequestsLoading(true);
+    try {
+      const response = await fetch(
+        "/api/admin/opco-partner-link-requests?status=PENDING",
+      );
+      const body = await response.json();
+      if (!response.ok) {
+        throw new Error(
+          formatAppError(body, "Failed to load partner link requests"),
+        );
+      }
+      const next = (body.data as AdminPartnerLinkRequestItem[]) ?? [];
+      setRequests(next);
+      setPendingRequestCount(next.length);
+    } catch (loadError) {
+      setRequestsError(
+        loadError instanceof Error
+          ? loadError.message
+          : "Failed to load partner link requests",
+      );
+    } finally {
+      setRequestsLoading(false);
+    }
+  }, []);
+
   const selectTab = (nextTab: PageTab) => {
     setTab(nextTab);
     setError(null);
     setMissingWarning(null);
     syncTabToUrl(nextTab);
+    if (nextTab === "requests") {
+      void loadRequests();
+    }
   };
 
   const applyLinksView = useCallback((view: OpcoPartnerLinksView) => {
@@ -152,39 +180,6 @@ export function OpcoPartnersView({
       setLoading(false);
     }
   };
-
-  const loadRequests = useCallback(async () => {
-    setRequestsError(null);
-    setRequestsLoading(true);
-    try {
-      const response = await fetch(
-        "/api/admin/opco-partner-link-requests?status=PENDING",
-      );
-      const body = await response.json();
-      if (!response.ok) {
-        throw new Error(
-          formatAppError(body, "Failed to load partner link requests"),
-        );
-      }
-      const next = (body.data as AdminPartnerLinkRequestItem[]) ?? [];
-      setRequests(next);
-      setPendingRequestCount(next.length);
-    } catch (loadError) {
-      setRequestsError(
-        loadError instanceof Error
-          ? loadError.message
-          : "Failed to load partner link requests",
-      );
-    } finally {
-      setRequestsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (tab === "requests") {
-      void loadRequests();
-    }
-  }, [tab, loadRequests]);
 
   const handleOpcoChange = (opcoId: string) => {
     if (opcoId === selectedOpcoId) {
@@ -464,10 +459,10 @@ export function OpcoPartnersView({
                   <DataTableHead>
                     <tr>
                       <DataTableTh>OpCo</DataTableTh>
-                      <DataTableTh>Period</DataTableTh>
+                      <DataTableTh align="center">Period</DataTableTh>
                       <DataTableTh>Partners</DataTableTh>
                       <DataTableTh>Message</DataTableTh>
-                      <DataTableTh>Requested at</DataTableTh>
+                      <DataTableTh align="center">Requested at</DataTableTh>
                       <DataTableTh>Actions</DataTableTh>
                     </tr>
                   </DataTableHead>
@@ -475,7 +470,7 @@ export function OpcoPartnersView({
                     {visibleRequests.map((row) => (
                       <DataTableRow key={row.id}>
                         <DataTableTd>{row.opcoName}</DataTableTd>
-                        <DataTableTd>{row.periodLabel}</DataTableTd>
+                        <DataTableTd align="center">{row.periodLabel}</DataTableTd>
                         <DataTableTd>
                           {row.partnerNames.length
                             ? row.partnerNames.join(", ")
@@ -486,8 +481,8 @@ export function OpcoPartnersView({
                             {row.message || "—"}
                           </span>
                         </DataTableTd>
-                        <DataTableTd>
-                          {formatDateTime(row.createdAt)}
+                        <DataTableTd align="center">
+                          {formatAppDateTime(row.createdAt)}
                         </DataTableTd>
                         <DataTableTd>
                           <div className="flex flex-wrap gap-2">

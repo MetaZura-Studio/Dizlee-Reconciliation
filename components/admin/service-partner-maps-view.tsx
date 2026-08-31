@@ -296,7 +296,7 @@ export function ServicePartnerMapsView({
                       direction={sortDir}
                       onSort={() => applySort("partnerName")}
                     />
-                    <DataTableTh align="right">Actions</DataTableTh>
+                    <DataTableTh align="center">Actions</DataTableTh>
                   </tr>
                 </DataTableHead>
                 <tbody>
@@ -311,8 +311,8 @@ export function ServicePartnerMapsView({
                       <DataTableTd className="text-foreground-muted">
                         {row.partnerName}
                       </DataTableTd>
-                      <DataTableTd align="right">
-                        <div className="flex justify-end gap-2">
+                      <DataTableTd align="center">
+                        <div className="flex justify-center gap-2">
                           <IconButton
                             label="Edit mapping"
                             onClick={() => {

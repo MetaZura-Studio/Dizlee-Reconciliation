@@ -1,5 +1,5 @@
 /**
- * OpCo monthly submission lists for the Re Upload Report page.
+ * OpCo monthly submission lists for Report History reupload section.
  */
 
 import { formatPeriodLabel, getDefaultPeriod } from "@/lib/opco/period";

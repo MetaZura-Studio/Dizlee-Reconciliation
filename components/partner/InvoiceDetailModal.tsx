@@ -1,5 +1,6 @@
 "use client";
 
+import { formatAppDateTime } from "@/lib/platform/format-datetime";
 import { useState } from "react";
 
 import { ModalCloseButton } from "@/components/ui/modal-close-button";
@@ -9,17 +10,6 @@ import { formatMoney } from "@/lib/platform/format-money";
 
 function formatCurrency(amount: number, currencyCode: string): string {
   return formatMoney(amount, currencyCode);
-}
-
-function formatDateTime(value: string | null): string {
-  if (!value) {
-    return "—";
-  }
-
-  return new Date(value).toLocaleString("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
 }
 
 type InvoiceDetailModalProps = {
@@ -133,13 +123,13 @@ export function InvoiceDetailModal({
                 <div>
                   <dt className="text-foreground-subtle">Uploaded</dt>
                   <dd className="font-medium text-foreground">
-                    {formatDateTime(detail.uploadedAt)}
+                    {formatAppDateTime(detail.uploadedAt)}
                   </dd>
                 </div>
                 <div>
                   <dt className="text-foreground-subtle">Acknowledged by Dizlee</dt>
                   <dd className="font-medium text-foreground">
-                    {formatDateTime(detail.acknowledgedAt)}
+                    {formatAppDateTime(detail.acknowledgedAt)}
                   </dd>
                 </div>
                 <div>
@@ -215,7 +205,7 @@ export function InvoiceDetailModal({
                         <p className="font-medium text-foreground">{step.label}</p>
                         <p className="text-xs text-foreground-subtle">{step.code}</p>
                       </div>
-                      <p className="text-foreground-muted">{formatDateTime(step.completedAt)}</p>
+                      <p className="text-foreground-muted">{formatAppDateTime(step.completedAt)}</p>
                     </li>
                   ))}
                 </ol>
@@ -236,7 +226,7 @@ export function InvoiceDetailModal({
                               : null}
                           </p>
                           <p className="text-xs text-foreground-subtle">
-                            {formatDateTime(entry.createdAt)}
+                            {formatAppDateTime(entry.createdAt)}
                           </p>
                         </li>
                       ))}

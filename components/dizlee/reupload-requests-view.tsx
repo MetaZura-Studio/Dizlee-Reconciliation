@@ -42,6 +42,7 @@ import type {  ReuploadListFilters,
   ReuploadRequestItem,
   ReuploadSortField,
 } from "@/lib/dizlee/reupload-requests";
+import { formatAppDateTime, formatAppMonthYear } from "@/lib/platform/format-datetime";
 import { formatAppError } from "@/lib/errors/format";
 
 const MONTHS = [
@@ -58,20 +59,6 @@ const MONTHS = [
   "November",
   "December",
 ];
-
-function formatDateTime(value: string): string {
-  return new Date(value).toLocaleString("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
-
-function formatPeriod(month: number, year: number): string {
-  return new Date(year, month - 1, 1).toLocaleString("en-US", {
-    month: "short",
-    year: "numeric",
-  });
-}
 
 function buildQuery(filters: ReuploadListFilters): string {
   const params = new URLSearchParams({
@@ -121,6 +108,10 @@ export function ReuploadRequestsView({
 
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectTarget, setRejectTarget] = useState<ReuploadRequestItem | null>(
+    null,
+  );
+  const [approveOpen, setApproveOpen] = useState(false);
+  const [approveTarget, setApproveTarget] = useState<ReuploadRequestItem | null>(
     null,
   );
   const [decisionNote, setDecisionNote] = useState("");
@@ -222,6 +213,8 @@ export function ReuploadRequestsView({
       if (!response.ok) {
         throw new Error(formatAppError(payload, "Failed to approve request"));
       }
+      setApproveOpen(false);
+      setApproveTarget(null);
       await loadRequests({ ...result.filters, page: result.page });
     } catch (actionError) {
       setError(
@@ -232,6 +225,18 @@ export function ReuploadRequestsView({
     } finally {
       setActionId(null);
     }
+  };
+
+  const openApprove = (item: ReuploadRequestItem) => {
+    setApproveTarget(item);
+    setApproveOpen(true);
+  };
+
+  const confirmApprove = async () => {
+    if (!approveTarget) {
+      return;
+    }
+    await approve(approveTarget.id);
   };
 
   const openReject = (item: ReuploadRequestItem) => {
@@ -377,6 +382,7 @@ export function ReuploadRequestsView({
                         active={sortBy === "period"}
                         direction={sortDir}
                         onSort={() => applySort("period")}
+                        align="center"
                       />
                       <SortableDataTableTh
                         label="OpCo"
@@ -397,10 +403,11 @@ export function ReuploadRequestsView({
                         active={sortBy === "requested"}
                         direction={sortDir}
                         onSort={() => applySort("requested")}
+                        align="center"
                       />
                       <DataTableTh>Reason</DataTableTh>
-                      <DataTableTh>Status</DataTableTh>
-                      <DataTableTh>Actions</DataTableTh>
+                      <DataTableTh align="center">Status</DataTableTh>
+                      <DataTableTh align="center">Actions</DataTableTh>
                     </tr>
                 </DataTableHead>
                 <tbody>
@@ -409,8 +416,8 @@ export function ReuploadRequestsView({
                     const isPending = row.decisionStatus === "PENDING";
                     return (
                       <DataTableRow key={row.id}>
-                        <DataTableTd className="text-foreground-muted">
-                          {formatPeriod(row.period.month, row.period.year)}
+                        <DataTableTd className="text-foreground-muted" align="center">
+                          {formatAppMonthYear(row.period.month, row.period.year)}
                         </DataTableTd>
                         <DataTableTd>{row.opcoName}</DataTableTd>
                         <DataTableTd>{row.partnerName}</DataTableTd>
@@ -429,23 +436,23 @@ export function ReuploadRequestsView({
                         <DataTableTd className="text-foreground-muted">
                           {row.requestedBy}
                         </DataTableTd>
-                        <DataTableTd className="text-foreground-muted">
-                          {formatDateTime(row.requestedAt)}
+                        <DataTableTd className="text-foreground-muted" align="center">
+                          {formatAppDateTime(row.requestedAt)}
                         </DataTableTd>
                         <DataTableTd className="max-w-xs text-foreground-muted">
                           {row.reason ?? "—"}
                         </DataTableTd>
-                        <DataTableTd>
+                        <DataTableTd align="center">
                           <StatusPill tone={reportStatusTone(row.decisionStatus)}>
                             {row.decisionLabel}
                           </StatusPill>
                         </DataTableTd>
-                        <DataTableTd>
+                        <DataTableTd align="center">
                           {isPending ? (
-                            <div className="flex gap-2">
+                            <div className="flex justify-center gap-2">
                               <Button
                                 disabled={busy}
-                                onClick={() => void approve(row.id)}
+                                onClick={() => openApprove(row)}
                               >
                                 Approve
                               </Button>
@@ -500,6 +507,61 @@ export function ReuploadRequestsView({
       ) : null}
 
       <Modal
+        open={approveOpen && approveTarget !== null}
+        title="Approve reupload request"
+        onClose={() => {
+          if (actionId === approveTarget?.id) {
+            return;
+          }
+          setApproveOpen(false);
+          setApproveTarget(null);
+        }}
+      >
+        {approveTarget ? (
+          <>
+            <p className="text-sm text-foreground-muted">
+              {approveTarget.opcoName}
+              {approveTarget.partnerName
+                ? ` / ${approveTarget.partnerName}`
+                : ""}{" "}
+              ·{" "}
+              {formatAppMonthYear(
+                approveTarget.period.month,
+                approveTarget.period.year,
+              )}
+            </p>
+            <p className="mt-4 text-sm text-foreground">
+              Approving lets the OpCo replace this monthly report. When they
+              upload the new file,{" "}
+              <span className="font-semibold">
+                all reconciliations, consolidation, and revenue-share results
+                for this OpCo and period will be permanently deleted
+              </span>{" "}
+              and must be redone from scratch.
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <Button
+                variant="secondary"
+                disabled={actionId === approveTarget.id}
+                onClick={() => {
+                  setApproveOpen(false);
+                  setApproveTarget(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                disabled={actionId === approveTarget.id}
+                onClick={() => void confirmApprove()}
+              >
+                {actionId === approveTarget.id ? "Approving…" : "Approve"}
+              </Button>
+            </div>
+          </>
+        ) : null}
+      </Modal>
+
+      <Modal
         open={rejectOpen && rejectTarget !== null}
         title="Reject reupload request"
         onClose={() => {
@@ -511,7 +573,7 @@ export function ReuploadRequestsView({
           <>
             <p className="text-sm text-foreground-muted">
               {rejectTarget.opcoName} / {rejectTarget.partnerName} ·{" "}
-              {formatPeriod(rejectTarget.period.month, rejectTarget.period.year)}
+              {formatAppMonthYear(rejectTarget.period.month, rejectTarget.period.year)}
             </p>
             <label className="mt-4 block text-sm">
               <span className={ui.label}>Decision note (optional)</span>

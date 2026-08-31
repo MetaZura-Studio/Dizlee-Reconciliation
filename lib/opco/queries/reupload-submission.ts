@@ -1,7 +1,7 @@
 /**
  * OpCo monthly submission reupload after Dizlee approves a submission change request.
- * Overrides that month’s raw file and partner report data; invalidates reconciliations
- * only for partners whose OpCo line data changed (or were added/removed).
+ * Overrides that month’s raw file and partner report data; hard-deletes all
+ * reconciliations, consolidation, and revenue-share work for the OpCo period.
  */
 
 import { formatPeriodLabel } from "@/lib/opco/period";
@@ -12,18 +12,7 @@ import {
 import { upsertOpcoPartnerReportFromBucket } from "@/lib/opco/queries/upload-report";
 import { isSubmissionReuploadEligible } from "@/lib/opco/reupload/submission-eligibility";
 import { saveReportFileLocally } from "@/lib/opco/storage/save-report-file";
-import {
-  softDeleteOpcoPeriodConsolidation,
-  softDeletePartnerReconciliations,
-} from "@/lib/platform/reconciliation/invalidate-after-reupload";
-import {
-  linesFromStoredReportItems,
-  partnerLinesChanged,
-} from "@/lib/platform/reconciliation/partner-line-fingerprint";
-import {
-  getOpcoReportFx,
-  snapshotFxOntoParsedLines,
-} from "@/lib/platform/report-fx";
+import { hardDeleteAllOpcoPeriodWork } from "@/lib/platform/reconciliation/invalidate-after-reupload";
 import { OPCO_REPORT_VERSION } from "@/lib/platform/reports/sides";
 import { notifyDizleeUsers } from "@/lib/platform/notify-dizlee";
 import {
@@ -176,35 +165,12 @@ export async function reuploadOpcoMonthlySubmission(
     select: {
       id: true,
       partnerId: true,
-      partner: { select: { name: true } },
-      lineItems: {
-        where: { isDeleted: false },
-        select: {
-          description: true,
-          lineNumber: true,
-          amount: true,
-          usageAmount: true,
-          usageUsd: true,
-          revenueSharePercent: true,
-          reconciliationBasis: true,
-          usageUnit: true,
-        },
-      },
     },
   });
 
-  const existingByPartner = new Map(
-    existingReports.map((report) => [report.partnerId.toString(), report]),
+  const keptPartnerIds = new Set(
+    buckets.map((bucket) => bucket.partnerId.toString()),
   );
-
-  const fx = await getOpcoReportFx({
-    opcoId: input.opcoId,
-    month: submission.month,
-    year: submission.year,
-  });
-
-  const partnersNeedingRereconcile: Array<{ id: string; name: string }> = [];
-  const keptPartnerIds = new Set(buckets.map((bucket) => bucket.partnerId.toString()));
   let lineItemCount = 0;
 
   const partnerNames = await prisma.partner.findMany({
@@ -216,16 +182,6 @@ export async function reuploadOpcoMonthlySubmission(
   );
 
   for (const bucket of buckets) {
-    const partnerKey = bucket.partnerId.toString();
-    const previous = existingByPartner.get(partnerKey);
-    const nextLines = snapshotFxOntoParsedLines(bucket.lineItems, fx.rateToUsd);
-    const changed =
-      !previous ||
-      partnerLinesChanged(
-        linesFromStoredReportItems(previous.lineItems),
-        nextLines,
-      );
-
     await upsertOpcoPartnerReportFromBucket({
       opcoId: input.opcoId,
       userId: input.userId,
@@ -238,24 +194,6 @@ export async function reuploadOpcoMonthlySubmission(
       lineItems: bucket.lineItems,
     });
     lineItemCount += bucket.lineItems.length;
-
-    if (changed) {
-      await softDeletePartnerReconciliations({
-        opcoId: input.opcoId,
-        partnerId: bucket.partnerId,
-        year: submission.year,
-        month: submission.month,
-        deletedByUserId: input.userId,
-        deletedAt: completedAt,
-      });
-      partnersNeedingRereconcile.push({
-        id: partnerKey,
-        name:
-          previous?.partner.name ??
-          partnerNameById.get(partnerKey) ??
-          `Partner ${partnerKey}`,
-      });
-    }
   }
 
   for (const report of existingReports) {
@@ -279,57 +217,46 @@ export async function reuploadOpcoMonthlySubmission(
         updatedByUserId: input.userId,
       },
     });
-    await softDeletePartnerReconciliations({
-      opcoId: input.opcoId,
-      partnerId: report.partnerId,
-      year: submission.year,
-      month: submission.month,
-      deletedByUserId: input.userId,
-      deletedAt: completedAt,
-    });
-    partnersNeedingRereconcile.push({
-      id: report.partnerId.toString(),
-      name: report.partner.name,
-    });
   }
 
-  if (partnersNeedingRereconcile.length > 0) {
-    await softDeleteOpcoPeriodConsolidation({
-      opcoId: input.opcoId,
-      year: submission.year,
-      month: submission.month,
-      deletedByUserId: input.userId,
-      deletedAt: completedAt,
+  await hardDeleteAllOpcoPeriodWork({
+    opcoId: input.opcoId,
+    year: submission.year,
+    month: submission.month,
+  });
+
+  const partnersInFile = buckets
+    .map((bucket) => ({
+      id: bucket.partnerId.toString(),
+      name:
+        partnerNameById.get(bucket.partnerId.toString()) ??
+        `Partner ${bucket.partnerId.toString()}`,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const periodLabel = formatPeriodLabel(submission.year, submission.month);
+  const metadata: OpcoReportResubmittedMetadata = {
+    type: "OPCO_REPORT_RESUBMITTED",
+    opcoId: input.opcoId.toString(),
+    opcoName: submission.opco.name,
+    month: submission.month,
+    year: submission.year,
+    partners: partnersInFile,
+  };
+
+  try {
+    await notifyDizleeUsers({
+      fromUserId: input.userId,
+      subject: OPCO_REPORT_RESUBMITTED_SUBJECT,
+      body: buildOpcoReportResubmittedBody({
+        opcoName: submission.opco.name,
+        periodLabel,
+        partners: partnersInFile,
+      }),
+      metadata,
     });
-
-    const uniquePartners = Array.from(
-      new Map(partnersNeedingRereconcile.map((p) => [p.id, p])).values(),
-    ).sort((a, b) => a.name.localeCompare(b.name));
-
-    const periodLabel = formatPeriodLabel(submission.year, submission.month);
-    const metadata: OpcoReportResubmittedMetadata = {
-      type: "OPCO_REPORT_RESUBMITTED",
-      opcoId: input.opcoId.toString(),
-      opcoName: submission.opco.name,
-      month: submission.month,
-      year: submission.year,
-      partners: uniquePartners,
-    };
-
-    try {
-      await notifyDizleeUsers({
-        fromUserId: input.userId,
-        subject: OPCO_REPORT_RESUBMITTED_SUBJECT,
-        body: buildOpcoReportResubmittedBody({
-          opcoName: submission.opco.name,
-          periodLabel,
-          partners: uniquePartners,
-        }),
-        metadata,
-      });
-    } catch {
-      // Resubmit succeeded; notification failure must not roll back file replace.
-    }
+  } catch {
+    // Resubmit succeeded; notification failure must not roll back file replace.
   }
 
   return {
