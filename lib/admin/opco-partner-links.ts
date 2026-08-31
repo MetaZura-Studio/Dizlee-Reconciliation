@@ -10,7 +10,6 @@ import type {
   OpcoPartnerLinksPageData,
   OpcoPartnerLinksView,
   PartnerLinkItem,
-  PartnerLinkRequestItem,
 } from "@/lib/admin/opco-partner-links.shared";
 import {
   getOpcoPartnerLinksSchema,
@@ -24,11 +23,6 @@ import {
 import { prisma } from "@/lib/prisma";
 import { DomainError } from "@/lib/errors/app-error";
 import { notifyOpcoUsers } from "@/lib/platform/notify-opco";
-import {
-  parsePartnerLinkRequestBody,
-  partnerLinkRequestBodyPrefix,
-  PARTNER_LINK_REQUEST_SUBJECT_PREFIX,
-} from "@/lib/platform/partner-link-request";
 
 export type {
   OpcoListItem,
@@ -47,37 +41,6 @@ export class OpcoPartnerLinksError extends DomainError {
 
 function mapOpco(row: { id: bigint; name: string }): OpcoListItem {
   return { id: row.id.toString(), name: row.name };
-}
-
-async function listRecentPartnerLinkRequests(
-  opcoId: bigint,
-): Promise<PartnerLinkRequestItem[]> {
-  const rows = await prisma.notification.findMany({
-    where: {
-      subject: { startsWith: PARTNER_LINK_REQUEST_SUBJECT_PREFIX },
-      body: { startsWith: partnerLinkRequestBodyPrefix(opcoId.toString()) },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 8,
-    select: { id: true, body: true, createdAt: true },
-  });
-
-  const items: PartnerLinkRequestItem[] = [];
-  for (const row of rows) {
-    const parsed = parsePartnerLinkRequestBody(row.body);
-    if (!parsed) {
-      continue;
-    }
-    items.push({
-      id: row.id.toString(),
-      createdAt: row.createdAt.toISOString(),
-      periodLabel: parsed.periodLabel,
-      message: parsed.message,
-      unlinkedPartnerNames: parsed.unlinkedPartnerNames,
-      unknownPartnerNames: parsed.unknownPartnerNames,
-    });
-  }
-  return items;
 }
 
 async function listActivePartners() {
@@ -131,13 +94,12 @@ export async function getPartnerLinksForOpco(
     throw new OpcoPartnerLinksError("OpCo not found", 404);
   }
 
-  const [partners, links, recentLinkRequests] = await Promise.all([
+  const [partners, links] = await Promise.all([
     listActivePartners(),
     prisma.opcoPartnerLink.findMany({
       where: { opcoId },
       select: { partnerId: true, isDeleted: true },
     }),
-    listRecentPartnerLinkRequests(opcoId),
   ]);
 
   const activeLinked = new Set(
@@ -159,7 +121,6 @@ export async function getPartnerLinksForOpco(
     partners: partnerItems,
     linkedCount,
     totalPartners: partnerItems.length,
-    recentLinkRequests,
   };
 }
 

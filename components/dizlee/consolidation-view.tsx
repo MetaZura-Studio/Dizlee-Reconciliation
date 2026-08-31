@@ -46,6 +46,8 @@ import {
   getPeriodYearOptions,
 } from "@/lib/platform/period";
 import { formatAppError } from "@/lib/errors/format";
+import { formatAppDateTime, formatAppMonthYear } from "@/lib/platform/format-datetime";
+import { formatUsd } from "@/lib/platform/format-money";
 
 const MONTHS = [
   "January",
@@ -61,32 +63,6 @@ const MONTHS = [
   "November",
   "December",
 ];
-
-function formatDateTime(value: string): string {
-  return new Date(value).toLocaleString("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
-
-function formatPeriod(month: number, year: number): string {
-  return new Date(year, month - 1, 1).toLocaleString("en-US", {
-    month: "short",
-    year: "numeric",
-  });
-}
-
-function formatUsd(value: number | null): string {
-  if (value === null) {
-    return "—";
-  }
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
-}
 
 type PartnerSortField = "partner" | "report";
 
@@ -580,6 +556,7 @@ export function ConsolidationView({
                             active={partnerSortBy === "report"}
                             direction={partnerSortDir}
                             onSort={() => applyPartnerSort("report")}
+                            align="center"
                           />
                         </tr>
                       </DataTableHead>
@@ -590,7 +567,7 @@ export function ConsolidationView({
                           return (
                             <DataTableRow key={partner.partnerId}>
                               <DataTableTd>{partner.partnerName}</DataTableTd>
-                              <DataTableTd>
+                              <DataTableTd align="center">
                                 <StatusPill tone={submitted ? "success" : "warning"}>
                                   {submitted ? "Submitted" : "Missing"}
                                 </StatusPill>
@@ -712,6 +689,7 @@ export function ConsolidationView({
                         active={historySortBy === "period"}
                         direction={historySortDir}
                         onSort={() => applyHistorySort("period")}
+                        align="center"
                       />
                       <SortableDataTableTh
                         label="OpCo"
@@ -719,7 +697,7 @@ export function ConsolidationView({
                         direction={historySortDir}
                         onSort={() => applyHistorySort("opco")}
                       />
-                      <DataTableTh>Status</DataTableTh>
+                      <DataTableTh align="center">Status</DataTableTh>
                       <SortableDataTableTh
                         label="Total USD"
                         active={historySortBy === "total"}
@@ -739,28 +717,29 @@ export function ConsolidationView({
                         active={historySortBy === "generated"}
                         direction={historySortDir}
                         onSort={() => applyHistorySort("generated")}
+                        align="center"
                       />
-                      <DataTableTh>Actions</DataTableTh>
+                      <DataTableTh align="center">Actions</DataTableTh>
                     </tr>
                   </DataTableHead>
                   <tbody>
                     {history.items.map((item) => (
                       <DataTableRow key={item.id}>
-                        <DataTableTd>{formatPeriod(item.period.month, item.period.year)}</DataTableTd>
+                        <DataTableTd align="center">{formatAppMonthYear(item.period.month, item.period.year)}</DataTableTd>
                         <DataTableTd>{item.opcoName}</DataTableTd>
-                        <DataTableTd className="text-foreground-muted">{item.status}</DataTableTd>
+                        <DataTableTd className="text-foreground-muted" align="center">{item.status}</DataTableTd>
                         <DataTableTd align="right" className="text-foreground-muted">
                           {formatUsd(item.totalAmountUsd)}
                         </DataTableTd>
                         <DataTableTd align="right" className="text-foreground-muted">
                           {item.itemCount}
                         </DataTableTd>
-                        <DataTableTd className="text-foreground-muted">
-                          <div>{formatDateTime(item.generatedAt)}</div>
+                        <DataTableTd className="text-foreground-muted" align="center">
+                          <div>{formatAppDateTime(item.generatedAt)}</div>
                           <div className="text-xs text-foreground-subtle">by {item.runBy}</div>
                         </DataTableTd>
-                        <DataTableTd>
-                          <div className="flex flex-wrap items-center gap-2">
+                        <DataTableTd align="center">
+                          <div className="flex flex-wrap items-center justify-center gap-2">
                             <IconButton
                               label="View consolidation"
                               onClick={() => openConsolidationResult(item.id)}

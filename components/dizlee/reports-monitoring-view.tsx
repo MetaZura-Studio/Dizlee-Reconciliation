@@ -48,6 +48,7 @@ import {
   monitoringLaneNeedsReminder,
   monitoringLaneToCompareLane,
 } from "@/lib/dizlee/reports-monitoring.shared";
+import { formatAppDateTime, formatAppMonthYear } from "@/lib/platform/format-datetime";
 import { formatAppError } from "@/lib/errors/format";
 
 const MONTHS = [
@@ -64,23 +65,6 @@ const MONTHS = [
   "November",
   "December",
 ];
-
-function formatDateTime(value: string | null): string {
-  if (!value) {
-    return "—";
-  }
-  return new Date(value).toLocaleString("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
-
-function formatPeriod(month: number, year: number): string {
-  return new Date(year, month - 1, 1).toLocaleString("en-US", {
-    month: "short",
-    year: "numeric",
-  });
-}
 
 function reportMonitoringStatusTone(
   status: "Submitted" | "Missing",
@@ -131,7 +115,7 @@ function ReportSubmissionCell({
         ) : null}
         <StatusPill tone={reportMonitoringStatusTone(status)}>{status}</StatusPill>
       </div>
-      <p className="text-xs text-foreground-subtle">{formatDateTime(uploadedAt)}</p>
+      <p className="text-xs text-foreground-subtle">{formatAppDateTime(uploadedAt)}</p>
     </div>
   );
 }
@@ -149,7 +133,7 @@ function lastReminderLabel(lane: ReportMonitoringLane): string {
   }
 
   const latest = times.sort((a, b) => (a < b ? 1 : -1))[0];
-  return `Last notice: ${formatDateTime(latest)}`;
+  return `Last notice: ${formatAppDateTime(latest)}`;
 }
 
 function buildQuery(filters: ReportMonitoringFilters): string {
@@ -455,6 +439,7 @@ export function ReportsMonitoringView({
                         active={sortBy === "period"}
                         direction={sortDir}
                         onSort={() => applySort("period")}
+                        align="center"
                       />
                       <SortableDataTableTh
                         label="OpCo"
@@ -468,20 +453,20 @@ export function ReportsMonitoringView({
                         direction={sortDir}
                         onSort={() => applySort("partner")}
                       />
-                      <DataTableTh>OpCo report</DataTableTh>
-                      <DataTableTh>Partner report</DataTableTh>
-                      <DataTableTh>Actions</DataTableTh>
+                      <DataTableTh align="center">OpCo report</DataTableTh>
+                      <DataTableTh align="center">Partner report</DataTableTh>
+                      <DataTableTh align="center">Actions</DataTableTh>
                     </tr>
                 </DataTableHead>
                 <tbody>
                   {items.map((row) => (
                     <DataTableRow key={row.laneKey}>
-                      <DataTableTd className="text-foreground-muted">
-                        {formatPeriod(row.period.month, row.period.year)}
+                      <DataTableTd className="text-foreground-muted" align="center">
+                        {formatAppMonthYear(row.period.month, row.period.year)}
                       </DataTableTd>
                       <DataTableTd>{row.opcoName}</DataTableTd>
                       <DataTableTd>{row.partnerName}</DataTableTd>
-                      <DataTableTd>
+                      <DataTableTd align="center">
                         <ReportSubmissionCell
                           status={row.opcoReport.status}
                           uploadedAt={row.opcoReport.uploadedAt}
@@ -489,7 +474,7 @@ export function ReportsMonitoringView({
                           onView={(reportId) => void openDetail(reportId)}
                         />
                       </DataTableTd>
-                      <DataTableTd>
+                      <DataTableTd align="center">
                         <ReportSubmissionCell
                           status={row.partnerReport.status}
                           uploadedAt={row.partnerReport.uploadedAt}
@@ -497,8 +482,8 @@ export function ReportsMonitoringView({
                           onView={(reportId) => void openDetail(reportId)}
                         />
                       </DataTableTd>
-                      <DataTableTd>
-                        <div className="flex flex-wrap items-center gap-2">
+                      <DataTableTd align="center">
+                        <div className="flex flex-wrap items-center justify-center gap-2">
                           {monitoringLaneNeedsReminder(row) ? (
                             <IconButton
                               label={

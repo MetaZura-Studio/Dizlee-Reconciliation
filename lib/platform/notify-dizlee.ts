@@ -1,6 +1,10 @@
 /**
  * In-app notification fan-out to portal users by USER_ROLE code.
  */
+import {
+  type NotificationMetadata,
+  serializeNotificationMetadata,
+} from "@/lib/platform/notification-metadata";
 import { prisma } from "@/lib/prisma";
 
 async function notifyUsersByRoleCodes(params: {
@@ -8,6 +12,7 @@ async function notifyUsersByRoleCodes(params: {
   subject: string;
   body: string;
   roleCodes: string[];
+  metadata?: NotificationMetadata;
 }): Promise<void> {
   const [sentStatus, userRecipientType, users] = await Promise.all([
     prisma.lookup.findFirst({
@@ -44,6 +49,9 @@ async function notifyUsersByRoleCodes(params: {
     data: {
       subject: params.subject,
       body: params.body,
+      metadataJson: params.metadata
+        ? serializeNotificationMetadata(params.metadata)
+        : null,
       statusId: sentStatus.id,
       sentAt: new Date(),
       createdByUserId: params.fromUserId,
@@ -65,10 +73,26 @@ export async function notifyDizleeUsers(params: {
   fromUserId: bigint;
   subject: string;
   body: string;
+  metadata?: NotificationMetadata;
 }): Promise<void> {
   await notifyUsersByRoleCodes({
     ...params,
     roleCodes: ["CLIENT"],
+  });
+}
+
+/**
+ * Creates an in-app notification for Admin portal users only.
+ */
+export async function notifyAdminUsers(params: {
+  fromUserId: bigint;
+  subject: string;
+  body: string;
+  metadata?: NotificationMetadata;
+}): Promise<void> {
+  await notifyUsersByRoleCodes({
+    ...params,
+    roleCodes: ["ADMIN"],
   });
 }
 
@@ -79,6 +103,7 @@ export async function notifyAdminAndDizleeUsers(params: {
   fromUserId: bigint;
   subject: string;
   body: string;
+  metadata?: NotificationMetadata;
 }): Promise<void> {
   await notifyUsersByRoleCodes({
     ...params,

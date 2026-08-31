@@ -3,6 +3,8 @@
  * Persistence of includeUsdCopy / usdFxRate on invoices comes later.
  */
 
+import { roundMoney } from "@/lib/platform/format-money";
+
 export type ConvertibleInvoiceLine = {
   description: string;
   quantity: number;
@@ -10,21 +12,18 @@ export type ConvertibleInvoiceLine = {
   lineTotal?: number;
 };
 
-function roundMoney(value: number): number {
-  return Math.round(value * 100) / 100;
-}
-
 export function convertInvoiceLinesToUsd<T extends ConvertibleInvoiceLine>(
   lines: T[],
   rateToUsd: number,
 ): Array<T & { unitPrice: number; lineTotal: number }> {
   return lines.map((line) => {
-    const unitPrice = roundMoney(line.unitPrice * rateToUsd);
+    const unitPrice = roundMoney(line.unitPrice * rateToUsd, "USD");
     const quantity = line.quantity;
     const lineTotal = roundMoney(
       typeof line.lineTotal === "number" && Number.isFinite(line.lineTotal)
         ? line.lineTotal * rateToUsd
         : quantity * unitPrice,
+      "USD",
     );
     return {
       ...line,
@@ -42,7 +41,9 @@ export function resolveRateToUsd(params: {
   if (params.currencyIso === "USD") {
     return 1;
   }
-  const match = params.fxRates.find((rate) => rate.currencyId === params.currencyId);
+  const match = params.fxRates.find(
+    (rate) => rate.currencyId === params.currencyId,
+  );
   if (!match || !Number.isFinite(match.rateToUsd) || match.rateToUsd <= 0) {
     return null;
   }

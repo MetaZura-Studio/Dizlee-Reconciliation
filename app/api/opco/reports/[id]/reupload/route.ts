@@ -28,6 +28,7 @@ import {
   resolveLookupLinesToPartnerBuckets,
 } from "@/lib/opco/queries/resolve-service-partner-maps";
 import { validateReportUploadFile } from "@/lib/opco/validation/report-upload";
+import { assertExcelBufferMagic } from "@/lib/platform/excel-upload";
 import prisma from "@/lib/prisma";
 
 type RouteContext = {
@@ -61,6 +62,10 @@ export async function POST(request: Request, context: RouteContext) {
 
     const uploadFile = file as File;
     const buffer = Buffer.from(await uploadFile.arrayBuffer());
+    const magicError = assertExcelBufferMagic(buffer, uploadFile.name);
+    if (magicError) {
+      return jsonError(appErrorFromUnknown(magicError, 400));
+    }
     const opcoId = BigInt(session.opcoId);
     const reportId = BigInt(id);
 

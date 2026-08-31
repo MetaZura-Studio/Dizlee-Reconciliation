@@ -18,27 +18,16 @@ import type {
   AdminInboxListResult,
 } from "@/lib/admin/notifications";
 import { formatAppError } from "@/lib/errors/format";
+import { parseNotificationMetadata } from "@/lib/platform/notification-metadata";
 import { parsePartnerLinkRequestBody } from "@/lib/platform/partner-link-request";
+import { formatAppDateTime } from "@/lib/platform/format-datetime";
 import { cn, ui } from "@/lib/ui/classes";
-
-function formatDateTime(value: string): string {
-  return new Date(value).toLocaleString("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
 
 function buildInboxQuery(filters: AdminInboxFilters): string {
   return new URLSearchParams({
     page: String(filters.page),
     unreadOnly: String(filters.unreadOnly),
   }).toString();
-}
-
-function displayBody(body: string): string {
-  return body
-    .replace(/^\s*\[opcoId=\d+\]\s*\n?/, "")
-    .trim();
 }
 
 type NotificationsInboxProps = {
@@ -58,9 +47,16 @@ export function AdminNotificationsInbox({
   const [markingAllRead, setMarkingAllRead] = useState(false);
 
   const unreadOnly = result.filters.unreadOnly;
-  const linkRequest = detail
+  const metadata = detail
+    ? parseNotificationMetadata(detail.metadataJson)
+    : null;
+  const linkRequestFromBody = detail
     ? parsePartnerLinkRequestBody(detail.body)
     : null;
+  const linkRequestOpcoId =
+    metadata?.type === "PARTNER_LINK_REQUEST"
+      ? metadata.opcoId
+      : linkRequestFromBody?.opcoId || null;
 
   const refreshList = useCallback(
     (filters: AdminInboxFilters) => {
@@ -224,7 +220,7 @@ export function AdminNotificationsInbox({
                     {item.bodyPreview}
                   </p>
                   <p className="mt-2 text-xs text-foreground-subtle">
-                    From {item.fromName} · {formatDateTime(item.receivedAt)}
+                    From {item.fromName} · {formatAppDateTime(item.receivedAt)}
                   </p>
                 </button>
               ))
@@ -289,18 +285,18 @@ export function AdminNotificationsInbox({
                   {detail.subject}
                 </h3>
                 <p className="mt-1 text-sm text-foreground-subtle">
-                  From {detail.fromName} · {formatDateTime(detail.receivedAt)}
+                  From {detail.fromName} · {formatAppDateTime(detail.receivedAt)}
                 </p>
               </div>
               <p className="whitespace-pre-wrap text-sm text-foreground-muted">
-                {displayBody(detail.body)}
+                {detail.body}
               </p>
-              {linkRequest ? (
+              {linkRequestOpcoId ? (
                 <Link
-                  href={`/admin/opco-partners?opcoId=${encodeURIComponent(linkRequest.opcoId)}`}
+                  href={`/admin/opco-partners?tab=requests&opcoId=${encodeURIComponent(linkRequestOpcoId)}`}
                   className="inline-flex text-sm font-medium text-primary underline"
                 >
-                  Open OpCo partners and add the links
+                  Open Requests and Accept or Reject
                 </Link>
               ) : null}
             </div>

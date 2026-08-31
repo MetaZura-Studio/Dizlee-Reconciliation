@@ -27,6 +27,8 @@ import type {
 import { ui } from "@/lib/ui/classes";
 import { paginateItems } from "@/lib/ui/list-pagination";
 import { nextSortState, type SortDirection } from "@/lib/ui/sort";
+import { formatAppDateTime } from "@/lib/platform/format-datetime";
+import { formatUsd } from "@/lib/platform/format-money";
 
 type ItemSortField =
   | "partner"
@@ -43,25 +45,6 @@ type DisplayRow =
       total: number;
       key: string;
     };
-
-function formatDateTime(value: string): string {
-  return new Date(value).toLocaleString("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
-
-function formatUsd(value: number | null): string {
-  if (value === null) {
-    return "—";
-  }
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
-}
 
 function statusTone(status: string): "success" | "info" | "warning" | "neutral" {
   const normalized = status.replaceAll(" ", "_").toUpperCase();
@@ -220,7 +203,7 @@ export function ConsolidationResultView({
             <StatusPill tone={statusTone(detail.status)}>{detail.status}</StatusPill>
           </p>
           <p className="mt-1 text-xs text-foreground-subtle">
-            Generated {formatDateTime(detail.generatedAt)} by {detail.runBy}
+            Generated {formatAppDateTime(detail.generatedAt)} by {detail.runBy}
           </p>
         </div>
         <Button

@@ -1,42 +1,16 @@
 import type { NextConfig } from "next";
 
+import { MAX_EXCEL_UPLOAD_BYTES } from "@/lib/platform/excel-upload";
+
+/** Headroom above app Excel cap for multipart encoding overhead. */
+const UPLOAD_BODY_LIMIT_BYTES = MAX_EXCEL_UPLOAD_BYTES + 5 * 1024 * 1024;
+
 /**
- * Baseline browser security headers for all routes.
- * CSP allows Next.js inline scripts/styles; tighten further with nonces later if needed.
+ * Browser security headers for all routes.
+ * Content-Security-Policy is set per-request in middleware.ts (nonce-based).
  */
-function buildContentSecurityPolicy(): string {
-  const isDev = process.env.NODE_ENV !== "production";
-
-  // Next.js hydration / Turbopack often need unsafe-inline; unsafe-eval only in development.
-  const scriptSrc = [
-    "'self'",
-    "'unsafe-inline'",
-    ...(isDev ? ["'unsafe-eval'"] : []),
-  ].join(" ");
-
-  return [
-    "default-src 'self'",
-    "base-uri 'self'",
-    "form-action 'self'",
-    "frame-ancestors 'none'",
-    "object-src 'none'",
-    "img-src 'self' data: blob:",
-    "font-src 'self' data:",
-    "style-src 'self' 'unsafe-inline'",
-    `script-src ${scriptSrc}`,
-    "connect-src 'self'",
-    "frame-src 'none'",
-    "worker-src 'self' blob:",
-    ...(isDev ? [] : ["upgrade-insecure-requests"]),
-  ].join("; ");
-}
-
 function securityHeaders(): { key: string; value: string }[] {
   const headers: { key: string; value: string }[] = [
-    {
-      key: "Content-Security-Policy",
-      value: buildContentSecurityPolicy(),
-    },
     {
       key: "X-Content-Type-Options",
       value: "nosniff",
@@ -71,6 +45,10 @@ function securityHeaders(): { key: string; value: string }[] {
 }
 
 const nextConfig: NextConfig = {
+  experimental: {
+    // Default Next proxy body buffer is 10MB; Excel uploads allow 20MB.
+    proxyClientMaxBodySize: UPLOAD_BODY_LIMIT_BYTES,
+  },
   async headers() {
     return [
       {

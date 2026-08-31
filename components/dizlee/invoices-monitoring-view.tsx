@@ -39,6 +39,7 @@ import type {
   InvoiceMonitoringResult,
   InvoiceMonitoringSortField,
 } from "@/lib/dizlee/invoices-monitoring";
+import { formatAppDateTime, formatAppMonthYear } from "@/lib/platform/format-datetime";
 import { formatAppError } from "@/lib/errors/format";
 
 const MONTHS = [
@@ -55,23 +56,6 @@ const MONTHS = [
   "November",
   "December",
 ];
-
-function formatDateTime(value: string | null): string {
-  if (!value) {
-    return "—";
-  }
-  return new Date(value).toLocaleString("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
-
-function formatPeriod(month: number, year: number): string {
-  return new Date(year, month - 1, 1).toLocaleString("en-US", {
-    month: "short",
-    year: "numeric",
-  });
-}
 
 function invoiceStatusTone(status: "Invoiced" | "Missing"): "success" | "warning" {
   return status === "Invoiced" ? "success" : "warning";
@@ -330,6 +314,7 @@ export function InvoicesMonitoringView({
                         active={sortBy === "period"}
                         direction={sortDir}
                         onSort={() => applySort("period")}
+                        align="center"
                       />
                       <SortableDataTableTh
                         label="OpCo"
@@ -343,32 +328,32 @@ export function InvoicesMonitoringView({
                         direction={sortDir}
                         onSort={() => applySort("partner")}
                       />
-                      <DataTableTh>Dizlee → OpCo</DataTableTh>
-                      <DataTableTh>Partner → Dizlee</DataTableTh>
+                      <DataTableTh align="center">Dizlee → OpCo</DataTableTh>
+                      <DataTableTh align="center">Partner → Dizlee</DataTableTh>
                     </tr>
                 </DataTableHead>
                 <tbody>
                   {result.items.map((row) => (
                     <DataTableRow key={row.laneKey}>
-                      <DataTableTd className="text-foreground-muted">
-                        {formatPeriod(row.period.month, row.period.year)}
+                      <DataTableTd className="text-foreground-muted" align="center">
+                        {formatAppMonthYear(row.period.month, row.period.year)}
                       </DataTableTd>
                       <DataTableTd>{row.opcoName}</DataTableTd>
                       <DataTableTd>{row.partnerName}</DataTableTd>
-                      <DataTableTd>
+                      <DataTableTd align="center">
                         <StatusPill tone={invoiceStatusTone(row.opcoInvoice.status)}>
                           {row.opcoInvoice.status}
                         </StatusPill>
                         <p className="mt-1 text-xs text-foreground-subtle">
-                          {formatDateTime(row.opcoInvoice.invoicedAt)}
+                          {formatAppDateTime(row.opcoInvoice.invoicedAt)}
                         </p>
                       </DataTableTd>
-                      <DataTableTd>
+                      <DataTableTd align="center">
                         <StatusPill tone={invoiceStatusTone(row.partnerInvoice.status)}>
                           {row.partnerInvoice.status}
                         </StatusPill>
                         <p className="mt-1 text-xs text-foreground-subtle">
-                          {formatDateTime(row.partnerInvoice.invoicedAt)}
+                          {formatAppDateTime(row.partnerInvoice.invoicedAt)}
                         </p>
                         {row.partnerInvoice.invoiceId ? (
                           <Link

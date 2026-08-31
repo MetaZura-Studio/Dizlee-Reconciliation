@@ -6,6 +6,7 @@
 
 import { getActiveEmailTemplate } from "@/lib/platform/email-templates";
 import { applyTemplate, periodLabel } from "@/lib/platform/template-placeholders";
+import { formatUsd } from "@/lib/platform/format-money";
 
 export const RECONCILIATION_ALERT_OPCO_CODE = "RECONCILIATION_ALERT_OPCO";
 export const RECONCILIATION_ALERT_PARTNER_CODE = "RECONCILIATION_ALERT_PARTNER";
@@ -32,18 +33,6 @@ export type ReconciliationAlertDetailInput = {
   totalVariance: number | null;
   tolerancePercent: number;
 };
-
-function formatUsd(value: number | null): string {
-  if (value === null) {
-    return "—";
-  }
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
-}
 
 export function buildReconciliationAlertPlaceholders(
   detail: ReconciliationAlertDetailInput,

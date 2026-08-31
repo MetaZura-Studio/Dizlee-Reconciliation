@@ -92,6 +92,22 @@ export const ui = {
     "rounded-3xl border border-dashed border-border-strong bg-surface px-6 py-12 text-center",
 } as const;
 
+/** Shared table column alignment (heading must match cell). */
+export type TableAlign = "left" | "center" | "right";
+
+export function tableAlignClass(
+  align: TableAlign,
+  options?: { tabular?: boolean },
+): string {
+  const base =
+    align === "right"
+      ? "text-right"
+      : align === "center"
+        ? "text-center"
+        : "text-left";
+  return options?.tabular ? `${base} tabular-nums` : base;
+}
+
 export function cn(...classes: Array<string | false | null | undefined>): string {
   return classes.filter(Boolean).join(" ");
 }

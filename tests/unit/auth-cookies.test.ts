@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildAuthCookies,
+  getSessionTokenCookieName,
   secureAuthCookiesEnabled,
 } from "@/lib/auth/cookies";
 
@@ -29,6 +30,18 @@ describe("buildAuthCookies", () => {
       "__Secure-next-auth.session-token",
     );
     expect(cookies.csrfToken?.name).toBe("__Host-next-auth.csrf-token");
+  });
+
+  it("uses a separate Admin cookie namespace", () => {
+    const cookies = buildAuthCookies(false, "admin");
+    expect(cookies.sessionToken?.name).toBe("next-auth.admin-session-token");
+    expect(cookies.csrfToken?.name).toBe("next-auth.admin-csrf-token");
+    expect(getSessionTokenCookieName("admin", false)).toBe(
+      "next-auth.admin-session-token",
+    );
+    expect(getSessionTokenCookieName("admin", true)).toBe(
+      "__Secure-next-auth.admin-session-token",
+    );
   });
 });
 

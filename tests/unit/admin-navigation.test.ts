@@ -12,11 +12,11 @@ describe("admin navigation", () => {
   it("defines main navigation with Organization and Settings groups", () => {
     expect(ADMIN_MAIN_NAV_ITEMS.map((item) => item.label)).toEqual([
       "Dashboard",
-      "Notifications",
       "Users",
       "Organization",
       "Audit logs",
       "Settings",
+      "Notifications",
     ]);
 
     const organization = ADMIN_MAIN_NAV_ITEMS.find(

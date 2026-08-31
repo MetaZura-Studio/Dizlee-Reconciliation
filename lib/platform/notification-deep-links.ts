@@ -1,8 +1,15 @@
 /**
- * Resolve in-app destinations for notification list items from subject/body.
- * Prefer structured prefixes until notifications gain an actionUrl column.
+ * Resolve in-app destinations for notification list items from metadata/subject/body.
+ * Prefer structured metadata until notifications gain a dedicated actionUrl column.
  */
 
+import {
+  OPCO_REPORTS_UPLOADED_SUBJECT,
+  OPCO_REPORT_RESUBMITTED_SUBJECT,
+  parseNotificationMetadata,
+  resolveNotificationAction,
+} from "@/lib/platform/notification-metadata";
+import { formatAppDate } from "@/lib/platform/format-datetime";
 import { PARTNER_LINK_REQUEST_SUBJECT_PREFIX } from "@/lib/platform/partner-link-request";
 
 export type NotificationPortal = "opco" | "partner" | "dizlee" | "admin";
@@ -12,6 +19,7 @@ export type NotificationDeepLinkItem = {
   subject: string;
   bodyPreview?: string | null;
   body?: string | null;
+  metadataJson?: string | null;
 };
 
 function opcoIdFromText(text: string | null | undefined): string | null {
@@ -32,19 +40,42 @@ export function resolveNotificationHref(
 ): string {
   const subject = item.subject.trim();
   const bodyText = `${item.body ?? ""}\n${item.bodyPreview ?? ""}`;
+  const metadata = parseNotificationMetadata(item.metadataJson);
+
+  if (portal === "dizlee") {
+    const action = resolveNotificationAction(metadata, subject);
+    if (action) {
+      return action.href;
+    }
+  }
 
   if (subject.startsWith(PARTNER_LINK_REQUEST_SUBJECT_PREFIX)) {
-    const opcoId = opcoIdFromText(bodyText);
-    if (portal === "admin" && opcoId) {
-      return `/admin/opco-partners?opcoId=${opcoId}`;
-    }
+    const opcoId =
+      metadata?.type === "PARTNER_LINK_REQUEST"
+        ? metadata.opcoId
+        : opcoIdFromText(bodyText);
     if (portal === "admin") {
-      return "/admin/opco-partners";
+      const params = new URLSearchParams({ tab: "requests" });
+      if (opcoId) {
+        params.set("opcoId", opcoId);
+      }
+      return `/admin/opco-partners?${params.toString()}`;
     }
   }
 
   if (
+    (subject === "Partner link created" ||
+      subject === "Partner link request denied" ||
+      metadata?.type === "PARTNER_LINK_APPROVED" ||
+      metadata?.type === "PARTNER_LINK_REJECTED") &&
+    portal === "opco"
+  ) {
+    return "/opco/upload";
+  }
+
+  if (
     subject === "OpCo report reupload requested" ||
+    subject === "OpCo monthly report reupload requested" ||
     subject === "Partner report reupload requested"
   ) {
     if (portal === "dizlee") {
@@ -80,6 +111,19 @@ export function resolveNotificationHref(
     return "/dizlee/reconciliation";
   }
 
+  if (
+    (subject === OPCO_REPORTS_UPLOADED_SUBJECT ||
+      subject === "OpCo report uploaded" ||
+      subject === "Partner report uploaded") &&
+    portal === "dizlee"
+  ) {
+    return "/dizlee/reports";
+  }
+
+  if (subject === OPCO_REPORT_RESUBMITTED_SUBJECT && portal === "dizlee") {
+    return "/dizlee/reconciliation";
+  }
+
   if (portal === "dizlee") {
     return `/dizlee/notifications?tab=inbox&id=${encodeURIComponent(item.id)}`;
   }
@@ -109,8 +153,5 @@ export function formatNotificationTime(iso: string): string {
   if (diffDay < 7) {
     return `${diffDay}d`;
   }
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
+  return formatAppDate(date);
 }

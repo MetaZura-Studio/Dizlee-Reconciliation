@@ -8,7 +8,7 @@ import { z } from "zod";
 
 import { getCurrentPeriod, isFuturePeriod } from "@/lib/platform/period";
 
-export const MAX_INVOICE_UPLOAD_BYTES = 10 * 1024 * 1024;
+export const MAX_INVOICE_UPLOAD_BYTES = 20 * 1024 * 1024;
 
 export const ALLOWED_INVOICE_MIME_TYPES = ["application/pdf"] as const;
 
@@ -73,7 +73,21 @@ export function validateInvoiceUploadFile(file: File | null): string | null {
   }
 
   if (file.size > MAX_INVOICE_UPLOAD_BYTES) {
-    return "File exceeds the 10 MB upload limit";
+    return `File exceeds the ${MAX_INVOICE_UPLOAD_BYTES / (1024 * 1024)} MB upload limit`;
+  }
+
+  return null;
+}
+
+/** PDF files start with the ASCII signature `%PDF-`. */
+export function assertPdfBufferMagic(buffer: Buffer): string | null {
+  if (buffer.length < 5) {
+    return "Uploaded file is empty";
+  }
+
+  const signature = buffer.subarray(0, 5).toString("ascii");
+  if (signature !== "%PDF-") {
+    return "File content is not a valid PDF";
   }
 
   return null;

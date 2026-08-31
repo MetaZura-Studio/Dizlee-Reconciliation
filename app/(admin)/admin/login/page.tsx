@@ -3,13 +3,13 @@ import { Suspense } from "react";
 
 import { DizleeLogo } from "@/components/brand/dizlee-logo";
 import { ADMIN_DEFAULT_ROUTE } from "@/lib/admin/navigation";
-import { getAppSessionUser } from "@/lib/auth/session";
+import { getAdminAppSessionUser } from "@/lib/auth/session";
 import { ui } from "@/lib/ui/classes";
 
 import { AdminLoginForm } from "./admin-login-form";
 
 export default async function AdminLoginPage() {
-  const user = await getAppSessionUser();
+  const user = await getAdminAppSessionUser();
 
   if (user?.role === "admin") {
     redirect(ADMIN_DEFAULT_ROUTE);

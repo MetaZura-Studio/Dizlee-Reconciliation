@@ -110,12 +110,14 @@ export function OpcoSubmissionsTable({ opcos }: OpcoSubmissionsTableProps) {
                 active={sortBy === "status"}
                 direction={sortDir}
                 onSort={() => applySort("status")}
+                align="center"
               />
               <SortableDataTableTh
                 label="Last upload"
                 active={sortBy === "uploaded"}
                 direction={sortDir}
                 onSort={() => applySort("uploaded")}
+                align="center"
               />
             </tr>
           </DataTableHead>
@@ -125,12 +127,12 @@ export function OpcoSubmissionsTable({ opcos }: OpcoSubmissionsTableProps) {
                 <DataTableTd className="font-medium text-foreground">
                   {opco.opcoName}
                 </DataTableTd>
-                <DataTableTd>
+                <DataTableTd align="center">
                   <StatusPill tone={submissionStatusTone(opco.status)}>
                     {STATUS_LABELS[opco.status]}
                   </StatusPill>
                 </DataTableTd>
-                <DataTableTd className="text-foreground-muted">
+                <DataTableTd className="text-foreground-muted" align="center">
                   {opco.uploadedAt
                     ? new Date(opco.uploadedAt).toLocaleString()
                     : "—"}

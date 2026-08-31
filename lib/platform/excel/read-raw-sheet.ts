@@ -3,8 +3,22 @@
  */
 import ExcelJS from "exceljs";
 
-const MAX_PREVIEW_ROWS = 250;
-const MAX_PREVIEW_COLS = 60;
+import {
+  formatAppDate,
+  formatAppDateTime,
+} from "@/lib/platform/format-datetime";
+
+const MAX_PREVIEW_ROWS = 1000;
+const MAX_PREVIEW_COLS = 80;
+
+function formatExcelDate(value: Date): string {
+  const hasTime =
+    value.getUTCHours() !== 0 ||
+    value.getUTCMinutes() !== 0 ||
+    value.getUTCSeconds() !== 0 ||
+    value.getUTCMilliseconds() !== 0;
+  return hasTime ? formatAppDateTime(value) : formatAppDate(value);
+}
 
 function cellToDisplay(value: ExcelJS.CellValue): string {
   if (value === null || value === undefined) {
@@ -14,7 +28,7 @@ function cellToDisplay(value: ExcelJS.CellValue): string {
     return String(value);
   }
   if (value instanceof Date) {
-    return value.toISOString().slice(0, 10);
+    return formatExcelDate(value);
   }
   if (typeof value === "object") {
     if ("text" in value && typeof value.text === "string") {

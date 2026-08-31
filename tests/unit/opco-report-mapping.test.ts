@@ -1,7 +1,10 @@
-﻿import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { describe, expect, it } from "vitest";
 import ExcelJS from "exceljs";
 
 import {
+  extractDistinctColumnValues,
   extractExcelHeaderCatalog,
   extractExcelHeaders,
   normalizeHeaderKey,
@@ -172,6 +175,7 @@ describe("updateOpcoReportMappingSchema", () => {
       partnerMode: "EXCEL_COLUMN",
       serviceColumn: "Service Name",
       revenueColumn: "Total Gross Revenue",
+      revenueShareColumn: "RS %",
       partnerColumn: null,
     });
     expect(result.success).toBe(false);
@@ -182,16 +186,18 @@ describe("updateOpcoReportMappingSchema", () => {
       partnerMode: "SERVICE_PARTNER_MAP",
       serviceColumn: "Service",
       revenueColumn: "Revenue",
+      revenueShareColumn: "Share %",
       aggregateDailyRows: true,
     });
     expect(result.success).toBe(true);
   });
 
-  it("requires service and revenue columns", () => {
+  it("requires service, revenue, and revenue share columns", () => {
     const result = updateOpcoReportMappingSchema.safeParse({
       partnerMode: "UPLOAD_PICKER",
       serviceColumn: "",
       revenueColumn: "Revenue",
+      revenueShareColumn: "Share %",
     });
     expect(result.success).toBe(false);
   });
@@ -375,5 +381,60 @@ describe("parseOpcoReportWithMapping", () => {
       "BollyVOD",
       "Zee5",
     ]);
+  });
+});
+
+describe("extractDistinctColumnValues", () => {
+  it("returns sorted distinct non-empty values for a column", async () => {
+    const buffer = await workbookFromRows(
+      ["Aggregator Name", "Service Name"],
+      [
+        ["Group API", "BollyVOD"],
+        ["Boku/Apple", "Apple iTunes"],
+        ["Group API", "Zee5"],
+        ["", "Empty aggregator row"],
+      ],
+    );
+
+    const values = await extractDistinctColumnValues(buffer, {
+      sheetName: "Sheet1",
+      headerRowNumber: 1,
+      columnHeader: "Aggregator Name",
+    });
+
+    expect(values).toEqual(["Boku/Apple", "Group API"]);
+  });
+
+  it("returns empty list when the column header is missing", async () => {
+    const buffer = await workbookFromRows(
+      ["Service Name"],
+      [["BollyVOD"]],
+    );
+
+    const values = await extractDistinctColumnValues(buffer, {
+      sheetName: "Sheet1",
+      headerRowNumber: 1,
+      columnHeader: "Aggregator Name",
+    });
+
+    expect(values).toEqual([]);
+  });
+
+  it("reads distinct Aggregator Name values from the Bahrain OpCo sample", async () => {
+    const buffer = readFileSync(
+      path.join(
+        process.cwd(),
+        "Reports/Opco Reports- Marked/Zain Bahrain-Apr26.xlsx",
+      ),
+    );
+
+    const values = await extractDistinctColumnValues(buffer, {
+      sheetName: "Summary",
+      headerRowNumber: 1,
+      columnHeader: "Aggregator Name",
+    });
+
+    expect(values).toContain("Group API");
+    expect(values.length).toBeGreaterThan(1);
   });
 });

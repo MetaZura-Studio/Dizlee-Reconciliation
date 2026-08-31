@@ -16,6 +16,11 @@ export const DIZLEE_NAV_ITEMS: DizleeNavItem[] = [
   { label: "Reconciliation", href: "/dizlee/reconciliation" },
   // Consolidation hidden for now — restore: { label: "Consolidation", href: "/dizlee/consolidation" },
   { label: "RS Reports", href: "/dizlee/revenue-share" },
+  {
+    label: "Communications",
+    href: "/dizlee/communications",
+    description: "Intimations and report reminders",
+  },
   { label: "Notifications", href: "/dizlee/notifications" },
   {
     label: "Activity",

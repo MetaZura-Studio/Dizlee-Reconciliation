@@ -25,7 +25,8 @@ export async function GET(request: NextRequest) {
     const data = await listInboxNotifications({
       userId: user.id,
       page: filters.page,
-      unreadOnly: filters.unreadOnly,
+      readFilter: filters.readFilter,
+      search: filters.search,
     });
     return NextResponse.json({ data });
   } catch (error) {

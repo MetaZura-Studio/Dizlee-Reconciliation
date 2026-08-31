@@ -285,18 +285,21 @@ export function OpcosView({ initialOpcos, currencies }: OpcosViewProps) {
                       active={sortBy === "vat"}
                       direction={sortDir}
                       onSort={() => applySort("vat")}
+                      align="right"
                     />
                     <SortableDataTableTh
                       label="Status"
                       active={sortBy === "status"}
                       direction={sortDir}
                       onSort={() => applySort("status")}
+                      align="center"
                     />
                     <SortableDataTableTh
                       label="Users"
                       active={sortBy === "users"}
                       direction={sortDir}
                       onSort={() => applySort("users")}
+                      align="right"
                     />
                     <DataTableTh align="right">Actions</DataTableTh>
                   </tr>
@@ -310,15 +313,15 @@ export function OpcosView({ initialOpcos, currencies }: OpcosViewProps) {
                       <DataTableTd className="text-foreground-muted">
                         {opco.defaultCurrencyIso}
                       </DataTableTd>
-                      <DataTableTd className="text-foreground-muted">
+                      <DataTableTd className="text-foreground-muted" align="right">
                         {Number.isFinite(opco.vatPercent) ? opco.vatPercent : 0}
                       </DataTableTd>
-                      <DataTableTd>
+                      <DataTableTd align="center">
                         <StatusPill tone={entityStatusTone(opco.status)}>
                           {formatEntityStatusLabel(opco.status)}
                         </StatusPill>
                       </DataTableTd>
-                      <DataTableTd className="text-foreground-muted">
+                      <DataTableTd className="text-foreground-muted" align="right">
                         {opco.userCount}
                       </DataTableTd>
                       <DataTableTd align="right">

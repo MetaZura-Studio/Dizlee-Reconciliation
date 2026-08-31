@@ -1,21 +1,20 @@
 import Link from "next/link";
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 
 import { ChangePasswordForm } from "@/components/auth/change-password-form";
 import { DizleeLogo } from "@/components/brand/dizlee-logo";
-import { authOptions } from "@/lib/auth/options";
 import { getPortalHomePath } from "@/lib/auth/roles";
+import { getAnyAppSessionUser } from "@/lib/auth/session";
 import { isAppRole } from "@/lib/auth/types";
 
 export default async function ChangePasswordPage() {
-  const session = await getServerSession(authOptions);
+  const user = await getAnyAppSessionUser();
 
-  if (!session?.user?.role || !isAppRole(session.user.role)) {
+  if (!user?.role || !isAppRole(user.role)) {
     redirect("/login");
   }
 
-  const backPath = getPortalHomePath(session.user.role);
+  const backPath = getPortalHomePath(user.role);
 
   return (
     <div className="flex min-h-screen items-center bg-canvas justify-center px-4">

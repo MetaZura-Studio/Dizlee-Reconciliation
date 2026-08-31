@@ -239,14 +239,16 @@ export function PartnersView({ initialPartners }: PartnersViewProps) {
                       active={sortBy === "status"}
                       direction={sortDir}
                       onSort={() => applySort("status")}
+                      align="center"
                     />
                     <SortableDataTableTh
                       label="Users"
                       active={sortBy === "users"}
                       direction={sortDir}
                       onSort={() => applySort("users")}
+                      align="right"
                     />
-                    <DataTableTh align="right">Actions</DataTableTh>
+                    <DataTableTh align="center">Actions</DataTableTh>
                   </tr>
                 </DataTableHead>
                 <tbody>
@@ -255,16 +257,16 @@ export function PartnersView({ initialPartners }: PartnersViewProps) {
                       <DataTableTd className="font-medium text-foreground">
                         {partner.name}
                       </DataTableTd>
-                      <DataTableTd>
+                      <DataTableTd align="center">
                         <StatusPill tone={entityStatusTone(partner.status)}>
                           {formatEntityStatusLabel(partner.status)}
                         </StatusPill>
                       </DataTableTd>
-                      <DataTableTd className="text-foreground-muted">
+                      <DataTableTd className="text-foreground-muted" align="right">
                         {partner.userCount}
                       </DataTableTd>
-                      <DataTableTd align="right">
-                        <div className="flex justify-end gap-2">
+                      <DataTableTd align="center">
+                        <div className="flex justify-center gap-2">
                           <IconButton
                             label="Edit Partner"
                             onClick={() => openEdit(partner)}

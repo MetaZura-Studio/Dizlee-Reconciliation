@@ -8,9 +8,24 @@
 import { Prisma } from "@prisma/client";
 
 import type { ParsedReportLine } from "@/lib/opco/excel/parse-report";
+import { formatPeriodLabel } from "@/lib/opco/period";
 import { getOpcoLookupId } from "@/lib/opco/lookups";
 import { mapReuploadEligibility } from "@/lib/opco/reupload/eligibility";
 import { saveReportFileLocally } from "@/lib/opco/storage/save-report-file";
+import { notifyDizleeUsers } from "@/lib/platform/notify-dizlee";
+import {
+  buildOpcoReportResubmittedBody,
+  OPCO_REPORT_RESUBMITTED_SUBJECT,
+  type OpcoReportResubmittedMetadata,
+} from "@/lib/platform/notification-metadata";
+import {
+  softDeleteOpcoPeriodConsolidation,
+  softDeletePartnerReconciliations,
+} from "@/lib/platform/reconciliation/invalidate-after-reupload";
+import {
+  linesFromStoredReportItems,
+  partnerLinesChanged,
+} from "@/lib/platform/reconciliation/partner-line-fingerprint";
 import {
   getOpcoReportFx,
   snapshotFxOntoParsedLines,
@@ -47,6 +62,21 @@ export async function reuploadCorrectedReport(
     },
     include: {
       status: { select: { code: true } },
+      opco: { select: { name: true } },
+      partner: { select: { name: true } },
+      lineItems: {
+        where: { isDeleted: false },
+        select: {
+          description: true,
+          lineNumber: true,
+          amount: true,
+          usageAmount: true,
+          usageUsd: true,
+          revenueSharePercent: true,
+          reconciliationBasis: true,
+          usageUnit: true,
+        },
+      },
       changeRequests: {
         select: {
           id: true,
@@ -134,6 +164,10 @@ export async function reuploadCorrectedReport(
     year: report.year,
   });
   const lineItems = snapshotFxOntoParsedLines(input.lineItems, fx.rateToUsd);
+  const linesChanged = partnerLinesChanged(
+    linesFromStoredReportItems(report.lineItems),
+    lineItems,
+  );
 
   await prisma.reportLineItem.createMany({
     data: lineItems.map((item) => ({
@@ -160,6 +194,54 @@ export async function reuploadCorrectedReport(
       updatedByUserId: input.userId,
     },
   });
+
+  if (linesChanged) {
+    await softDeletePartnerReconciliations({
+      opcoId: input.opcoId,
+      partnerId: report.partnerId,
+      year: report.year,
+      month: report.month,
+      deletedByUserId: input.userId,
+      deletedAt: completedAt,
+    });
+    await softDeleteOpcoPeriodConsolidation({
+      opcoId: input.opcoId,
+      year: report.year,
+      month: report.month,
+      deletedByUserId: input.userId,
+      deletedAt: completedAt,
+    });
+
+    const partners = [
+      {
+        id: report.partnerId.toString(),
+        name: report.partner.name,
+      },
+    ];
+    const metadata: OpcoReportResubmittedMetadata = {
+      type: "OPCO_REPORT_RESUBMITTED",
+      opcoId: input.opcoId.toString(),
+      opcoName: report.opco.name,
+      month: report.month,
+      year: report.year,
+      partners,
+    };
+
+    try {
+      await notifyDizleeUsers({
+        fromUserId: input.userId,
+        subject: OPCO_REPORT_RESUBMITTED_SUBJECT,
+        body: buildOpcoReportResubmittedBody({
+          opcoName: report.opco.name,
+          periodLabel: formatPeriodLabel(report.year, report.month),
+          partners,
+        }),
+        metadata,
+      });
+    } catch {
+      // Resubmit succeeded; notification failure must not roll back file replace.
+    }
+  }
 
   return {
     reportId: input.reportId.toString(),

@@ -10,7 +10,7 @@ import { jsonError, unauthorized } from "@/lib/errors/respond";
 import { requireDizleeSession } from "@/lib/dizlee/auth";
 import {
   getReportFilterOptions,
-  listPendingReuploadRequests,
+  listReuploadRequests,
   parseReuploadListFilters,
 } from "@/lib/dizlee/reupload-requests";
 
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const filters = parseReuploadListFilters(searchParams);
     const [data, filterOptions] = await Promise.all([
-      listPendingReuploadRequests(filters),
+      listReuploadRequests(filters),
       getReportFilterOptions(),
     ]);
 

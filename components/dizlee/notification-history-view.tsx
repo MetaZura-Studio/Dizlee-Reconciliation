@@ -6,8 +6,10 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
-import { NotificationsTabs } from "@/components/dizlee/notifications-tabs";
+import { CommunicationsOutboxTabs } from "@/components/dizlee/communications-outbox-tabs";
+import { CommunicationsTabs } from "@/components/dizlee/communications-tabs";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingOverlay } from "@/components/ui/loading";
@@ -18,20 +20,19 @@ import type {
   NotificationHistoryDetail,
   NotificationHistoryResult,
 } from "@/lib/dizlee/notifications/history";
+import {
+  parseOutboxFilters,
+  type OutboxKind,
+  type OutboxKindFilter,
+} from "@/lib/dizlee/notifications/outbox-filters";
+import { formatAppDateTime } from "@/lib/platform/format-datetime";
 import { formatAppError } from "@/lib/errors/format";
 
-function formatDateTime(value: string): string {
-  return new Date(value).toLocaleString("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
-
-function priorityTone(priority: string | null): "danger" | "info" | "neutral" {
-  if (priority === "HIGH") {
+function kindTone(kind: OutboxKind): "danger" | "info" | "neutral" {
+  if (kind === "reminder") {
     return "danger";
   }
-  if (priority === "LOW") {
+  if (kind === "intimation") {
     return "info";
   }
   return "neutral";
@@ -41,13 +42,18 @@ type NotificationHistoryViewProps = {
   initialResult: NotificationHistoryResult;
   initialDetail: NotificationHistoryDetail | null;
   initialSelectedId: string | null;
+  initialKind: OutboxKindFilter;
 };
 
 export function NotificationHistoryView({
   initialResult,
   initialDetail,
   initialSelectedId,
+  initialKind,
 }: NotificationHistoryViewProps) {
+  const searchParams = useSearchParams();
+  const { kind } = parseOutboxFilters(searchParams);
+
   const [result, setResult] = useState(initialResult);
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);
   const [detail, setDetail] = useState<NotificationHistoryDetail | null>(
@@ -57,24 +63,33 @@ export function NotificationHistoryView({
   const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadList = useCallback(async (page = 1) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetch(`/api/dizlee/notifications/history?page=${page}`);
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(formatAppError(payload, "Failed to load history"));
+  const loadList = useCallback(
+    async (page = 1) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const query = new URLSearchParams({ page: String(page) });
+        if (kind !== "all") {
+          query.set("filter", kind);
+        }
+        const response = await fetch(
+          `/api/dizlee/notifications/history?${query.toString()}`,
+        );
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(formatAppError(payload, "Failed to load outbox"));
+        }
+        setResult(payload.data as NotificationHistoryResult);
+      } catch (loadError) {
+        setError(
+          loadError instanceof Error ? loadError.message : "Failed to load outbox",
+        );
+      } finally {
+        setLoading(false);
       }
-      setResult(payload.data as NotificationHistoryResult);
-    } catch (loadError) {
-      setError(
-        loadError instanceof Error ? loadError.message : "Failed to load history",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    },
+    [kind],
+  );
 
   const loadDetail = useCallback(async (id: string) => {
     setSelectedId(id);
@@ -97,21 +112,27 @@ export function NotificationHistoryView({
     }
   }, []);
 
+  const activeKind = result.kind ?? initialKind;
+
   return (
     <PageCard>
       <PageHeader
-        title="Notifications"
-        description="View all notifications sent from Dizlee (UC-9A)."
+        title="Communications"
+        description="View notifications sent from Dizlee to OpCos and Partners."
       />
 
-      <NotificationsTabs active="history" />
+      <CommunicationsTabs active="outbox" />
+
+      <div className="mt-4">
+        <CommunicationsOutboxTabs active={activeKind} />
+      </div>
 
       {error ? <div className={`mt-4 ${ui.alertError}`}>{error}</div> : null}
 
       <div className="mt-4 grid gap-6 lg:grid-cols-2">
         <LoadingOverlay active={loading} className={cn(ui.tableWrap, "min-h-[16rem]")}>
           <div className="border-b border-border px-4 py-3">
-            <h2 className="font-medium text-foreground">Sent notifications</h2>
+            <h2 className="font-medium text-foreground">Outbox</h2>
             <p className="text-sm text-foreground-subtle">{result.totalCount} total</p>
           </div>
 
@@ -119,7 +140,15 @@ export function NotificationHistoryView({
             {result.items.length === 0 ? (
               <EmptyState
                 className="border-0 bg-transparent shadow-none"
-                title="No notifications sent yet"
+                title={
+                  activeKind === "intimation"
+                    ? "No intimations in outbox"
+                    : activeKind === "reminder"
+                      ? "No reminders in outbox"
+                      : activeKind === "other"
+                        ? "No other notifications"
+                        : "No notifications sent yet"
+                }
               />
             ) : (
               result.items.map((item) => (
@@ -134,18 +163,16 @@ export function NotificationHistoryView({
                 >
                   <div className="flex items-start justify-between gap-2">
                     <p className="font-medium text-foreground">{item.subject}</p>
-                    {item.priority ? (
-                      <StatusPill tone={priorityTone(item.priority)} className="shrink-0">
-                        {item.priority}
-                      </StatusPill>
-                    ) : null}
+                    <StatusPill tone={kindTone(item.kind)} className="shrink-0">
+                      {item.kindLabel}
+                    </StatusPill>
                   </div>
                   <p className="mt-1 text-sm text-foreground-muted">{item.bodyPreview}</p>
                   <p className="mt-2 text-xs text-foreground-subtle">
                     To: {item.recipientSummary}
                   </p>
                   <p className="mt-1 text-xs text-foreground-subtle">
-                    {formatDateTime(item.sentAt)} · {item.sentBy}
+                    {formatAppDateTime(item.sentAt)} · {item.sentBy}
                   </p>
                 </button>
               ))
@@ -182,9 +209,14 @@ export function NotificationHistoryView({
           {detail ? (
             <div className="mt-4 space-y-4">
               <div>
-                <h3 className="text-lg font-medium text-foreground">{detail.subject}</h3>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-lg font-medium text-foreground">{detail.subject}</h3>
+                  <StatusPill tone={kindTone(detail.kind)}>
+                    {detail.kindLabel}
+                  </StatusPill>
+                </div>
                 <p className="mt-1 text-sm text-foreground-subtle">
-                  Sent {formatDateTime(detail.sentAt)} by {detail.sentBy}
+                  Sent {formatAppDateTime(detail.sentAt)} by {detail.sentBy}
                 </p>
               </div>
               <p className="whitespace-pre-wrap text-sm text-foreground-muted">{detail.body}</p>

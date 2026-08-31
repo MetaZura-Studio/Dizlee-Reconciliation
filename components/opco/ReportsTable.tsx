@@ -1,6 +1,6 @@
 /**
  * OpCo-facing report list including own submissions and linked partner reports.
- * Supports preview, re-upload flows, and change requests where allowed.
+ * Monthly raw-file reupload sits between filters and the partner history table.
  */
 
 "use client";
@@ -9,8 +9,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { ReportDetailModal } from "@/components/opco/ReportDetailModal";
-import { ReportReuploadDialog } from "@/components/opco/ReportReuploadDialog";
-import { RequestChangeDialog } from "@/components/opco/RequestChangeDialog";
+import { ReuploadReportsView } from "@/components/opco/reupload-reports-view";
 import { ReportFilenameLink } from "@/components/shared/report-filename-link";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,13 +23,13 @@ import {
 } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { IconButton } from "@/components/ui/icon-button";
-import { IconEye, IconRefresh, IconUpload } from "@/components/ui/icons";
+import { IconEye } from "@/components/ui/icons";
 import { ListSearch, OrFiltersDivider } from "@/components/ui/list-search";
 import { LoadingOverlay } from "@/components/ui/loading";
 import { FilterToolbar, DataLayout } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
-import { useToast } from "@/components/ui/toast";
-import { formatPeriodLabel, getDefaultPeriod } from "@/lib/opco/period";
+import { getDefaultPeriod } from "@/lib/opco/period";
+import type { OpcoSubmissionListItem } from "@/lib/opco/queries/submissions";
 import { reportRawFilePreviewUrl } from "@/lib/platform/reports/preview-url";
 import {
   getMaxMonthForYear,
@@ -44,14 +43,12 @@ import type {
   OpcoReportDetail,
   OpcoReportFilterOptions,
   OpcoReportListFilters,
-  OpcoReportListItem,
   OpcoReportListResult,
   OpcoReportSortField,
   OpcoSortDirection,
 } from "@/lib/opco/queries/reports";
+import { formatAppDate, formatAppMonthYear } from "@/lib/platform/format-datetime";
 import { formatAppError } from "@/lib/errors/format";
-
-const REQUESTABLE_STATUSES = new Set(["SUBMITTED", "APPROVED", "RESUBMITTED"]);
 
 const MONTHS = [
   "January",
@@ -67,12 +64,6 @@ const MONTHS = [
   "November",
   "December",
 ];
-
-function canRequestChange(report: OpcoReportListItem): boolean {
-  return (
-    REQUESTABLE_STATUSES.has(report.statusCode) && !report.hasPendingChangeRequest
-  );
-}
 
 function buildReportsQuery(filters: OpcoReportListFilters): string {
   const params = new URLSearchParams({
@@ -103,12 +94,14 @@ function buildReportsQuery(filters: OpcoReportListFilters): string {
 type ReportsTableProps = {
   initialResult: OpcoReportListResult;
   filterOptions: OpcoReportFilterOptions;
+  reuploadItems: OpcoSubmissionListItem[];
   preferredSheetName?: string | null;
 };
 
 export function ReportsTable({
   initialResult,
   filterOptions: initialFilterOptions,
+  reuploadItems,
   preferredSheetName = null,
 }: ReportsTableProps) {
   const defaults = getDefaultPeriod();
@@ -132,13 +125,6 @@ export function ReportsTable({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const skipSearchEffect = useRef(true);
-
-  const [changeRequestReport, setChangeRequestReport] =
-    useState<OpcoReportListItem | null>(null);
-  const [reuploadReport, setReuploadReport] = useState<OpcoReportListItem | null>(
-    null,
-  );
-  const toast = useToast();
 
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -294,18 +280,22 @@ export function ReportsTable({
     setDetail(null);
   }
 
-  function handleRequestSuccess() {
-    toast.success("Reupload request submitted. Dizlee has been notified.");
-    void loadReports({ ...result.filters });
-  }
-
-  function handleReuploadSuccess() {
-    toast.success("Corrected report uploaded successfully.");
-    void loadReports({ ...result.filters });
-  }
-
   const yearOptions = getPeriodYearOptions();
   const maxMonth = year === "" ? 12 : getMaxMonthForYear(Number(year));
+
+  const reuploadFilterYear =
+    result.filters.year ?? (year ? Number(year) : undefined);
+  const reuploadFilterMonth =
+    result.filters.month ?? (month ? Number(month) : undefined);
+  const showReuploadSection =
+    reuploadFilterYear !== undefined && reuploadFilterMonth !== undefined;
+  const filteredReuploadItems = showReuploadSection
+    ? reuploadItems.filter(
+        (item) =>
+          item.year === reuploadFilterYear &&
+          item.month === reuploadFilterMonth,
+      )
+    : [];
 
   const showingFrom =
     result.totalCount === 0 ? 0 : (result.page - 1) * result.pageSize + 1;
@@ -407,163 +397,141 @@ export function ReportsTable({
 
       {error ? <div className={ui.alertError}>{error}</div> : null}
 
-      {!error ? (
-        <LoadingOverlay active={loading} className="mt-6 min-h-[12rem]">
-        {result.items.length > 0 ? (
-          <div className="mt-6 space-y-4">
-            <DataTableFrame>
-              <DataTable>
-                <DataTableHead>
-                  <tr>
-                    <SortableDataTableTh
-                      label="Partner"
-                      active={sortBy === "partner"}
-                      direction={sortDir}
-                      onSort={() => applySort("partner")}
-                    />
-                    <SortableDataTableTh
-                      label="Period"
-                      active={sortBy === "period"}
-                      direction={sortDir}
-                      onSort={() => applySort("period")}
-                    />
-                    <DataTableTh>Status</DataTableTh>
-                    <DataTableTh>File</DataTableTh>
-                    <DataTableTh>Lines</DataTableTh>
-                    <SortableDataTableTh
-                      label="Uploaded"
-                      active={sortBy === "uploaded"}
-                      direction={sortDir}
-                      onSort={() => applySort("uploaded")}
-                    />
-                    <DataTableTh>Actions</DataTableTh>
-                  </tr>
-                </DataTableHead>
-                <tbody>
-                  {result.items.map((row) => (
-                    <DataTableRow key={row.id}>
-                      <DataTableTd>{row.partnerName}</DataTableTd>
-                      <DataTableTd className="text-foreground-muted">
-                        {formatPeriodLabel(row.year, row.month)}
-                      </DataTableTd>
-                      <DataTableTd>
-                        <div>
-                          <StatusPill tone={reportStatusTone(row.statusCode)}>
-                            {row.statusLabel}
-                          </StatusPill>
-                          {row.hasPendingChangeRequest ? (
-                            <p className="mt-1 text-xs text-warning">
-                              Reupload pending review
-                            </p>
-                          ) : null}
-                        </div>
-                      </DataTableTd>
-                      <DataTableTd className="text-foreground-muted">
-                        <ReportFilenameLink
-                          filename={row.filename}
-                          href={
-                            row.filename
-                              ? reportRawFilePreviewUrl("opco", row.id)
-                              : undefined
-                          }
-                        />
-                      </DataTableTd>
-                      <DataTableTd className="text-foreground-muted">
-                        {row.lineItemCount}
-                      </DataTableTd>
-                      <DataTableTd className="text-foreground-muted">
-                        {new Date(row.uploadedAt).toLocaleDateString("en-US", {
-                          dateStyle: "medium",
-                        })}
-                      </DataTableTd>
-                      <DataTableTd>
-                        <div className="flex gap-2">
-                          <IconButton
-                            label="View parsed report"
-                            onClick={() => void openDetail(row.id)}
-                          >
-                            <IconEye />
-                          </IconButton>
-                          {canRequestChange(row) ? (
-                            <IconButton
-                              label="Request reupload"
-                              onClick={() => setChangeRequestReport(row)}
-                            >
-                              <IconRefresh />
-                            </IconButton>
-                          ) : null}
-                          {row.canReupload ? (
-                            <IconButton
-                              label="Reupload corrected file"
-                              variant="primary"
-                              onClick={() => setReuploadReport(row)}
-                            >
-                              <IconUpload />
-                            </IconButton>
-                          ) : null}
-                        </div>
-                      </DataTableTd>
-                    </DataTableRow>
-                  ))}
-                </tbody>
-              </DataTable>
-            </DataTableFrame>
-
-            <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-foreground-muted">
-              <p>
-                Showing {showingFrom}–{showingTo} of {result.totalCount}
-              </p>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="secondary"
-                  disabled={result.page <= 1}
-                  onClick={() => goToPage(result.page - 1)}
-                >
-                  Previous
-                </Button>
-                <span>
-                  Page {result.page} of {result.totalPages}
-                </span>
-                <Button
-                  variant="secondary"
-                  disabled={result.page >= result.totalPages}
-                  onClick={() => goToPage(result.page + 1)}
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <EmptyState
-            title="No reports match your filters"
-            description="Try adjusting search or filters, or upload a new report."
-            action={
-              <Link href="/opco/upload" className={ui.btnSecondary}>
-                Upload a report
-              </Link>
-            }
+      <div className="mt-6 space-y-6">
+        {filteredReuploadItems.length > 0 ? (
+          <ReuploadReportsView
+            items={filteredReuploadItems}
+            preferredSheetName={preferredSheetName}
           />
-        )}
-        </LoadingOverlay>
-      ) : null}
+        ) : null}
 
-      {changeRequestReport ? (
-        <RequestChangeDialog
-          report={changeRequestReport}
-          onClose={() => setChangeRequestReport(null)}
-          onSuccess={handleRequestSuccess}
-        />
-      ) : null}
+        {!error ? (
+          <LoadingOverlay active={loading} className="min-h-[12rem]">
+            {result.items.length > 0 ? (
+              <div className="space-y-4">
+                <DataTableFrame>
+                  <DataTable>
+                    <DataTableHead>
+                      <tr>
+                        <SortableDataTableTh
+                          label="Partner"
+                          active={sortBy === "partner"}
+                          direction={sortDir}
+                          onSort={() => applySort("partner")}
+                        />
+                        <SortableDataTableTh
+                          label="Period"
+                          active={sortBy === "period"}
+                          direction={sortDir}
+                          onSort={() => applySort("period")}
+                          align="center"
+                        />
+                        <DataTableTh align="center">Status</DataTableTh>
+                        <DataTableTh>File</DataTableTh>
+                        <DataTableTh align="right">Lines</DataTableTh>
+                        <SortableDataTableTh
+                          label="Uploaded"
+                          active={sortBy === "uploaded"}
+                          direction={sortDir}
+                          onSort={() => applySort("uploaded")}
+                          align="center"
+                        />
+                        <DataTableTh align="center">Actions</DataTableTh>
+                      </tr>
+                    </DataTableHead>
+                    <tbody>
+                      {result.items.map((row) => (
+                        <DataTableRow key={row.id}>
+                          <DataTableTd>{row.partnerName}</DataTableTd>
+                          <DataTableTd className="text-foreground-muted" align="center">
+                            {formatAppMonthYear(row.month, row.year)}
+                          </DataTableTd>
+                          <DataTableTd align="center">
+                            <div>
+                              <StatusPill tone={reportStatusTone(row.statusCode)}>
+                                {row.statusLabel}
+                              </StatusPill>
+                              {row.hasPendingChangeRequest ? (
+                                <p className="mt-1 text-xs text-warning">
+                                  Reupload pending review
+                                </p>
+                              ) : null}
+                              {row.canReupload ? (
+                                <p className="mt-1 text-xs text-primary">
+                                  Ready to re-upload
+                                </p>
+                              ) : null}
+                            </div>
+                          </DataTableTd>
+                          <DataTableTd className="text-foreground-muted">
+                            <ReportFilenameLink
+                              filename={row.filename}
+                              href={
+                                row.filename
+                                  ? reportRawFilePreviewUrl("opco", row.id)
+                                  : undefined
+                              }
+                            />
+                          </DataTableTd>
+                          <DataTableTd className="text-foreground-muted" align="right">
+                            {row.lineItemCount}
+                          </DataTableTd>
+                          <DataTableTd className="text-foreground-muted" align="center">
+                            {formatAppDate(row.uploadedAt)}
+                          </DataTableTd>
+                          <DataTableTd align="center">
+                            <IconButton
+                              label="View parsed report"
+                              onClick={() => void openDetail(row.id)}
+                            >
+                              <IconEye />
+                            </IconButton>
+                          </DataTableTd>
+                        </DataTableRow>
+                      ))}
+                    </tbody>
+                  </DataTable>
+                </DataTableFrame>
 
-      {reuploadReport ? (
-        <ReportReuploadDialog
-          report={reuploadReport}
-          preferredSheetName={preferredSheetName}
-          onClose={() => setReuploadReport(null)}
-          onSuccess={handleReuploadSuccess}
-        />
-      ) : null}
+                <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-foreground-muted">
+                  <p>
+                    Showing {showingFrom}–{showingTo} of {result.totalCount}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="secondary"
+                      disabled={result.page <= 1}
+                      onClick={() => goToPage(result.page - 1)}
+                    >
+                      Previous
+                    </Button>
+                    <span>
+                      Page {result.page} of {result.totalPages}
+                    </span>
+                    <Button
+                      variant="secondary"
+                      disabled={result.page >= result.totalPages}
+                      onClick={() => goToPage(result.page + 1)}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <EmptyState
+                title="No reports match your filters"
+                description="Try adjusting search or filters, or upload a new report."
+                action={
+                  <Link href="/opco/upload" className={ui.btnSecondary}>
+                    Upload a report
+                  </Link>
+                }
+              />
+            )}
+          </LoadingOverlay>
+        ) : null}
+      </div>
 
       {detailOpen ? (
         <ReportDetailModal

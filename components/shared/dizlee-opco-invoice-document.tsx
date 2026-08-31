@@ -1,5 +1,7 @@
 import { DizleeLogo } from "@/components/brand/dizlee-logo";
 import type { InvoiceBankDetails } from "@/lib/dizlee/invoice-bank-details";
+import { formatMoney } from "@/lib/platform/format-money";
+import { formatAppDate } from "@/lib/platform/format-datetime";
 import { cn } from "@/lib/ui/classes";
 
 export type DizleeOpcoInvoiceLine = {
@@ -22,26 +24,6 @@ export type DizleeOpcoInvoiceDocumentProps = {
   subtitle?: string | null;
   className?: string;
 };
-
-function formatMoney(amount: number, currencyCode: string): string {
-  try {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: currencyCode,
-      maximumFractionDigits: 2,
-    }).format(amount);
-  } catch {
-    return `${amount.toFixed(2)} ${currencyCode}`;
-  }
-}
-
-function formatDate(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-  return date.toLocaleDateString("en-US", { dateStyle: "long" });
-}
 
 function lineTotalOf(item: DizleeOpcoInvoiceLine): number {
   if (typeof item.lineTotal === "number" && Number.isFinite(item.lineTotal)) {
@@ -133,7 +115,7 @@ export function DizleeOpcoInvoiceDocument({
           <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">
             Date
           </p>
-          <p className="text-zinc-800">{formatDate(issuedAt)}</p>
+          <p className="text-zinc-800">{formatAppDate(issuedAt)}</p>
         </div>
       </header>
 
@@ -158,7 +140,7 @@ export function DizleeOpcoInvoiceDocument({
         <table className="w-full min-w-[36rem] border-collapse border border-zinc-900 text-sm">
           <thead>
             <tr className="bg-zinc-100 text-left">
-              <th className="border border-zinc-900 px-3 py-2.5 font-semibold">
+              <th className="border border-zinc-900 px-3 py-2.5 text-center font-semibold">
                 Item No.
               </th>
               <th className="border border-zinc-900 px-3 py-2.5 font-semibold">
@@ -178,7 +160,7 @@ export function DizleeOpcoInvoiceDocument({
           <tbody>
             {lineItems.map((item, index) => (
               <tr key={`${item.description}-${index}`}>
-                <td className="border border-zinc-900 px-3 py-2.5 text-zinc-700">
+                <td className="border border-zinc-900 px-3 py-2.5 text-center text-zinc-700">
                   {index + 1}
                 </td>
                 <td className="border border-zinc-900 px-3 py-2.5 text-zinc-900">

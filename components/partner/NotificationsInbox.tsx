@@ -19,14 +19,8 @@ import type {
   PartnerInboxListResult,
 } from "@/lib/partner/queries/notifications";
 import { notificationAttachmentDownloadUrl } from "@/lib/platform/notification-attachment-url";
+import { formatAppDateTime } from "@/lib/platform/format-datetime";
 import { formatAppError } from "@/lib/errors/format";
-
-function formatDateTime(value: string): string {
-  return new Date(value).toLocaleString("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
 
 function buildInboxQuery(filters: PartnerInboxFilters): string {
   const params = new URLSearchParams({
@@ -226,7 +220,7 @@ export function NotificationsInbox({ initialResult }: NotificationsInboxProps) {
                   </div>
                   <p className="mt-1 text-sm text-foreground-muted">{item.bodyPreview}</p>
                   <p className="mt-2 text-xs text-foreground-subtle">
-                    From {item.fromName} · {formatDateTime(item.receivedAt)}
+                    From {item.fromName} · {formatAppDateTime(item.receivedAt)}
                   </p>
                 </button>
               ))
@@ -290,11 +284,11 @@ export function NotificationsInbox({ initialResult }: NotificationsInboxProps) {
               <div>
                 <h3 className="text-lg font-medium text-foreground">{detail.subject}</h3>
                 <p className="mt-1 text-sm text-foreground-subtle">
-                  From {detail.fromName} · {formatDateTime(detail.receivedAt)}
+                  From {detail.fromName} · {formatAppDateTime(detail.receivedAt)}
                 </p>
                 {detail.readAt ? (
                   <p className="text-xs text-foreground-subtle">
-                    Read {formatDateTime(detail.readAt)}
+                    Read {formatAppDateTime(detail.readAt)}
                   </p>
                 ) : null}
               </div>

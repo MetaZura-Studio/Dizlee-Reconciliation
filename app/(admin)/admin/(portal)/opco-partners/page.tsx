@@ -1,4 +1,10 @@
+import { Suspense } from "react";
+
 import { OpcoPartnersView } from "@/components/admin/opco-partners-view";
+import {
+  countPendingPartnerLinkRequests,
+  listAdminPartnerLinkRequests,
+} from "@/lib/admin/opco-partner-link-requests";
 import {
   getOpcoPartnerLinksPageData,
   OpcoPartnerLinksError,
@@ -6,18 +12,32 @@ import {
 } from "@/lib/admin/opco-partner-links";
 
 type AdminOpcoPartnersPageProps = {
-  searchParams: Promise<{ opcoId?: string }>;
+  searchParams: Promise<{ opcoId?: string; tab?: string }>;
 };
 
 export default async function AdminOpcoPartnersPage({
   searchParams,
 }: AdminOpcoPartnersPageProps) {
   const params = await searchParams;
+  const initialTab = params.tab === "requests" ? "requests" : "links";
   let pageData: OpcoPartnerLinksPageData | null = null;
+  let pendingRequestCount = 0;
+  let initialRequests: Awaited<
+    ReturnType<typeof listAdminPartnerLinkRequests>
+  > = [];
   let errorMessage: string | null = null;
 
   try {
-    pageData = await getOpcoPartnerLinksPageData(params.opcoId);
+    const [data, pendingCount, requests] = await Promise.all([
+      getOpcoPartnerLinksPageData(params.opcoId),
+      countPendingPartnerLinkRequests(),
+      initialTab === "requests"
+        ? listAdminPartnerLinkRequests({ status: "PENDING" })
+        : Promise.resolve([]),
+    ]);
+    pageData = data;
+    pendingRequestCount = pendingCount;
+    initialRequests = requests;
   } catch (error) {
     errorMessage =
       error instanceof OpcoPartnerLinksError
@@ -41,11 +61,19 @@ export default async function AdminOpcoPartnersPage({
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">OpCo partners</h1>
         <p className="text-sm text-foreground-muted">
-          Configure which Partners each OpCo can work with.
+          Configure which Partners each OpCo can work with, and review link
+          requests.
         </p>
       </div>
 
-      <OpcoPartnersView initialData={pageData!} />
+      <Suspense fallback={null}>
+        <OpcoPartnersView
+          initialData={pageData!}
+          initialTab={initialTab}
+          initialPendingRequestCount={pendingRequestCount}
+          initialRequests={initialRequests}
+        />
+      </Suspense>
     </div>
   );
 }

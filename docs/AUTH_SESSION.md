@@ -102,7 +102,14 @@ Configure SMTP credentials in `.env` (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SM
 
 ## Cookies & CSRF (S15)
 
-Login uses **HTTP-only JWT cookies** (not `localStorage`). Cookie flags are set explicitly in [`lib/auth/cookies.ts`](../lib/auth/cookies.ts) and applied via [`lib/auth/options.ts`](../lib/auth/options.ts):
+Login uses **HTTP-only JWT cookies** (not `localStorage`). Cookie flags are set explicitly in [`lib/auth/cookies.ts`](../lib/auth/cookies.ts) and applied via [`lib/auth/options.ts`](../lib/auth/options.ts).
+
+**Two concurrent sessions:** Admin and main portals use **separate cookie names** so both can stay signed in in different tabs on the same origin.
+
+| Portal | Auth mount | Session cookie (HTTP) |
+|--------|------------|------------------------|
+| OpCo / Partner / Dizlee | `/api/auth` | `next-auth.session-token` |
+| Admin | `/api/admin-auth` | `next-auth.admin-session-token` |
 
 | Flag | Value | Why |
 |------|--------|-----|

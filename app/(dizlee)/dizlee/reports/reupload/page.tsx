@@ -1,7 +1,7 @@
 import { ReuploadRequestsView } from "@/components/dizlee/reupload-requests-view";
 import {
   getReportFilterOptions,
-  listPendingReuploadRequests,
+  listReuploadRequests,
   parseReuploadListFilters,
 } from "@/lib/dizlee/reupload-requests";
 
@@ -29,7 +29,7 @@ export default async function DizleeReuploadRequestsPage({
 
   const filters = parseReuploadListFilters(query);
   const [initialResult, filterOptions] = await Promise.all([
-    listPendingReuploadRequests(filters),
+    listReuploadRequests(filters),
     getReportFilterOptions(),
   ]);
 

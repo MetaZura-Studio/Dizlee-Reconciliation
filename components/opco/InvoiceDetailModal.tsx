@@ -1,5 +1,6 @@
 "use client";
 
+import { formatAppDateTime } from "@/lib/platform/format-datetime";
 import Link from "next/link";
 
 import { DizleeOpcoInvoiceDocument } from "@/components/shared/dizlee-opco-invoice-document";
@@ -75,10 +76,7 @@ export function InvoiceDetailModal({
             <p className="text-sm text-foreground-muted">
               Acknowledged:{" "}
               {detail.acknowledgedAt
-                ? new Date(detail.acknowledgedAt).toLocaleString("en-US", {
-                    dateStyle: "medium",
-                    timeStyle: "short",
-                  })
+                ? formatAppDateTime(detail.acknowledgedAt)
                 : "Not yet"}
             </p>
             <Link

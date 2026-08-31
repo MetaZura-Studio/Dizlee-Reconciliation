@@ -49,7 +49,32 @@ When the user later asks to update the ERD / [`04_DATABASE_SCHEMA_FOR_CURSOR.md`
 - Unique: `uq_revenue_share_reports` (`opco_id`, `year`, `month`)
 - Index: `idx_revenue_share_reports_period` (`year`, `month`)
 - Local/blob folder: `revenue-share` under object storage (`.uploads/revenue-share/` locally)
-- No line-item child table — Excel file is the artifact
+
+### Applied migration — revenue share report items (row snapshot)
+- Migration: `prisma/migrations/20260826120000_revenue_share_report_items`
+- Table `revenue_share_report_items`: snapshot rows for a generated RS report
+- Columns: `revenue_share_report_id`, `partner_id` (nullable), `partner_name`, `service_name`, `opco_amount_usd`, `partner_amount_usd`, `regulatory_fee_percent`, `regulatory_fee_amount`, `net_revenue`, `revenue_share_percent`, `sort_order`
+- No audit/soft-delete on items — hard delete + recreate on regenerate
+- Indexes: `idx_rs_report_items_report_id`, `idx_rs_report_items_report_sort`
+
+### Applied migration — notification metadata JSON
+- Migration: `prisma/migrations/20260824153000_notification_metadata_json`
+- Table `notifications`: add column `metadata_json` TEXT NULL (`metadataJson`)
+- Structured CTA / grouping payload (OpCo report-upload consolidation, reupload request links)
+
+### Applied migration — OpCo partner link requests
+- Migration: `prisma/migrations/20260827120000_opco_partner_link_requests`
+- Table `opco_partner_link_requests`: OpCo asks Admin to link partners (PENDING / APPROVED / REJECTED)
+- Columns: `opco_id`, `requested_by_user_id`, `month`, `year`, `message`, `partner_names_json`, `status`, `decision_note`, `decided_by_user_id`, `decided_at`, timestamps
+- Indexes: `idx_opco_partner_link_requests_status_created`, `idx_opco_partner_link_requests_opco_id`
+
+### Applied migration — OpCo monthly report submissions
+- Migration: `prisma/migrations/20260825140000_opco_report_submissions`
+- Table `opco_report_submissions`: one raw monthly Excel per OpCo + month + year (`file_id`, `status_id` via REPORT_STATUS)
+- Unique: `uq_opco_report_submissions` (`opco_id`, `year`, `month`)
+- Table `opco_submission_change_requests`: submission-scoped reupload CR (Partner keeps `report_change_requests`)
+- Table `reports`: add nullable `submission_id` → `opco_report_submissions.id`
+- Backfill: one submission per existing OpCo-lane (version=1) period group
 
 ## Source of truth until ERD is refreshed
 1. [`prisma/schema.prisma`](prisma/schema.prisma)

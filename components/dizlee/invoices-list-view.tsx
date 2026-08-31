@@ -47,6 +47,8 @@ import type {
   SortDirection,
 } from "@/lib/dizlee/invoices";
 import { formatAppError } from "@/lib/errors/format";
+import { formatAppDateTime, formatAppMonthYear } from "@/lib/platform/format-datetime";
+import { formatMoney } from "@/lib/platform/format-money";
 
 const MONTHS = [
   "January",
@@ -62,28 +64,6 @@ const MONTHS = [
   "November",
   "December",
 ];
-
-function formatDateTime(value: string): string {
-  return new Date(value).toLocaleString("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
-
-function formatPeriod(month: number, year: number): string {
-  return new Date(year, month - 1, 1).toLocaleString("en-US", {
-    month: "short",
-    year: "numeric",
-  });
-}
-
-function formatMoney(amount: number, currencyCode: string): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: currencyCode,
-    maximumFractionDigits: 2,
-  }).format(amount);
-}
 
 function paymentTone(status: string): "success" | "warning" | "neutral" {
   if (status === "PAID") {
@@ -494,6 +474,7 @@ export function InvoicesListView({
                       active={sortBy === "period"}
                       direction={sortDir}
                       onSort={() => applySort("period")}
+                      align="center"
                     />
                     <SortableDataTableTh
                       label="OpCo"
@@ -509,23 +490,24 @@ export function InvoicesListView({
                     />
                     <DataTableTh>Direction</DataTableTh>
                     <DataTableTh>Invoice #</DataTableTh>
-                    <DataTableTh>Invoice status</DataTableTh>
-                    <DataTableTh>Payment</DataTableTh>
+                    <DataTableTh align="center">Invoice status</DataTableTh>
+                    <DataTableTh align="center">Payment</DataTableTh>
                     <SortableDataTableTh
                       label="Uploaded"
                       active={sortBy === "uploaded"}
                       direction={sortDir}
                       onSort={() => applySort("uploaded")}
+                      align="center"
                     />
                     <DataTableTh align="right">Total</DataTableTh>
-                    <DataTableTh>Action</DataTableTh>
+                    <DataTableTh align="center">Action</DataTableTh>
                   </tr>
                 </DataTableHead>
                 <tbody>
                   {items.map((row) => (
                     <DataTableRow key={row.id}>
-                      <DataTableTd className="text-foreground-muted">
-                        {formatPeriod(row.period.month, row.period.year)}
+                      <DataTableTd className="text-foreground-muted" align="center">
+                        {formatAppMonthYear(row.period.month, row.period.year)}
                       </DataTableTd>
                       <DataTableTd>{row.opcoName}</DataTableTd>
                       <DataTableTd>{row.partnerName ?? "—"}</DataTableTd>
@@ -535,22 +517,22 @@ export function InvoicesListView({
                       <DataTableTd className="text-foreground-muted">
                         {row.invoiceNumber ?? "—"}
                       </DataTableTd>
-                      <DataTableTd>
+                      <DataTableTd align="center">
                         <StatusPill tone="neutral">{row.invoiceStatus}</StatusPill>
                       </DataTableTd>
-                      <DataTableTd>
+                      <DataTableTd align="center">
                         <StatusPill tone={paymentTone(row.paymentStatus)}>
                           {row.paymentStatus}
                         </StatusPill>
                       </DataTableTd>
-                      <DataTableTd className="text-foreground-muted">
-                        {formatDateTime(row.uploadedAt)}
+                      <DataTableTd className="text-foreground-muted" align="center">
+                        {formatAppDateTime(row.uploadedAt)}
                       </DataTableTd>
                       <DataTableTd align="right">
                         {formatMoney(row.totalAmount, row.currencyCode)}
                       </DataTableTd>
-                      <DataTableTd>
-                        <div className="flex gap-2">
+                      <DataTableTd align="center">
+                        <div className="flex justify-center gap-2">
                           <IconButton
                             label="View invoice"
                             onClick={() => void openDetail(row.id)}

@@ -11,6 +11,7 @@ import { parseReportWorkbook } from "@/lib/partner/excel/parse-report";
 import { getPartnerSession } from "@/lib/partner/auth";
 import { reuploadCorrectedReport } from "@/lib/partner/queries/reupload-report";
 import { validateReportUploadFile } from "@/lib/partner/validation/report-upload";
+import { assertExcelBufferMagic } from "@/lib/platform/excel-upload";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -43,6 +44,10 @@ export async function POST(request: Request, context: RouteContext) {
 
     const uploadFile = file as File;
     const buffer = Buffer.from(await uploadFile.arrayBuffer());
+    const magicError = assertExcelBufferMagic(buffer, uploadFile.name);
+    if (magicError) {
+      return jsonError(appErrorFromUnknown(magicError, 400));
+    }
     const lineItems = await parseReportWorkbook(buffer);
     const result = await reuploadCorrectedReport({
       partnerId: BigInt(session.partnerId),

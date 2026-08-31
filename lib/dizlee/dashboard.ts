@@ -156,7 +156,7 @@ export async function getDashboardData(
 ): Promise<DashboardData> {
   const { month, year } = period;
 
-  const [invoices, fxRates, links, reports, reconciliations] =
+  const [invoices, fxRates, links, reports, reconciliations, opcoSubmissions] =
     await Promise.all([
       prisma.invoice.findMany({
         where: { month, year },
@@ -177,7 +177,7 @@ export async function getDashboardData(
         },
       }),
       prisma.report.findMany({
-        where: { month, year },
+        where: { month, year, isDeleted: false },
         orderBy: { createdAt: "desc" },
         include: {
           opco: { select: { id: true, name: true } },
@@ -186,13 +186,17 @@ export async function getDashboardData(
         },
       }),
       prisma.reconciliation.findMany({
-        where: { month, year },
+        where: { month, year, isDeleted: false },
         orderBy: { runAt: "desc" },
         include: {
           opco: { select: { name: true } },
           partner: { select: { name: true } },
           status: { select: { code: true } },
         },
+      }),
+      prisma.opcoReportSubmission.findMany({
+        where: { month, year, isDeleted: false },
+        select: { opcoId: true },
       }),
     ]);
 
@@ -287,8 +291,10 @@ export async function getDashboardData(
 
   const reportsByOpco = new Map<string, DonutSegment>();
   const reportsByPartner = new Map<string, DonutSegment>();
-  const opcoReportLanes = new Set<string>();
   const partnerReportLanes = new Set<string>();
+  const opcosWithMonthlyReport = new Set(
+    opcoSubmissions.map((row) => row.opcoId.toString()),
+  );
 
   for (const report of reports) {
     pushNamedSegment(
@@ -307,7 +313,8 @@ export async function getDashboardData(
     const laneKey = `${report.opcoId.toString()}-${report.partnerId.toString()}`;
     const uploaderRole = report.uploadedByUser?.role?.code;
     if (uploaderRole === "OPCO" && linkKeys.has(laneKey)) {
-      opcoReportLanes.add(laneKey);
+      // Legacy / split partner rows still prove the OpCo uploaded for this period.
+      opcosWithMonthlyReport.add(report.opcoId.toString());
     } else if (uploaderRole === "PARTNER" && linkKeys.has(laneKey)) {
       partnerReportLanes.add(laneKey);
     }
@@ -353,7 +360,10 @@ export async function getDashboardData(
     },
     reportsRecon: {
       reportsSubmitted: reports.length,
-      opcoReportsMissing: Math.max(0, linkKeys.size - opcoReportLanes.size),
+      // One monthly OpCo file covers all partners — count OpCos, not lanes.
+      opcoReportsMissing: [...linkedOpcos.keys()].filter(
+        (opcoId) => !opcosWithMonthlyReport.has(opcoId),
+      ).length,
       partnerReportsMissing: Math.max(0, linkKeys.size - partnerReportLanes.size),
       latestUpload,
       reportsByOpco: namedMapToSegments(reportsByOpco),

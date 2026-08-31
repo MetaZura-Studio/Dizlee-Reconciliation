@@ -26,6 +26,7 @@ import {
   getPeriodYearOptions,
 } from "@/lib/platform/period";
 import { ui } from "@/lib/ui/classes";
+import { formatAppDateTime } from "@/lib/platform/format-datetime";
 import { formatAppError } from "@/lib/errors/format";
 
 const MONTHS = [
@@ -42,13 +43,6 @@ const MONTHS = [
   "November",
   "December",
 ];
-
-function formatDateTime(value: string): string {
-  return new Date(value).toLocaleString("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
 
 function eventTone(
   type: ActivityEventType,
@@ -343,7 +337,7 @@ export function ActivityView({
                       </div>
                       <div className="shrink-0 text-right">
                         <p className="text-xs text-foreground-subtle">
-                          {formatDateTime(event.occurredAt)}
+                          {formatAppDateTime(event.occurredAt)}
                         </p>
                         {event.href ? (
                           <Link

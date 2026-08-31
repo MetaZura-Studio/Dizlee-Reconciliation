@@ -3,9 +3,24 @@
  * Consumed by notifications inbox UI; supports read/unread and paginated listing.
  */
 
+import {
+  parseInboxFilters,
+  type InboxReadFilter,
+} from "@/lib/dizlee/notifications/inbox-filters";
 import { NotificationError } from "@/lib/dizlee/notifications/intimations";
 import { trimNotificationPreview } from "@/lib/dizlee/notifications/shared";
+import {
+  notificationCategory,
+  opcoNameFromMetadata,
+  parseNotificationMetadata,
+  resolveNotificationAction,
+  type NotificationAction,
+  type NotificationCategory,
+  type NotificationMetadata,
+} from "@/lib/platform/notification-metadata";
 import { prisma } from "@/lib/prisma";
+
+export { parseInboxFilters, type InboxReadFilter };
 
 export type InboxListItem = {
   id: string;
@@ -15,6 +30,10 @@ export type InboxListItem = {
   fromName: string;
   priority: string | null;
   isRead: boolean;
+  category: NotificationCategory;
+  opcoName: string | null;
+  metadata: NotificationMetadata | null;
+  action: NotificationAction | null;
 };
 
 export type InboxListResult = {
@@ -35,22 +54,48 @@ export type InboxDetail = {
   priority: string | null;
   isRead: boolean;
   readAt: string | null;
+  category: NotificationCategory;
+  opcoName: string | null;
+  metadata: NotificationMetadata | null;
+  action: NotificationAction | null;
 };
 
 const PAGE_SIZE = 10;
 
-export function parseInboxFilters(searchParams: URLSearchParams): {
-  page: number;
-  unreadOnly: boolean;
-} {
-  const page = Number(searchParams.get("page"));
-  return {
-    page: Number.isInteger(page) && page >= 1 ? page : 1,
-    unreadOnly: searchParams.get("unreadOnly") === "true",
-  };
-}
+function inboxWhere(
+  userId: bigint,
+  readFilter: InboxReadFilter,
+  search = "",
+) {
+  const searchFilter =
+    search.length > 0
+      ? {
+          OR: [
+            { subject: { contains: search } },
+            { body: { contains: search } },
+          ],
+        }
+      : {};
 
-function inboxWhere(userId: bigint, unreadOnly: boolean) {
+  const readFilterClause =
+    readFilter === "unread"
+      ? {
+          reads: {
+            none: {
+              userId,
+            },
+          },
+        }
+      : readFilter === "read"
+        ? {
+            reads: {
+              some: {
+                userId,
+              },
+            },
+          }
+        : {};
+
   return {
     isDeleted: false,
     recipients: {
@@ -60,15 +105,21 @@ function inboxWhere(userId: bigint, unreadOnly: boolean) {
         recipientId: userId,
       },
     },
-    ...(unreadOnly
-      ? {
-          reads: {
-            none: {
-              userId,
-            },
-          },
-        }
-      : {}),
+    ...searchFilter,
+    ...readFilterClause,
+  };
+}
+
+function mapInboxFields(row: {
+  subject: string;
+  metadataJson: string | null;
+}) {
+  const metadata = parseNotificationMetadata(row.metadataJson);
+  return {
+    metadata,
+    category: notificationCategory(metadata, row.subject),
+    opcoName: opcoNameFromMetadata(metadata),
+    action: resolveNotificationAction(metadata, row.subject),
   };
 }
 
@@ -76,17 +127,24 @@ export async function getUnreadInboxCount(userId: string): Promise<number> {
   const userIdBigInt = BigInt(userId);
 
   return prisma.notification.count({
-    where: inboxWhere(userIdBigInt, true),
+    where: inboxWhere(userIdBigInt, "unread"),
   });
 }
 
 export async function listInboxNotifications(params: {
   userId: string;
   page: number;
-  unreadOnly: boolean;
+  readFilter?: InboxReadFilter;
+  /** @deprecated Use readFilter: "unread" */
+  unreadOnly?: boolean;
+  search?: string;
 }): Promise<InboxListResult> {
   const userId = BigInt(params.userId);
-  const where = inboxWhere(userId, params.unreadOnly);
+  const search = params.search?.trim() ?? "";
+  const readFilter =
+    params.readFilter ??
+    (params.unreadOnly ? "unread" : "all");
+  const where = inboxWhere(userId, readFilter, search);
 
   const [totalCount, unreadCount, rows] = await Promise.all([
     prisma.notification.count({ where }),
@@ -122,6 +180,7 @@ export async function listInboxNotifications(params: {
   return {
     items: rows.map((row) => {
       const fromUser = row.recipients[0]?.fromUser;
+      const mapped = mapInboxFields(row);
       return {
         id: row.id.toString(),
         subject: row.subject,
@@ -130,6 +189,7 @@ export async function listInboxNotifications(params: {
         fromName: fromUser?.name ?? fromUser?.email ?? "System",
         priority: row.priority,
         isRead: row.reads.length > 0,
+        ...mapped,
       };
     }),
     page,
@@ -184,6 +244,7 @@ export async function getInboxNotificationDetail(params: {
 
   const fromUser = row.recipients[0]?.fromUser;
   const read = row.reads[0];
+  const mapped = mapInboxFields(row);
 
   return {
     id: row.id.toString(),
@@ -194,6 +255,7 @@ export async function getInboxNotificationDetail(params: {
     priority: row.priority,
     isRead: Boolean(read),
     readAt: read?.readAt.toISOString() ?? null,
+    ...mapped,
   };
 }
 
@@ -243,7 +305,7 @@ export async function markAllInboxNotificationsRead(params: {
 }): Promise<{ markedCount: number }> {
   const userId = BigInt(params.userId);
   const unread = await prisma.notification.findMany({
-    where: inboxWhere(userId, true),
+    where: inboxWhere(userId, "unread"),
     select: { id: true },
   });
 

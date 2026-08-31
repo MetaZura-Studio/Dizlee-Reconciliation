@@ -1,5 +1,6 @@
 "use client";
 
+import { formatAppDateTime } from "@/lib/platform/format-datetime";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -38,16 +39,6 @@ type LaneRemindModalProps = {
   onClose: () => void;
   onSent: (message: string) => void;
 };
-
-function formatDateTime(value: string | null): string {
-  if (!value) {
-    return "Never";
-  }
-  return new Date(value).toLocaleString("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
 
 function kindLabel(kind: LaneNotificationHistoryItem["kind"]): string {
   switch (kind) {
@@ -372,11 +363,11 @@ export function LaneRemindModal({
             <p className="text-xs font-medium text-foreground">{lane.opcoName}</p>
             <p className="mt-2 text-xs text-foreground-subtle">Last reminder</p>
             <p className="font-medium text-foreground">
-              {formatDateTime(history.summary.lastOpcoReminderAt)}
+              {formatAppDateTime(history.summary.lastOpcoReminderAt)}
             </p>
             <p className="mt-2 text-xs text-foreground-subtle">Last intimation</p>
             <p className="font-medium text-foreground">
-              {formatDateTime(history.summary.lastOpcoIntimationAt)}
+              {formatAppDateTime(history.summary.lastOpcoIntimationAt)}
             </p>
           </div>
           <div className="rounded-lg border border-border p-3 text-sm">
@@ -385,11 +376,11 @@ export function LaneRemindModal({
             </p>
             <p className="mt-2 text-xs text-foreground-subtle">Last reminder</p>
             <p className="font-medium text-foreground">
-              {formatDateTime(history.summary.lastPartnerReminderAt)}
+              {formatAppDateTime(history.summary.lastPartnerReminderAt)}
             </p>
             <p className="mt-2 text-xs text-foreground-subtle">Last intimation</p>
             <p className="font-medium text-foreground">
-              {formatDateTime(history.summary.lastPartnerIntimationAt)}
+              {formatAppDateTime(history.summary.lastPartnerIntimationAt)}
             </p>
           </div>
         </div>
@@ -413,7 +404,7 @@ export function LaneRemindModal({
               <DataTable>
                 <DataTableHead>
                   <DataTableRow>
-                    <DataTableTh>Sent</DataTableTh>
+                    <DataTableTh align="center">Sent</DataTableTh>
                     <DataTableTh>Type</DataTableTh>
                     <DataTableTh>To</DataTableTh>
                     <DataTableTh>Subject</DataTableTh>
@@ -423,8 +414,8 @@ export function LaneRemindModal({
                 <tbody>
                   {history.items.map((item) => (
                     <DataTableRow key={item.id}>
-                      <DataTableTd className="text-foreground-muted">
-                        {formatDateTime(item.sentAt)}
+                      <DataTableTd className="text-foreground-muted" align="center">
+                        {formatAppDateTime(item.sentAt)}
                       </DataTableTd>
                       <DataTableTd>{kindLabel(item.kind)}</DataTableTd>
                       <DataTableTd className="text-foreground-muted">

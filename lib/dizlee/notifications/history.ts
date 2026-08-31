@@ -8,7 +8,15 @@ import {
   summarizeRecipients,
   trimNotificationPreview,
 } from "@/lib/dizlee/notifications/shared";
+import {
+  classifyOutboxKind,
+  outboxKindLabel,
+  parseOutboxFilters,
+  type OutboxKind,
+  type OutboxKindFilter,
+} from "@/lib/dizlee/notifications/outbox-filters";
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 
 export type NotificationHistoryItem = {
   id: string;
@@ -17,6 +25,8 @@ export type NotificationHistoryItem = {
   sentAt: string;
   sentBy: string;
   priority: string | null;
+  kind: OutboxKind;
+  kindLabel: string;
   recipientSummary: string;
   opcoCount: number;
   partnerCount: number;
@@ -29,6 +39,7 @@ export type NotificationHistoryResult = {
   pageSize: number;
   totalPages: number;
   totalCount: number;
+  kind: OutboxKindFilter;
 };
 
 export type NotificationHistoryDetail = {
@@ -38,6 +49,8 @@ export type NotificationHistoryDetail = {
   sentAt: string;
   sentBy: string;
   priority: string | null;
+  kind: OutboxKind;
+  kindLabel: string;
   recipientSummary: string;
   recipients: Array<{
     type: string;
@@ -47,13 +60,44 @@ export type NotificationHistoryDetail = {
 
 const PAGE_SIZE = 10;
 
-export function parseNotificationHistoryFilters(searchParams: URLSearchParams): {
-  page: number;
-} {
-  const page = Number(searchParams.get("page"));
-  return {
-    page: Number.isInteger(page) && page >= 1 ? page : 1,
-  };
+const INTIMATION_PRIORITY_VALUES = [
+  "NORMAL",
+  "INTIMATION",
+  "HIGH",
+  "LOW",
+  "",
+] as const;
+
+export {
+  parseOutboxFilters as parseNotificationHistoryFilters,
+  type OutboxKindFilter,
+};
+
+function kindWhere(kind: OutboxKindFilter): Prisma.NotificationWhereInput {
+  if (kind === "reminder") {
+    return { priority: "REMINDER" };
+  }
+  if (kind === "intimation") {
+    return {
+      OR: [
+        { priority: null },
+        { priority: { in: [...INTIMATION_PRIORITY_VALUES] } },
+      ],
+    };
+  }
+  if (kind === "other") {
+    return {
+      AND: [
+        { NOT: { priority: null } },
+        {
+          priority: {
+            notIn: ["REMINDER", ...INTIMATION_PRIORITY_VALUES],
+          },
+        },
+      ],
+    };
+  }
+  return {};
 }
 
 async function loadRecipientNameMaps(recipients: Array<{
@@ -110,13 +154,16 @@ async function loadRecipientNameMaps(recipients: Array<{
 
 export async function listNotificationHistory(filters: {
   page: number;
+  kind?: OutboxKindFilter;
 }): Promise<NotificationHistoryResult> {
-  const where = {
+  const kind = filters.kind ?? "all";
+  const where: Prisma.NotificationWhereInput = {
     isDeleted: false,
     status: { code: "SENT" },
     createdByUser: {
       role: { code: "CLIENT", lookupType: { code: "USER_ROLE" } },
     },
+    ...kindWhere(kind),
   };
 
   const [totalCount, rows] = await Promise.all([
@@ -146,6 +193,7 @@ export async function listNotificationHistory(filters: {
 
   for (const row of rows) {
     const summary = await summarizeRecipients(row.recipients, nameMaps);
+    const itemKind = classifyOutboxKind(row.priority);
     items.push({
       id: row.id.toString(),
       subject: row.subject,
@@ -153,6 +201,8 @@ export async function listNotificationHistory(filters: {
       sentAt: (row.sentAt ?? row.createdAt).toISOString(),
       sentBy: row.createdByUser?.name ?? row.createdByUser?.email ?? "Dizlee",
       priority: row.priority,
+      kind: itemKind,
+      kindLabel: outboxKindLabel(itemKind),
       recipientSummary: formatRecipientSummary(summary),
       opcoCount: summary.opcoCount,
       partnerCount: summary.partnerCount,
@@ -166,6 +216,7 @@ export async function listNotificationHistory(filters: {
     pageSize: PAGE_SIZE,
     totalPages,
     totalCount,
+    kind,
   };
 }
 
@@ -198,6 +249,7 @@ export async function getNotificationHistoryDetail(
 
   const nameMaps = await loadRecipientNameMaps(row.recipients);
   const summary = await summarizeRecipients(row.recipients, nameMaps);
+  const kind = classifyOutboxKind(row.priority);
 
   const recipients = row.recipients.map((recipient) => {
     const recipientId = recipient.recipientId.toString();
@@ -222,6 +274,8 @@ export async function getNotificationHistoryDetail(
     sentAt: (row.sentAt ?? row.createdAt).toISOString(),
     sentBy: row.createdByUser?.name ?? row.createdByUser?.email ?? "Dizlee",
     priority: row.priority,
+    kind,
+    kindLabel: outboxKindLabel(kind),
     recipientSummary: formatRecipientSummary(summary),
     recipients,
   };

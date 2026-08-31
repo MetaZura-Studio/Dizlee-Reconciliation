@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { FieldLegend } from "@/components/ui/field";
@@ -17,6 +17,7 @@ import { ui } from "@/lib/ui/classes";
 
 type OpcoReportMappingFormProps = {
   initialMapping: OpcoReportMappingView;
+  initialFilterValues?: string[];
 };
 
 function HeaderOptions({
@@ -35,6 +36,7 @@ function HeaderOptions({
 
 export function OpcoReportMappingForm({
   initialMapping,
+  initialFilterValues = [],
 }: OpcoReportMappingFormProps) {
   const toast = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -60,9 +62,9 @@ export function OpcoReportMappingForm({
   const [rowFilterValue, setRowFilterValue] = useState(
     initialMapping.rowFilterValue ?? "",
   );
-  const [aggregateDailyRows, setAggregateDailyRows] = useState(
-    initialMapping.aggregateDailyRows,
-  );
+  const [filterValues, setFilterValues] = useState<string[]>(initialFilterValues);
+  const [filterValuesLoading, setFilterValuesLoading] = useState(false);
+  const [filterValuesError, setFilterValuesError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -70,7 +72,60 @@ export function OpcoReportMappingForm({
 
   const headers = mapping.headers;
   const sheetSelected = Boolean(mapping.sampleSheetName);
+  const hasSampleFile = Boolean(mapping.sampleFileName);
   const canMapColumns = sheetSelected && headers.length > 0;
+
+  const loadFilterColumnValues = useCallback(
+    async (column: string, signal?: AbortSignal) => {
+      setFilterValuesLoading(true);
+      setFilterValuesError(null);
+      try {
+        const params = new URLSearchParams({ column });
+        const response = await fetch(
+          `/api/admin/opcos/${mapping.opcoId}/report-mapping/column-values?${params}`,
+          { signal },
+        );
+        const body = (await response.json()) as {
+          data?: { values?: string[] };
+          error?: string | { key?: string; message?: string };
+        };
+        if (!response.ok) {
+          throw new Error(formatAppError(body, "Failed to load filter values"));
+        }
+        setFilterValues(body.data?.values ?? []);
+      } catch (loadError) {
+        if (loadError instanceof DOMException && loadError.name === "AbortError") {
+          return;
+        }
+        setFilterValues([]);
+        setFilterValuesError(
+          loadError instanceof Error
+            ? loadError.message
+            : "Failed to load filter values",
+        );
+      } finally {
+        if (!signal?.aborted) {
+          setFilterValuesLoading(false);
+        }
+      }
+    },
+    [mapping.opcoId],
+  );
+
+  const requestFilterColumnValues = useCallback(
+    (column: string, sampleFileName: string | null, sheetSelected: boolean, headers: string[]) => {
+      if (
+        !column.trim() ||
+        !sheetSelected ||
+        headers.length === 0 ||
+        !sampleFileName
+      ) {
+        return;
+      }
+      void loadFilterColumnValues(column);
+    },
+    [loadFilterColumnValues],
+  );
 
   const applyMapping = (next: OpcoReportMappingView) => {
     setMapping(next);
@@ -81,7 +136,14 @@ export function OpcoReportMappingForm({
     setRevenueShareColumn(next.revenueShareColumn ?? "");
     setRowFilterColumn(next.rowFilterColumn ?? "");
     setRowFilterValue(next.rowFilterValue ?? "");
-    setAggregateDailyRows(next.aggregateDailyRows);
+    setFilterValues([]);
+    setFilterValuesError(null);
+    requestFilterColumnValues(
+      next.rowFilterColumn ?? "",
+      next.sampleFileName,
+      Boolean(next.sampleSheetName),
+      next.headers,
+    );
   };
 
   const uploadSample = async (file: File) => {
@@ -168,7 +230,7 @@ export function OpcoReportMappingForm({
             revenueShareColumn: revenueShareColumn || null,
             rowFilterColumn: rowFilterColumn || null,
             rowFilterValue: rowFilterValue || null,
-            aggregateDailyRows,
+            aggregateDailyRows: mapping.aggregateDailyRows,
           }),
         },
       );
@@ -266,16 +328,25 @@ export function OpcoReportMappingForm({
           </label>
 
           {canMapColumns ? (
-            <p className="text-xs text-foreground-subtle">
-              Detected {headers.length} column(s)
-              {mapping.sampleSheetName
-                ? ` from sheet “${mapping.sampleSheetName}”`
-                : ""}
-              {mapping.sampleHeaderRowNumber
-                ? ` (row ${mapping.sampleHeaderRowNumber})`
-                : ""}
-              : {headers.join(", ")}
-            </p>
+            <div className="space-y-1 text-xs text-foreground-subtle">
+              {!hasSampleFile ? (
+                <p className="text-amber-700 dark:text-amber-400">
+                  Column names are saved from a previous sample, but the file is
+                  missing — upload the Excel again to load filter values and
+                  validate mapping.
+                </p>
+              ) : null}
+              <p>
+                Detected {headers.length} column(s)
+                {mapping.sampleSheetName
+                  ? ` from sheet “${mapping.sampleSheetName}”`
+                  : ""}
+                {mapping.sampleHeaderRowNumber
+                  ? ` (row ${mapping.sampleHeaderRowNumber})`
+                  : ""}
+                : {headers.join(", ")}
+              </p>
+            </div>
           ) : (
             <p className="text-xs text-foreground-subtle">
               {mapping.availableSheets.length > 0
@@ -291,154 +362,198 @@ export function OpcoReportMappingForm({
               Required field mapping
             </h2>
 
-            <label className="block text-sm sm:max-w-lg">
-              <FieldLegend required>Service name</FieldLegend>
-              <select
-                className={ui.select}
-                value={serviceColumn}
-                onChange={(event) => setServiceColumn(event.target.value)}
-                required
-                disabled={!canMapColumns || busy}
-              >
-                <option value="">Select column</option>
-                <HeaderOptions prefix="svc" headers={headers} />
-                {serviceColumn && !headers.includes(serviceColumn) ? (
-                  <option value={serviceColumn}>{serviceColumn} (saved)</option>
-                ) : null}
-              </select>
-            </label>
-
-            <label className="block text-sm sm:max-w-lg">
-              <FieldLegend required>Partner</FieldLegend>
-              <select
-                className={ui.select}
-                value={
-                  partnerMode === "EXCEL_COLUMN"
-                    ? partnerColumn || ""
-                    : partnerMode === "SERVICE_PARTNER_MAP"
-                      ? "__MODE__:SERVICE_PARTNER_MAP"
-                      : ""
-                }
-                disabled={!canMapColumns || busy}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  if (value === "__MODE__:SERVICE_PARTNER_MAP") {
-                    setPartnerMode("SERVICE_PARTNER_MAP");
-                    setPartnerColumn("");
-                    return;
-                  }
-                  setPartnerMode("EXCEL_COLUMN");
-                  setPartnerColumn(value);
-                }}
-                required
-              >
-                <option value="">Select column or partner source</option>
-                {headers.length > 0 ? (
-                  <optgroup label="Excel columns from selected sheet">
-                    <HeaderOptions prefix="partner" headers={headers} />
-                  </optgroup>
-                ) : null}
-                {partnerMode === "EXCEL_COLUMN" &&
-                partnerColumn &&
-                !headers.includes(partnerColumn) ? (
-                  <option value={partnerColumn}>
-                    {partnerColumn} (saved)
-                  </option>
-                ) : null}
-                <option value="__MODE__:SERVICE_PARTNER_MAP">
-                  {partnerModeLabel("SERVICE_PARTNER_MAP")}
-                </option>
-              </select>
-              <p className="mt-1 text-xs text-foreground-subtle">
-                {partnerMode === "EXCEL_COLUMN"
-                  ? "Partner name is read from the selected Excel column."
-                  : partnerMode === "SERVICE_PARTNER_MAP"
-                    ? "Partner is resolved from Admin Service–Partner maps using the Service column."
-                    : "Select an Excel Partner column, or resolve Partner from the Service–Partner map."}
-              </p>
-            </label>
-
-            <label className="block text-sm sm:max-w-lg">
-              <FieldLegend required>Revenue (gross amount)</FieldLegend>
-              <select
-                className={ui.select}
-                value={revenueColumn}
-                onChange={(event) => setRevenueColumn(event.target.value)}
-                required
-                disabled={!canMapColumns || busy}
-              >
-                <option value="">Select column</option>
-                <HeaderOptions prefix="rev" headers={headers} />
-                {revenueColumn && !headers.includes(revenueColumn) ? (
-                  <option value={revenueColumn}>
-                    {revenueColumn} (saved)
-                  </option>
-                ) : null}
-              </select>
-            </label>
-
-            <label className="block text-sm sm:max-w-lg">
-              <FieldLegend>Revenue share % (optional)</FieldLegend>
-              <select
-                className={ui.select}
-                value={revenueShareColumn}
-                onChange={(event) => setRevenueShareColumn(event.target.value)}
-                disabled={!canMapColumns || busy}
-              >
-                <option value="">Not mapped</option>
-                <HeaderOptions prefix="share" headers={headers} />
-                {revenueShareColumn && !headers.includes(revenueShareColumn) ? (
-                  <option value={revenueShareColumn}>
-                    {revenueShareColumn} (saved)
-                  </option>
-                ) : null}
-              </select>
-            </label>
-
-            <label className="block text-sm sm:max-w-lg">
-              <FieldLegend>Only include rows where (optional)</FieldLegend>
-              <select
-                className={ui.select}
-                value={rowFilterColumn}
-                onChange={(event) => setRowFilterColumn(event.target.value)}
-                disabled={!canMapColumns || busy}
-              >
-                <option value="">No row filter</option>
-                <HeaderOptions prefix="filter" headers={headers} />
-                {rowFilterColumn && !headers.includes(rowFilterColumn) ? (
-                  <option value={rowFilterColumn}>
-                    {rowFilterColumn} (saved)
-                  </option>
-                ) : null}
-              </select>
-            </label>
-
-            {rowFilterColumn ? (
-              <label className="block text-sm sm:max-w-lg">
-                <FieldLegend required>Equals</FieldLegend>
-                <input
-                  className={ui.input}
-                  value={rowFilterValue}
-                  onChange={(event) => setRowFilterValue(event.target.value)}
-                  placeholder="Group API"
+            <div className="grid w-full gap-4 sm:grid-cols-2">
+              <label className="block text-sm">
+                <FieldLegend required>Service name</FieldLegend>
+                <select
+                  className={ui.select}
+                  value={serviceColumn}
+                  onChange={(event) => setServiceColumn(event.target.value)}
+                  required
                   disabled={!canMapColumns || busy}
-                />
+                >
+                  <option value="">Select column</option>
+                  <HeaderOptions prefix="svc" headers={headers} />
+                  {serviceColumn && !headers.includes(serviceColumn) ? (
+                    <option value={serviceColumn}>{serviceColumn} (saved)</option>
+                  ) : null}
+                </select>
+              </label>
+
+              <label className="block text-sm">
+                <FieldLegend required>Partner</FieldLegend>
+                <select
+                  className={ui.select}
+                  value={
+                    partnerMode === "EXCEL_COLUMN"
+                      ? partnerColumn || ""
+                      : partnerMode === "SERVICE_PARTNER_MAP"
+                        ? "__MODE__:SERVICE_PARTNER_MAP"
+                        : ""
+                  }
+                  disabled={!canMapColumns || busy}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    if (value === "__MODE__:SERVICE_PARTNER_MAP") {
+                      setPartnerMode("SERVICE_PARTNER_MAP");
+                      setPartnerColumn("");
+                      return;
+                    }
+                    setPartnerMode("EXCEL_COLUMN");
+                    setPartnerColumn(value);
+                  }}
+                  required
+                >
+                  <option value="">Select column or partner source</option>
+                  {headers.length > 0 ? (
+                    <optgroup label="Excel columns from selected sheet">
+                      <HeaderOptions prefix="partner" headers={headers} />
+                    </optgroup>
+                  ) : null}
+                  {partnerMode === "EXCEL_COLUMN" &&
+                  partnerColumn &&
+                  !headers.includes(partnerColumn) ? (
+                    <option value={partnerColumn}>
+                      {partnerColumn} (saved)
+                    </option>
+                  ) : null}
+                  <option value="__MODE__:SERVICE_PARTNER_MAP">
+                    {partnerModeLabel("SERVICE_PARTNER_MAP")}
+                  </option>
+                </select>
                 <p className="mt-1 text-xs text-foreground-subtle">
-                  Other rows are skipped. Match is case-insensitive.
+                  {partnerMode === "EXCEL_COLUMN"
+                    ? "Partner name is read from the selected Excel column."
+                    : partnerMode === "SERVICE_PARTNER_MAP"
+                      ? "Partner is resolved from Admin Service–Partner maps using the Service column."
+                      : "Select an Excel Partner column, or resolve Partner from the Service–Partner map."}
                 </p>
               </label>
-            ) : null}
 
-            <label className="flex items-center gap-2 text-sm text-foreground">
-              <input
-                type="checkbox"
-                checked={aggregateDailyRows}
-                onChange={(event) => setAggregateDailyRows(event.target.checked)}
-                className="h-4 w-4 accent-primary"
-                disabled={busy}
-              />
-              Aggregate daily rows (sum revenue by service for the period)
-            </label>
+              <label className="block text-sm">
+                <FieldLegend required>Revenue (gross amount)</FieldLegend>
+                <select
+                  className={ui.select}
+                  value={revenueColumn}
+                  onChange={(event) => setRevenueColumn(event.target.value)}
+                  required
+                  disabled={!canMapColumns || busy}
+                >
+                  <option value="">Select column</option>
+                  <HeaderOptions prefix="rev" headers={headers} />
+                  {revenueColumn && !headers.includes(revenueColumn) ? (
+                    <option value={revenueColumn}>
+                      {revenueColumn} (saved)
+                    </option>
+                  ) : null}
+                </select>
+              </label>
+
+              <label className="block text-sm">
+                <FieldLegend required>Revenue share %</FieldLegend>
+                <select
+                  className={ui.select}
+                  value={revenueShareColumn}
+                  onChange={(event) => setRevenueShareColumn(event.target.value)}
+                  required
+                  disabled={!canMapColumns || busy}
+                >
+                  <option value="">Select column</option>
+                  <HeaderOptions prefix="share" headers={headers} />
+                  {revenueShareColumn && !headers.includes(revenueShareColumn) ? (
+                    <option value={revenueShareColumn}>
+                      {revenueShareColumn} (saved)
+                    </option>
+                  ) : null}
+                </select>
+              </label>
+            </div>
+          </section>
+
+          <section className={`space-y-4 ${ui.cardPaddingLg}`}>
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">
+                Row filters
+              </h2>
+              <p className="mt-1 text-sm text-foreground-muted">
+                Optional. Limit which Excel rows are imported into the report.
+              </p>
+            </div>
+
+            <div className="grid w-full gap-4 sm:grid-cols-2">
+              <label className="block text-sm">
+                <FieldLegend>Only include rows where</FieldLegend>
+                <select
+                  className={ui.select}
+                  value={rowFilterColumn}
+                  onChange={(event) => {
+                    const nextColumn = event.target.value;
+                    setRowFilterColumn(nextColumn);
+                    setRowFilterValue("");
+                    setFilterValues([]);
+                    setFilterValuesError(null);
+                    requestFilterColumnValues(
+                      nextColumn,
+                      mapping.sampleFileName,
+                      sheetSelected,
+                      headers,
+                    );
+                  }}
+                  disabled={!canMapColumns || busy}
+                >
+                  <option value="">No row filter</option>
+                  <HeaderOptions prefix="filter" headers={headers} />
+                  {rowFilterColumn && !headers.includes(rowFilterColumn) ? (
+                    <option value={rowFilterColumn}>
+                      {rowFilterColumn} (saved)
+                    </option>
+                  ) : null}
+                </select>
+              </label>
+
+              <label className="block text-sm">
+                <FieldLegend required={Boolean(rowFilterColumn)}>Equals</FieldLegend>
+                <select
+                  className={ui.select}
+                  value={rowFilterValue}
+                  onChange={(event) => setRowFilterValue(event.target.value)}
+                  required={Boolean(rowFilterColumn)}
+                  disabled={
+                    !canMapColumns ||
+                    busy ||
+                    !rowFilterColumn ||
+                    filterValuesLoading
+                  }
+                >
+                  <option value="">
+                    {filterValuesLoading ? "Loading values…" : "Select value"}
+                  </option>
+                  {rowFilterColumn && canMapColumns && hasSampleFile
+                    ? filterValues.map((value) => (
+                        <option key={value} value={value}>
+                          {value}
+                        </option>
+                      ))
+                    : null}
+                  {rowFilterValue && !filterValues.includes(rowFilterValue) ? (
+                    <option value={rowFilterValue}>
+                      {rowFilterValue} (saved)
+                    </option>
+                  ) : null}
+                </select>
+                <p className="mt-1 text-xs text-foreground-subtle">
+                  {filterValuesError
+                    ? filterValuesError
+                    : filterValuesLoading
+                      ? "Reading distinct values from the sample file…"
+                      : rowFilterColumn && !hasSampleFile
+                        ? "Upload a sample Excel before choosing filter values."
+                        : rowFilterColumn && filterValues.length === 0
+                          ? "No values found for this column in the sample file."
+                          : "Other rows are skipped. Match is case-insensitive."}
+                </p>
+              </label>
+            </div>
           </section>
 
           <div className="flex flex-wrap gap-3">
@@ -448,7 +563,7 @@ export function OpcoReportMappingForm({
             <p className="self-center text-xs text-foreground-subtle">
               {mapping.isConfigured
                 ? "Mapping looks complete for uploads."
-                : "Mapping incomplete — pick a sheet, then Service, Revenue, and Partner."}
+                : "Mapping incomplete — pick a sheet, then Service, Revenue, Revenue share %, and Partner."}
             </p>
           </div>
         </form>

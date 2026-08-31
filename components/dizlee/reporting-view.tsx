@@ -39,6 +39,7 @@ import type {
   ReportingOverview,
 } from "@/lib/dizlee/reporting";
 import { formatAppError } from "@/lib/errors/format";
+import { formatUsd } from "@/lib/platform/format-money";
 
 const MONTHS = [
   "January",
@@ -54,13 +55,6 @@ const MONTHS = [
   "November",
   "December",
 ];
-
-const usdFormatter = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
 
 type StatusFilter = "all" | ReportingLaneStatus;
 
@@ -482,7 +476,7 @@ export function ReportingView({
           />
           <KpiCard
             label="Revenue paid (USD)"
-            value={usdFormatter.format(summary.totalRevenuePaidUsd)}
+            value={formatUsd(summary.totalRevenuePaidUsd)}
             tone="amber"
           />
         </div>
@@ -567,12 +561,12 @@ export function ReportingView({
                 <DataTableHead>
                   <tr>
                     <DataTableTh>OpCo / Partner</DataTableTh>
-                    <DataTableTh>OpCo report</DataTableTh>
-                    <DataTableTh>Partner report</DataTableTh>
-                    <DataTableTh>OpCo invoice</DataTableTh>
-                    <DataTableTh>Partner invoice</DataTableTh>
-                    <DataTableTh>Reconciliation</DataTableTh>
-                    <DataTableTh>Overall</DataTableTh>
+                    <DataTableTh align="center">OpCo report</DataTableTh>
+                    <DataTableTh align="center">Partner report</DataTableTh>
+                    <DataTableTh align="center">OpCo invoice</DataTableTh>
+                    <DataTableTh align="center">Partner invoice</DataTableTh>
+                    <DataTableTh align="center">Reconciliation</DataTableTh>
+                    <DataTableTh align="center">Overall</DataTableTh>
                   </tr>
                 </DataTableHead>
                 <tbody>
@@ -584,27 +578,27 @@ export function ReportingView({
                           {lane.partnerName}
                         </p>
                       </DataTableTd>
-                      <DataTableTd>
+                      <DataTableTd align="center">
                         <StatusPill tone={presentTone(lane.opcoReport)}>
                           {presentLabel(lane.opcoReport)}
                         </StatusPill>
                       </DataTableTd>
-                      <DataTableTd>
+                      <DataTableTd align="center">
                         <StatusPill tone={presentTone(lane.partnerReport)}>
                           {presentLabel(lane.partnerReport)}
                         </StatusPill>
                       </DataTableTd>
-                      <DataTableTd>
+                      <DataTableTd align="center">
                         <StatusPill tone={presentTone(lane.opcoInvoice)}>
                           {presentLabel(lane.opcoInvoice)}
                         </StatusPill>
                       </DataTableTd>
-                      <DataTableTd>
+                      <DataTableTd align="center">
                         <StatusPill tone={presentTone(lane.partnerInvoice)}>
                           {presentLabel(lane.partnerInvoice)}
                         </StatusPill>
                       </DataTableTd>
-                      <DataTableTd>
+                      <DataTableTd align="center">
                         {lane.reconciliationStatus ? (
                           <StatusPill
                             tone={reconciliationTone(lane.reconciliationStatus)}
@@ -615,7 +609,7 @@ export function ReportingView({
                           <span className="text-sm text-foreground-subtle">Not run</span>
                         )}
                       </DataTableTd>
-                      <DataTableTd>
+                      <DataTableTd align="center">
                         <StatusPill tone={overallStatusTone(lane.overallStatus)}>
                           {lane.overallStatus}
                         </StatusPill>

@@ -8,10 +8,10 @@ import {
 import { mapParsedLinesToPreview } from "@/lib/platform/report-preview";
 
 describe("applyReportFxToAmount", () => {
-  it("converts local amount to USD using the system rate", () => {
+  it("converts local amount to USD using the system rate (USD 2dp)", () => {
     expect(applyReportFxToAmount(28, 0.2667)).toEqual({
       exchangeRate: "0.2667",
-      amountUsd: "7.4676",
+      amountUsd: "7.47",
     });
   });
 
@@ -40,7 +40,7 @@ describe("snapshotFxOntoParsedLines", () => {
   it("stamps exchange rate and USD amount onto lines", () => {
     const [line] = snapshotFxOntoParsedLines([sampleLine], 0.2667);
     expect(line.exchangeRate).toBe(0.2667);
-    expect(line.usageUsd).toBe(7.4676);
+    expect(line.usageUsd).toBe(7.47);
     expect(line.amount).toBe(28);
   });
 
@@ -73,9 +73,9 @@ describe("mapParsedLinesToPreview", () => {
 
     expect(lines[0]).toMatchObject({
       description: "7adir",
-      amount: "28",
+      amount: "28.00",
       exchangeRate: "0.2667",
-      amountUsd: "7.4676",
+      amountUsd: "7.47",
     });
   });
 });

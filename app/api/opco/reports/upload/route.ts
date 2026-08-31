@@ -1,56 +1,24 @@
 /**
  * POST — OpCo portal.
- * Upload report using Admin OpCo report column mapping
- * (UPLOAD_PICKER may fall back to the generic Excel parser when unmapped).
+ * Upload one monthly multi-partner Excel; split into partner reports under one submission.
  */
 
 import { NextResponse } from "next/server";
 import { jsonError, unauthorized } from "@/lib/errors/respond";
 import { appError, appErrorFromUnknown } from "@/lib/errors/app-error";
 
-import {
-  assertOpcoMappingReady,
-  parseOpcoReportWithMapping,
-} from "@/lib/opco/excel/parse-mapped-opco-report";
-import {
-  parseReportWorkbook,
-  type ParsedReportLine,
-} from "@/lib/opco/excel/parse-report";
 import { getOpcoSession } from "@/lib/opco/auth";
-import { createReportUpload } from "@/lib/opco/queries/upload-report";
+import { createOpcoMonthlySubmissionUpload } from "@/lib/opco/queries/upload-report";
 import {
-  resolvePartnerColumnLinesToBuckets,
-  PartnerColumnResolveError,
-} from "@/lib/opco/queries/resolve-partner-column-lines";
-import {
-  resolveLookupLinesToPartnerBuckets,
-  ServicePartnerResolveError,
-} from "@/lib/opco/queries/resolve-service-partner-maps";
+  OpcoMonthlyParseError,
+  OpcoUnlinkedPartnersError,
+  parseOpcoMonthlyPartnerBuckets,
+} from "@/lib/opco/queries/parse-monthly-buckets";
 import {
   reportUploadLookupMetadataSchema,
-  reportUploadMetadataSchema,
   validateReportUploadFile,
 } from "@/lib/opco/validation/report-upload";
-import { getOpcoReportMappingByOpcoId } from "@/lib/admin/opco-report-mappings";
-import { parseStoredSampleHeaders } from "@/lib/admin/opco-report-mapping-excel";
-import { findUnlinkedPartnersInOpcoFile } from "@/lib/opco/queries/unlinked-partners-in-file";
-import { hasUnlinkedPartnersInFile } from "@/lib/opco/unlinked-partners-in-file.shared";
-import type { ResolvedServicePartnerLine } from "@/lib/platform/service-partner-map";
-
-function toParsedLines(lines: ResolvedServicePartnerLine[]): ParsedReportLine[] {
-  return lines.map((line, index) => ({
-    lineNumber: index + 1,
-    description: line.description,
-    usageAmount: null,
-    usageUsd: null,
-    amount: line.amount,
-    revenueSharePercent: line.revenueSharePercent,
-    exchangeRate: null,
-    usageUnit: null,
-    reconciliationBasis: null,
-    sourceColumns: line.sourceColumns,
-  }));
-}
+import { assertExcelBufferMagic } from "@/lib/platform/excel-upload";
 
 export async function POST(request: Request) {
   const session = await getOpcoSession();
@@ -61,17 +29,6 @@ export async function POST(request: Request) {
 
   try {
     const opcoId = BigInt(session.opcoId);
-    const mappingRow = await getOpcoReportMappingByOpcoId(opcoId);
-    if (!mappingRow) {
-      return NextResponse.json(
-        {
-          error:
-            "OpCo report column mapping is not configured. Ask an admin to set it under OpCos → Report map.",
-        },
-        { status: 400 },
-      );
-    }
-
     const formData = await request.formData();
     const file = formData.get("file");
 
@@ -86,88 +43,14 @@ export async function POST(request: Request) {
 
     const uploadFile = file as File;
     const buffer = Buffer.from(await uploadFile.arrayBuffer());
-    const yearRaw = formData.get("year");
-    const monthRaw = formData.get("month");
-    const mimeType =
-      uploadFile.type ||
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-
-    const preferredSheetName = parseStoredSampleHeaders(
-      mappingRow.headersJson,
-    ).sheetName;
-
-    if (mappingRow.partnerMode === "UPLOAD_PICKER") {
-      const metadataResult = reportUploadMetadataSchema.safeParse({
-        partnerId: formData.get("partnerId"),
-        year: yearRaw,
-        month: monthRaw,
-      });
-      if (!metadataResult.success) {
-        return NextResponse.json(
-          {
-            error: "Invalid upload details",
-            details: metadataResult.error.flatten().fieldErrors,
-          },
-          { status: 400 },
-        );
-      }
-
-      const lineItems =
-        mappingRow.serviceColumn?.trim() && mappingRow.revenueColumn?.trim()
-          ? toParsedLines(
-              (
-                await parseOpcoReportWithMapping(
-                  buffer,
-                  assertOpcoMappingReady({
-                    serviceColumn: mappingRow.serviceColumn,
-                    partnerMode: mappingRow.partnerMode,
-                    partnerColumn: mappingRow.partnerColumn,
-                    revenueColumn: mappingRow.revenueColumn,
-                    revenueShareColumn: mappingRow.revenueShareColumn,
-                    rowFilterColumn: mappingRow.rowFilterColumn,
-                    rowFilterValue: mappingRow.rowFilterValue,
-                    aggregateDailyRows: mappingRow.aggregateDailyRows,
-                    preferredSheetName,
-                  }),
-                )
-              ).pickerLines,
-            )
-          : await parseReportWorkbook(buffer);
-
-      const result = await createReportUpload({
-        opcoId,
-        userId: BigInt(session.userId),
-        partnerId: BigInt(metadataResult.data.partnerId),
-        year: metadataResult.data.year,
-        month: metadataResult.data.month,
-        filename: uploadFile.name,
-        mimeType,
-        buffer,
-        lineItems,
-      });
-
-      return NextResponse.json({
-        reportId: result.reportId,
-        lineItemCount: lineItems.length,
-        message: "Report uploaded successfully",
-      });
+    const magicError = assertExcelBufferMagic(buffer, uploadFile.name);
+    if (magicError) {
+      return jsonError(appErrorFromUnknown(magicError, 400));
     }
 
-    const mapping = assertOpcoMappingReady({
-      serviceColumn: mappingRow.serviceColumn,
-      partnerMode: mappingRow.partnerMode,
-      partnerColumn: mappingRow.partnerColumn,
-      revenueColumn: mappingRow.revenueColumn,
-      revenueShareColumn: mappingRow.revenueShareColumn,
-      rowFilterColumn: mappingRow.rowFilterColumn,
-      rowFilterValue: mappingRow.rowFilterValue,
-      aggregateDailyRows: mappingRow.aggregateDailyRows,
-      preferredSheetName,
-    });
-
     const metadataResult = reportUploadLookupMetadataSchema.safeParse({
-      year: yearRaw,
-      month: monthRaw,
+      year: formData.get("year"),
+      month: formData.get("month"),
     });
     if (!metadataResult.success) {
       return NextResponse.json(
@@ -179,63 +62,48 @@ export async function POST(request: Request) {
       );
     }
 
-    const parsed = await parseOpcoReportWithMapping(buffer, mapping);
-    const unmatched = await findUnlinkedPartnersInOpcoFile({
+    const mimeType =
+      uploadFile.type ||
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+    const { buckets } = await parseOpcoMonthlyPartnerBuckets({
       opcoId,
-      partnerMode: mapping.partnerMode,
-      partnerColumnLines: parsed.partnerColumnLines,
-      serviceMapLines: parsed.serviceMapLines,
+      buffer,
     });
-    if (hasUnlinkedPartnersInFile(unmatched)) {
-      return jsonError(appError("OPCO_UNLINKED_PARTNERS_IN_FILE"), unmatched);
+
+    if (buckets.length === 0) {
+      return jsonError(
+        appErrorFromUnknown("No partner rows found in the uploaded file", 400),
+      );
     }
 
-    const buckets =
-      mapping.partnerMode === "EXCEL_COLUMN"
-        ? await resolvePartnerColumnLinesToBuckets({
-            opcoId,
-            lines: parsed.partnerColumnLines,
-          })
-        : await resolveLookupLinesToPartnerBuckets({
-            opcoId,
-            lines: parsed.serviceMapLines,
-          });
-
-    const reportIds: string[] = [];
-    let lineItemCount = 0;
-
-    for (const bucket of buckets) {
-      const result = await createReportUpload({
-        opcoId,
-        userId: BigInt(session.userId),
-        partnerId: bucket.partnerId,
-        year: metadataResult.data.year,
-        month: metadataResult.data.month,
-        filename: uploadFile.name,
-        mimeType,
-        buffer,
-        lineItems: bucket.lineItems,
-      });
-      reportIds.push(result.reportId);
-      lineItemCount += bucket.lineItems.length;
-    }
+    const result = await createOpcoMonthlySubmissionUpload({
+      opcoId,
+      userId: BigInt(session.userId),
+      year: metadataResult.data.year,
+      month: metadataResult.data.month,
+      filename: uploadFile.name,
+      mimeType,
+      buffer,
+      buckets,
+    });
 
     return NextResponse.json({
-      reportId: reportIds[0] ?? "",
-      reportIds,
-      lineItemCount,
-      partnerCount: buckets.length,
+      submissionId: result.submissionId,
+      reportId: result.reportIds[0] ?? "",
+      reportIds: result.reportIds,
+      lineItemCount: result.lineItemCount,
+      partnerCount: result.reportIds.length,
       message: "Report uploaded successfully",
     });
   } catch (error) {
-    if (
-      error instanceof ServicePartnerResolveError ||
-      error instanceof PartnerColumnResolveError
-    ) {
-      // Intentional user-facing mapping hints (not storage/infra details).
+    if (error instanceof OpcoUnlinkedPartnersError) {
+      return jsonError(appError("OPCO_UNLINKED_PARTNERS_IN_FILE"), error.unmatched);
+    }
+    if (error instanceof OpcoMonthlyParseError) {
       return NextResponse.json(
         { error: error.message },
-        { status: error.status },
+        { status: error.status ?? 400 },
       );
     }
     return jsonError(error);

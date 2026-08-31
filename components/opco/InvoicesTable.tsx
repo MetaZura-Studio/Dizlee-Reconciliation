@@ -26,7 +26,9 @@ import { ListSearch, OrFiltersDivider } from "@/components/ui/list-search";
 import { LoadingOverlay } from "@/components/ui/loading";
 import { FilterToolbar } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
-import { formatPeriodLabel, getDefaultPeriod } from "@/lib/opco/period";
+import { formatAppError } from "@/lib/errors/format";
+import { formatMoney } from "@/lib/platform/format-money";
+import { getDefaultPeriod } from "@/lib/opco/period";
 import {
   getMaxMonthForYear,
   getPeriodYearOptions,
@@ -35,6 +37,7 @@ import { ui } from "@/lib/ui/classes";
 import { nextSortState } from "@/lib/ui/sort";
 import { invoiceStatusTone, paymentLabelTone } from "@/lib/ui/status-tones";
 import { useDebouncedValue } from "@/lib/ui/use-debounced-value";
+import { formatAppDate, formatAppMonthYear } from "@/lib/platform/format-datetime";
 import type {
   OpcoInvoiceDetail,
   OpcoInvoiceFilterOptions,
@@ -45,7 +48,6 @@ import type {
   OpcoInvoiceSortField,
   OpcoSortDirection,
 } from "@/lib/opco/queries/invoices";
-import { formatAppError } from "@/lib/errors/format";
 
 const MONTHS = [
   "January",
@@ -63,10 +65,7 @@ const MONTHS = [
 ];
 
 function formatCurrency(amount: number, currencyCode: string): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: currencyCode,
-  }).format(amount);
+  return formatMoney(amount, currencyCode);
 }
 
 function buildInvoicesQuery(filters: OpcoInvoiceListFilters): string {
@@ -411,17 +410,19 @@ export function InvoicesTable({
                       active={sortBy === "period"}
                       direction={sortDir}
                       onSort={() => applySort("period")}
+                      align="center"
                     />
-                    <DataTableTh>Status</DataTableTh>
-                    <DataTableTh>Payment</DataTableTh>
-                    <DataTableTh>Total</DataTableTh>
+                    <DataTableTh align="center">Status</DataTableTh>
+                    <DataTableTh align="center">Payment</DataTableTh>
+                    <DataTableTh align="right">Total</DataTableTh>
                     <SortableDataTableTh
                       label="Issued"
                       active={sortBy === "uploaded"}
                       direction={sortDir}
                       onSort={() => applySort("uploaded")}
+                      align="center"
                     />
-                    <DataTableTh>Actions</DataTableTh>
+                    <DataTableTh align="center">Actions</DataTableTh>
                   </tr>
                 </DataTableHead>
                 <tbody>
@@ -430,31 +431,29 @@ export function InvoicesTable({
                       <DataTableTd className="align-top">
                         {invoice.invoiceNumber ?? "—"}
                       </DataTableTd>
-                      <DataTableTd className="align-top">
-                        {formatPeriodLabel(invoice.year, invoice.month)}
+                      <DataTableTd className="align-top" align="center">
+                        {formatAppMonthYear(invoice.month, invoice.year)}
                       </DataTableTd>
-                      <DataTableTd className="align-top">
+                      <DataTableTd className="align-top" align="center">
                         <StatusPill tone={invoiceStatusTone(invoice.statusCode)}>
                           {invoice.statusLabel}
                         </StatusPill>
                       </DataTableTd>
-                      <DataTableTd className="align-top">
+                      <DataTableTd className="align-top" align="center">
                         <StatusPill
                           tone={paymentLabelTone(invoice.paymentStatusLabel)}
                         >
                           {invoice.paymentStatusLabel}
                         </StatusPill>
                       </DataTableTd>
-                      <DataTableTd className="align-top">
+                      <DataTableTd className="align-top" align="right">
                         {formatCurrency(invoice.totalAmount, invoice.currencyCode)}
                       </DataTableTd>
-                      <DataTableTd className="align-top">
-                        {new Date(invoice.issuedAt).toLocaleDateString("en-US", {
-                          dateStyle: "medium",
-                        })}
+                      <DataTableTd className="align-top" align="center">
+                        {formatAppDate(invoice.issuedAt)}
                       </DataTableTd>
-                      <DataTableTd className="align-top">
-                        <div className="flex gap-2">
+                      <DataTableTd className="align-top" align="center">
+                        <div className="flex justify-center gap-2">
                           <IconButton
                             label="View"
                             onClick={() => void openDetail(invoice.id)}

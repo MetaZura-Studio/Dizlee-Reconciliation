@@ -1,5 +1,6 @@
 "use client";
 
+import { formatAppDateTime } from "@/lib/platform/format-datetime";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -16,6 +17,7 @@ import {
 import { Modal } from "@/components/ui/modal";
 import { StatusPill } from "@/components/ui/status-pill";
 import type { InvoiceDetail } from "@/lib/dizlee/invoices";
+import { formatMoney } from "@/lib/platform/format-money";
 import { ui } from "@/lib/ui/classes";
 import { invoiceStatusTone, paymentLabelTone } from "@/lib/ui/status-tones";
 
@@ -30,21 +32,6 @@ function formatBytes(size: number | null): string {
     return `${(size / 1024).toFixed(1)} KB`;
   }
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function formatDateTime(value: string): string {
-  return new Date(value).toLocaleString("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
-
-function formatMoney(amount: number, currencyCode: string): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: currencyCode,
-    maximumFractionDigits: 2,
-  }).format(amount);
 }
 
 type InvoiceDetailModalProps = {
@@ -121,7 +108,7 @@ export function InvoiceDetailModal({
               <div>
                 <dt className="text-foreground-subtle">Acknowledged</dt>
                 <dd className="font-medium text-foreground">
-                  {formatDateTime(detail.acknowledgedAt)}
+                  {formatAppDateTime(detail.acknowledgedAt)}
                 </dd>
               </div>
             ) : null}
@@ -129,7 +116,7 @@ export function InvoiceDetailModal({
               <div>
                 <dt className="text-foreground-subtle">Paid</dt>
                 <dd className="font-medium text-foreground">
-                  {formatDateTime(detail.paidAt)}
+                  {formatAppDateTime(detail.paidAt)}
                 </dd>
               </div>
             ) : null}

@@ -34,6 +34,7 @@ import type {
   LifecycleListItem,
   LifecycleListResult,
 } from "@/lib/dizlee/invoice-lifecycle";
+import { formatAppDateTime } from "@/lib/platform/format-datetime";
 import { formatAppError } from "@/lib/errors/format";
 
 const MONTHS = [
@@ -50,16 +51,6 @@ const MONTHS = [
   "November",
   "December",
 ];
-
-function formatDateTime(value: string | null): string {
-  if (!value) {
-    return "—";
-  }
-  return new Date(value).toLocaleString("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
 
 function buildListQuery(filters: LifecycleListFilters): string {
   const params = new URLSearchParams({
@@ -317,7 +308,7 @@ export function InvoicesLifecycleView({
                   <DataTableHead>
                     <tr>
                       <DataTableTh>Invoice</DataTableTh>
-                      <DataTableTh>Status</DataTableTh>
+                      <DataTableTh align="center">Status</DataTableTh>
                     </tr>
                   </DataTableHead>
                   <tbody>
@@ -340,7 +331,7 @@ export function InvoicesLifecycleView({
                             {row.partnerName ? ` / ${row.partnerName}` : ""}
                           </p>
                         </DataTableTd>
-                        <DataTableTd>
+                        <DataTableTd align="center">
                           <StatusPill tone={invoiceStatusTone(row.invoiceStatus)}>
                             {row.invoiceStatus}
                           </StatusPill>
@@ -407,7 +398,7 @@ export function InvoicesLifecycleView({
                               {step.label}
                             </p>
                             <p className="text-xs text-foreground-subtle">
-                              {formatDateTime(step.completedAt)}
+                              {formatAppDateTime(step.completedAt)}
                             </p>
                           </div>
                         </li>
@@ -430,7 +421,7 @@ export function InvoicesLifecycleView({
                               {entry.action}
                             </p>
                             <p className="text-foreground-muted">
-                              {entry.actorName} · {formatDateTime(entry.createdAt)}
+                              {entry.actorName} · {formatAppDateTime(entry.createdAt)}
                             </p>
                             {entry.previousStatus || entry.newStatus ? (
                               <p className="text-xs text-foreground-subtle">

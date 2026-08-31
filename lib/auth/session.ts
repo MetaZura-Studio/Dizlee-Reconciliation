@@ -1,19 +1,14 @@
 /**
- * Application session accessors built on NextAuth and authOptions.
- * Consumed by server components and API routes that need the current user without portal guards.
+ * Application session accessors built on NextAuth.
+ * Main and Admin use separate cookie namespaces / auth option objects.
  */
 
-import { getServerSession } from "next-auth";
+import { getServerSession, type Session } from "next-auth";
 
-import { authOptions } from "@/lib/auth/options";
+import { adminAuthOptions, authOptions } from "@/lib/auth/options";
 import type { AppSessionUser } from "@/lib/auth/types";
 
-export async function getAppSession() {
-  return getServerSession(authOptions);
-}
-
-export async function getAppSessionUser(): Promise<AppSessionUser | null> {
-  const session = await getAppSession();
+function toAppSessionUser(session: Session | null): AppSessionUser | null {
   if (!session?.user?.id || !session.user.role) {
     return null;
   }
@@ -26,4 +21,32 @@ export async function getAppSessionUser(): Promise<AppSessionUser | null> {
     opcoId: session.user.opcoId,
     partnerId: session.user.partnerId,
   };
+}
+
+/** Main portal session (OpCo / Partner / Dizlee). */
+export async function getAppSession() {
+  return getServerSession(authOptions);
+}
+
+export async function getAppSessionUser(): Promise<AppSessionUser | null> {
+  return toAppSessionUser(await getAppSession());
+}
+
+/** Admin portal session. */
+export async function getAdminAppSession() {
+  return getServerSession(adminAuthOptions);
+}
+
+export async function getAdminAppSessionUser(): Promise<AppSessionUser | null> {
+  return toAppSessionUser(await getAdminAppSession());
+}
+
+/**
+ * Shared pages (e.g. change-password) that either portal may use.
+ * Prefers the main session, then Admin.
+ */
+export async function getAnyAppSessionUser(): Promise<AppSessionUser | null> {
+  return (
+    (await getAppSessionUser()) ?? (await getAdminAppSessionUser())
+  );
 }

@@ -16,7 +16,7 @@ Use this before deploying to staging/production or handing off to QA/security re
 | Middle (API + `lib`) | OK | Middleware role gate + per-route guards + tenant scoping |
 | Backend | OK | Prisma, private storage, path traversal checks, audit logs |
 
-**Known gaps to track (not blockers if items below are done):** in-memory rate limits on multi-instance hosts; portal Excel uploads lack magic-byte check (admin imports have it); no MFA on Admin.
+**Known gaps to track (not blockers if items below are done):** in-memory rate limits on multi-instance hosts (N/A for single-server/TDM); no MFA on Admin. Portal Excel/PDF magic-byte checks and CSP nonces are implemented.
 
 ---
 
@@ -72,7 +72,7 @@ Dizlee (`client`) is **intentionally cross-tenant** — verify only trusted Dizl
 - [ ] Partner report: same Excel rules
 - [ ] Partner invoice: non-`.pdf` rejected; >10 MB rejected
 - [ ] Uploaded report preview/download does not execute HTML/SVG inline (PDF/Excel served with safe disposition)
-- [ ] **Recommended (code):** add `assertExcelBufferMagic` to OpCo/Partner upload routes (admin imports already use it — see §4)
+- [x] **Recommended (code):** add `assertExcelBufferMagic` to OpCo/Partner upload routes (admin imports already use it — see §4)
 
 ### Invite / reset links (production)
 
@@ -82,7 +82,7 @@ Dizlee (`client`) is **intentionally cross-tenant** — verify only trusted Dizl
 
 ### Security headers
 
-- [ ] Response includes `Content-Security-Policy`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`
+- [ ] Response includes `Content-Security-Policy` (nonce-based via middleware), `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`
 - [ ] Production responses include `Strict-Transport-Security` (HTTPS deploy only)
 
 ---
@@ -155,18 +155,19 @@ Dizlee (`client`) is **intentionally cross-tenant** — verify only trusted Dizl
 
 ## 4. Recommended code hardening (backlog)
 
-Track these as follow-up tasks; not all are implemented yet.
-
-| Item | Priority | Location / notes |
-|------|----------|------------------|
-| Magic-byte check on OpCo/Partner report upload | High | Reuse `assertExcelBufferMagic` from `lib/platform/excel-upload.ts` after reading buffer (already on admin imports) |
-| Shared rate-limit store (Redis) | High | `lib/auth/rate-limit.ts` — required for horizontal scale |
-| Rate limits on upload + broadcast endpoints | Medium | OpCo/Partner upload, Dizlee intimations |
-| PDF magic-byte check (`%PDF-`) on partner invoice upload | Medium | `lib/partner/validation/invoice-upload.ts` |
-| Add `/change-password` to middleware matcher | Low | Page already guards session; API is gated |
-| CSP nonces (reduce `unsafe-inline`) | Low | `next.config.ts` |
-| Admin MFA or IP allowlist | Low | Process / infra decision |
-| IDOR integration tests in CI | Medium | OpCo/Partner preview + detail by foreign ID |
+| Item | Priority | Status / notes |
+|------|----------|----------------|
+| Magic-byte check on OpCo/Partner report upload | High | **Done** — `assertExcelBufferMagic` on upload + reupload routes |
+| PDF magic-byte check (`%PDF-`) on partner invoice upload | Medium | **Done** — `assertPdfBufferMagic` in partner invoice upload |
+| CSP nonces (reduce `unsafe-inline` for scripts) | Low | **Done** — per-request nonce in `middleware.ts` + `lib/platform/csp.ts`; CSP removed from static `next.config.ts` |
+| Shared rate-limit store (Redis) | High | Future — only needed for multi-instance hosts (`lib/auth/rate-limit.ts`) |
+| Rate limits on upload + broadcast endpoints | Medium | Future — monthly one-report uniqueness already limits report uploads |
+| Add `/change-password` to middleware matcher | Low | Future — page already guards session; API is gated |
+| Admin MFA or IP allowlist | Low | Future — process / infra decision |
+| IDOR integration tests in CI | Medium | Future — OpCo/Partner preview + detail by foreign ID |
+| APM / failed-login monitoring | Medium | Future — ops (logs / APM), not app feature |
+| Backup/retention policy for Blob + DB | Medium | Future — ops runbook |
+| Soft-delete extension edge cases (`findUnique` / RS reports) | Low | Future — consistency hardening |
 
 ---
 

@@ -11,6 +11,7 @@ import { FullPageLoading } from "@/components/ui/loading";
 import { startNavigationProgress } from "@/components/ui/navigation-progress";
 import { useToast } from "@/components/ui/toast";
 import { ADMIN_DEFAULT_ROUTE } from "@/lib/admin/navigation";
+import { ADMIN_AUTH_BASE_PATH } from "@/lib/auth/options";
 import { safeAdminCallbackUrl } from "@/lib/auth/safe-callback-url";
 import { ERROR_CATALOG } from "@/lib/errors/catalog";
 import { formatAppError } from "@/lib/errors/format";
@@ -67,7 +68,7 @@ export function AdminLoginForm() {
         return;
       }
 
-      const sessionResponse = await fetch("/api/auth/session");
+      const sessionResponse = await fetch(`${ADMIN_AUTH_BASE_PATH}/session`);
       const session = (await sessionResponse.json()) as {
         user?: { role?: string };
       };

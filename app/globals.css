@@ -64,12 +64,17 @@
   --color-danger-border: var(--danger-border);
   --font-sans: var(--font-app-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-app-mono), ui-monospace, monospace;
+  --font-arabic: var(--font-app-arabic), "Noto Sans Arabic", ui-sans-serif, sans-serif;
 }
 
 body {
   background: var(--canvas);
   color: var(--foreground);
   font-family: var(--font-sans);
+}
+
+.font-arabic {
+  font-family: var(--font-app-arabic), "Noto Sans Arabic", ui-sans-serif, sans-serif !important;
 }
 
 * {

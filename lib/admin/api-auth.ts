@@ -5,11 +5,11 @@
 import { getServerSession } from "next-auth";
 
 import { isAdminRole } from "@/lib/admin/auth";
-import { authOptions } from "@/lib/auth/options";
+import { adminAuthOptions } from "@/lib/auth/options";
 import type { AdminSessionUser } from "@/lib/admin/auth";
 
 export async function requireAdminApiSession(): Promise<AdminSessionUser | null> {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession(adminAuthOptions);
   if (!session?.user?.id || !isAdminRole(session.user.role)) {
     return null;
   }

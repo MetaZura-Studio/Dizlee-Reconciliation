@@ -40,17 +40,8 @@ import {
 } from "@/lib/admin/users.shared";
 import { ui } from "@/lib/ui/classes";
 import { nextSortState } from "@/lib/ui/sort";
+import { formatAppDateTime } from "@/lib/platform/format-datetime";
 import { formatAppError } from "@/lib/errors/format";
-
-function formatDateTime(value: string | null): string {
-  if (!value) {
-    return "—";
-  }
-  return new Date(value).toLocaleString("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
 
 function buildQuery(filters: UserListResult["filters"]): string {
   const params = new URLSearchParams({
@@ -310,9 +301,10 @@ export function UsersView({ initialResult }: UsersViewProps) {
                     active={sortBy === "status"}
                     direction={sortDir}
                     onSort={() => toggleSort("status")}
+                    align="center"
                   />
-                  <DataTableTh>Last login</DataTableTh>
-                  <DataTableTh align="right">Actions</DataTableTh>
+                  <DataTableTh align="center">Last login</DataTableTh>
+                  <DataTableTh align="center">Actions</DataTableTh>
                 </tr>
               </DataTableHead>
               <tbody>
@@ -334,16 +326,16 @@ export function UsersView({ initialResult }: UsersViewProps) {
                           ? user.partnerName ?? "—"
                           : "—"}
                     </DataTableTd>
-                    <DataTableTd>
+                    <DataTableTd align="center">
                       <StatusPill tone={statusTone(user.status)}>
                         {formatUserStatusLabel(user.status)}
                       </StatusPill>
                     </DataTableTd>
-                    <DataTableTd className="text-foreground-muted">
-                      {formatDateTime(user.lastLoginAt)}
+                    <DataTableTd className="text-foreground-muted" align="center">
+                      {formatAppDateTime(user.lastLoginAt)}
                     </DataTableTd>
-                    <DataTableTd align="right">
-                      <div className="flex justify-end gap-2">
+                    <DataTableTd align="center">
+                      <div className="flex justify-center gap-2">
                         <IconButton label="Edit user" onClick={() => openEdit(user)}>
                           <IconPencil />
                         </IconButton>

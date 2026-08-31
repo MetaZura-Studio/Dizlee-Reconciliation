@@ -5,6 +5,9 @@
  * models so routine reads exclude `isDeleted: true` rows. Use explicit filters or
  * raw queries when archived rows are required. Reuses one client instance in
  * non-production to survive Next.js hot reload.
+ *
+ * Access goes through a Proxy so a stale hot-reload client (missing newer models
+ * after `prisma generate`) is replaced on next use instead of staying broken.
  */
 
 import { PrismaClient } from "@prisma/client";
@@ -27,6 +30,7 @@ const SOFT_DELETE_MODELS = new Set([
   "NotificationTemplate",
   "Report",
   "ReportLineItem",
+  "OpcoReportSubmission",
   "Consolidation",
   "ConsolidationItem",
   "Reconciliation",
@@ -35,8 +39,16 @@ const SOFT_DELETE_MODELS = new Set([
   "InvoiceItem",
 ]);
 
+/** Bump when adding Prisma models so stale Turbopack/global clients are dropped. */
+const PRISMA_CLIENT_GENERATION = 2;
+
+type CachedPrisma = {
+  generation: number;
+  client: PrismaClient;
+};
+
 const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
+  __dizleePrisma?: CachedPrisma;
 };
 
 function createPrismaClient() {
@@ -59,13 +71,52 @@ function createPrismaClient() {
         },
       },
     },
-  });
+  }) as unknown as PrismaClient;
 }
 
-export const prisma = globalForPrisma.prisma ?? createPrismaClient();
-
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma as unknown as PrismaClient;
+function hasRequiredDelegates(client: PrismaClient): boolean {
+  const submission = (
+    client as unknown as {
+      opcoReportSubmission?: { findMany?: unknown };
+    }
+  ).opcoReportSubmission;
+  return typeof submission?.findMany === "function";
 }
+
+function resolvePrismaClient(): PrismaClient {
+  const cached = globalForPrisma.__dizleePrisma;
+  if (
+    cached &&
+    cached.generation === PRISMA_CLIENT_GENERATION &&
+    hasRequiredDelegates(cached.client)
+  ) {
+    return cached.client;
+  }
+
+  if (cached) {
+    void cached.client.$disconnect().catch(() => undefined);
+  }
+
+  const client = createPrismaClient();
+  if (!hasRequiredDelegates(client)) {
+    throw new Error(
+      "Prisma client is missing OpcoReportSubmission. Run `npx prisma generate` and restart the Next.js dev server.",
+    );
+  }
+
+  globalForPrisma.__dizleePrisma = {
+    generation: PRISMA_CLIENT_GENERATION,
+    client,
+  };
+  return client;
+}
+
+export const prisma: PrismaClient = new Proxy({} as PrismaClient, {
+  get(_target, property) {
+    const client = resolvePrismaClient();
+    const value = Reflect.get(client, property, client);
+    return typeof value === "function" ? value.bind(client) : value;
+  },
+});
 
 export default prisma;

@@ -1,6 +1,10 @@
 /**
  * In-app notification delivery to all users of a single OpCo organization.
  */
+import {
+  type NotificationMetadata,
+  serializeNotificationMetadata,
+} from "@/lib/platform/notification-metadata";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -11,6 +15,7 @@ export async function notifyOpcoUsers(params: {
   fromUserId: bigint;
   subject: string;
   body: string;
+  metadata?: NotificationMetadata;
 }): Promise<void> {
   const [sentStatus, opcoRecipientType] = await Promise.all([
     prisma.lookup.findFirst({
@@ -37,6 +42,9 @@ export async function notifyOpcoUsers(params: {
     data: {
       subject: params.subject,
       body: params.body,
+      metadataJson: params.metadata
+        ? serializeNotificationMetadata(params.metadata)
+        : null,
       statusId: sentStatus.id,
       sentAt: new Date(),
       createdByUserId: params.fromUserId,

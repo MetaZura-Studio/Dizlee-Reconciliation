@@ -21,10 +21,14 @@ async function clearTransactionalData() {
     prisma.reconciliation.deleteMany(),
     prisma.consolidationItem.deleteMany(),
     prisma.consolidation.deleteMany(),
+    prisma.revenueShareReportItem.deleteMany(),
     prisma.revenueShareReport.deleteMany(),
     prisma.reportChangeRequest.deleteMany(),
+    prisma.opcoSubmissionChangeRequest.deleteMany(),
+    prisma.opcoPartnerLinkRequest.deleteMany(),
     prisma.reportLineItem.deleteMany(),
     prisma.report.deleteMany(),
+    prisma.opcoReportSubmission.deleteMany(),
     prisma.invoice.deleteMany(),
     prisma.file.deleteMany(),
     prisma.auditLog.deleteMany(),
@@ -32,17 +36,20 @@ async function clearTransactionalData() {
 
   const counts = await Promise.all([
     prisma.report.count(),
+    prisma.opcoReportSubmission.count(),
     prisma.invoice.count(),
     prisma.reconciliation.count(),
     prisma.consolidation.count(),
     prisma.revenueShareReport.count(),
+    prisma.revenueShareReportItem.count(),
     prisma.notification.count(),
+    prisma.opcoPartnerLinkRequest.count(),
     prisma.auditLog.count(),
   ]);
 
   console.log("Transactional data cleared.");
   console.log(
-    `Remaining rows — reports: ${counts[0]}, invoices: ${counts[1]}, reconciliations: ${counts[2]}, consolidations: ${counts[3]}, revenue share reports: ${counts[4]}, notifications: ${counts[5]}, audit logs: ${counts[6]}`,
+    `Remaining rows — reports: ${counts[0]}, submissions: ${counts[1]}, invoices: ${counts[2]}, reconciliations: ${counts[3]}, consolidations: ${counts[4]}, revenue share reports: ${counts[5]}, RS items: ${counts[6]}, notifications: ${counts[7]}, partner link requests: ${counts[8]}, audit logs: ${counts[9]}`,
   );
   console.log("Kept: users, opcos, partners, settings, currencies, email templates.");
 }

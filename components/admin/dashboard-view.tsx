@@ -18,18 +18,12 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageCard, PageHeader } from "@/components/ui/page";
 import { StatCard } from "@/components/ui/stat-card";
 import type { AdminDashboardData } from "@/lib/admin/dashboard";
+import { formatAppDateTime } from "@/lib/platform/format-datetime";
 import { cn } from "@/lib/ui/classes";
 
 type DashboardViewProps = {
   data: AdminDashboardData;
 };
-
-function formatDateTime(value: string): string {
-  return new Date(value).toLocaleString("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
 
 function formatRoleLabel(role: string): string {
   return role.charAt(0) + role.slice(1).toLowerCase();
@@ -197,7 +191,7 @@ export function DashboardView({ data }: DashboardViewProps) {
               <DataTable>
                 <DataTableHead>
                   <tr>
-                    <DataTableTh>When</DataTableTh>
+                    <DataTableTh align="center">When</DataTableTh>
                     <DataTableTh>Actor</DataTableTh>
                     <DataTableTh>Action</DataTableTh>
                     <DataTableTh>Entity</DataTableTh>
@@ -207,8 +201,8 @@ export function DashboardView({ data }: DashboardViewProps) {
                 <tbody>
                   {recentActivity.map((entry) => (
                     <DataTableRow key={entry.id}>
-                      <DataTableTd className="whitespace-nowrap text-foreground-muted">
-                        {formatDateTime(entry.createdAt)}
+                      <DataTableTd className="whitespace-nowrap text-foreground-muted" align="center">
+                        {formatAppDateTime(entry.createdAt)}
                       </DataTableTd>
                       <DataTableTd>
                         <p className="font-medium text-foreground">{entry.actorName}</p>

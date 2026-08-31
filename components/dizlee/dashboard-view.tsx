@@ -34,6 +34,8 @@ import {
 } from "@/lib/platform/period";
 import { cn, ui } from "@/lib/ui/classes";
 import { formatAppError } from "@/lib/errors/format";
+import { formatAppDateTime } from "@/lib/platform/format-datetime";
+import { formatUsd } from "@/lib/platform/format-money";
 
 type SectionTone = "billing" | "reports" | "uploads";
 
@@ -106,23 +108,6 @@ const MONTHS = [
   "November",
   "December",
 ];
-
-const usdFormatter = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
-
-function formatDateTime(value: string | null): string {
-  if (!value) {
-    return "—";
-  }
-  return new Date(value).toLocaleString("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
 
 function reportsLink(
   month: number,
@@ -345,7 +330,7 @@ export function DashboardView({ initialData }: DashboardViewProps) {
                   <tr>
                     <DataTableTh>Submitted by</DataTableTh>
                     <DataTableTh>OpCo / Partner</DataTableTh>
-                    <DataTableTh>Uploaded</DataTableTh>
+                    <DataTableTh align="center">Uploaded</DataTableTh>
                   </tr>
                 </DataTableHead>
                 <tbody>
@@ -367,12 +352,12 @@ export function DashboardView({ initialData }: DashboardViewProps) {
                           {upload.lane}
                         </Link>
                       </DataTableTd>
-                      <DataTableTd className="text-foreground-muted">
+                      <DataTableTd className="text-foreground-muted" align="center">
                         <Link
                           href={reportsLink(month, year, { reportId: upload.id })}
                           className="underline decoration-foreground-subtle underline-offset-2 hover:text-foreground hover:decoration-foreground"
                         >
-                          {formatDateTime(upload.uploadedAt)}
+                          {formatAppDateTime(upload.uploadedAt)}
                         </Link>
                       </DataTableTd>
                     </DataTableRow>
@@ -430,7 +415,7 @@ function BillingSectionView({
         <KpiCard label="Invoices" value={kpis.invoices} href={allInvoicesHref} tone="blue" />
         <KpiCard
           label="Total revenue (paid OpCos)"
-          value={usdFormatter.format(kpis.totalRevenuePaidUsd)}
+          value={formatUsd(kpis.totalRevenuePaidUsd)}
           href={paidInvoicesHref}
           tone="teal"
         />
@@ -442,7 +427,7 @@ function BillingSectionView({
         />
         <KpiCard
           label="Pending collection"
-          value={usdFormatter.format(kpis.pendingCollectionUsd)}
+          value={formatUsd(kpis.pendingCollectionUsd)}
           href={pendingInvoicesHref}
           tone="amber"
         />
@@ -459,7 +444,7 @@ function BillingSectionView({
         <DonutChart
           title="Revenue by OpCo (paid)"
           segments={billing.revenueByOpco}
-          formatValue={(value) => usdFormatter.format(value)}
+          formatValue={(value) => formatUsd(value)}
           getSegmentHref={(segment) =>
             segment.id
               ? invoicesLink(month, year, {
@@ -591,7 +576,7 @@ function ReportsReconSectionView({
                 href={reportsHref}
                 className="underline decoration-foreground-subtle underline-offset-2 hover:decoration-foreground"
               >
-                {formatDateTime(reportsRecon.latestUpload)}
+                {formatAppDateTime(reportsRecon.latestUpload)}
               </Link>
             ) : (
               "—"

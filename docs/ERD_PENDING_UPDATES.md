@@ -23,6 +23,13 @@ Migration: `20260807120000_opco_vat_percent`
 
 Migration: `20260720120000_app_settings_notification_schedules_json`
 
+### `notifications`
+| Column | Type | Notes |
+|--------|------|--------|
+| `metadata_json` | `TEXT NULL` | Structured CTA / OpCo report-upload consolidation payload |
+
+Migration: `20260824153000_notification_metadata_json`
+
 ### `invoices`
 | Column | Type | Notes |
 |--------|------|--------|
@@ -118,7 +125,7 @@ Relationships:
 - `files` 0..1 —— * sample for mapping
 
 ### `revenue_share_reports`
-One generated Dizlee Revenue Share Excel per OpCo + period (file-backed; no line-item child table).
+One generated Dizlee Revenue Share Excel per OpCo + period (file + row snapshot).
 
 | Column | Type | Notes |
 |--------|------|--------|
@@ -140,6 +147,65 @@ Relationships:
 - `opcos` 1 —— * `revenue_share_reports`
 - `files` 1 —— * `revenue_share_reports`
 - `users` 1 —— * generated-by
+- `revenue_share_reports` 1 —— * `revenue_share_report_items`
+
+### `revenue_share_report_items`
+Snapshot of each RS Excel row. No audit/soft-delete. On regenerate: hard-delete + recreate.
+
+| Column | Type | Notes |
+|--------|------|--------|
+| `id` | `BIGINT` PK | |
+| `revenue_share_report_id` | `INT NOT NULL` → `revenue_share_reports.id` | |
+| `partner_id` | `BIGINT NULL` → `partners.id` | |
+| `partner_name` | `VARCHAR(255) NOT NULL` | Excel: Partner Name |
+| `service_name` | `VARCHAR(255) NOT NULL` | Excel: Service Name |
+| `opco_amount_usd` | `DECIMAL(18,4) NULL` | |
+| `partner_amount_usd` | `DECIMAL(18,4) NULL` | |
+| `regulatory_fee_percent` | `DECIMAL(5,2) NOT NULL` | OpCo vat at generation |
+| `regulatory_fee_amount` | `DECIMAL(18,4) NOT NULL` | Computed fee |
+| `net_revenue` | `DECIMAL(18,4) NOT NULL` | |
+| `revenue_share_percent` | `DECIMAL(18,4) NULL` | |
+| `sort_order` | `INT NOT NULL` | Stable Excel order |
+
+Indexes: `idx_rs_report_items_report_id`, `idx_rs_report_items_report_sort`  
+Migration: `20260826120000_revenue_share_report_items`
+
+### `opco_report_submissions`
+One OpCo monthly raw Excel (all partners); partner `reports` link via `submission_id` after split.
+
+| Column | Type | Notes |
+|--------|------|--------|
+| `id` | `BIGINT` PK | |
+| `opco_id` | `BIGINT NOT NULL` → `opcos.id` | |
+| `month` / `year` | `INT NOT NULL` | |
+| `file_id` | `BIGINT NOT NULL` → `files.id` | Single raw workbook |
+| `status_id` | `INT NOT NULL` → `lookups` | REPORT_STATUS (`SUBMITTED` / `CHANGE_REQUESTED` / `RESUBMITTED`) |
+| soft-delete / audit | standard | |
+
+Unique: `uq_opco_report_submissions` (`opco_id`, `year`, `month`)  
+Migration: `20260825140000_opco_report_submissions`  
+Child: `opco_submission_change_requests` (submission-scoped CR; Partner keeps `report_change_requests`)  
+`reports.submission_id` nullable FK → this table
+
+### `opco_partner_link_requests`
+OpCo asks Admin to link partners so a report upload can proceed.
+
+| Column | Type | Notes |
+|--------|------|--------|
+| `id` | `BIGINT` PK | |
+| `opco_id` | `BIGINT NOT NULL` → `opcos.id` | |
+| `requested_by_user_id` | `BIGINT NOT NULL` → `users.id` | |
+| `month` / `year` | `INT NOT NULL` | Report period on the request |
+| `message` | `TEXT NOT NULL` | OpCo note |
+| `partner_names_json` | `TEXT NOT NULL` | JSON string array of partner names still pending |
+| `status` | `VARCHAR(32) NOT NULL DEFAULT 'PENDING'` | `PENDING` \| `APPROVED` \| `REJECTED` |
+| `decision_note` | `TEXT NULL` | |
+| `decided_by_user_id` | `BIGINT NULL` → `users.id` | |
+| `decided_at` | `DATETIME(3) NULL` | |
+| `created_at` / `updated_at` | timestamps | |
+
+Indexes: `idx_opco_partner_link_requests_status_created`, `idx_opco_partner_link_requests_opco_id`  
+Migration: `20260827120000_opco_partner_link_requests`
 
 ---
 

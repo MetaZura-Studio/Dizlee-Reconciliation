@@ -6,7 +6,7 @@
 
 import { redirect } from "next/navigation";
 
-import { getAppSessionUser } from "@/lib/auth/session";
+import { getAdminAppSessionUser } from "@/lib/auth/session";
 import type { AppSessionUser } from "@/lib/auth/types";
 
 export type AdminSessionUser = AppSessionUser & { role: "admin" };
@@ -16,7 +16,7 @@ export function isAdminRole(role: string): boolean {
 }
 
 export async function requireAdminUser(): Promise<AdminSessionUser> {
-  const user = await getAppSessionUser();
+  const user = await getAdminAppSessionUser();
 
   if (!user || !isAdminRole(user.role)) {
     redirect("/admin/login");
