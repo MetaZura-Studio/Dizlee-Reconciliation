@@ -8,10 +8,8 @@ import {
   type SendReportRemindersInput,
   type SendReportRemindersResult,
 } from "@/lib/dizlee/notifications/broadcast.shared";
-import {
-  getBroadcastTemplateOptions,
-  NotificationError,
-} from "@/lib/dizlee/notifications/intimations";
+import { getBroadcastTemplateOptions } from "@/lib/dizlee/notifications/intimations";
+import { NotificationError } from "@/lib/dizlee/notifications/shared";
 import {
   listReportMonitoringLanes,
   parseReportMonitoringFilters,
@@ -86,6 +84,7 @@ export async function sendReportReminders(params: {
       subject: input.subject,
       body: input.body,
       attachmentFileIds: input.attachmentFileIds,
+      deliveryChannel: input.deliveryChannel,
       throwIfNoRecipients: true,
     });
   } catch (error) {

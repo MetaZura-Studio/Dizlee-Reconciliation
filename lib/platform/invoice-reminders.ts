@@ -1,6 +1,7 @@
 /**
  * Dizlee manual missing-invoice reminders — monitoring lanes, template merge, notifications.
  * Targets OpCo, Partner, or both for a given reporting period.
+ * Supports System / Email / Both delivery (default Both).
  */
 import { getLookupId } from "@/lib/admin/lookups";
 import {
@@ -8,6 +9,18 @@ import {
   type InvoiceMonitoringLane,
 } from "@/lib/dizlee/invoices-monitoring";
 import { getActiveEmailTemplate } from "@/lib/platform/email-templates";
+import {
+  DEFAULT_NOTIFICATION_DELIVERY_CHANNEL,
+  formatDeliveryMessage,
+  NotificationDeliveryError,
+  parseDeliveryChannel,
+  type NotificationDeliveryChannel,
+  type SendNotificationEmailsResult,
+} from "@/lib/platform/notification-delivery.shared";
+import {
+  prepareEmailDelivery,
+  sendNotificationEmails,
+} from "@/lib/platform/notification-delivery";
 import {
   applyTemplate,
   periodLabel,
@@ -28,6 +41,12 @@ export type SendMissingInvoiceRemindersInput = {
   fromUserId: bigint;
   templateCode?: string;
   throwIfNoRecipients?: boolean;
+  /**
+   * SYSTEM | EMAIL | BOTH — default BOTH.
+   * When a Dizlee invoice-remind compose UI/API is added, pass the same
+   * channel radio value used by report reminders (`lane-remind-modal` / reminders API).
+   */
+  deliveryChannel?: NotificationDeliveryChannel;
 };
 
 export class InvoiceReminderError extends DomainError {
@@ -94,6 +113,21 @@ export async function sendMissingInvoiceReminders(
     throwIfNoRecipients = true,
   } = params;
   const period = periodLabel(month, year);
+
+  let deliveryChannel: NotificationDeliveryChannel =
+    DEFAULT_NOTIFICATION_DELIVERY_CHANNEL;
+  try {
+    deliveryChannel = parseDeliveryChannel(
+      params.deliveryChannel,
+      DEFAULT_NOTIFICATION_DELIVERY_CHANNEL,
+    );
+  } catch (error) {
+    if (error instanceof NotificationDeliveryError) {
+      throw new InvoiceReminderError(error.message, error.status);
+    }
+    throw error;
+  }
+
   const lanes = await getAllInvoiceLanes(month, year);
 
   const { subjectTemplate, bodyTemplate } = await resolveTemplates(
@@ -114,76 +148,93 @@ export async function sendMissingInvoiceReminders(
   const shouldSendOpco = target === "opco" || target === "both";
   const shouldSendPartner = target === "partner" || target === "both";
 
+  const opcoIds = new Set<string>();
+  const partnerIds = new Set<string>();
+
   if (shouldSendOpco) {
-    const opcoIds = new Set<string>();
     for (const lane of lanes) {
       if (lane.opcoInvoice.status === "Missing") {
         opcoIds.add(lane.opcoId);
       }
     }
-
-    for (const opcoId of opcoIds) {
-      const subject = applyTemplate(subjectTemplate, { period });
-      const body = applyTemplate(bodyTemplate, { period });
-
-      await prisma.notification.create({
-        data: {
-          subject: subject.slice(0, 255),
-          body,
-          statusId: sentStatusId,
-          priority: "REMINDER",
-          sentAt,
-          createdByUserId: fromUserId,
-          updatedByUserId: fromUserId,
-          recipients: {
-            create: {
-              recipientTypeId: opcoRecipientTypeId,
-              recipientId: BigInt(opcoId),
-              fromUserId,
-              createdByUserId: fromUserId,
-              updatedByUserId: fromUserId,
-            },
-          },
-        },
-      });
-      opcoNotifications += 1;
-    }
   }
 
   if (shouldSendPartner) {
-    const partnerIds = new Set<string>();
     for (const lane of lanes) {
       if (lane.partnerInvoice.status === "Missing") {
         partnerIds.add(lane.partnerId);
       }
     }
+  }
 
-    for (const partnerId of partnerIds) {
-      const subject = applyTemplate(subjectTemplate, { period });
-      const body = applyTemplate(bodyTemplate, { period });
+  let emailRecipients: Awaited<ReturnType<typeof prepareEmailDelivery>> = [];
+  try {
+    emailRecipients = await prepareEmailDelivery({
+      channel: deliveryChannel,
+      opcoIds: [...opcoIds].map((id) => BigInt(id)),
+      partnerIds: [...partnerIds].map((id) => BigInt(id)),
+    });
+  } catch (error) {
+    if (error instanceof NotificationDeliveryError) {
+      throw new InvoiceReminderError(error.message, error.status);
+    }
+    throw error;
+  }
 
-      await prisma.notification.create({
-        data: {
-          subject: subject.slice(0, 255),
-          body,
-          statusId: sentStatusId,
-          priority: "REMINDER",
-          sentAt,
-          createdByUserId: fromUserId,
-          updatedByUserId: fromUserId,
-          recipients: {
-            create: {
-              recipientTypeId: partnerRecipientTypeId,
-              recipientId: BigInt(partnerId),
-              fromUserId,
-              createdByUserId: fromUserId,
-              updatedByUserId: fromUserId,
-            },
+  for (const opcoId of opcoIds) {
+    const subject = applyTemplate(subjectTemplate, { period });
+    const body = applyTemplate(bodyTemplate, { period });
+
+    await prisma.notification.create({
+      data: {
+        subject: subject.slice(0, 255),
+        body,
+        deliveryChannel,
+        statusId: sentStatusId,
+        priority: "REMINDER",
+        sentAt,
+        createdByUserId: fromUserId,
+        updatedByUserId: fromUserId,
+        recipients: {
+          create: {
+            recipientTypeId: opcoRecipientTypeId,
+            recipientId: BigInt(opcoId),
+            fromUserId,
+            createdByUserId: fromUserId,
+            updatedByUserId: fromUserId,
           },
         },
-      });
-      partnerNotifications += 1;
-    }
+      },
+    });
+    opcoNotifications += 1;
+  }
+
+  for (const partnerId of partnerIds) {
+    const subject = applyTemplate(subjectTemplate, { period });
+    const body = applyTemplate(bodyTemplate, { period });
+
+    await prisma.notification.create({
+      data: {
+        subject: subject.slice(0, 255),
+        body,
+        deliveryChannel,
+        statusId: sentStatusId,
+        priority: "REMINDER",
+        sentAt,
+        createdByUserId: fromUserId,
+        updatedByUserId: fromUserId,
+        recipients: {
+          create: {
+            recipientTypeId: partnerRecipientTypeId,
+            recipientId: BigInt(partnerId),
+            fromUserId,
+            createdByUserId: fromUserId,
+            updatedByUserId: fromUserId,
+          },
+        },
+      },
+    });
+    partnerNotifications += 1;
   }
 
   if (opcoNotifications === 0 && partnerNotifications === 0) {
@@ -199,6 +250,17 @@ export async function sendMissingInvoiceReminders(
     );
   }
 
+  let emailResult: SendNotificationEmailsResult | null = null;
+  if (emailRecipients.length > 0) {
+    const subject = applyTemplate(subjectTemplate, { period }).slice(0, 255);
+    const body = applyTemplate(bodyTemplate, { period });
+    emailResult = await sendNotificationEmails({
+      recipients: emailRecipients,
+      subject,
+      body,
+    });
+  }
+
   const parts: string[] = [];
   if (opcoNotifications > 0) {
     parts.push(
@@ -211,9 +273,15 @@ export async function sendMissingInvoiceReminders(
     );
   }
 
+  const baseMessage = `Sent ${parts.join(" and ")}.`;
+
   return {
     opcoNotifications,
     partnerNotifications,
-    message: `Sent ${parts.join(" and ")}.`,
+    message: formatDeliveryMessage({
+      channel: deliveryChannel,
+      baseMessage,
+      emailResult,
+    }),
   };
 }

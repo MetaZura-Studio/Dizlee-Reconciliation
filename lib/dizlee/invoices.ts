@@ -23,10 +23,18 @@ import {
   BASE_CURRENCY_RATE,
   getMonthlyRatesForPeriod,
 } from "@/lib/platform/currency-rates";
+import { formatAppMonthYear } from "@/lib/platform/format-datetime";
 import { formatMoney, roundMoney } from "@/lib/platform/format-money";
 import { prisma } from "@/lib/prisma";
 import { isFuturePeriod } from "@/lib/platform/period";
 import { notifyOpcoUsers } from "@/lib/platform/notify-opco";
+import { prepareEmailDelivery } from "@/lib/platform/notification-delivery";
+import {
+  DEFAULT_NOTIFICATION_DELIVERY_CHANNEL,
+  NotificationDeliveryError,
+  parseDeliveryChannel,
+  type NotificationDeliveryChannel,
+} from "@/lib/platform/notification-delivery.shared";
 import { DomainError } from "@/lib/errors/app-error";
 
 export type InvoiceSortField = "uploaded" | "period" | "opco" | "partner";
@@ -116,6 +124,8 @@ export type CreateOpcoInvoiceInput = {
   preparedBy?: string;
   approvedBy?: string;
   lineItems: CreateOpcoInvoiceLineInput[];
+  /** SYSTEM | EMAIL | BOTH — defaults to BOTH. */
+  deliveryChannel?: string;
 };
 
 export type CreateOpcoInvoiceFormOptions = {
@@ -149,10 +159,7 @@ function periodFromParts(month: number, year: number): DashboardPeriod {
   return {
     month,
     year,
-    label: new Date(year, month - 1, 1).toLocaleString("en-US", {
-      month: "long",
-      year: "numeric",
-    }),
+    label: formatAppMonthYear(month, year),
   };
 }
 
@@ -431,12 +438,39 @@ export async function createOpcoInvoice(
   const actorId = BigInt(actorUserId);
   const opcoId = BigInt(input.opcoId);
 
+  let deliveryChannel: NotificationDeliveryChannel =
+    DEFAULT_NOTIFICATION_DELIVERY_CHANNEL;
+  try {
+    deliveryChannel = parseDeliveryChannel(
+      input.deliveryChannel,
+      DEFAULT_NOTIFICATION_DELIVERY_CHANNEL,
+    );
+  } catch (error) {
+    if (error instanceof NotificationDeliveryError) {
+      throw new InvoiceActionError(error.message, error.status);
+    }
+    throw error;
+  }
+
   const opco = await prisma.opco.findFirst({
     where: { id: opcoId },
     select: { id: true, defaultCurrencyId: true },
   });
   if (!opco) {
     throw new InvoiceActionError("OpCo not found.", 404);
+  }
+
+  try {
+    await prepareEmailDelivery({
+      channel: deliveryChannel,
+      opcoIds: [opcoId],
+      partnerIds: [],
+    });
+  } catch (error) {
+    if (error instanceof NotificationDeliveryError) {
+      throw new InvoiceActionError(error.message, error.status);
+    }
+    throw error;
   }
 
   const currencyId = input.currencyId
@@ -548,6 +582,7 @@ export async function createOpcoInvoice(
     fromUserId: actorId,
     subject: "Invoice received from Dizlee",
     body: `Dizlee sent invoice ${detail.invoiceNumber ?? `#${detail.id}`} for ${detail.period.label}. Total ${formatMoney(detail.totalAmount, detail.currencyCode)}.`,
+    deliveryChannel,
   });
 
   return detail;

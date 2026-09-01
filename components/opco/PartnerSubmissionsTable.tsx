@@ -21,6 +21,7 @@ import type {
   PartnerSubmissionStatus,
   PartnerSubmissionSummary,
 } from "@/lib/opco/queries/dashboard";
+import { formatAppDateTime } from "@/lib/platform/format-datetime";
 import { nextSortState, type SortDirection } from "@/lib/ui/sort";
 import { submissionStatusTone } from "@/lib/ui/status-tones";
 
@@ -134,7 +135,7 @@ export function PartnerSubmissionsTable({ partners }: PartnerSubmissionsTablePro
                 </DataTableTd>
                 <DataTableTd className="text-foreground-muted" align="center">
                   {partner.uploadedAt
-                    ? new Date(partner.uploadedAt).toLocaleString()
+                    ? formatAppDateTime(partner.uploadedAt)
                     : "—"}
                 </DataTableTd>
               </DataTableRow>

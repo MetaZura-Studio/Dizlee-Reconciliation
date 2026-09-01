@@ -20,7 +20,7 @@ const detail = {
 describe("reconciliation alert templates", () => {
   it("builds placeholders from reconciliation detail", () => {
     const values = buildReconciliationAlertPlaceholders(detail);
-    expect(values.period).toBe("July 2026");
+    expect(values.period).toBe("07/2026");
     expect(values.opcoName).toBe("Zain KW");
     expect(values.partnerName).toBe("Partner One");
     expect(values.matchedCount).toBe("10");
@@ -45,9 +45,9 @@ describe("reconciliation alert templates", () => {
       placeholders,
     );
 
-    expect(opco.subject).toBe("OpCo alert — Zain KW (July 2026)");
+    expect(opco.subject).toBe("OpCo alert — Zain KW (07/2026)");
     expect(opco.body).toContain("Dear OpCo Zain KW");
-    expect(partner.subject).toBe("Partner alert — Partner One (July 2026)");
+    expect(partner.subject).toBe("Partner alert — Partner One (07/2026)");
     expect(partner.body).toContain("unmatched=2");
   });
 

@@ -16,6 +16,16 @@ export type BroadcastAudience = "opco" | "partner" | "both";
 /** custom = freeform; any other string is a notification_templates.code */
 export type BroadcastMessageSource = "custom" | string;
 
+export type {
+  NotificationDeliveryChannel,
+} from "@/lib/platform/notification-delivery.shared";
+
+export {
+  DEFAULT_NOTIFICATION_DELIVERY_CHANNEL,
+  NOTIFICATION_DELIVERY_CHANNELS,
+  deliveryChannelLabel,
+} from "@/lib/platform/notification-delivery.shared";
+
 export type BroadcastTemplateOption = {
   code: string;
   name: string;
@@ -38,6 +48,8 @@ export type IntimationListItem = {
   sentAt: string;
   sentBy: string;
   priority: string | null;
+  deliveryChannel: string;
+  deliveryChannelLabel: string;
 };
 
 export type IntimationListResult = {
@@ -60,6 +72,13 @@ export type SendBroadcastInput = {
   priority?: string | null;
   expiresAt?: string | null;
   attachmentFileIds?: string[];
+  /** SYSTEM | EMAIL | BOTH — defaults to BOTH for manual sends. */
+  deliveryChannel?: import("@/lib/platform/notification-delivery").NotificationDeliveryChannel;
+  /**
+   * When false, Email/Both still creates recipients but skips email if SMTP
+   * is off (cron/auto). Manual compose keeps default true.
+   */
+  requireEmailConfigured?: boolean;
 };
 
 export const DEFAULT_REMINDER_MESSAGE_SOURCE: BroadcastTemplateCode =
@@ -81,6 +100,8 @@ export type SendReportRemindersInput = {
   subject?: string;
   body?: string;
   attachmentFileIds?: string[];
+  /** SYSTEM | EMAIL | BOTH — defaults to BOTH for manual sends. */
+  deliveryChannel?: import("@/lib/platform/notification-delivery").NotificationDeliveryChannel;
 };
 
 export type SendReportRemindersResult = {

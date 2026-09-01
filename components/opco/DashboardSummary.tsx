@@ -11,6 +11,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { StatusPill } from "@/components/ui/status-pill";
 import type { OpcoDashboardData } from "@/lib/opco/queries/dashboard";
 import { formatPeriodLabel } from "@/lib/opco/period";
+import { formatAppDateTime } from "@/lib/platform/format-datetime";
 import { ui } from "@/lib/ui/classes";
 
 type DashboardSummaryProps = {
@@ -110,7 +111,7 @@ export function DashboardSummary({ data }: DashboardSummaryProps) {
                   <div className="text-right">
                     <StatusPill tone="neutral">{upload.statusLabel}</StatusPill>
                     <p className="mt-1 text-xs text-foreground-subtle">
-                      {new Date(upload.uploadedAt).toLocaleString()}
+                      {formatAppDateTime(upload.uploadedAt)}
                     </p>
                   </div>
                 </li>

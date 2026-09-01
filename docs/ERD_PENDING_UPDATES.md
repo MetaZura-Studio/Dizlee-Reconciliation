@@ -27,8 +27,10 @@ Migration: `20260720120000_app_settings_notification_schedules_json`
 | Column | Type | Notes |
 |--------|------|--------|
 | `metadata_json` | `TEXT NULL` | Structured CTA / OpCo report-upload consolidation payload |
+| `delivery_channel` | `VARCHAR(16) NOT NULL DEFAULT 'SYSTEM'` | `SYSTEM` \| `EMAIL` \| `BOTH` — how the notification was delivered |
 
-Migration: `20260824153000_notification_metadata_json`
+Migration: `20260824153000_notification_metadata_json`  
+Migration: `20260831140000_notification_delivery_channel`
 
 ### `invoices`
 | Column | Type | Notes |

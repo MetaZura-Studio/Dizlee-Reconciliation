@@ -1,11 +1,12 @@
 /**
  * Email template placeholder rendering — `{{key}}` substitution and period labels.
  */
+
+import { formatAppMonthYear } from "@/lib/platform/format-datetime";
+
+/** mm/yyyy — e.g. 08/2026 */
 export function periodLabel(month: number, year: number): string {
-  return new Date(year, month - 1, 1).toLocaleString("en-US", {
-    month: "long",
-    year: "numeric",
-  });
+  return formatAppMonthYear(month, year);
 }
 
 /** Replace `{{key}}` placeholders in template strings with supplied values. */

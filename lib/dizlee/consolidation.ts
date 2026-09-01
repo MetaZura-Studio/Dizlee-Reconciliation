@@ -10,6 +10,7 @@ import {
   type ConsolidationLineInput,
 } from "@/lib/dizlee/consolidation/aggregate";
 import { getLookupId } from "@/lib/dizlee/lookups";
+import { formatAppMonthYear } from "@/lib/platform/format-datetime";
 import { ACTIVE_OPCO_PARTNER_LINK_FILTER } from "@/lib/platform/opco-partner-links";
 import { prisma } from "@/lib/prisma";
 import { DomainError } from "@/lib/errors/app-error";
@@ -99,10 +100,7 @@ function periodFromParts(month: number, year: number): DashboardPeriod {
   return {
     month,
     year,
-    label: new Date(year, month - 1, 1).toLocaleString("en-US", {
-      month: "long",
-      year: "numeric",
-    }),
+    label: formatAppMonthYear(month, year),
   };
 }
 

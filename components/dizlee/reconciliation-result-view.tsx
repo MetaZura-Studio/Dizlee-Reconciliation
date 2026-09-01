@@ -16,15 +16,42 @@ import {
   type PendingAttachment,
 } from "@/components/shared/notification-attachment-picker";
 import { Button } from "@/components/ui/button";
+import { FieldLegend } from "@/components/ui/field";
 import { ModalCloseButton } from "@/components/ui/modal-close-button";
 import { SuccessDialog } from "@/components/ui/success-dialog";
 import { useToast } from "@/components/ui/toast";
+import {
+  DEFAULT_NOTIFICATION_DELIVERY_CHANNEL,
+  type NotificationDeliveryChannel,
+} from "@/lib/dizlee/notifications/broadcast.shared";
 import type { ReconciliationAlertTemplates } from "@/lib/dizlee/notifications/reconciliation-alerts";
 import type { ReconciliationDetail } from "@/lib/dizlee/reconciliation";
 import { reportRawFilePreviewUrl } from "@/lib/platform/reports/preview-url";
 import { formatUsd } from "@/lib/platform/format-money";
 import { formatAppDateTime, formatAppMonthYear } from "@/lib/platform/format-datetime";
 import { formatAppError } from "@/lib/errors/format";
+
+const DELIVERY_OPTIONS: Array<{
+  value: NotificationDeliveryChannel;
+  label: string;
+  hint: string;
+}> = [
+  {
+    value: "SYSTEM",
+    label: "System notification",
+    hint: "In-app inbox and bell only",
+  },
+  {
+    value: "EMAIL",
+    label: "Email notification",
+    hint: "Email only (still logged in Outbox)",
+  },
+  {
+    value: "BOTH",
+    label: "Both",
+    hint: "In-app inbox plus email",
+  },
+];
 
 function isMatchedStatus(status: string): boolean {
   return status.replaceAll(" ", "_").toUpperCase() === "MATCHED";
@@ -75,6 +102,11 @@ export function ReconciliationResultView({
   );
   const [alertAttachments, setAlertAttachments] = useState<PendingAttachment[]>(
     [],
+  );
+  const [deliveryChannel, setDeliveryChannel] =
+    useState<NotificationDeliveryChannel>(DEFAULT_NOTIFICATION_DELIVERY_CHANNEL);
+  const [alertTarget, setAlertTarget] = useState<"opco" | "partner" | "both">(
+    "both",
   );
 
   async function confirmReconciliation() {
@@ -157,6 +189,8 @@ export function ReconciliationResultView({
     setPartnerSubject(initialAlertTemplates.partner.subject);
     setPartnerBody(initialAlertTemplates.partner.body);
     setAlertAttachments([]);
+    setDeliveryChannel(DEFAULT_NOTIFICATION_DELIVERY_CHANNEL);
+    setAlertTarget("both");
     setAlertOpen(true);
   }
 
@@ -171,6 +205,7 @@ export function ReconciliationResultView({
       body: JSON.stringify({
         audience,
         messageSource: "custom",
+        deliveryChannel,
         opcoIds: audience === "opco" ? [detail.opcoId] : [],
         partnerIds: audience === "partner" ? [detail.partnerId] : [],
         month: detail.period.month,
@@ -368,15 +403,51 @@ export function ReconciliationResultView({
                   Alert OpCo / Partner
                 </h2>
                 <p className="mt-1 text-sm text-foreground-muted">
-                  Messages load from Admin Email Templates (Alert). OpCo-only uses
-                  the OpCo template, Partner-only uses the Partner template, and
-                  Alert both sends both.
+                  Messages load from Admin Email Templates (Alert). Choose delivery
+                  method, then who to send to (OpCo, Partner, or Both).
                 </p>
               </div>
               <ModalCloseButton onClick={() => setAlertOpen(false)} />
             </div>
 
             <div className="mt-4 space-y-5">
+              <fieldset className="space-y-2">
+                <FieldLegend required>Delivery method</FieldLegend>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {DELIVERY_OPTIONS.map((option) => {
+                    const selected = deliveryChannel === option.value;
+                    return (
+                      <label
+                        key={option.value}
+                        className={`flex h-full cursor-pointer items-start gap-3 rounded-xl border bg-surface p-3 text-sm shadow-[var(--shadow-sm)] transition-colors ${
+                          selected
+                            ? "border-primary ring-2 ring-[var(--ring)]"
+                            : "border-border hover:border-border-strong"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="reconAlertDeliveryChannel"
+                          value={option.value}
+                          checked={selected}
+                          onChange={() => setDeliveryChannel(option.value)}
+                          className="mt-1 shrink-0"
+                          disabled={alerting}
+                        />
+                        <span>
+                          <span className="font-medium text-foreground">
+                            {option.label}
+                          </span>
+                          <span className="mt-0.5 block text-xs text-foreground-subtle">
+                            {option.hint}
+                          </span>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
+
               <section className="space-y-3 rounded-2xl border border-border p-4">
                 <h3 className="text-sm font-semibold text-foreground">
                   OpCo — {detail.opcoName}
@@ -432,6 +503,42 @@ export function ReconciliationResultView({
                 onChange={setAlertAttachments}
                 disabled={alerting}
               />
+
+              <fieldset className="space-y-2">
+                <FieldLegend required>Send to</FieldLegend>
+                <div className="grid gap-2 sm:grid-cols-3">
+                  {(
+                    [
+                      { value: "opco" as const, label: "OpCo" },
+                      { value: "partner" as const, label: "Partner" },
+                      { value: "both" as const, label: "Both" },
+                    ] as const
+                  ).map((option) => {
+                    const selected = alertTarget === option.value;
+                    return (
+                      <label
+                        key={option.value}
+                        className={`flex cursor-pointer items-center gap-2 rounded-xl border bg-surface px-3 py-2.5 text-sm font-medium shadow-[var(--shadow-sm)] transition-colors ${
+                          selected
+                            ? "border-primary text-foreground ring-2 ring-[var(--ring)]"
+                            : "border-border text-foreground-muted hover:border-border-strong hover:text-foreground"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="reconAlertTarget"
+                          value={option.value}
+                          checked={selected}
+                          onChange={() => setAlertTarget(option.value)}
+                          disabled={alerting}
+                        />
+                        {option.label}
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
+
               <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
                 <Button
                   variant="secondary"
@@ -440,29 +547,13 @@ export function ReconciliationResultView({
                 >
                   Cancel
                 </Button>
-                <div className="flex flex-wrap justify-end gap-2">
-                  <Button
-                    variant="danger"
-                    disabled={alerting}
-                    onClick={() => void sendAlert("opco")}
-                  >
-                    Alert OpCo
-                  </Button>
-                  <Button
-                    variant="danger"
-                    disabled={alerting}
-                    onClick={() => void sendAlert("partner")}
-                  >
-                    Alert Partner
-                  </Button>
-                  <Button
-                    variant="dangerSolid"
-                    disabled={alerting}
-                    onClick={() => void sendAlert("both")}
-                  >
-                    {alerting ? "Sending…" : "Alert both"}
-                  </Button>
-                </div>
+                <Button
+                  variant="dangerSolid"
+                  disabled={alerting}
+                  onClick={() => void sendAlert(alertTarget)}
+                >
+                  {alerting ? "Sending…" : "Send"}
+                </Button>
               </div>
             </div>
           </div>

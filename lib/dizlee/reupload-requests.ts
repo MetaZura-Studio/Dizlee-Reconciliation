@@ -8,10 +8,16 @@ import type { Prisma } from "@prisma/client";
 import { currentPeriod, type DashboardPeriod } from "@/lib/dizlee/dashboard";
 import { getLookupId } from "@/lib/dizlee/lookups";
 import { writePlatformAuditLog } from "@/lib/platform/audit-log";
+import { formatAppMonthYear } from "@/lib/platform/format-datetime";
 import {
   getReportFilterOptions,
   type ReportFilterOptions,
 } from "@/lib/dizlee/reports";
+import { DEFAULT_NOTIFICATION_DELIVERY_CHANNEL } from "@/lib/platform/notification-delivery.shared";
+import {
+  maybeSendEventEmails,
+  resolveUserEmailsByIds,
+} from "@/lib/platform/notification-delivery";
 import { prisma } from "@/lib/prisma";
 import { DomainError } from "@/lib/errors/app-error";
 
@@ -63,10 +69,7 @@ function periodFromParts(month: number, year: number): DashboardPeriod {
   return {
     month,
     year,
-    label: new Date(year, month - 1, 1).toLocaleString("en-US", {
-      month: "long",
-      year: "numeric",
-    }),
+    label: formatAppMonthYear(month, year),
   };
 }
 
@@ -641,10 +644,13 @@ async function notifyRequester(params: {
     getLookupId("RECIPIENT_TYPE", "USER"),
   ]);
 
+  const deliveryChannel = DEFAULT_NOTIFICATION_DELIVERY_CHANNEL;
+
   await prisma.notification.create({
     data: {
       subject: params.subject,
       body: params.body,
+      deliveryChannel,
       statusId: sentStatusId,
       sentAt: new Date(),
       createdByUserId: params.fromUserId,
@@ -656,6 +662,14 @@ async function notifyRequester(params: {
         },
       },
     },
+  });
+
+  const recipients = await resolveUserEmailsByIds([params.requesterUserId]);
+  await maybeSendEventEmails({
+    channel: deliveryChannel,
+    recipients,
+    subject: params.subject,
+    body: params.body,
   });
 }
 

@@ -7,7 +7,7 @@ import {
   parseInboxFilters,
   type InboxReadFilter,
 } from "@/lib/dizlee/notifications/inbox-filters";
-import { NotificationError } from "@/lib/dizlee/notifications/intimations";
+import { NotificationError } from "@/lib/dizlee/notifications/shared";
 import { trimNotificationPreview } from "@/lib/dizlee/notifications/shared";
 import {
   notificationCategory,
@@ -18,6 +18,7 @@ import {
   type NotificationCategory,
   type NotificationMetadata,
 } from "@/lib/platform/notification-metadata";
+import { inboxDeliveryChannelFilter } from "@/lib/platform/notification-delivery.shared";
 import { prisma } from "@/lib/prisma";
 
 export { parseInboxFilters, type InboxReadFilter };
@@ -98,6 +99,7 @@ function inboxWhere(
 
   return {
     isDeleted: false,
+    ...inboxDeliveryChannelFilter(),
     recipients: {
       some: {
         isDeleted: false,

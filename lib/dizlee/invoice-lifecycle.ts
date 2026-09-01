@@ -10,6 +10,7 @@ import {
   syncInvoiceStatusWhenPaid,
   type InvoiceFilterOptions,
 } from "@/lib/dizlee/invoices";
+import { formatAppMonthYear } from "@/lib/platform/format-datetime";
 import { prisma } from "@/lib/prisma";
 
 export type LifecycleListFilters = {
@@ -76,10 +77,7 @@ function periodFromParts(month: number, year: number): DashboardPeriod {
   return {
     month,
     year,
-    label: new Date(year, month - 1, 1).toLocaleString("en-US", {
-      month: "long",
-      year: "numeric",
-    }),
+    label: formatAppMonthYear(month, year),
   };
 }
 

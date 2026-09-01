@@ -402,6 +402,8 @@ model Notification {
   body            String    @db.Text
   /// Machine-readable CTA / grouping payload (JSON string).
   metadataJson    String?   @map("metadata_json") @db.Text
+  /// SYSTEM | EMAIL | BOTH — how this notification was delivered.
+  deliveryChannel String    @default("SYSTEM") @map("delivery_channel") @db.VarChar(16)
   statusId        Int       @map("status_id")
   priority        String?   @db.VarChar(32)
   expiresAt       DateTime? @map("expires_at")

@@ -3,7 +3,14 @@
  * Consumed by intimations, history, and inbox list/detail formatters.
  */
 
+import { DomainError } from "@/lib/errors/app-error";
 import { stripPartnerLinkRequestMachinePrefix } from "@/lib/platform/partner-link-request";
+
+export class NotificationError extends DomainError {
+  constructor(keyOrMessage: string, status?: number) {
+    super("NotificationError", keyOrMessage, status);
+  }
+}
 
 const BODY_PREVIEW_LENGTH = 120;
 

@@ -7,8 +7,8 @@ import {
 } from "@/lib/platform/format-datetime";
 
 describe("formatAppDate", () => {
-  it("formats as dd/mm/yy", () => {
-    expect(formatAppDate("2026-08-28T10:30:00.000Z")).toMatch(/^\d{2}\/\d{2}\/\d{2}$/);
+  it("formats as dd/mm/yyyy", () => {
+    expect(formatAppDate("2026-08-28T10:30:00.000Z")).toMatch(/^\d{2}\/\d{2}\/\d{4}$/);
   });
 
   it("returns em dash for null and invalid", () => {
@@ -21,7 +21,7 @@ describe("formatAppDate", () => {
 describe("formatAppDateTime", () => {
   it("includes date and 24-hour time", () => {
     const result = formatAppDateTime("2026-08-28T14:30:00");
-    expect(result).toMatch(/^\d{2}\/\d{2}\/\d{2}, \d{2}:\d{2}$/);
+    expect(result).toMatch(/^\d{2}\/\d{2}\/\d{4}, \d{2}:\d{2}$/);
   });
 
   it("returns em dash for null and invalid", () => {

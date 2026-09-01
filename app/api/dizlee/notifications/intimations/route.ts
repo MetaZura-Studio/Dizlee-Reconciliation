@@ -19,6 +19,7 @@ import {
   sendBroadcastNotification,
 } from "@/lib/dizlee/notifications/intimations";
 import { sendBroadcastBodySchema } from "@/lib/dizlee/validation/api-bodies";
+import { parseDeliveryChannel } from "@/lib/platform/notification-delivery.shared";
 
 export async function GET(request: NextRequest) {
   const user = await requireDizleeSession();
@@ -73,6 +74,7 @@ export async function POST(request: Request) {
         priority: body.priority,
         expiresAt: body.expiresAt,
         attachmentFileIds: body.attachmentFileIds,
+        deliveryChannel: parseDeliveryChannel(body.deliveryChannel),
       },
       fromUserId: user.id,
     });
