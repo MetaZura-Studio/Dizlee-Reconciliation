@@ -11,6 +11,7 @@ import {
   compareReportLines,
   type CompareLineInput,
 } from "@/lib/dizlee/reconciliation/compare";
+import { formatAppMonthYear } from "@/lib/platform/format-datetime";
 import { ACTIVE_OPCO_PARTNER_LINK_FILTER } from "@/lib/platform/opco-partner-links";
 import { getReconciliationTolerancePercent } from "@/lib/platform/reconciliation-tolerance";
 import { applyReportFxToAmount, getReportFx } from "@/lib/platform/report-fx";
@@ -135,10 +136,7 @@ function periodFromParts(month: number, year: number): DashboardPeriod {
   return {
     month,
     year,
-    label: new Date(year, month - 1, 1).toLocaleString("en-US", {
-      month: "long",
-      year: "numeric",
-    }),
+    label: formatAppMonthYear(month, year),
   };
 }
 

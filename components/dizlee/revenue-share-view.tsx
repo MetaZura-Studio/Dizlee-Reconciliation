@@ -28,6 +28,7 @@ import type {
   RevenueShareDashboardRow,
   RevenueShareDashboardStatus,
 } from "@/lib/dizlee/revenue-share";
+import { formatAppMonthYear } from "@/lib/platform/format-datetime";
 import {
   getMaxMonthForYear,
   getPeriodYearOptions,
@@ -246,12 +247,8 @@ export function RevenueShareView({
             OpCo readiness
           </h2>
           <p className="mt-1 text-sm text-foreground-muted">
-            Status for{" "}
-            {new Date(year, month - 1, 1).toLocaleString("en-US", {
-              month: "long",
-              year: "numeric",
-            })}
-            . Change month or year above to review another period.
+            Status for {formatAppMonthYear(month, year)}. Change month or year
+            above to review another period.
           </p>
         </div>
 

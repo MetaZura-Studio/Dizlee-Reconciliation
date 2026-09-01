@@ -11,7 +11,7 @@ describe("partner link request body", () => {
   it("formats a human-readable body without opcoId markers", () => {
     const record = {
       opcoId: "42",
-      periodLabel: "April 2026",
+      periodLabel: "04/2026",
       unlinkedPartnerNames: ["ArpuPlus"],
       unknownPartnerNames: ["Foo Corp"],
       message: "Please add these OpCo–Partner links so we can upload the report.",
@@ -24,7 +24,7 @@ describe("partner link request body", () => {
     );
     expect(parsePartnerLinkRequestBody(body)).toEqual({
       opcoId: "",
-      periodLabel: "April 2026",
+      periodLabel: "04/2026",
       unlinkedPartnerNames: ["ArpuPlus", "Foo Corp"],
       unknownPartnerNames: [],
       message: "Please add these OpCo–Partner links so we can upload the report.",
@@ -34,7 +34,7 @@ describe("partner link request body", () => {
   it("still parses the older two-line partner list with opcoId prefix", () => {
     const body = [
       "[opcoId=42]",
-      "Period: April 2026",
+      "Period: 04/2026",
       "Unlinked partners: ArpuPlus",
       "Unknown names: Foo Corp",
       "",
@@ -42,7 +42,7 @@ describe("partner link request body", () => {
     ].join("\n");
     expect(parsePartnerLinkRequestBody(body)).toEqual({
       opcoId: "42",
-      periodLabel: "April 2026",
+      periodLabel: "04/2026",
       unlinkedPartnerNames: ["ArpuPlus"],
       unknownPartnerNames: ["Foo Corp"],
       message: "Please add these OpCo–Partner links so we can upload the report.",
@@ -52,9 +52,9 @@ describe("partner link request body", () => {
   it("strips machine prefix for display", () => {
     expect(
       stripPartnerLinkRequestMachinePrefix(
-        "[opcoId=2]\nPeriod: August 2026\nPartners not linked: ArpuPlus",
+        "[opcoId=2]\nPeriod: 08/2026\nPartners not linked: ArpuPlus",
       ),
-    ).toBe("Period: August 2026\nPartners not linked: ArpuPlus");
+    ).toBe("Period: 08/2026\nPartners not linked: ArpuPlus");
   });
 
   it("returns null when the body is not a link request", () => {

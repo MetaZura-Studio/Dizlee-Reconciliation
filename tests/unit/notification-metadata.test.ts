@@ -40,7 +40,7 @@ describe("buildOpcoReportUploadBody", () => {
   it("lists every partner name", () => {
     const body = buildOpcoReportUploadBody({
       opcoName: "Zain Bahrain",
-      periodLabel: "August 2026",
+      periodLabel: "08/2026",
       partners: [
         { id: "1", name: "Digital Virgo" },
         { id: "2", name: "Timwe" },
@@ -189,7 +189,7 @@ describe("buildOpcoReportResubmittedBody", () => {
   it("states that period recon work was deleted and must be redone", () => {
     const body = buildOpcoReportResubmittedBody({
       opcoName: "Zain Bahrain",
-      periodLabel: "August 2026",
+      periodLabel: "08/2026",
       partners: [{ id: "9", name: "Digital Virgo" }],
     });
     expect(body).toContain(

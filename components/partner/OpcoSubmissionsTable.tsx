@@ -21,6 +21,7 @@ import type {
   OpcoSubmissionStatus,
   OpcoSubmissionSummary,
 } from "@/lib/partner/queries/dashboard";
+import { formatAppDateTime } from "@/lib/platform/format-datetime";
 import { nextSortState, type SortDirection } from "@/lib/ui/sort";
 import { submissionStatusTone } from "@/lib/ui/status-tones";
 
@@ -134,7 +135,7 @@ export function OpcoSubmissionsTable({ opcos }: OpcoSubmissionsTableProps) {
                 </DataTableTd>
                 <DataTableTd className="text-foreground-muted" align="center">
                   {opco.uploadedAt
-                    ? new Date(opco.uploadedAt).toLocaleString()
+                    ? formatAppDateTime(opco.uploadedAt)
                     : "—"}
                 </DataTableTd>
               </DataTableRow>

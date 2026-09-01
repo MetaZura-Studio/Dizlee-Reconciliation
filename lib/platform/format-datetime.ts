@@ -1,6 +1,6 @@
 /**
  * App-wide date and timestamp formatting.
- * Dates: dd/mm/yy · Timestamps: dd/mm/yy, HH:mm (24-hour).
+ * Dates: dd/mm/yyyy · Timestamps: dd/mm/yyyy, HH:mm (24-hour).
  */
 
 const EMPTY = "—";
@@ -8,7 +8,7 @@ const EMPTY = "—";
 const DATE_PARTS: Intl.DateTimeFormatOptions = {
   day: "2-digit",
   month: "2-digit",
-  year: "2-digit",
+  year: "numeric",
 };
 
 const TIME_PARTS: Intl.DateTimeFormatOptions = {
@@ -25,7 +25,7 @@ function parseDate(value: string | Date | null | undefined): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-/** dd/mm/yy — e.g. 28/08/26 */
+/** dd/mm/yyyy — e.g. 28/08/2026 */
 export function formatAppDate(value: string | Date | null | undefined): string {
   const date = parseDate(value);
   if (!date) {
@@ -34,7 +34,7 @@ export function formatAppDate(value: string | Date | null | undefined): string {
   return date.toLocaleDateString("en-GB", DATE_PARTS);
 }
 
-/** dd/mm/yy, HH:mm — e.g. 28/08/26, 14:30 */
+/** dd/mm/yyyy, HH:mm — e.g. 28/08/2026, 14:30 */
 export function formatAppDateTime(
   value: string | Date | null | undefined,
 ): string {

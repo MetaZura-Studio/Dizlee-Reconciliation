@@ -13,6 +13,7 @@ import {
   getDashboardData,
   type DashboardPeriod,
 } from "@/lib/dizlee/dashboard";
+import { formatAppMonthYear } from "@/lib/platform/format-datetime";
 
 function parsePeriod(request: NextRequest): DashboardPeriod {
   const fallback = currentPeriod();
@@ -37,10 +38,7 @@ function parsePeriod(request: NextRequest): DashboardPeriod {
   return {
     month: validMonth,
     year: validYear,
-    label: new Date(validYear, validMonth - 1, 1).toLocaleString("en-US", {
-      month: "long",
-      year: "numeric",
-    }),
+    label: formatAppMonthYear(validMonth, validYear),
   };
 }
 

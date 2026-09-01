@@ -4,15 +4,7 @@ import { formatAppDateTime } from "@/lib/platform/format-datetime";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import {
-  DataTable,
-  DataTableFrame,
-  DataTableHead,
-  DataTableRow,
-  DataTableTd,
-  DataTableTh,
-} from "@/components/ui/data-table";
-import { FieldLabel, Input, Select } from "@/components/ui/field";
+import { FieldLabel, FieldLegend, Input, Select } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
 import { FilterToolbar } from "@/components/ui/page";
 import {
@@ -21,11 +13,12 @@ import {
   type PendingAttachment,
 } from "@/components/shared/notification-attachment-picker";
 import {
+  DEFAULT_NOTIFICATION_DELIVERY_CHANNEL,
   DEFAULT_REMINDER_MESSAGE_SOURCE,
   type BroadcastTemplateOption,
+  type NotificationDeliveryChannel,
 } from "@/lib/dizlee/notifications/broadcast.shared";
 import type {
-  LaneNotificationHistoryItem,
   LaneNotificationHistoryResult,
 } from "@/lib/dizlee/lane-report-notifications";
 import type { CompareLaneRow } from "@/lib/dizlee/reconciliation";
@@ -40,16 +33,27 @@ type LaneRemindModalProps = {
   onSent: (message: string) => void;
 };
 
-function kindLabel(kind: LaneNotificationHistoryItem["kind"]): string {
-  switch (kind) {
-    case "reminder":
-      return "Reminder";
-    case "intimation":
-      return "Intimation";
-    default:
-      return "Notification";
-  }
-}
+const DELIVERY_OPTIONS: Array<{
+  value: NotificationDeliveryChannel;
+  label: string;
+  hint: string;
+}> = [
+  {
+    value: "SYSTEM",
+    label: "System notification",
+    hint: "In-app inbox and bell only",
+  },
+  {
+    value: "EMAIL",
+    label: "Email notification",
+    hint: "Email only (still logged in Outbox)",
+  },
+  {
+    value: "BOTH",
+    label: "Both",
+    hint: "In-app inbox plus email",
+  },
+];
 
 function getTemplateContent(
   templates: BroadcastTemplateOption[],
@@ -104,9 +108,21 @@ export function LaneRemindModal({
   const [messageSource, setMessageSource] = useState<string>(
     DEFAULT_REMINDER_MESSAGE_SOURCE,
   );
+  const [deliveryChannel, setDeliveryChannel] =
+    useState<NotificationDeliveryChannel>(DEFAULT_NOTIFICATION_DELIVERY_CHANNEL);
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
+  const [target, setTarget] = useState<"opco" | "partner" | "both">(() => {
+    const canOpco =
+      lane.state === "MISSING" || lane.state === "NO_OPCO_REPORT";
+    const canPartner =
+      lane.state === "MISSING" || lane.state === "NO_PARTNER_REPORT";
+    if (canOpco && canPartner) return "both";
+    if (canOpco) return "opco";
+    if (canPartner) return "partner";
+    return "both";
+  });
 
   const canRemindOpco =
     lane.state === "MISSING" || lane.state === "NO_OPCO_REPORT";
@@ -190,6 +206,7 @@ export function LaneRemindModal({
           laneKeys: [`${lane.opcoId}-${lane.partnerId}`],
           target,
           messageSource,
+          deliveryChannel,
           subject,
           body,
           attachmentFileIds: attachmentFileIds(attachments),
@@ -228,17 +245,10 @@ export function LaneRemindModal({
 
   const periodLabel = history?.periodLabel ?? `${month}/${year}`;
   const noticesSent = history ? hasAnyNotice(history) : false;
-
-  const opcoButtonLabel = canRemindOpco
-    ? `Remind OpCo (${missingReasonLabel("opco", lane)})`
-    : "Remind OpCo";
-  const partnerButtonLabel = canRemindPartner
-    ? `Remind Partner (${missingReasonLabel("partner", lane)})`
-    : "Remind Partner";
-  const bothButtonLabel =
-    canRemindOpco && canRemindPartner
-      ? "Remind both (reports missing)"
-      : "Remind both";
+  const canSendSelected =
+    (target === "opco" && canRemindOpco) ||
+    (target === "partner" && canRemindPartner) ||
+    (target === "both" && (canRemindOpco || canRemindPartner));
 
   function renderCompose() {
     if (!history) {
@@ -252,11 +262,47 @@ export function LaneRemindModal({
             Send a new reminder
           </h3>
           <p className="mt-1 text-xs text-foreground-subtle">
-            Placeholders like {"{{period}}"} are filled automatically when the
-            email is sent.
+            Placeholders like {"{{period}}"} are filled automatically. Choose
+            System, Email, or Both for delivery.
           </p>
         </div>
         <FilterToolbar className="flex-col items-stretch">
+          <fieldset className="space-y-2">
+            <FieldLegend required>Delivery method</FieldLegend>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {DELIVERY_OPTIONS.map((option) => {
+                const selected = deliveryChannel === option.value;
+                return (
+                  <label
+                    key={option.value}
+                    className={`flex h-full cursor-pointer items-start gap-3 rounded-xl border bg-surface p-3 text-sm shadow-[var(--shadow-sm)] transition-colors ${
+                      selected
+                        ? "border-primary ring-2 ring-[var(--ring)]"
+                        : "border-border hover:border-border-strong"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="laneRemindDeliveryChannel"
+                      value={option.value}
+                      checked={selected}
+                      onChange={() => setDeliveryChannel(option.value)}
+                      className="mt-1 shrink-0"
+                      disabled={sending}
+                    />
+                    <span>
+                      <span className="font-medium text-foreground">
+                        {option.label}
+                      </span>
+                      <span className="mt-0.5 block text-xs text-foreground-subtle">
+                        {option.hint}
+                      </span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
           <div>
             <FieldLabel htmlFor="lane-remind-template">Template</FieldLabel>
             <Select
@@ -299,39 +345,78 @@ export function LaneRemindModal({
             onChange={setAttachments}
             disabled={sending}
           />
+          <fieldset className="space-y-2">
+            <FieldLegend required>Send to</FieldLegend>
+            <div className="grid gap-2 sm:grid-cols-3">
+              {(
+                [
+                  {
+                    value: "opco" as const,
+                    label: "OpCo",
+                    hint: missingReasonLabel("opco", lane),
+                    enabled: canRemindOpco,
+                  },
+                  {
+                    value: "partner" as const,
+                    label: "Partner",
+                    hint: missingReasonLabel("partner", lane),
+                    enabled: canRemindPartner,
+                  },
+                  {
+                    value: "both" as const,
+                    label: "Both",
+                    hint:
+                      canRemindOpco && canRemindPartner
+                        ? "reports missing"
+                        : "only missing sides",
+                    enabled: canRemindOpco || canRemindPartner,
+                  },
+                ] as const
+              ).map((option) => {
+                const selected = target === option.value;
+                return (
+                  <label
+                    key={option.value}
+                    className={`flex cursor-pointer flex-col gap-0.5 rounded-xl border bg-surface px-3 py-2.5 text-sm shadow-[var(--shadow-sm)] transition-colors ${
+                      !option.enabled
+                        ? "cursor-not-allowed border-border opacity-50 shadow-none"
+                        : selected
+                          ? "border-primary ring-2 ring-[var(--ring)]"
+                          : "border-border hover:border-border-strong"
+                    }`}
+                    title={
+                      option.enabled
+                        ? undefined
+                        : `${option.label} report is already on file for this period`
+                    }
+                  >
+                    <span className="flex items-center gap-2 font-medium text-foreground">
+                      <input
+                        type="radio"
+                        name="laneRemindTarget"
+                        value={option.value}
+                        checked={selected}
+                        onChange={() => setTarget(option.value)}
+                        disabled={sending || !option.enabled}
+                      />
+                      {option.label}
+                    </span>
+                    <span className="pl-6 text-xs text-foreground-subtle">
+                      {option.hint}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
         </FilterToolbar>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant="secondary"
-            disabled={sending || !canRemindOpco}
-            title={
-              canRemindOpco
-                ? undefined
-                : "OpCo report is already on file for this period"
-            }
-            onClick={() => void sendReminder("opco")}
-          >
-            {opcoButtonLabel}
-          </Button>
-          <Button
-            variant="secondary"
-            disabled={sending || !canRemindPartner}
-            title={
-              canRemindPartner
-                ? undefined
-                : "Partner report is already on file for this period"
-            }
-            onClick={() => void sendReminder("partner")}
-          >
-            {partnerButtonLabel}
-          </Button>
-          <Button
-            disabled={sending || (!canRemindOpco && !canRemindPartner)}
-            onClick={() => void sendReminder("both")}
-          >
-            {sending ? "Sending…" : bothButtonLabel}
-          </Button>
-        </div>
+        <Button
+          className="w-full sm:w-auto sm:min-w-[10rem]"
+          disabled={sending || !canSendSelected}
+          onClick={() => void sendReminder(target)}
+        >
+          {sending ? "Sending…" : "Send"}
+        </Button>
       </div>
     );
   }
@@ -388,65 +473,6 @@ export function LaneRemindModal({
     );
   }
 
-  function renderHistory() {
-    if (!history || !noticesSent) {
-      return null;
-    }
-
-    return (
-      <div>
-        <h3 className="text-sm font-semibold text-foreground">
-          Previous intimations & reminders
-        </h3>
-        {history.items.length > 0 ? (
-          <div className="mt-3">
-            <DataTableFrame>
-              <DataTable>
-                <DataTableHead>
-                  <DataTableRow>
-                    <DataTableTh align="center">Sent</DataTableTh>
-                    <DataTableTh>Type</DataTableTh>
-                    <DataTableTh>To</DataTableTh>
-                    <DataTableTh>Subject</DataTableTh>
-                    <DataTableTh>By</DataTableTh>
-                  </DataTableRow>
-                </DataTableHead>
-                <tbody>
-                  {history.items.map((item) => (
-                    <DataTableRow key={item.id}>
-                      <DataTableTd className="text-foreground-muted" align="center">
-                        {formatAppDateTime(item.sentAt)}
-                      </DataTableTd>
-                      <DataTableTd>{kindLabel(item.kind)}</DataTableTd>
-                      <DataTableTd className="text-foreground-muted">
-                        {item.recipientName} (
-                        {item.recipientSide === "opco" ? "OpCo" : "Partner"})
-                      </DataTableTd>
-                      <DataTableTd>
-                        <p>{item.subject}</p>
-                        <p className="text-xs text-foreground-subtle">
-                          {item.bodyPreview}
-                        </p>
-                      </DataTableTd>
-                      <DataTableTd className="text-foreground-muted">
-                        {item.sentBy}
-                      </DataTableTd>
-                    </DataTableRow>
-                  ))}
-                </tbody>
-              </DataTable>
-            </DataTableFrame>
-          </div>
-        ) : (
-          <p className="mt-2 text-sm text-foreground-subtle">
-            Summary timestamps exist, but no detailed history rows for{" "}
-            {periodLabel}.
-          </p>
-        )}
-      </div>
-    );
-  }
-
   return (
     <Modal
       open
@@ -461,24 +487,16 @@ export function LaneRemindModal({
 
       <div className="space-y-6">
         {loading ? (
-          <p className="text-sm text-foreground-subtle">Loading history…</p>
+          <p className="text-sm text-foreground-subtle">Loading…</p>
         ) : null}
 
         {error ? <p className={ui.alertError}>{error}</p> : null}
 
         {history ? (
-          noticesSent ? (
-            <>
-              {renderStatus()}
-              {renderHistory()}
-              {renderCompose()}
-            </>
-          ) : (
-            <>
-              {renderCompose()}
-              {renderStatus()}
-            </>
-          )
+          <>
+            {renderCompose()}
+            {renderStatus()}
+          </>
         ) : null}
       </div>
     </Modal>

@@ -6,8 +6,6 @@ import { IntimationsView } from "@/components/dizlee/intimations-view";
 import { RemindersView } from "@/components/dizlee/reminders-view";
 import {
   getIntimationFormOptions,
-  listIntimations,
-  parseIntimationListFilters,
 } from "@/lib/dizlee/notifications/intimations";
 import {
   getNotificationHistoryDetail,
@@ -122,17 +120,7 @@ export default async function DizleeCommunicationsPage({
     );
   }
 
-  const filters = parseIntimationListFilters(query);
+  const initialFormOptions = await getIntimationFormOptions();
 
-  const [initialResult, initialFormOptions] = await Promise.all([
-    listIntimations(filters),
-    getIntimationFormOptions(),
-  ]);
-
-  return (
-    <IntimationsView
-      initialResult={initialResult}
-      initialFormOptions={initialFormOptions}
-    />
-  );
+  return <IntimationsView initialFormOptions={initialFormOptions} />;
 }

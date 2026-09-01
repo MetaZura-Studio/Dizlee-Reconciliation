@@ -19,7 +19,7 @@ import {
 
 describe("template placeholders", () => {
   it("formats period label", () => {
-    expect(periodLabel(7, 2026)).toBe("July 2026");
+    expect(periodLabel(7, 2026)).toBe("07/2026");
   });
 
   it("substitutes template tokens", () => {
@@ -144,8 +144,8 @@ describe("resolveBroadcastMessage", () => {
     });
 
     expect(result).toEqual({
-      subject: "Reminder for July 2026",
-      body: "Please upload for July 2026.",
+      subject: "Reminder for 07/2026",
+      body: "Please upload for 07/2026.",
     });
   });
 
@@ -169,7 +169,7 @@ describe("resolveBroadcastMessage", () => {
 
     expect(result).toEqual({
       subject: "Custom subject",
-      body: "Custom body for January 2026.",
+      body: "Custom body for 01/2026.",
     });
   });
 });

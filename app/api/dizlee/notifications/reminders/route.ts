@@ -21,6 +21,7 @@ import {
 } from "@/lib/dizlee/notifications/reminders";
 import { getReportFilterOptions } from "@/lib/dizlee/reports-monitoring";
 import { sendRemindersBodySchema } from "@/lib/dizlee/validation/api-bodies";
+import { parseDeliveryChannel } from "@/lib/platform/notification-delivery.shared";
 
 export async function GET(request: NextRequest) {
   const user = await requireDizleeSession();
@@ -73,6 +74,7 @@ export async function POST(request: Request) {
         subject: body.subject,
         body: body.body,
         attachmentFileIds: body.attachmentFileIds,
+        deliveryChannel: parseDeliveryChannel(body.deliveryChannel),
       },
       fromUserId: user.id,
     });

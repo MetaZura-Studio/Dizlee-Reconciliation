@@ -6,6 +6,7 @@
 
 import { ACTIVE_OPCO_PARTNER_LINK_FILTER } from "@/lib/platform/opco-partner-links";
 import { getMonthlyRatesForPeriod } from "@/lib/platform/currency-rates";
+import { formatAppMonthYear } from "@/lib/platform/format-datetime";
 import { prisma } from "@/lib/prisma";
 
 export type DashboardPeriod = {
@@ -81,10 +82,7 @@ export type DashboardData = {
 };
 
 function periodLabel(month: number, year: number): string {
-  return new Date(year, month - 1, 1).toLocaleString("en-US", {
-    month: "long",
-    year: "numeric",
-  });
+  return formatAppMonthYear(month, year);
 }
 
 /** Calendar month/year used as the default filter across Dizlee modules. */

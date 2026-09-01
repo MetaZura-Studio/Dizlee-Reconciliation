@@ -13,6 +13,18 @@ import {
   resolveNotificationAttachmentCreates,
 } from "@/lib/platform/notification-attachments";
 import {
+  DEFAULT_NOTIFICATION_DELIVERY_CHANNEL,
+  formatDeliveryMessage,
+  NotificationDeliveryError,
+  parseDeliveryChannel,
+  type NotificationDeliveryChannel,
+  type SendNotificationEmailsResult,
+} from "@/lib/platform/notification-delivery.shared";
+import {
+  prepareEmailDelivery,
+  sendNotificationEmails,
+} from "@/lib/platform/notification-delivery";
+import {
   applyTemplate,
   periodLabel,
 } from "@/lib/platform/template-placeholders";
@@ -36,6 +48,7 @@ export type SendMissingReportRemindersInput = {
   body?: string;
   throwIfNoRecipients?: boolean;
   attachmentFileIds?: string[];
+  deliveryChannel?: import("@/lib/platform/notification-delivery").NotificationDeliveryChannel;
 };
 
 export class ReportReminderError extends DomainError {
@@ -129,6 +142,20 @@ export async function sendMissingReportReminders(
   const laneKeys = params.laneKeys ?? [];
   const period = periodLabel(month, year);
 
+  let deliveryChannel: NotificationDeliveryChannel =
+    DEFAULT_NOTIFICATION_DELIVERY_CHANNEL;
+  try {
+    deliveryChannel = parseDeliveryChannel(
+      params.deliveryChannel,
+      DEFAULT_NOTIFICATION_DELIVERY_CHANNEL,
+    );
+  } catch (error) {
+    if (error instanceof NotificationDeliveryError) {
+      throw new ReportReminderError(error.message, error.status);
+    }
+    throw error;
+  }
+
   const fullEligible = lanesWithMissing(
     await getAllMonitoringLanes(month, year),
     laneKeys,
@@ -180,82 +207,97 @@ export async function sendMissingReportReminders(
   const shouldSendOpco = target === "opco" || target === "both";
   const shouldSendPartner = target === "partner" || target === "both";
 
-  if (shouldSendOpco) {
-    const opcoIds = new Set<string>();
+  const opcoIds = new Set<string>();
+  const partnerIds = new Set<string>();
 
+  if (shouldSendOpco) {
     for (const lane of fullEligible) {
       if (lane.opcoReport.status !== "Missing") {
         continue;
       }
       opcoIds.add(lane.opcoId);
     }
-
-    for (const opcoId of opcoIds) {
-      const subject = applyTemplate(subjectTemplate, { period });
-      const body = applyTemplate(bodyTemplate, { period });
-
-      await prisma.notification.create({
-        data: {
-          subject: subject.slice(0, 255),
-          body,
-          statusId: sentStatusId,
-          priority: "REMINDER",
-          sentAt,
-          createdByUserId: fromUserId,
-          updatedByUserId: fromUserId,
-          recipients: {
-            create: {
-              recipientTypeId: opcoRecipientTypeId,
-              recipientId: BigInt(opcoId),
-              fromUserId,
-              createdByUserId: fromUserId,
-              updatedByUserId: fromUserId,
-            },
-          },
-          ...(attachments ? { attachments } : {}),
-        },
-      });
-      opcoNotifications += 1;
-    }
   }
 
   if (shouldSendPartner) {
-    const partnerIds = new Set<string>();
-
     for (const lane of fullEligible) {
       if (lane.partnerReport.status !== "Missing") {
         continue;
       }
       partnerIds.add(lane.partnerId);
     }
+  }
 
-    for (const partnerId of partnerIds) {
-      const subject = applyTemplate(subjectTemplate, { period });
-      const body = applyTemplate(bodyTemplate, { period });
-
-      await prisma.notification.create({
-        data: {
-          subject: subject.slice(0, 255),
-          body,
-          statusId: sentStatusId,
-          priority: "REMINDER",
-          sentAt,
-          createdByUserId: fromUserId,
-          updatedByUserId: fromUserId,
-          recipients: {
-            create: {
-              recipientTypeId: partnerRecipientTypeId,
-              recipientId: BigInt(partnerId),
-              fromUserId,
-              createdByUserId: fromUserId,
-              updatedByUserId: fromUserId,
-            },
-          },
-          ...(attachments ? { attachments } : {}),
-        },
-      });
-      partnerNotifications += 1;
+  let emailRecipients: Awaited<ReturnType<typeof prepareEmailDelivery>> = [];
+  try {
+    emailRecipients = await prepareEmailDelivery({
+      channel: deliveryChannel,
+      opcoIds: [...opcoIds].map((id) => BigInt(id)),
+      partnerIds: [...partnerIds].map((id) => BigInt(id)),
+    });
+  } catch (error) {
+    if (error instanceof NotificationDeliveryError) {
+      throw new ReportReminderError(error.message, error.status);
     }
+    throw error;
+  }
+
+  for (const opcoId of opcoIds) {
+    const subject = applyTemplate(subjectTemplate, { period });
+    const body = applyTemplate(bodyTemplate, { period });
+
+    await prisma.notification.create({
+      data: {
+        subject: subject.slice(0, 255),
+        body,
+        deliveryChannel,
+        statusId: sentStatusId,
+        priority: "REMINDER",
+        sentAt,
+        createdByUserId: fromUserId,
+        updatedByUserId: fromUserId,
+        recipients: {
+          create: {
+            recipientTypeId: opcoRecipientTypeId,
+            recipientId: BigInt(opcoId),
+            fromUserId,
+            createdByUserId: fromUserId,
+            updatedByUserId: fromUserId,
+          },
+        },
+        ...(attachments ? { attachments } : {}),
+      },
+    });
+    opcoNotifications += 1;
+  }
+
+  for (const partnerId of partnerIds) {
+    const subject = applyTemplate(subjectTemplate, { period });
+    const body = applyTemplate(bodyTemplate, { period });
+
+    await prisma.notification.create({
+      data: {
+        subject: subject.slice(0, 255),
+        body,
+        deliveryChannel,
+        statusId: sentStatusId,
+        priority: "REMINDER",
+        sentAt,
+        createdByUserId: fromUserId,
+        updatedByUserId: fromUserId,
+        recipients: {
+          create: {
+            recipientTypeId: partnerRecipientTypeId,
+            recipientId: BigInt(partnerId),
+            fromUserId,
+            createdByUserId: fromUserId,
+            updatedByUserId: fromUserId,
+          },
+        },
+        ...(attachments ? { attachments } : {}),
+      },
+    });
+    partnerNotifications += 1;
   }
 
   if (opcoNotifications === 0 && partnerNotifications === 0) {
@@ -273,6 +315,17 @@ export async function sendMissingReportReminders(
     );
   }
 
+  let emailResult: SendNotificationEmailsResult | null = null;
+  if (emailRecipients.length > 0) {
+    const subject = applyTemplate(subjectTemplate, { period }).slice(0, 255);
+    const body = applyTemplate(bodyTemplate, { period });
+    emailResult = await sendNotificationEmails({
+      recipients: emailRecipients,
+      subject,
+      body,
+    });
+  }
+
   const parts: string[] = [];
   if (opcoNotifications > 0) {
     parts.push(
@@ -285,9 +338,15 @@ export async function sendMissingReportReminders(
     );
   }
 
+  const baseMessage = `Sent ${parts.join(" and ")}.`;
+
   return {
     opcoNotifications,
     partnerNotifications,
-    message: `Sent ${parts.join(" and ")}.`,
+    message: formatDeliveryMessage({
+      channel: deliveryChannel,
+      baseMessage,
+      emailResult,
+    }),
   };
 }

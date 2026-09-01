@@ -25,6 +25,7 @@ describe("sendBroadcastBodySchema", () => {
       partnerIds: [],
       priority: null,
       expiresAt: null,
+      deliveryChannel: "BOTH",
     });
     expect(parsed.success).toBe(true);
   });
@@ -49,6 +50,18 @@ describe("sendBroadcastBodySchema", () => {
       expect(parsed.data.partnerIds).toEqual([]);
     }
   });
+
+  it("rejects invalid deliveryChannel", () => {
+    const parsed = sendBroadcastBodySchema.safeParse({
+      audience: "opco",
+      subject: "Hello",
+      body: "World",
+      opcoIds: ["1"],
+      partnerIds: [],
+      deliveryChannel: "SMS",
+    });
+    expect(parsed.success).toBe(false);
+  });
 });
 
 describe("sendRemindersBodySchema", () => {
@@ -62,6 +75,7 @@ describe("sendRemindersBodySchema", () => {
       subject: "Reminder",
       body: "Please upload",
       attachmentFileIds: ["10"],
+      deliveryChannel: "EMAIL",
     });
     expect(parsed.success).toBe(true);
   });
@@ -78,11 +92,13 @@ describe("createOpcoInvoiceBodySchema", () => {
       preparedBy: "Alex",
       approvedBy: "Sam",
       lineItems: [{ description: "Service", quantity: 1, unitPrice: 100 }],
+      deliveryChannel: "BOTH",
     });
     expect(parsed.success).toBe(true);
     if (parsed.success) {
       expect(parsed.data.bankAccountId).toBeUndefined();
       expect(parsed.data.lineItems[0]?.quantity).toBe(1);
+      expect(parsed.data.deliveryChannel).toBe("BOTH");
     }
   });
 
@@ -98,6 +114,17 @@ describe("createOpcoInvoiceBodySchema", () => {
       expect(parsed.data.opcoId).toBe("5");
       expect(parsed.data.lineItems[0]?.unitPrice).toBe(50.5);
     }
+  });
+
+  it("rejects invalid deliveryChannel", () => {
+    const parsed = createOpcoInvoiceBodySchema.safeParse({
+      month: 8,
+      year: 2026,
+      opcoId: "5",
+      lineItems: [{ description: "A", quantity: 1, unitPrice: 10 }],
+      deliveryChannel: "SMS",
+    });
+    expect(parsed.success).toBe(false);
   });
 });
 

@@ -6,6 +6,7 @@
  */
 
 import { clampPeriodToPresent } from "@/lib/platform/period";
+import { formatAppMonthYear } from "@/lib/platform/format-datetime";
 
 export type Period = {
   year: number;
@@ -51,9 +52,7 @@ export function parseDashboardPeriod(
   return clampPeriodToPresent(year, month, date);
 }
 
+/** mm/yyyy — e.g. 08/2026 */
 export function formatPeriodLabel(year: number, month: number): string {
-  return new Date(year, month - 1, 1).toLocaleString("en-US", {
-    month: "long",
-    year: "numeric",
-  });
+  return formatAppMonthYear(month, year);
 }

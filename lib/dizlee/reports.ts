@@ -6,6 +6,7 @@
 import type { Prisma } from "@prisma/client";
 
 import { currentPeriod, type DashboardPeriod } from "@/lib/dizlee/dashboard";
+import { formatAppMonthYear } from "@/lib/platform/format-datetime";
 import { applyReportFxToAmount, getReportFx } from "@/lib/platform/report-fx";
 import {
   PARTNER_REPORT_VERSION,
@@ -88,10 +89,7 @@ function periodFromParts(month: number, year: number): DashboardPeriod {
   return {
     month,
     year,
-    label: new Date(year, month - 1, 1).toLocaleString("en-US", {
-      month: "long",
-      year: "numeric",
-    }),
+    label: formatAppMonthYear(month, year),
   };
 }
 

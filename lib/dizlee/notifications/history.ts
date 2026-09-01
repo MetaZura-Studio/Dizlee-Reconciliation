@@ -15,6 +15,7 @@ import {
   type OutboxKind,
   type OutboxKindFilter,
 } from "@/lib/dizlee/notifications/outbox-filters";
+import { deliveryChannelLabel } from "@/lib/platform/notification-delivery.shared";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 
@@ -27,6 +28,8 @@ export type NotificationHistoryItem = {
   priority: string | null;
   kind: OutboxKind;
   kindLabel: string;
+  deliveryChannel: string;
+  deliveryChannelLabel: string;
   recipientSummary: string;
   opcoCount: number;
   partnerCount: number;
@@ -51,6 +54,8 @@ export type NotificationHistoryDetail = {
   priority: string | null;
   kind: OutboxKind;
   kindLabel: string;
+  deliveryChannel: string;
+  deliveryChannelLabel: string;
   recipientSummary: string;
   recipients: Array<{
     type: string;
@@ -203,6 +208,8 @@ export async function listNotificationHistory(filters: {
       priority: row.priority,
       kind: itemKind,
       kindLabel: outboxKindLabel(itemKind),
+      deliveryChannel: row.deliveryChannel,
+      deliveryChannelLabel: deliveryChannelLabel(row.deliveryChannel),
       recipientSummary: formatRecipientSummary(summary),
       opcoCount: summary.opcoCount,
       partnerCount: summary.partnerCount,
@@ -276,6 +283,8 @@ export async function getNotificationHistoryDetail(
     priority: row.priority,
     kind,
     kindLabel: outboxKindLabel(kind),
+    deliveryChannel: row.deliveryChannel,
+    deliveryChannelLabel: deliveryChannelLabel(row.deliveryChannel),
     recipientSummary: formatRecipientSummary(summary),
     recipients,
   };

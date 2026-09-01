@@ -15,6 +15,7 @@ import {
 } from "@/lib/dizlee/notifications/broadcast.shared";
 import {
   formatRecipientSummary,
+  NotificationError,
   summarizeRecipients,
   trimNotificationPreview,
 } from "@/lib/dizlee/notifications/shared";
@@ -25,11 +26,24 @@ import {
   resolveNotificationAttachmentCreates,
 } from "@/lib/platform/notification-attachments";
 import {
+  DEFAULT_NOTIFICATION_DELIVERY_CHANNEL,
+  deliveryChannelLabel,
+  deliverySendsEmail,
+  formatDeliveryMessage,
+  NotificationDeliveryError,
+  parseDeliveryChannel,
+} from "@/lib/platform/notification-delivery.shared";
+import {
+  maybeSendEventEmails,
+  prepareEmailDelivery,
+  resolveOrgUserEmails,
+  sendNotificationEmails,
+} from "@/lib/platform/notification-delivery";
+import {
   applyTemplate,
   periodLabel,
 } from "@/lib/platform/template-placeholders";
 import { prisma } from "@/lib/prisma";
-import { DomainError } from "@/lib/errors/app-error";
 
 export {
   BROADCAST_TEMPLATE_CODES,
@@ -43,13 +57,9 @@ export {
   type SendBroadcastInput,
 } from "@/lib/dizlee/notifications/broadcast.shared";
 
-const PAGE_SIZE = 10;
+export { NotificationError } from "@/lib/dizlee/notifications/shared";
 
-export class NotificationError extends DomainError {
-  constructor(keyOrMessage: string, status?: number) {
-    super("NotificationError", keyOrMessage, status);
-  }
-}
+const PAGE_SIZE = 10;
 
 async function loadRecipientNameMaps(recipients: Array<{
   recipientType: { code: string };
@@ -195,6 +205,8 @@ export async function listIntimations(filters: {
       sentAt: (row.sentAt ?? row.createdAt).toISOString(),
       sentBy: row.createdByUser?.name ?? row.createdByUser?.email ?? "Dizlee",
       priority: row.priority,
+      deliveryChannel: row.deliveryChannel,
+      deliveryChannelLabel: deliveryChannelLabel(row.deliveryChannel),
     });
   }
 
@@ -293,9 +305,28 @@ export function validateBroadcastRecipients(input: SendBroadcastInput): {
 export async function sendBroadcastNotification(params: {
   input: SendBroadcastInput;
   fromUserId: string;
-}): Promise<{ id: string; message: string; recipientCount: number }> {
+}): Promise<{
+  id: string;
+  message: string;
+  recipientCount: number;
+  deliveryChannel: string;
+  emailsSent: number;
+}> {
   const { opcoIds, partnerIds } = validateBroadcastRecipients(params.input);
   const { subject, body } = await resolveBroadcastMessage(params.input);
+
+  let deliveryChannel = DEFAULT_NOTIFICATION_DELIVERY_CHANNEL;
+  try {
+    deliveryChannel = parseDeliveryChannel(
+      params.input.deliveryChannel,
+      DEFAULT_NOTIFICATION_DELIVERY_CHANNEL,
+    );
+  } catch (error) {
+    if (error instanceof NotificationDeliveryError) {
+      throw new NotificationError(error.message, error.status);
+    }
+    throw error;
+  }
 
   const shouldIncludeOpcos =
     params.input.audience === "opco" || params.input.audience === "both";
@@ -341,6 +372,28 @@ export async function sendBroadcastNotification(params: {
 
   const priority = params.input.priority?.trim() || null;
   const fromUserId = BigInt(params.fromUserId);
+
+  const requireEmailConfigured = params.input.requireEmailConfigured !== false;
+  let emailRecipients: Awaited<ReturnType<typeof prepareEmailDelivery>> = [];
+  if (requireEmailConfigured) {
+    try {
+      emailRecipients = await prepareEmailDelivery({
+        channel: deliveryChannel,
+        opcoIds: opcos.map((row) => row.id),
+        partnerIds: partners.map((row) => row.id),
+      });
+    } catch (error) {
+      if (error instanceof NotificationDeliveryError) {
+        throw new NotificationError(error.message, error.status);
+      }
+      throw error;
+    }
+  } else if (deliverySendsEmail(deliveryChannel)) {
+    emailRecipients = await resolveOrgUserEmails({
+      opcoIds: opcos.map((row) => row.id),
+      partnerIds: partners.map((row) => row.id),
+    });
+  }
 
   const [sentStatusId, opcoRecipientTypeId, partnerRecipientTypeId] =
     await Promise.all([
@@ -392,6 +445,7 @@ export async function sendBroadcastNotification(params: {
     data: {
       subject,
       body,
+      deliveryChannel,
       statusId: sentStatusId,
       priority,
       expiresAt,
@@ -406,6 +460,21 @@ export async function sendBroadcastNotification(params: {
     select: { id: true },
   });
 
+  const emailResult = requireEmailConfigured
+    ? emailRecipients.length > 0
+      ? await sendNotificationEmails({
+          recipients: emailRecipients,
+          subject,
+          body,
+        })
+      : null
+    : await maybeSendEventEmails({
+        channel: deliveryChannel,
+        recipients: emailRecipients,
+        subject,
+        body,
+      });
+
   const recipientCount = recipientCreates.length;
   const parts: string[] = [];
 
@@ -416,10 +485,21 @@ export async function sendBroadcastNotification(params: {
     parts.push(`${partners.length} Partner${partners.length === 1 ? "" : "s"}`);
   }
 
+  const baseMessage =
+    deliveryChannel === "EMAIL"
+      ? `Notification recorded for ${parts.join(" and ")}.`
+      : `Notification sent to ${parts.join(" and ")}.`;
+
   return {
     id: notification.id.toString(),
-    message: `Notification sent to ${parts.join(" and ")}.`,
+    message: formatDeliveryMessage({
+      channel: deliveryChannel,
+      baseMessage,
+      emailResult,
+    }),
     recipientCount,
+    deliveryChannel,
+    emailsSent: emailResult?.sent ?? 0,
   };
 }
 

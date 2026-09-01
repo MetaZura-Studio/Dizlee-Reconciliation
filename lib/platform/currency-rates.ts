@@ -3,6 +3,7 @@
  * Base currency USD at rate 1; `rateToUsd` is units of USD per one unit of currency (legacy column name).
  * Used by Admin Currencies and Dizlee dashboard FX conversion.
  */
+import { formatAppMonthYear } from "@/lib/platform/format-datetime";
 import { prisma } from "@/lib/prisma";
 
 function toNumber(value: unknown): number {
@@ -33,10 +34,7 @@ export async function getMonthlyRatesForPeriod(
 }
 
 export function formatCurrencyPeriodLabel(month: number, year: number): string {
-  return new Date(year, month - 1, 1).toLocaleString("en-US", {
-    month: "long",
-    year: "numeric",
-  });
+  return formatAppMonthYear(month, year);
 }
 
 export function currentCalendarPeriodFromDate(now = new Date()): {

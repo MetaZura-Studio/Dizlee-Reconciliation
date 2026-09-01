@@ -14,7 +14,7 @@ const ARABIC_SCRIPT = /\p{Script=Arabic}/u;
 const NUMERIC_CELL = /^-?\d+(\.\d+)?$/;
 const ISO_DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 const ISO_DATE_TIME = /^\d{4}-\d{2}-\d{2}T/;
-const APP_DATE = /^\d{2}\/\d{2}\/\d{2}(, \d{2}:\d{2})?$/;
+const APP_DATE = /^\d{2}\/\d{2}\/\d{4}(, \d{2}:\d{2})?$/;
 
 export function containsArabicScript(text: string): boolean {
   return ARABIC_SCRIPT.test(text);

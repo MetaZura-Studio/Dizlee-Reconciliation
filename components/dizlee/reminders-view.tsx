@@ -1,13 +1,14 @@
 /**
- * Compose and send submission reminder emails to OpCos and partners.
- * Pairs template selection with recipient filtering by reporting relationship.
+ * Communications → Reminders: list missing OpCo–Partner pairs; remind via per-row bell.
  */
 
 "use client";
 
+import Link from "next/link";
 import { useCallback, useState } from "react";
 
 import { CommunicationsTabs } from "@/components/dizlee/communications-tabs";
+import { LaneRemindModal } from "@/components/dizlee/lane-remind-modal";
 import { Button } from "@/components/ui/button";
 import {
   DataTable,
@@ -18,32 +19,33 @@ import {
   DataTableTh,
 } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
+import { IconButton } from "@/components/ui/icon-button";
+import { IconBell } from "@/components/ui/icons";
 import { LoadingOverlay } from "@/components/ui/loading";
 import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
 import { useToast } from "@/components/ui/toast";
-import { cn, ui } from "@/lib/ui/classes";
-import {
-  attachmentFileIds,
-  NotificationAttachmentPicker,
-  type PendingAttachment,
-} from "@/components/shared/notification-attachment-picker";
-import {
-  DEFAULT_REMINDER_MESSAGE_SOURCE,
-  type ReminderSettingsView,
-  type SendReportRemindersInput,
-} from "@/lib/dizlee/notifications/broadcast.shared";
+import { ui } from "@/lib/ui/classes";
+import type { ReminderSettingsView } from "@/lib/dizlee/notifications/broadcast.shared";
 import type { ReportFilterOptions } from "@/lib/dizlee/reports";
 import type {
   MissingSideFilter,
+  ReportMonitoringLane,
   ReportMonitoringResult,
-} from "@/lib/dizlee/reports-monitoring";
+} from "@/lib/dizlee/reports-monitoring.shared";
+import {
+  monitoringLaneNeedsReminder,
+  monitoringLaneToCompareLane,
+} from "@/lib/dizlee/reports-monitoring.shared";
 import {
   getCurrentPeriod,
   getMaxMonthForYear,
   getPeriodYearOptions,
 } from "@/lib/platform/period";
-import { formatAppDateTime } from "@/lib/platform/format-datetime";
+import {
+  formatAppDateTime,
+  formatAppMonthYear,
+} from "@/lib/platform/format-datetime";
 import { formatAppError } from "@/lib/errors/format";
 
 const MONTHS = [
@@ -61,21 +63,26 @@ const MONTHS = [
   "December",
 ];
 
-function getTemplateContent(
-  templates: ReminderSettingsView["templates"],
-  code: string,
-) {
-  const template = templates.find((row) => row.code === code);
-  return {
-    subject: template?.subject ?? "",
-    body: template?.body ?? "",
-  };
-}
-
 function reportMonitoringStatusTone(
   status: "Submitted" | "Missing",
 ): "success" | "warning" {
   return status === "Submitted" ? "success" : "warning";
+}
+
+function lastReminderLabel(lane: ReportMonitoringLane): string {
+  const times = [
+    lane.lastOpcoReminderAt,
+    lane.lastPartnerReminderAt,
+    lane.lastOpcoIntimationAt,
+    lane.lastPartnerIntimationAt,
+  ].filter((value): value is string => Boolean(value));
+
+  if (times.length === 0) {
+    return "No reminders yet";
+  }
+
+  const latest = times.sort((a, b) => (a < b ? 1 : -1))[0];
+  return `Last notice: ${formatAppDateTime(latest)}`;
 }
 
 function buildQuery(filters: {
@@ -122,25 +129,17 @@ export function RemindersView({
   const [month, setMonth] = useState(initialResult.filters.month);
   const [year, setYear] = useState(initialResult.filters.year);
   const [opcoId, setOpcoId] = useState(initialResult.filters.opcoId ?? "");
-  const [partnerId, setPartnerId] = useState(initialResult.filters.partnerId ?? "");
+  const [partnerId, setPartnerId] = useState(
+    initialResult.filters.partnerId ?? "",
+  );
   const [missing, setMissing] = useState<MissingSideFilter | "">(
     initialResult.filters.missing ?? "any",
   );
 
-  const [messageSource, setMessageSource] = useState<string>(
-    DEFAULT_REMINDER_MESSAGE_SOURCE,
+  const [remindLane, setRemindLane] = useState<ReportMonitoringLane | null>(
+    null,
   );
-  const initialTemplate = getTemplateContent(
-    initialSettings.templates,
-    DEFAULT_REMINDER_MESSAGE_SOURCE,
-  );
-  const [subject, setSubject] = useState(initialTemplate.subject);
-  const [body, setBody] = useState(initialTemplate.body);
-  const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
-  const [selectedLaneKeys, setSelectedLaneKeys] = useState<string[]>([]);
-
   const [loading, setLoading] = useState(false);
-  const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const toast = useToast();
 
@@ -168,22 +167,19 @@ export function RemindersView({
           throw new Error(formatAppError(payload, "Failed to load reminders"));
         }
         setResult(payload.data as ReportMonitoringResult);
-        const nextSettings = payload.settings as ReminderSettingsView;
-        setSettings(nextSettings);
+        setSettings(payload.settings as ReminderSettingsView);
         setFilterOptions(payload.filterOptions as ReportFilterOptions);
-        setSelectedLaneKeys([]);
-        const template = getTemplateContent(nextSettings.templates, messageSource);
-        setSubject(template.subject);
-        setBody(template.body);
       } catch (loadError) {
         setError(
-          loadError instanceof Error ? loadError.message : "Failed to load reminders",
+          loadError instanceof Error
+            ? loadError.message
+            : "Failed to load reminders",
         );
       } finally {
         setLoading(false);
       }
     },
-    [messageSource],
+    [],
   );
 
   const loadData = useCallback(
@@ -215,67 +211,6 @@ export function RemindersView({
     });
   };
 
-  const handleMessageSourceChange = (source: string) => {
-    setMessageSource(source);
-    const template = getTemplateContent(settings.templates, source);
-    setSubject(template.subject);
-    setBody(template.body);
-  };
-
-  const toggleLane = (laneKey: string) => {
-    setSelectedLaneKeys((current) =>
-      current.includes(laneKey)
-        ? current.filter((key) => key !== laneKey)
-        : [...current, laneKey],
-    );
-  };
-
-  const selectMissingOnPage = () => {
-    const keys = result.items
-      .filter(
-        (lane) =>
-          lane.opcoReport.status === "Missing" ||
-          lane.partnerReport.status === "Missing",
-      )
-      .map((lane) => lane.laneKey);
-    setSelectedLaneKeys(keys);
-  };
-
-  const sendReminders = async (target: SendReportRemindersInput["target"]) => {
-    setSending(true);
-    setError(null);
-    try {
-      const response = await fetch("/api/dizlee/notifications/reminders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          month,
-          year,
-          laneKeys: selectedLaneKeys,
-          target,
-          messageSource,
-          subject,
-          body,
-          attachmentFileIds: attachmentFileIds(attachments),
-        }),
-      });
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(formatAppError(payload, "Failed to send reminders"));
-      }
-      toast.success(payload.data.message as string);
-      setSelectedLaneKeys([]);
-      setAttachments([]);
-      await loadData(result.page);
-    } catch (sendError) {
-      setError(
-        sendError instanceof Error ? sendError.message : "Failed to send reminders",
-      );
-    } finally {
-      setSending(false);
-    }
-  };
-
   const yearOptions = getPeriodYearOptions();
   const maxMonth = getMaxMonthForYear(year);
 
@@ -288,22 +223,30 @@ export function RemindersView({
     <PageCard>
       <PageHeader
         title="Communications"
-        description="Send report submission reminders for missing uploads (UC-09)."
+        description="Review OpCo–Partner pairs with missing reports and send reminders from the bell. Sent items appear in Outbox."
       />
 
       <CommunicationsTabs active="reminders" />
 
       {error ? <div className={`mt-4 ${ui.alertError}`}>{error}</div> : null}
-      <div className={cn(ui.cardPadding, "mt-4 text-sm text-foreground-muted")}>
+
+      <div className={`${ui.cardPadding} mt-4 text-sm text-foreground-muted`}>
         <p>
-          <span className="font-medium">Automatic reminders (admin):</span>{" "}
+          <span className="font-medium text-foreground">
+            Automatic reminders (admin):
+          </span>{" "}
           {settings.remindersEnabled ? "Enabled" : "Disabled"}
           {settings.remindersEnabled ? ` · Schedule: ${scheduleLabel}` : ""}
         </p>
         <p className="mt-1 text-foreground-subtle">
-          Manual sends below use admin email templates. Placeholder:{" "}
-          <code className="text-xs">{"{{period}}"}</code> is filled from the
-          selected month and year.
+          Manual sends use the bell on each row. History:{" "}
+          <Link
+            href="/dizlee/communications?tab=outbox&filter=reminder"
+            className="font-medium text-foreground underline-offset-2 hover:underline"
+          >
+            Outbox
+          </Link>
+          .
         </p>
       </div>
 
@@ -397,209 +340,199 @@ export function RemindersView({
           <Button onClick={() => void loadData(1)} disabled={loading}>
             Apply
           </Button>
-          <Button variant="secondary" onClick={() => void loadData(result.page)} disabled={loading}>
+          <Button
+            variant="secondary"
+            onClick={() => void loadData(result.page)}
+            disabled={loading}
+          >
             Refresh
           </Button>
-          <Button variant="secondary" onClick={clearFilters} disabled={loading}>
+          <Button
+            variant="secondary"
+            onClick={clearFilters}
+            disabled={loading}
+          >
             Clear filters
           </Button>
         </div>
       </FilterToolbar>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-5">
-        <div className={cn(ui.cardPaddingLg, "min-w-0 lg:col-span-3")}>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-medium text-foreground">
-              {MONTHS[result.filters.month - 1]} {result.filters.year} OpCo–Partner
-              pairs
-            </h2>
-            <Button variant="ghost" onClick={selectMissingOnPage}>
-              Select missing on page
-            </Button>
-          </div>
+      <div className="mt-6">
+        <section className="rounded-2xl border border-border bg-surface p-5 sm:p-6">
+          <h2 className="text-lg font-medium text-foreground">
+            {MONTHS[result.filters.month - 1]} {result.filters.year}{" "}
+            OpCo–Partner pairs
+          </h2>
 
           {result.items.length === 0 ? (
             <LoadingOverlay active={loading} className="mt-4 min-h-[12rem]">
-            <EmptyState
-              className="mt-0"
-              title="No pairs match filters"
-              description="No OpCo–Partner pairs match the selected filters."
-            />
+              <EmptyState
+                className="mt-0"
+                title="No pairs match filters"
+                description="No OpCo–Partner pairs match the selected filters."
+              />
             </LoadingOverlay>
           ) : (
             <LoadingOverlay active={loading} className="mt-4 min-h-[12rem]">
-            <>
-              <DataTableFrame className="mt-0 w-fit max-w-full">
-                <DataTable className="min-w-0 w-auto table-auto">
-                  <DataTableHead>
-                    <tr>
-                      <DataTableTh className="w-10 px-3" align="center">{" "}</DataTableTh>
-                      <DataTableTh className="whitespace-nowrap px-3">
-                        OpCo / Partner
-                      </DataTableTh>
-                      <DataTableTh className="whitespace-nowrap px-3" align="center">
-                        OpCo report
-                      </DataTableTh>
-                      <DataTableTh className="whitespace-nowrap px-3" align="center">
-                        Partner report
-                      </DataTableTh>
-                    </tr>
-                  </DataTableHead>
-                  <tbody>
-                    {result.items.map((lane) => (
-                      <DataTableRow key={lane.laneKey}>
-                        <DataTableTd className="px-3" align="center">
-                          <input
-                            type="checkbox"
-                            checked={selectedLaneKeys.includes(lane.laneKey)}
-                            onChange={() => toggleLane(lane.laneKey)}
-                            className="rounded border-border"
-                          />
-                        </DataTableTd>
-                        <DataTableTd className="whitespace-nowrap px-3">
-                          {lane.opcoName} / {lane.partnerName}
-                        </DataTableTd>
-                        <DataTableTd className="whitespace-nowrap px-3" align="center">
-                          <StatusPill
-                            tone={reportMonitoringStatusTone(lane.opcoReport.status)}
+              <>
+                <DataTableFrame className="mt-0 w-full max-w-full">
+                  <DataTable className="min-w-0 w-auto table-auto">
+                    <DataTableHead>
+                      <tr>
+                        <DataTableTh
+                          className="whitespace-nowrap px-3"
+                          align="center"
+                        >
+                          Period
+                        </DataTableTh>
+                        <DataTableTh className="whitespace-nowrap px-3">
+                          OpCo
+                        </DataTableTh>
+                        <DataTableTh className="whitespace-nowrap px-3">
+                          Partner
+                        </DataTableTh>
+                        <DataTableTh
+                          className="whitespace-nowrap px-3"
+                          align="center"
+                        >
+                          OpCo report
+                        </DataTableTh>
+                        <DataTableTh
+                          className="whitespace-nowrap px-3"
+                          align="center"
+                        >
+                          Partner report
+                        </DataTableTh>
+                        <DataTableTh
+                          className="whitespace-nowrap px-3"
+                          align="center"
+                        >
+                          Actions
+                        </DataTableTh>
+                      </tr>
+                    </DataTableHead>
+                    <tbody>
+                      {result.items.map((lane) => (
+                        <DataTableRow key={lane.laneKey}>
+                          <DataTableTd
+                            className="whitespace-nowrap px-3 text-foreground-muted"
+                            align="center"
                           >
-                            {lane.opcoReport.status}
-                          </StatusPill>
-                          {lane.opcoReport.uploadedAt ? (
-                            <p className="mt-1 text-xs text-foreground-subtle">
-                              {formatAppDateTime(lane.opcoReport.uploadedAt)}
-                            </p>
-                          ) : null}
-                        </DataTableTd>
-                        <DataTableTd className="whitespace-nowrap px-3" align="center">
-                          <StatusPill
-                            tone={reportMonitoringStatusTone(lane.partnerReport.status)}
+                            {formatAppMonthYear(
+                              lane.period.month,
+                              lane.period.year,
+                            )}
+                          </DataTableTd>
+                          <DataTableTd className="whitespace-nowrap px-3">
+                            {lane.opcoName}
+                          </DataTableTd>
+                          <DataTableTd className="whitespace-nowrap px-3">
+                            {lane.partnerName}
+                          </DataTableTd>
+                          <DataTableTd
+                            className="whitespace-nowrap px-3"
+                            align="center"
                           >
-                            {lane.partnerReport.status}
-                          </StatusPill>
-                          {lane.partnerReport.uploadedAt ? (
-                            <p className="mt-1 text-xs text-foreground-subtle">
-                              {formatAppDateTime(lane.partnerReport.uploadedAt)}
-                            </p>
-                          ) : null}
-                        </DataTableTd>
-                      </DataTableRow>
-                    ))}
-                  </tbody>
-                </DataTable>
-              </DataTableFrame>
+                            <StatusPill
+                              tone={reportMonitoringStatusTone(
+                                lane.opcoReport.status,
+                              )}
+                            >
+                              {lane.opcoReport.status}
+                            </StatusPill>
+                            {lane.opcoReport.uploadedAt ? (
+                              <p className="mt-1 text-xs text-foreground-subtle">
+                                {formatAppDateTime(lane.opcoReport.uploadedAt)}
+                              </p>
+                            ) : null}
+                          </DataTableTd>
+                          <DataTableTd
+                            className="whitespace-nowrap px-3"
+                            align="center"
+                          >
+                            <StatusPill
+                              tone={reportMonitoringStatusTone(
+                                lane.partnerReport.status,
+                              )}
+                            >
+                              {lane.partnerReport.status}
+                            </StatusPill>
+                            {lane.partnerReport.uploadedAt ? (
+                              <p className="mt-1 text-xs text-foreground-subtle">
+                                {formatAppDateTime(
+                                  lane.partnerReport.uploadedAt,
+                                )}
+                              </p>
+                            ) : null}
+                          </DataTableTd>
+                          <DataTableTd className="px-3" align="center">
+                            {monitoringLaneNeedsReminder(lane) ? (
+                              <IconButton
+                                label={
+                                  lane.notificationCount > 0
+                                    ? `Remind… · ${lastReminderLabel(lane)} · ${lane.notificationCount} prior notice${lane.notificationCount === 1 ? "" : "s"}`
+                                    : `Remind… · ${lastReminderLabel(lane)}`
+                                }
+                                onClick={() => setRemindLane(lane)}
+                              >
+                                <IconBell />
+                              </IconButton>
+                            ) : (
+                              <span className="text-xs text-foreground-subtle">
+                                —
+                              </span>
+                            )}
+                          </DataTableTd>
+                        </DataTableRow>
+                      ))}
+                    </tbody>
+                  </DataTable>
+                </DataTableFrame>
 
-              {result.totalPages > 1 ? (
-                <div className="mt-4 flex items-center justify-between text-sm text-foreground-muted">
-                  <span>
-                    Page {result.page} of {result.totalPages}
-                  </span>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="secondary"
-                      disabled={result.page <= 1 || loading}
-                      onClick={() => void loadData(result.page - 1)}
-                    >
-                      Previous
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      disabled={result.page >= result.totalPages || loading}
-                      onClick={() => void loadData(result.page + 1)}
-                    >
-                      Next
-                    </Button>
+                {result.totalPages > 1 ? (
+                  <div className="mt-4 flex items-center justify-between text-sm text-foreground-muted">
+                    <span>
+                      Page {result.page} of {result.totalPages}
+                    </span>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="secondary"
+                        disabled={result.page <= 1 || loading}
+                        onClick={() => void loadData(result.page - 1)}
+                      >
+                        Previous
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        disabled={
+                          result.page >= result.totalPages || loading
+                        }
+                        onClick={() => void loadData(result.page + 1)}
+                      >
+                        Next
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              ) : null}
-            </>
+                ) : null}
+              </>
             </LoadingOverlay>
           )}
-        </div>
-
-        <div className={cn(ui.cardPaddingLg, "min-w-0 lg:col-span-2")}>
-          <h2 className="text-lg font-medium text-foreground">Reminder message</h2>
-          <p className="mt-1 text-sm text-foreground-subtle">
-            Choose an admin template and edit before sending.
-          </p>
-
-          <div className="mt-4 space-y-4">
-            <label className="block text-sm">
-              <span className={ui.label}>Template</span>
-              <select
-                value={messageSource}
-                onChange={(event) =>
-                  handleMessageSourceChange(event.target.value)
-                }
-                className={ui.select}
-              >
-                {settings.templates.map((template) => (
-                  <option key={template.code} value={template.code}>
-                    {template.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="block text-sm">
-              <span className={ui.label}>Subject</span>
-              <input
-                type="text"
-                value={subject}
-                onChange={(event) => setSubject(event.target.value)}
-                maxLength={255}
-                className={ui.input}
-              />
-            </label>
-
-            <label className="block text-sm">
-              <span className={ui.label}>Body</span>
-              <textarea
-                value={body}
-                onChange={(event) => setBody(event.target.value)}
-                rows={8}
-                className={cn(ui.input, "min-h-[12rem] resize-y py-2.5")}
-              />
-            </label>
-
-            <p className={ui.hint}>
-              Placeholder {"{{period}}"} uses the month and year filters above.
-            </p>
-
-            <NotificationAttachmentPicker
-              attachments={attachments}
-              onChange={setAttachments}
-              disabled={sending}
-            />
-
-            <div className="space-y-2">
-              <Button
-                variant="secondary"
-                className="w-full"
-                onClick={() => void sendReminders("opco")}
-                disabled={sending}
-              >
-                {sending ? "Sending…" : "Send OpCo reminders"}
-              </Button>
-              <Button
-                variant="secondary"
-                className="w-full"
-                onClick={() => void sendReminders("partner")}
-                disabled={sending}
-              >
-                {sending ? "Sending…" : "Send Partner reminders"}
-              </Button>
-              <Button
-                className="w-full"
-                onClick={() => void sendReminders("both")}
-                disabled={sending}
-              >
-                {sending ? "Sending…" : "Send both"}
-              </Button>
-            </div>
-          </div>
-        </div>
+        </section>
       </div>
+
+      {remindLane ? (
+        <LaneRemindModal
+          lane={monitoringLaneToCompareLane(remindLane)}
+          month={remindLane.period.month}
+          year={remindLane.period.year}
+          onClose={() => setRemindLane(null)}
+          onSent={(sentMessage) => {
+            toast.success(sentMessage);
+            setRemindLane(null);
+            void loadData(result.page);
+          }}
+        />
+      ) : null}
     </PageCard>
   );
 }

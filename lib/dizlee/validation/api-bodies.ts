@@ -44,6 +44,9 @@ export const sendBroadcastBodySchema = z.object({
   priority: optionalNullableString,
   expiresAt: optionalNullableString,
   attachmentFileIds: idList,
+  deliveryChannel: z
+    .enum(["SYSTEM", "EMAIL", "BOTH", "system", "email", "both"])
+    .optional(),
 });
 
 export const sendRemindersBodySchema = z.object({
@@ -55,6 +58,9 @@ export const sendRemindersBodySchema = z.object({
   subject: optionalString,
   body: optionalString,
   attachmentFileIds: idList,
+  deliveryChannel: z
+    .enum(["SYSTEM", "EMAIL", "BOTH", "system", "email", "both"])
+    .optional(),
 });
 
 export const createOpcoInvoiceBodySchema = z.object({
@@ -74,6 +80,9 @@ export const createOpcoInvoiceBodySchema = z.object({
       }),
     )
     .min(1),
+  deliveryChannel: z
+    .enum(["SYSTEM", "EMAIL", "BOTH", "system", "email", "both"])
+    .optional(),
 });
 
 export const runReconciliationBodySchema = z.object({

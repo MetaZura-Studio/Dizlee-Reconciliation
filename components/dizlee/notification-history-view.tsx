@@ -163,9 +163,12 @@ export function NotificationHistoryView({
                 >
                   <div className="flex items-start justify-between gap-2">
                     <p className="font-medium text-foreground">{item.subject}</p>
-                    <StatusPill tone={kindTone(item.kind)} className="shrink-0">
-                      {item.kindLabel}
-                    </StatusPill>
+                    <div className="flex shrink-0 flex-wrap justify-end gap-2">
+                      <StatusPill tone="info">{item.deliveryChannelLabel}</StatusPill>
+                      <StatusPill tone={kindTone(item.kind)}>
+                        {item.kindLabel}
+                      </StatusPill>
+                    </div>
                   </div>
                   <p className="mt-1 text-sm text-foreground-muted">{item.bodyPreview}</p>
                   <p className="mt-2 text-xs text-foreground-subtle">
@@ -211,6 +214,7 @@ export function NotificationHistoryView({
               <div>
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className="text-lg font-medium text-foreground">{detail.subject}</h3>
+                  <StatusPill tone="info">{detail.deliveryChannelLabel}</StatusPill>
                   <StatusPill tone={kindTone(detail.kind)}>
                     {detail.kindLabel}
                   </StatusPill>

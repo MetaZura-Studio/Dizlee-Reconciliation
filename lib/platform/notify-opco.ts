@@ -1,14 +1,25 @@
 /**
- * In-app notification delivery to all users of a single OpCo organization.
+ * In-app (+ optional email) notification delivery to all users of a single OpCo.
+ * Event-driven callers default to BOTH; SMTP failures are logged, not thrown.
  */
 import {
   type NotificationMetadata,
   serializeNotificationMetadata,
 } from "@/lib/platform/notification-metadata";
+import {
+  DEFAULT_NOTIFICATION_DELIVERY_CHANNEL,
+  parseDeliveryChannel,
+  type NotificationDeliveryChannel,
+} from "@/lib/platform/notification-delivery.shared";
+import {
+  maybeSendEventEmails,
+  resolveOrgUserEmails,
+} from "@/lib/platform/notification-delivery";
 import { prisma } from "@/lib/prisma";
 
 /**
- * Creates an in-app notification for an OpCo (visible to all users of that OpCo).
+ * Creates a notification for an OpCo (visible to all users of that OpCo).
+ * When channel is Email/Both, also emails active OpCo users if SMTP is ready.
  */
 export async function notifyOpcoUsers(params: {
   opcoId: bigint;
@@ -16,7 +27,13 @@ export async function notifyOpcoUsers(params: {
   subject: string;
   body: string;
   metadata?: NotificationMetadata;
+  deliveryChannel?: NotificationDeliveryChannel;
 }): Promise<void> {
+  const deliveryChannel = parseDeliveryChannel(
+    params.deliveryChannel,
+    DEFAULT_NOTIFICATION_DELIVERY_CHANNEL,
+  );
+
   const [sentStatus, opcoRecipientType] = await Promise.all([
     prisma.lookup.findFirst({
       where: {
@@ -42,6 +59,7 @@ export async function notifyOpcoUsers(params: {
     data: {
       subject: params.subject,
       body: params.body,
+      deliveryChannel,
       metadataJson: params.metadata
         ? serializeNotificationMetadata(params.metadata)
         : null,
@@ -56,5 +74,16 @@ export async function notifyOpcoUsers(params: {
         },
       },
     },
+  });
+
+  const emailRecipients = await resolveOrgUserEmails({
+    opcoIds: [params.opcoId],
+    partnerIds: [],
+  });
+  await maybeSendEventEmails({
+    channel: deliveryChannel,
+    recipients: emailRecipients,
+    subject: params.subject,
+    body: params.body,
   });
 }

@@ -1,10 +1,20 @@
 /**
- * In-app notification fan-out to portal users by USER_ROLE code.
+ * In-app (+ optional email) notification fan-out to portal users by USER_ROLE code.
+ * Event-driven callers default to BOTH; SMTP failures are logged, not thrown.
  */
 import {
   type NotificationMetadata,
   serializeNotificationMetadata,
 } from "@/lib/platform/notification-metadata";
+import {
+  DEFAULT_NOTIFICATION_DELIVERY_CHANNEL,
+  parseDeliveryChannel,
+  type NotificationDeliveryChannel,
+} from "@/lib/platform/notification-delivery.shared";
+import {
+  maybeSendEventEmails,
+  type OrgEmailRecipient,
+} from "@/lib/platform/notification-delivery";
 import { prisma } from "@/lib/prisma";
 
 async function notifyUsersByRoleCodes(params: {
@@ -13,7 +23,13 @@ async function notifyUsersByRoleCodes(params: {
   body: string;
   roleCodes: string[];
   metadata?: NotificationMetadata;
+  deliveryChannel?: NotificationDeliveryChannel;
 }): Promise<void> {
+  const deliveryChannel = parseDeliveryChannel(
+    params.deliveryChannel,
+    DEFAULT_NOTIFICATION_DELIVERY_CHANNEL,
+  );
+
   const [sentStatus, userRecipientType, users] = await Promise.all([
     prisma.lookup.findFirst({
       where: {
@@ -32,12 +48,13 @@ async function notifyUsersByRoleCodes(params: {
     prisma.user.findMany({
       where: {
         isDeleted: false,
+        status: { code: "ACTIVE" },
         role: {
           code: { in: params.roleCodes },
           lookupType: { code: "USER_ROLE" },
         },
       },
-      select: { id: true },
+      select: { id: true, email: true, name: true },
     }),
   ]);
 
@@ -49,6 +66,7 @@ async function notifyUsersByRoleCodes(params: {
     data: {
       subject: params.subject,
       body: params.body,
+      deliveryChannel,
       metadataJson: params.metadata
         ? serializeNotificationMetadata(params.metadata)
         : null,
@@ -64,16 +82,36 @@ async function notifyUsersByRoleCodes(params: {
       },
     },
   });
+
+  const byEmail = new Map<string, OrgEmailRecipient>();
+  for (const user of users) {
+    const email = user.email.trim();
+    if (!email) {
+      continue;
+    }
+    const key = email.toLowerCase();
+    if (!byEmail.has(key)) {
+      byEmail.set(key, { email, name: user.name });
+    }
+  }
+
+  await maybeSendEventEmails({
+    channel: deliveryChannel,
+    recipients: [...byEmail.values()],
+    subject: params.subject,
+    body: params.body,
+  });
 }
 
 /**
- * Creates an in-app notification for all Dizlee (CLIENT) portal users.
+ * Creates a notification for all Dizlee (CLIENT) portal users.
  */
 export async function notifyDizleeUsers(params: {
   fromUserId: bigint;
   subject: string;
   body: string;
   metadata?: NotificationMetadata;
+  deliveryChannel?: NotificationDeliveryChannel;
 }): Promise<void> {
   await notifyUsersByRoleCodes({
     ...params,
@@ -82,13 +120,14 @@ export async function notifyDizleeUsers(params: {
 }
 
 /**
- * Creates an in-app notification for Admin portal users only.
+ * Creates a notification for Admin portal users only.
  */
 export async function notifyAdminUsers(params: {
   fromUserId: bigint;
   subject: string;
   body: string;
   metadata?: NotificationMetadata;
+  deliveryChannel?: NotificationDeliveryChannel;
 }): Promise<void> {
   await notifyUsersByRoleCodes({
     ...params,
@@ -97,13 +136,14 @@ export async function notifyAdminUsers(params: {
 }
 
 /**
- * Creates an in-app notification for Admin and Dizlee (CLIENT) users.
+ * Creates a notification for Admin and Dizlee (CLIENT) users.
  */
 export async function notifyAdminAndDizleeUsers(params: {
   fromUserId: bigint;
   subject: string;
   body: string;
   metadata?: NotificationMetadata;
+  deliveryChannel?: NotificationDeliveryChannel;
 }): Promise<void> {
   await notifyUsersByRoleCodes({
     ...params,

@@ -1,6 +1,7 @@
 /**
  * UC-07 automatic submission intimations and reminders — cron entry for schedule steps due today.
- * Reads Admin Reminder Settings; sends Dizlee broadcast notifications to OpCo/Partner audiences.
+ * Reads Admin Reminder Settings; sends Dizlee broadcast notifications to OpCo/Partner audiences
+ * that still have Missing report lanes for the period (skips orgs that already submitted).
  * Invoke via `/api/admin/cron/submission-reminders` with CRON_SECRET.
  */
 import {
@@ -10,6 +11,10 @@ import {
 } from "@/lib/admin/notification-schedules.shared";
 import { getReminderSettings } from "@/lib/admin/reminder-settings";
 import { sendBroadcastNotification } from "@/lib/dizlee/notifications/intimations";
+import {
+  listReportMonitoringLanes,
+  type ReportMonitoringLane,
+} from "@/lib/dizlee/reports-monitoring";
 import { prisma } from "@/lib/prisma";
 
 export type AutomaticReminderSkipReason =
@@ -77,30 +82,66 @@ export async function resolveAutomaticReminderActorId(
   return adminUser.id;
 }
 
-async function listOrgIdsForAudience(audience: ScheduleAudience): Promise<{
-  opcoIds: string[];
-  partnerIds: string[];
-}> {
-  const [opcos, partners] = await Promise.all([
-    audience === "partner"
-      ? Promise.resolve([])
-      : prisma.opco.findMany({
-          where: { isDeleted: false },
-          select: { id: true },
-          orderBy: { name: "asc" },
-        }),
-    audience === "opco"
-      ? Promise.resolve([])
-      : prisma.partner.findMany({
-          where: { isDeleted: false },
-          select: { id: true },
-          orderBy: { name: "asc" },
-        }),
-  ]);
+async function getAllMonitoringLanes(
+  month: number,
+  year: number,
+): Promise<ReportMonitoringLane[]> {
+  const firstPage = await listReportMonitoringLanes({
+    month,
+    year,
+    page: 1,
+    missing: "any",
+    sortBy: "opco",
+    sortDir: "asc",
+  });
+
+  if (firstPage.totalPages <= 1) {
+    return firstPage.items;
+  }
+
+  const lanes = [...firstPage.items];
+  for (let page = 2; page <= firstPage.totalPages; page += 1) {
+    const next = await listReportMonitoringLanes({
+      month,
+      year,
+      page,
+      missing: "any",
+      sortBy: "opco",
+      sortDir: "asc",
+    });
+    lanes.push(...next.items);
+  }
+
+  return lanes;
+}
+
+/** Orgs with ≥1 Missing lane for the period (matches manual missing-report reminders). */
+export async function listMissingOrgIdsForPeriod(params: {
+  month: number;
+  year: number;
+  audience: ScheduleAudience;
+}): Promise<{ opcoIds: string[]; partnerIds: string[] }> {
+  const lanes = await getAllMonitoringLanes(params.month, params.year);
+  const includeOpcos =
+    params.audience === "opco" || params.audience === "both";
+  const includePartners =
+    params.audience === "partner" || params.audience === "both";
+
+  const opcoIds = new Set<string>();
+  const partnerIds = new Set<string>();
+
+  for (const lane of lanes) {
+    if (includeOpcos && lane.opcoReport.status === "Missing") {
+      opcoIds.add(lane.opcoId);
+    }
+    if (includePartners && lane.partnerReport.status === "Missing") {
+      partnerIds.add(lane.partnerId);
+    }
+  }
 
   return {
-    opcoIds: opcos.map((row) => row.id.toString()),
-    partnerIds: partners.map((row) => row.id.toString()),
+    opcoIds: [...opcoIds],
+    partnerIds: [...partnerIds],
   };
 }
 
@@ -110,7 +151,11 @@ async function fireScheduleStep(params: {
   fromUserId: bigint;
 }): Promise<{ opcoNotifications: number; partnerNotifications: number }> {
   const { step, period, fromUserId } = params;
-  const { opcoIds, partnerIds } = await listOrgIdsForAudience(step.audience);
+  const { opcoIds, partnerIds } = await listMissingOrgIdsForPeriod({
+    month: period.month,
+    year: period.year,
+    audience: step.audience,
+  });
 
   if (opcoIds.length === 0 && partnerIds.length === 0) {
     return { opcoNotifications: 0, partnerNotifications: 0 };
@@ -126,6 +171,8 @@ async function fireScheduleStep(params: {
       opcoIds,
       partnerIds,
       priority: "NORMAL",
+      deliveryChannel: "BOTH",
+      requireEmailConfigured: false,
     },
   });
 

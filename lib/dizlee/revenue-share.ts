@@ -16,6 +16,7 @@
 import { currentPeriod, type DashboardPeriod } from "@/lib/dizlee/dashboard";
 import { normalizeServiceName } from "@/lib/dizlee/reconciliation/compare";
 import { DomainError } from "@/lib/errors/app-error";
+import { formatAppMonthYear } from "@/lib/platform/format-datetime";
 import { ACTIVE_OPCO_PARTNER_LINK_FILTER } from "@/lib/platform/opco-partner-links";
 import { applyReportFxToAmount, getOpcoReportFx } from "@/lib/platform/report-fx";
 import { prisma } from "@/lib/prisma";
@@ -113,10 +114,7 @@ function periodFromParts(month: number, year: number): DashboardPeriod {
   return {
     month,
     year,
-    label: new Date(year, month - 1, 1).toLocaleString("en-US", {
-      month: "long",
-      year: "numeric",
-    }),
+    label: formatAppMonthYear(month, year),
   };
 }
 

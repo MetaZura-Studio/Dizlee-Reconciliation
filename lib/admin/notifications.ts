@@ -6,6 +6,7 @@
 import type { Prisma } from "@prisma/client";
 
 import { DomainError } from "@/lib/errors/app-error";
+import { inboxDeliveryChannelFilter } from "@/lib/platform/notification-delivery.shared";
 import { stripPartnerLinkRequestMachinePrefix } from "@/lib/platform/partner-link-request";
 import { prisma } from "@/lib/prisma";
 
@@ -78,6 +79,7 @@ function inboxWhere(
 ): Prisma.NotificationWhereInput {
   return {
     isDeleted: false,
+    ...inboxDeliveryChannelFilter(),
     recipients: {
       some: recipientMatch(userId),
     },

@@ -40,7 +40,7 @@ const SOFT_DELETE_MODELS = new Set([
 ]);
 
 /** Bump when adding Prisma models so stale Turbopack/global clients are dropped. */
-const PRISMA_CLIENT_GENERATION = 2;
+const PRISMA_CLIENT_GENERATION = 3;
 
 type CachedPrisma = {
   generation: number;

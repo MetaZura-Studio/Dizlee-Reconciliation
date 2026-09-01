@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 import { DizleeOpcoInvoiceDocument } from "@/components/shared/dizlee-opco-invoice-document";
 import { Button } from "@/components/ui/button";
-import { FieldLabel, Input, Select } from "@/components/ui/field";
+import { FieldLabel, FieldLegend, Input, Select } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
 import type {
   CreateOpcoInvoiceFormOptions,
@@ -16,12 +16,38 @@ import {
   convertInvoiceLinesToUsd,
   resolveRateToUsd,
 } from "@/lib/dizlee/invoice-usd-copy";
+import {
+  DEFAULT_NOTIFICATION_DELIVERY_CHANNEL,
+  type NotificationDeliveryChannel,
+} from "@/lib/platform/notification-delivery.shared";
 import { ui } from "@/lib/ui/classes";
 import {
   getMaxMonthForYear,
   getPeriodYearOptions,
 } from "@/lib/platform/period";
 import { formatAppError } from "@/lib/errors/format";
+
+const DELIVERY_OPTIONS: Array<{
+  value: NotificationDeliveryChannel;
+  label: string;
+  hint: string;
+}> = [
+  {
+    value: "SYSTEM",
+    label: "System notification",
+    hint: "In-app inbox and bell only",
+  },
+  {
+    value: "EMAIL",
+    label: "Email notification",
+    hint: "Email only (still logged in Outbox)",
+  },
+  {
+    value: "BOTH",
+    label: "Both",
+    hint: "In-app inbox plus email",
+  },
+];
 
 const MONTHS = [
   "January",
@@ -108,6 +134,8 @@ function CreateOpcoInvoiceModalInner({
     useState<CurrencyCopyMode>("local_only");
   const [preparedBy, setPreparedBy] = useState("");
   const [approvedBy, setApprovedBy] = useState("");
+  const [deliveryChannel, setDeliveryChannel] =
+    useState<NotificationDeliveryChannel>(DEFAULT_NOTIFICATION_DELIVERY_CHANNEL);
   const [lineItems, setLineItems] = useState<CreateOpcoInvoiceLineInput[]>([
     emptyLine(),
   ]);
@@ -193,9 +221,11 @@ function CreateOpcoInvoiceModalInner({
         if (field === "description") {
           return { ...line, description: value };
         }
+        const trimmed = value.trim();
+        const parsed = trimmed === "" ? Number.NaN : Number(trimmed);
         return {
           ...line,
-          [field]: Number(value),
+          [field]: parsed,
         };
       }),
     );
@@ -280,6 +310,7 @@ function CreateOpcoInvoiceModalInner({
         preparedBy: preparedBy.trim(),
         approvedBy: approvedBy.trim(),
         lineItems,
+        deliveryChannel,
       };
       const response = await fetch("/api/dizlee/invoices", {
         method: "POST",
@@ -401,6 +432,45 @@ function CreateOpcoInvoiceModalInner({
               </>
             ) : null}
           </div>
+          <fieldset className="space-y-2 print:hidden">
+            <FieldLegend required>Delivery method</FieldLegend>
+            <p className="text-xs text-foreground-subtle">
+              Choose how the OpCo is notified when this invoice is sent.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {DELIVERY_OPTIONS.map((option) => {
+                const selected = deliveryChannel === option.value;
+                return (
+                  <label
+                    key={option.value}
+                    className={`flex h-full cursor-pointer items-start gap-3 rounded-xl border bg-surface p-3 text-sm shadow-[var(--shadow-sm)] transition-colors ${
+                      selected
+                        ? "border-primary ring-2 ring-[var(--ring)]"
+                        : "border-border hover:border-border-strong"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="createInvoiceDeliveryChannel"
+                      value={option.value}
+                      checked={selected}
+                      onChange={() => setDeliveryChannel(option.value)}
+                      className="mt-1 shrink-0"
+                      disabled={submitting}
+                    />
+                    <span>
+                      <span className="font-medium text-foreground">
+                        {option.label}
+                      </span>
+                      <span className="mt-0.5 block text-xs text-foreground-subtle">
+                        {option.hint}
+                      </span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
           {error ? <p className={ui.alertError}>{error}</p> : null}
           <div className="flex justify-end gap-3 print:hidden">
             <Button
@@ -703,7 +773,9 @@ function CreateOpcoInvoiceModalInner({
                   <Input
                     type="text"
                     inputMode="numeric"
-                    value={line.quantity}
+                    value={
+                      Number.isFinite(line.quantity) ? String(line.quantity) : ""
+                    }
                     onChange={(event) =>
                       updateLine(index, "quantity", event.target.value)
                     }
@@ -715,7 +787,11 @@ function CreateOpcoInvoiceModalInner({
                   <Input
                     type="text"
                     inputMode="decimal"
-                    value={line.unitPrice}
+                    value={
+                      Number.isFinite(line.unitPrice)
+                        ? String(line.unitPrice)
+                        : ""
+                    }
                     onChange={(event) =>
                       updateLine(index, "unitPrice", event.target.value)
                     }

@@ -24,7 +24,7 @@ describe("resolveNotificationHref", () => {
         {
           id: "2",
           subject: "Partner link request: Zain Kuwait",
-          body: "Period: August 2026",
+          body: "Period: 08/2026",
           metadataJson: JSON.stringify({
             type: "PARTNER_LINK_REQUEST",
             opcoId: "42",
