@@ -8,13 +8,13 @@ import {
 } from "@/lib/ui/arabic-text";
 
 describe("formatPreviewCellValue", () => {
-  it("formats ISO date-only as dd/mm/yy", () => {
-    expect(formatPreviewCellValue("2026-08-28")).toBe("28/08/26");
+  it("formats ISO date-only as dd/mm/yyyy", () => {
+    expect(formatPreviewCellValue("2026-08-28")).toBe("28/08/2026");
   });
 
-  it("formats ISO datetime with time as dd/mm/yy, HH:mm", () => {
+  it("formats ISO datetime with time as dd/mm/yyyy, HH:mm", () => {
     expect(formatPreviewCellValue("2026-08-28T14:30:00.000Z")).toMatch(
-      /^\d{2}\/\d{2}\/\d{2}, \d{2}:\d{2}$/,
+      /^\d{2}\/\d{2}\/\d{4}, \d{2}:\d{2}$/,
     );
   });
 
@@ -32,7 +32,7 @@ describe("previewCellAlign", () => {
 
   it("center-aligns app dates", () => {
     expect(previewCellAlign("2026-08-28")).toBe("center");
-    expect(previewCellAlign("28/08/26")).toBe("center");
+    expect(previewCellAlign("28/08/2026")).toBe("center");
   });
 
   it("left-aligns latin text", () => {
