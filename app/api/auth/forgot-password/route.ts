@@ -17,7 +17,7 @@ import { jsonError } from "@/lib/errors/respond";
 export async function POST(request: Request) {
   try {
     const ip = getClientIp(request);
-    assertRateLimit({
+    await assertRateLimit({
       key: `forgot:ip:${ip}`,
       limit: AUTH_RATE_LIMITS.forgotPasswordIp.limit,
       windowMs: AUTH_RATE_LIMITS.forgotPasswordIp.windowMs,
@@ -31,7 +31,7 @@ export async function POST(request: Request) {
       typeof (body as { email: unknown }).email === "string" &&
       (body as { email: string }).email.trim()
     ) {
-      assertRateLimit({
+      await assertRateLimit({
         key: `forgot:email:${normalizeRateLimitEmail((body as { email: string }).email)}`,
         limit: AUTH_RATE_LIMITS.forgotPasswordEmail.limit,
         windowMs: AUTH_RATE_LIMITS.forgotPasswordEmail.windowMs,

@@ -6,28 +6,15 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 
-import {
-  DataTable,
-  DataTableFrame,
-  DataTableHead,
-  DataTableRow,
-  DataTableTd,
-  DataTableTh,
-} from "@/components/ui/data-table";
-import { EmptyState } from "@/components/ui/empty-state";
+import { DashboardRecentActivity } from "@/components/admin/dashboard-recent-activity";
 import { PageCard, PageHeader } from "@/components/ui/page";
 import { StatCard } from "@/components/ui/stat-card";
 import type { AdminDashboardData } from "@/lib/admin/dashboard";
-import { formatAppDateTime } from "@/lib/platform/format-datetime";
 import { cn } from "@/lib/ui/classes";
 
 type DashboardViewProps = {
   data: AdminDashboardData;
 };
-
-function formatRoleLabel(role: string): string {
-  return role.charAt(0) + role.slice(1).toLowerCase();
-}
 
 function activeHint(active: number, total: number): string {
   return `${active} active of ${total}`;
@@ -186,50 +173,7 @@ export function DashboardView({ data }: DashboardViewProps) {
             </Link>
           }
         >
-          {recentActivity.length > 0 ? (
-            <DataTableFrame>
-              <DataTable>
-                <DataTableHead>
-                  <tr>
-                    <DataTableTh align="center">When</DataTableTh>
-                    <DataTableTh>Actor</DataTableTh>
-                    <DataTableTh>Action</DataTableTh>
-                    <DataTableTh>Entity</DataTableTh>
-                    <DataTableTh>Details</DataTableTh>
-                  </tr>
-                </DataTableHead>
-                <tbody>
-                  {recentActivity.map((entry) => (
-                    <DataTableRow key={entry.id}>
-                      <DataTableTd className="whitespace-nowrap text-foreground-muted" align="center">
-                        {formatAppDateTime(entry.createdAt)}
-                      </DataTableTd>
-                      <DataTableTd>
-                        <p className="font-medium text-foreground">{entry.actorName}</p>
-                        <p className="text-xs text-foreground-subtle">
-                          {formatRoleLabel(entry.actorRole)} · {entry.actorEmail}
-                        </p>
-                      </DataTableTd>
-                      <DataTableTd className="text-foreground-muted">
-                        {entry.actionLabel}
-                      </DataTableTd>
-                      <DataTableTd className="text-foreground-muted">
-                        {entry.entityTypeLabel}
-                      </DataTableTd>
-                      <DataTableTd className="max-w-xs truncate text-foreground-muted">
-                        {entry.message?.trim() || "—"}
-                      </DataTableTd>
-                    </DataTableRow>
-                  ))}
-                </tbody>
-              </DataTable>
-            </DataTableFrame>
-          ) : (
-            <EmptyState
-              title="No activity yet"
-              description="Admin actions and configuration changes will appear here."
-            />
-          )}
+          <DashboardRecentActivity items={recentActivity} />
         </DashboardSection>
       </div>
     </PageCard>

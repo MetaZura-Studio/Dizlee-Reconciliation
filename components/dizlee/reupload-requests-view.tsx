@@ -24,6 +24,7 @@ import {
   SortableDataTableTh,
 } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
+import { FilterActions } from "@/components/ui/filter-actions";
 import { Modal } from "@/components/ui/modal";
 import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
 import { LoadingOverlay } from "@/components/ui/loading";
@@ -356,15 +357,12 @@ export function ReuploadRequestsView({
             </select>
           </label>
         </div>
-        <div className="flex w-full gap-3">
-          <Button onClick={applyFilters}>Apply</Button>
-          <Button variant="secondary" onClick={refresh}>
-            Refresh
-          </Button>
-          <Button variant="secondary" onClick={clearFilters}>
-            Clear filters
-          </Button>
-        </div>
+        <FilterActions
+          onApply={applyFilters}
+          onClear={clearFilters}
+          onRefresh={refresh}
+          loading={loading}
+        />
       </FilterToolbar>
 
       {error ? <div className={`mt-4 ${ui.alertError}`}>{error}</div> : null}

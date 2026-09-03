@@ -12,6 +12,10 @@ import {
 } from "@/components/shared/report-upload-review-modal";
 import { Button } from "@/components/ui/button";
 import { FieldLabel } from "@/components/ui/field";
+import {
+  FileDropField,
+  type FileDropFieldHandle,
+} from "@/components/ui/file-drop-field";
 import { LoadingOverlay } from "@/components/ui/loading";
 import { Modal } from "@/components/ui/modal";
 import type { OpcoSubmissionListItem } from "@/lib/opco/queries/submissions";
@@ -42,7 +46,7 @@ export function SubmissionReuploadDialog({
   onClose,
   onSuccess,
 }: SubmissionReuploadDialogProps) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<FileDropFieldHandle>(null);
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmError, setConfirmError] = useState<string | null>(null);
@@ -59,9 +63,7 @@ export function SubmissionReuploadDialog({
     if (validationError) {
       setError(validationError);
       setFile(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
+      fileInputRef.current?.clear();
       return;
     }
 
@@ -82,16 +84,13 @@ export function SubmissionReuploadDialog({
     } catch {
       setError("Could not read this Excel file. Please choose a valid .xlsx file.");
       setFile(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
+      fileInputRef.current?.clear();
     } finally {
       setIsLoadingPreview(false);
     }
   }
 
-  function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const selectedFile = event.target.files?.[0] ?? null;
+  function handleFileSelected(selectedFile: File | null) {
     if (!selectedFile) {
       setFile(null);
       setReview(null);
@@ -105,10 +104,8 @@ export function SubmissionReuploadDialog({
     setFile(null);
     setConfirmError(null);
     window.setTimeout(() => {
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-        fileInputRef.current.click();
-      }
+      fileInputRef.current?.clear();
+      fileInputRef.current?.open();
     }, 0);
   }
 
@@ -172,14 +169,18 @@ export function SubmissionReuploadDialog({
               <FieldLabel htmlFor="submission-reupload-file" required>
                 Corrected Excel file
               </FieldLabel>
-              <input
+              <FileDropField
                 ref={fileInputRef}
                 id="submission-reupload-file"
-                type="file"
                 accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                onChange={handleFileChange}
+                emptyLabel="Drop .xlsx here or browse"
+                hint="Excel workbook only (.xlsx)"
+                value={file}
+                onChange={handleFileSelected}
                 disabled={isLoadingPreview || isConfirming}
-                className="mt-1 block w-full text-sm disabled:opacity-60"
+                required
+                compact
+                className="mt-1.5"
               />
             </div>
 

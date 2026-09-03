@@ -4,11 +4,17 @@
 
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { Button } from "@/components/ui/button";
+import { KpiCard } from "@/components/dizlee/kpi-card";
 import { IconButton } from "@/components/ui/icon-button";
-import { IconDownload, IconEye } from "@/components/ui/icons";
+import {
+  IconAlert,
+  IconDownload,
+  IconEye,
+  IconFile,
+  IconRefresh,
+} from "@/components/ui/icons";
 import {
   DataTable,
   DataTableFrame,
@@ -16,8 +22,12 @@ import {
   DataTableRow,
   DataTableTd,
   DataTableTh,
+  SortableDataTableTh,
 } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
+import { FieldLabel, Select } from "@/components/ui/field";
+import { FilterActions } from "@/components/ui/filter-actions";
+import { ListPagination } from "@/components/ui/list-pagination";
 import { LoadingOverlay } from "@/components/ui/loading";
 import { Modal } from "@/components/ui/modal";
 import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
@@ -30,11 +40,13 @@ import type {
 } from "@/lib/dizlee/revenue-share";
 import { formatAppMonthYear } from "@/lib/platform/format-datetime";
 import {
+  getCurrentPeriod,
   getMaxMonthForYear,
   getPeriodYearOptions,
 } from "@/lib/platform/period";
 import { formatAppError } from "@/lib/errors/format";
-import { cn, ui } from "@/lib/ui/classes";
+import { paginateItems } from "@/lib/ui/list-pagination";
+import { nextSortState, type SortDirection } from "@/lib/ui/sort";
 
 const MONTHS = [
   "January",
@@ -57,6 +69,17 @@ type RevenueShareViewProps = {
   initialDashboard: RevenueShareDashboard;
 };
 
+type RsSortField = "opco" | "status";
+type RsStatusFilter = RevenueShareDashboardStatus | "all";
+
+const STATUS_FILTER_OPTIONS: Array<{ value: RsStatusFilter; label: string }> = [
+  { value: "all", label: "All statuses" },
+  { value: "READY", label: "Ready" },
+  { value: "GENERATED", label: "Generated" },
+  { value: "OPCO_REPORT_MISSING", label: "OpCo report missing" },
+  { value: "PARTNERS_REPORT_MISSING", label: "Partners report missing" },
+];
+
 function statusMeta(status: RevenueShareDashboardStatus): {
   label: string;
   tone: "success" | "warning" | "danger" | "info";
@@ -71,6 +94,23 @@ function statusMeta(status: RevenueShareDashboardStatus): {
     case "OPCO_REPORT_MISSING":
       return { label: "OpCo report missing", tone: "danger" };
   }
+}
+
+function compareRsRows(
+  a: RevenueShareDashboardRow,
+  b: RevenueShareDashboardRow,
+  sortBy: RsSortField,
+  sortDir: SortDirection,
+): number {
+  const dir = sortDir === "asc" ? 1 : -1;
+  if (sortBy === "status") {
+    const byStatus =
+      statusMeta(a.status).label.localeCompare(statusMeta(b.status).label) * dir;
+    if (byStatus !== 0) {
+      return byStatus;
+    }
+  }
+  return a.opcoName.localeCompare(b.opcoName) * (sortBy === "opco" ? dir : 1);
 }
 
 function periodQuery(month: number, year: number): string {
@@ -88,6 +128,13 @@ export function RevenueShareView({
   const toast = useToast();
   const [month, setMonth] = useState(initialMonth);
   const [year, setYear] = useState(initialYear);
+  const [appliedMonth, setAppliedMonth] = useState(initialMonth);
+  const [appliedYear, setAppliedYear] = useState(initialYear);
+  const [opcoId, setOpcoId] = useState("");
+  const [statusFilter, setStatusFilter] = useState<RsStatusFilter>("all");
+  const [appliedOpcoId, setAppliedOpcoId] = useState("");
+  const [appliedStatusFilter, setAppliedStatusFilter] =
+    useState<RsStatusFilter>("all");
   const [dashboard, setDashboard] = useState(initialDashboard);
   const [loading, setLoading] = useState(false);
   const [generatingOpcoId, setGeneratingOpcoId] = useState<string | null>(null);
@@ -95,6 +142,9 @@ export function RevenueShareView({
   const [detailsRow, setDetailsRow] = useState<RevenueShareDashboardRow | null>(
     null,
   );
+  const [sortBy, setSortBy] = useState<RsSortField>("opco");
+  const [sortDir, setSortDir] = useState<SortDirection>("asc");
+  const [page, setPage] = useState(1);
 
   const yearOptions = getPeriodYearOptions();
   const maxMonth = getMaxMonthForYear(year);
@@ -111,6 +161,9 @@ export function RevenueShareView({
         throw new Error(formatAppError(payload, "Failed to load RS dashboard"));
       }
       setDashboard(payload.data as RevenueShareDashboard);
+      setAppliedMonth(nextMonth);
+      setAppliedYear(nextYear);
+      setPage(1);
     } catch (loadError) {
       setError(
         loadError instanceof Error
@@ -124,23 +177,40 @@ export function RevenueShareView({
 
   useEffect(() => {
     const handleFocus = () => {
-      void loadDashboard(month, year);
+      void loadDashboard(appliedMonth, appliedYear);
     };
     window.addEventListener("focus", handleFocus);
     return () => window.removeEventListener("focus", handleFocus);
-  }, [loadDashboard, month, year]);
+  }, [appliedMonth, appliedYear, loadDashboard]);
 
-  function changeMonth(nextMonth: number) {
-    setMonth(nextMonth);
-    void loadDashboard(nextMonth, year);
+  function applyFilters() {
+    setAppliedOpcoId(opcoId);
+    setAppliedStatusFilter(statusFilter);
+    setPage(1);
+    void loadDashboard(month, year);
   }
 
-  function changeYear(nextYear: number) {
-    const nextMaxMonth = getMaxMonthForYear(nextYear);
-    const nextMonth = Math.min(month, nextMaxMonth);
-    setYear(nextYear);
-    setMonth(nextMonth);
-    void loadDashboard(nextMonth, nextYear);
+  function clearFilters() {
+    const period = getCurrentPeriod();
+    setMonth(period.month);
+    setYear(period.year);
+    setOpcoId("");
+    setStatusFilter("all");
+    setAppliedOpcoId("");
+    setAppliedStatusFilter("all");
+    setPage(1);
+    void loadDashboard(period.month, period.year);
+  }
+
+  function refresh() {
+    void loadDashboard(appliedMonth, appliedYear);
+  }
+
+  function applySort(field: RsSortField) {
+    const next = nextSortState(sortBy, sortDir, field);
+    setSortBy(next.sortBy);
+    setSortDir(next.sortDir);
+    setPage(1);
   }
 
   async function generateReport(row: RevenueShareDashboardRow) {
@@ -151,8 +221,8 @@ export function RevenueShareView({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          month,
-          year,
+          month: appliedMonth,
+          year: appliedYear,
           opcoId: row.opcoId,
         }),
       });
@@ -171,7 +241,7 @@ export function RevenueShareView({
       anchor.click();
       URL.revokeObjectURL(url);
       toast.success(`RS report generated for ${row.opcoName}.`);
-      await loadDashboard(month, year);
+      await loadDashboard(appliedMonth, appliedYear);
     } catch (generateError) {
       setError(
         generateError instanceof Error
@@ -184,7 +254,39 @@ export function RevenueShareView({
   }
 
   const summary = dashboard.summary;
-  const rows = dashboard.rows;
+
+  const opcoOptions = useMemo(
+    () =>
+      [...dashboard.rows]
+        .map((row) => ({ id: row.opcoId, name: row.opcoName }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    [dashboard.rows],
+  );
+
+  const filteredRows = useMemo(() => {
+    return dashboard.rows.filter((row) => {
+      if (appliedOpcoId && row.opcoId !== appliedOpcoId) {
+        return false;
+      }
+      if (
+        appliedStatusFilter !== "all" &&
+        row.status !== appliedStatusFilter
+      ) {
+        return false;
+      }
+      return true;
+    });
+  }, [appliedOpcoId, appliedStatusFilter, dashboard.rows]);
+
+  const sortedRows = useMemo(
+    () =>
+      [...filteredRows].sort((a, b) => compareRsRows(a, b, sortBy, sortDir)),
+    [filteredRows, sortBy, sortDir],
+  );
+  const pagedRows = useMemo(
+    () => paginateItems(sortedRows, page),
+    [page, sortedRows],
+  );
 
   return (
     <div className="space-y-6">
@@ -195,49 +297,85 @@ export function RevenueShareView({
         />
 
         <FilterToolbar>
-          <label className={cn(ui.label, "min-w-40")}>
-            Month
-            <select
-              className={ui.select}
-              value={month}
-              onChange={(event) => changeMonth(Number(event.target.value))}
-            >
-              {MONTHS.slice(0, maxMonth).map((label, index) => (
-                <option key={label} value={index + 1}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className={cn(ui.label, "min-w-28")}>
-            Year
-            <select
-              className={ui.select}
-              value={year}
-              onChange={(event) => changeYear(Number(event.target.value))}
-            >
-              {yearOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <label className="text-sm">
+              <FieldLabel>Month</FieldLabel>
+              <Select
+                value={month}
+                onChange={(event) => setMonth(Number(event.target.value))}
+              >
+                {MONTHS.slice(0, maxMonth).map((label, index) => (
+                  <option key={label} value={index + 1}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+            </label>
+            <label className="text-sm">
+              <FieldLabel>Year</FieldLabel>
+              <Select
+                value={year}
+                onChange={(event) => {
+                  const nextYear = Number(event.target.value);
+                  setYear(nextYear);
+                  const capped = getMaxMonthForYear(nextYear);
+                  if (month > capped) setMonth(capped);
+                }}
+              >
+                {yearOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </Select>
+            </label>
+            <label className="text-sm">
+              <FieldLabel>OpCo</FieldLabel>
+              <Select
+                value={opcoId}
+                onChange={(event) => setOpcoId(event.target.value)}
+              >
+                <option value="">All OpCos</option>
+                {opcoOptions.map((opco) => (
+                  <option key={opco.id} value={opco.id}>
+                    {opco.name}
+                  </option>
+                ))}
+              </Select>
+            </label>
+            <label className="text-sm">
+              <FieldLabel>Status</FieldLabel>
+              <Select
+                value={statusFilter}
+                onChange={(event) =>
+                  setStatusFilter(event.target.value as RsStatusFilter)
+                }
+              >
+                {STATUS_FILTER_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
+            </label>
+          </div>
+          <FilterActions
+            onApply={applyFilters}
+            onClear={clearFilters}
+            onRefresh={refresh}
+            loading={loading}
+          />
         </FilterToolbar>
 
-        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <SummaryCard label="Total OpCos" value={summary.total} />
-          <SummaryCard label="Ready" value={summary.ready} tone="success" />
-          <SummaryCard
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <KpiCard label="Total OpCos" value={summary.total} tone="blue" />
+          <KpiCard label="Ready" value={summary.ready} tone="teal" />
+          <KpiCard
             label="Pending (reports missing)"
             value={summary.pendingMissing}
-            tone="warning"
+            tone="amber"
           />
-          <SummaryCard
-            label="Generated"
-            value={summary.generated}
-            tone="info"
-          />
+          <KpiCard label="Generated" value={summary.generated} tone="purple" />
         </div>
       </PageCard>
 
@@ -247,8 +385,8 @@ export function RevenueShareView({
             OpCo readiness
           </h2>
           <p className="mt-1 text-sm text-foreground-muted">
-            Status for {formatAppMonthYear(month, year)}. Change month or year
-            above to review another period.
+            Status for {formatAppMonthYear(appliedMonth, appliedYear)}. Apply
+            filters above to narrow OpCos or change period.
           </p>
         </div>
 
@@ -259,99 +397,131 @@ export function RevenueShareView({
         ) : null}
 
         <LoadingOverlay active={loading} className="min-h-[12rem]">
-          {rows.length === 0 ? (
-            <EmptyState title="No OpCos found." />
+          {pagedRows.total === 0 ? (
+            <EmptyState
+              title="No OpCos found"
+              description="Adjust period, OpCo, or status filters to see readiness rows."
+            />
           ) : (
-            <DataTableFrame>
-              <DataTable>
-                <DataTableHead>
-                  <DataTableRow>
-                    <DataTableTh>OpCo</DataTableTh>
-                    <DataTableTh align="center">OpCo report</DataTableTh>
-                    <DataTableTh align="center">Status</DataTableTh>
-                    <DataTableTh align="center">Action</DataTableTh>
-                  </DataTableRow>
-                </DataTableHead>
-                <tbody>
-                  {rows.map((row) => {
-                    const meta = statusMeta(row.status);
-                    const busy = generatingOpcoId === row.opcoId;
-                    return (
-                      <DataTableRow key={row.opcoId}>
-                        <DataTableTd>
-                          <span className="font-medium text-foreground">
-                            {row.opcoName}
-                          </span>
-                        </DataTableTd>
-                        <DataTableTd align="center">
-                          <StatusPill
-                            tone={row.hasOpcoReport ? "success" : "danger"}
-                          >
-                            {row.hasOpcoReport ? "Received" : "Missing"}
-                          </StatusPill>
-                        </DataTableTd>
-                        <DataTableTd align="center">
-                          <StatusPill tone={meta.tone}>{meta.label}</StatusPill>
-                        </DataTableTd>
-                        <DataTableTd align="center">
-                          <div className="flex flex-wrap items-center justify-center gap-2">
-                            {row.status === "READY" ||
-                            row.status === "GENERATED" ? (
-                              <Button
-                                type="button"
-                                disabled={busy || loading}
-                                onClick={() => void generateReport(row)}
-                              >
-                                {busy
-                                  ? "Generating…"
-                                  : row.status === "GENERATED"
-                                    ? "Regenerate report"
-                                    : "Generate report"}
-                              </Button>
-                            ) : null}
-                            {row.status === "OPCO_REPORT_MISSING" ||
-                            row.status === "PARTNERS_REPORT_MISSING" ? (
-                              <Button
-                                type="button"
-                                variant="secondary"
-                                onClick={() => setDetailsRow(row)}
-                              >
-                                View details
-                              </Button>
-                            ) : null}
-                            {row.status === "GENERATED" &&
-                            row.generatedReportId != null ? (
-                              <>
+            <div className="space-y-4">
+              <DataTableFrame>
+                <DataTable>
+                  <DataTableHead>
+                    <DataTableRow>
+                      <SortableDataTableTh
+                        label="OpCo"
+                        active={sortBy === "opco"}
+                        direction={sortDir}
+                        onSort={() => applySort("opco")}
+                      />
+                      <DataTableTh align="center">OpCo report</DataTableTh>
+                      <SortableDataTableTh
+                        label="Status"
+                        active={sortBy === "status"}
+                        direction={sortDir}
+                        onSort={() => applySort("status")}
+                        align="center"
+                      />
+                      <DataTableTh align="center">Action</DataTableTh>
+                    </DataTableRow>
+                  </DataTableHead>
+                  <tbody>
+                    {pagedRows.items.map((row) => {
+                      const meta = statusMeta(row.status);
+                      const busy = generatingOpcoId === row.opcoId;
+                      return (
+                        <DataTableRow key={row.opcoId}>
+                          <DataTableTd>
+                            <span className="font-medium text-foreground">
+                              {row.opcoName}
+                            </span>
+                          </DataTableTd>
+                          <DataTableTd align="center">
+                            <StatusPill
+                              tone={row.hasOpcoReport ? "success" : "danger"}
+                            >
+                              {row.hasOpcoReport ? "Received" : "Missing"}
+                            </StatusPill>
+                          </DataTableTd>
+                          <DataTableTd align="center">
+                            <StatusPill tone={meta.tone}>{meta.label}</StatusPill>
+                          </DataTableTd>
+                          <DataTableTd align="center">
+                            <div className="flex flex-wrap items-center justify-center gap-2">
+                              {row.status === "READY" ||
+                              row.status === "GENERATED" ? (
                                 <IconButton
-                                  label="View"
-                                  onClick={() => {
-                                    window.open(
-                                      `/api/dizlee/revenue-share/${row.generatedReportId}/preview`,
-                                      "_blank",
-                                      "noopener,noreferrer",
-                                    );
-                                  }}
+                                  label={
+                                    busy
+                                      ? "Generating…"
+                                      : row.status === "GENERATED"
+                                        ? "Regenerate report"
+                                        : "Generate report"
+                                  }
+                                  variant="primary"
+                                  disabled={busy || loading}
+                                  onClick={() => void generateReport(row)}
                                 >
-                                  <IconEye />
+                                  {row.status === "GENERATED" ? (
+                                    <IconRefresh />
+                                  ) : (
+                                    <IconFile />
+                                  )}
                                 </IconButton>
+                              ) : null}
+                              {row.status === "OPCO_REPORT_MISSING" ||
+                              row.status === "PARTNERS_REPORT_MISSING" ? (
                                 <IconButton
-                                  label="Download"
-                                  onClick={() => {
-                                    window.location.href = `/api/dizlee/revenue-share/${row.generatedReportId}/download`;
-                                  }}
+                                  label="View details"
+                                  onClick={() => setDetailsRow(row)}
                                 >
-                                  <IconDownload />
+                                  <IconAlert />
                                 </IconButton>
-                              </>
-                            ) : null}
-                          </div>
-                        </DataTableTd>
-                      </DataTableRow>
-                    );
-                  })}
-                </tbody>
-              </DataTable>
-            </DataTableFrame>
+                              ) : null}
+                              {row.status === "GENERATED" &&
+                              row.generatedReportId != null ? (
+                                <>
+                                  <IconButton
+                                    label="View report"
+                                    onClick={() => {
+                                      window.open(
+                                        `/api/dizlee/revenue-share/${row.generatedReportId}/preview`,
+                                        "_blank",
+                                        "noopener,noreferrer",
+                                      );
+                                    }}
+                                  >
+                                    <IconEye />
+                                  </IconButton>
+                                  <IconButton
+                                    label="Download report"
+                                    onClick={() => {
+                                      window.location.href = `/api/dizlee/revenue-share/${row.generatedReportId}/download`;
+                                    }}
+                                  >
+                                    <IconDownload />
+                                  </IconButton>
+                                </>
+                              ) : null}
+                            </div>
+                          </DataTableTd>
+                        </DataTableRow>
+                      );
+                    })}
+                  </tbody>
+                </DataTable>
+              </DataTableFrame>
+
+              <ListPagination
+                total={pagedRows.total}
+                page={pagedRows.page}
+                totalPages={pagedRows.totalPages}
+                noun="OpCo"
+                nounPlural="OpCos"
+                onPageChange={setPage}
+                loading={loading}
+              />
+            </div>
           )}
         </LoadingOverlay>
       </PageCard>
@@ -441,36 +611,6 @@ export function RevenueShareView({
           </div>
         ) : null}
       </Modal>
-    </div>
-  );
-}
-
-function SummaryCard({
-  label,
-  value,
-  tone = "neutral",
-}: {
-  label: string;
-  value: number;
-  tone?: "neutral" | "success" | "warning" | "info";
-}) {
-  const valueClass =
-    tone === "success"
-      ? "text-success"
-      : tone === "warning"
-        ? "text-warning"
-        : tone === "info"
-          ? "text-primary"
-          : "text-foreground";
-
-  return (
-    <div className="rounded-2xl border border-border bg-surface-muted/40 px-4 py-3">
-      <p className="text-xs font-semibold tracking-wide text-foreground-muted">
-        {label}
-      </p>
-      <p className={cn("mt-1 text-2xl font-semibold tabular-nums", valueClass)}>
-        {value}
-      </p>
     </div>
   );
 }

@@ -12,6 +12,9 @@ import type {
   CurrencyRatesPeriodView,
 } from "@/lib/admin/currencies.shared";
 import {
+  CURRENT_MONTH_RATES_ONLY_MESSAGE,
+} from "@/lib/admin/currency-rate-input";
+import {
   saveCurrencyRatesSchema,
   type SaveCurrencyRatesInput,
 } from "@/lib/admin/validation/currency-rates";
@@ -29,6 +32,7 @@ import { prisma } from "@/lib/prisma";
 import { DomainError } from "@/lib/errors/app-error";
 
 export type { CurrencyRatesPeriodView, CurrencyRatePeriodOption } from "@/lib/admin/currencies.shared";
+export { CURRENT_MONTH_RATES_ONLY_MESSAGE } from "@/lib/admin/currency-rate-input";
 
 const ROLLING_PERIOD_COUNT = 24;
 
@@ -155,6 +159,10 @@ export async function saveRatesForPeriod(
   }
 
   const { month, year } = parsePeriod(parsed.data.month, parsed.data.year);
+
+  if (!isSameCalendarPeriod(month, year)) {
+    throw new CurrencyRatesError(CURRENT_MONTH_RATES_ONLY_MESSAGE);
+  }
 
   const currencies = await listCurrencies();
   const currencyIdSet = new Set(currencies.map((currency) => currency.id));

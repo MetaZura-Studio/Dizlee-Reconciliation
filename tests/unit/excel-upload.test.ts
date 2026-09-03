@@ -58,8 +58,63 @@ describe("validateExcelUploadFile", () => {
 });
 
 describe("assertExcelBufferMagic", () => {
-  it("accepts zip header for xlsx", () => {
-    const buffer = Buffer.from([0x50, 0x4b, 0x03, 0x04, 0x00]);
+  it("accepts a minimal valid xlsx zip", () => {
+    const name = Buffer.from("xl/workbook.xml");
+    const u16 = (n: number) => {
+      const b = Buffer.alloc(2);
+      b.writeUInt16LE(n, 0);
+      return b;
+    };
+    const u32 = (n: number) => {
+      const b = Buffer.alloc(4);
+      b.writeUInt32LE(n, 0);
+      return b;
+    };
+    const local = Buffer.concat([
+      u32(0x04034b50),
+      u16(20),
+      u16(0),
+      u16(0),
+      u16(0),
+      u16(0),
+      u32(0),
+      u32(0),
+      u32(32),
+      u16(name.length),
+      u16(0),
+      name,
+    ]);
+    const central = Buffer.concat([
+      u32(0x02014b50),
+      u16(20),
+      u16(20),
+      u16(0),
+      u16(0),
+      u16(0),
+      u16(0),
+      u32(0),
+      u32(0),
+      u32(32),
+      u16(name.length),
+      u16(0),
+      u16(0),
+      u16(0),
+      u16(0),
+      u32(0),
+      u32(0),
+      name,
+    ]);
+    const eocd = Buffer.concat([
+      u32(0x06054b50),
+      u16(0),
+      u16(0),
+      u16(1),
+      u16(1),
+      u32(central.length),
+      u32(local.length),
+      u16(0),
+    ]);
+    const buffer = Buffer.concat([local, central, eocd]);
     expect(assertExcelBufferMagic(buffer, "a.xlsx")).toBeNull();
   });
 

@@ -12,7 +12,7 @@ import {
   loadActiveAuthUser,
   shouldRevalidateAuthUser,
 } from "@/lib/auth/active-user";
-import { verifyPassword } from "@/lib/auth/password";
+import { verifyPassword, runDummyPasswordCheck } from "@/lib/auth/password";
 import { writeUserSessionAuditLog } from "@/lib/auth/audit";
 import {
   AUTH_RATE_LIMITS,
@@ -84,7 +84,7 @@ function createAuthOptions(params: {
           const { email, password, scope: rawScope } = parsed.data;
 
           const emailKey = normalizeRateLimitEmail(email);
-          const emailLimit = consumeRateLimit({
+          const emailLimit = await consumeRateLimit({
             key: `login:email:${emailKey}`,
             limit: AUTH_RATE_LIMITS.loginEmail.limit,
             windowMs: AUTH_RATE_LIMITS.loginEmail.windowMs,
@@ -110,6 +110,7 @@ function createAuthOptions(params: {
           });
 
           if (!user?.passwordHash || user.status.code !== "ACTIVE") {
+            await runDummyPasswordCheck(password);
             return null;
           }
 

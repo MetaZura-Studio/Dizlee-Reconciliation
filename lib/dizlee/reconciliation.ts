@@ -185,6 +185,8 @@ export function parseCompareLaneFilters(
 export function parseHistoryFilters(searchParams: URLSearchParams): {
   month?: number;
   year?: number;
+  opcoId?: string;
+  partnerId?: string;
   page: number;
   search?: string;
   sortBy: ReconciliationHistorySortField;
@@ -195,12 +197,16 @@ export function parseHistoryFilters(searchParams: URLSearchParams): {
   const page = Number(searchParams.get("page"));
   const sortBy = searchParams.get("sortBy");
   const sortDir = searchParams.get("sortDir");
+  const opcoId = searchParams.get("opcoId")?.trim() || undefined;
+  const partnerId = searchParams.get("partnerId")?.trim() || undefined;
 
   return {
     month:
       Number.isInteger(month) && month >= 1 && month <= 12 ? month : undefined,
     year:
       Number.isInteger(year) && year >= 2000 && year <= 2100 ? year : undefined,
+    opcoId,
+    partnerId,
     page: Number.isInteger(page) && page >= 1 ? page : 1,
     search: searchParams.get("search")?.trim() || undefined,
     sortBy:
@@ -685,6 +691,8 @@ export async function runReconciliation(params: {
 export async function listReconciliationHistory(filters: {
   month?: number;
   year?: number;
+  opcoId?: string;
+  partnerId?: string;
   page: number;
   search?: string;
   sortBy: ReconciliationHistorySortField;
@@ -694,6 +702,8 @@ export async function listReconciliationHistory(filters: {
     isDeleted: false,
     ...(filters.month ? { month: filters.month } : {}),
     ...(filters.year ? { year: filters.year } : {}),
+    ...(filters.opcoId ? { opcoId: BigInt(filters.opcoId) } : {}),
+    ...(filters.partnerId ? { partnerId: BigInt(filters.partnerId) } : {}),
     ...(filters.search
       ? {
           OR: [

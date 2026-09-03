@@ -48,13 +48,17 @@ function blobReadWriteToken(): string | undefined {
  * True only when Blob auth is actually available.
  * Having BLOB_STORE_ID alone is not enough — need read-write token or OIDC.
  */
-function isBlobStorageEnabled(): boolean {
+export function isBlobStorageConfigured(): boolean {
   if (blobReadWriteToken()) {
     return true;
   }
   return Boolean(
     process.env.BLOB_STORE_ID?.trim() && process.env.VERCEL_OIDC_TOKEN?.trim(),
   );
+}
+
+function isBlobStorageEnabled(): boolean {
+  return isBlobStorageConfigured();
 }
 
 /** Server-only diagnostics for logs (never send to API clients). */

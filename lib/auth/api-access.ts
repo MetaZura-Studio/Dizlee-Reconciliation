@@ -7,7 +7,7 @@ import type { AppRole } from "@/lib/auth/types";
 
 /** No session required (or uses its own secret, e.g. cron). */
 export function isPublicApiPath(pathname: string): boolean {
-  if (pathname === "/api/health") {
+  if (pathname === "/api/health" || pathname === "/api/health/ready") {
     return true;
   }
   // Cron uses Bearer CRON_SECRET — do not require a user JWT.

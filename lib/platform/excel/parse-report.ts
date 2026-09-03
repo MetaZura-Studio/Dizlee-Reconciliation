@@ -4,6 +4,7 @@
  */
 import ExcelJS from "exceljs";
 import { DomainError } from "@/lib/errors/app-error";
+import { assertSafeXlsxZip } from "@/lib/platform/excel/assert-safe-xlsx-zip";
 
 export type ParsedReportLine = {
   lineNumber: number;
@@ -122,6 +123,10 @@ export async function parseReportWorkbook(
 ): Promise<ParsedReportLine[]> {
   const workbook = new ExcelJS.Workbook();
   const workbookBuffer = Buffer.isBuffer(input) ? input : Buffer.from(input);
+  const zipError = assertSafeXlsxZip(workbookBuffer);
+  if (zipError) {
+    throw new ReportParseError(zipError);
+  }
   await workbook.xlsx.load(workbookBuffer as unknown as ExcelJS.Buffer);
 
   const worksheet = workbook.worksheets[0];

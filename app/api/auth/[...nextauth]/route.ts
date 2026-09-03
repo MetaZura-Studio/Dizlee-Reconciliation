@@ -44,7 +44,7 @@ export async function POST(request: Request, context: RouteContext) {
 
   if (isCredentialsSignIn(segments)) {
     const ip = getClientIp(request);
-    const limited = consumeRateLimit({
+    const limited = await consumeRateLimit({
       key: `login:ip:${ip}`,
       limit: AUTH_RATE_LIMITS.loginIp.limit,
       windowMs: AUTH_RATE_LIMITS.loginIp.windowMs,

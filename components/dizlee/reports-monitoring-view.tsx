@@ -23,8 +23,9 @@ import {
   SortableDataTableTh,
 } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
+import { FilterActions } from "@/components/ui/filter-actions";
 import { IconButton } from "@/components/ui/icon-button";
-import { IconBell, IconCompare, IconEye } from "@/components/ui/icons";
+import { IconCompare, IconEye, IconSend } from "@/components/ui/icons";
 import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
 import { useToast } from "@/components/ui/toast";
@@ -103,8 +104,8 @@ function ReportSubmissionCell({
   onView: (reportId: string) => void;
 }) {
   return (
-    <div className="space-y-1">
-      <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-col items-center gap-1 text-center">
+      <div className="flex flex-wrap items-center justify-center gap-2">
         {reportId ? (
           <IconButton
             label="View report data"
@@ -115,7 +116,11 @@ function ReportSubmissionCell({
         ) : null}
         <StatusPill tone={reportMonitoringStatusTone(status)}>{status}</StatusPill>
       </div>
-      <p className="text-xs text-foreground-subtle">{formatAppDateTime(uploadedAt)}</p>
+      {uploadedAt ? (
+        <p className="text-xs text-foreground-subtle">
+          {formatAppDateTime(uploadedAt)}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -326,10 +331,26 @@ export function ReportsMonitoringView({
       <ReportsTabs active="monitoring" />
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard label="OpCo–Partner pairs" value={summary.linkedLanes} />
-        <KpiCard label="OpCo reports missing" value={summary.opcoMissing} />
-        <KpiCard label="Partner reports missing" value={summary.partnerMissing} />
-        <KpiCard label="Reports submitted" value={summary.reportsSubmitted} />
+        <KpiCard
+          label="OpCo–Partner pairs"
+          value={summary.linkedLanes}
+          tone="blue"
+        />
+        <KpiCard
+          label="OpCo reports missing"
+          value={summary.opcoMissing}
+          tone="amber"
+        />
+        <KpiCard
+          label="Partner reports missing"
+          value={summary.partnerMissing}
+          tone="purple"
+        />
+        <KpiCard
+          label="Reports submitted"
+          value={summary.reportsSubmitted}
+          tone="teal"
+        />
       </div>
 
       <FilterToolbar className="mt-4">
@@ -414,15 +435,12 @@ export function ReportsMonitoringView({
             </select>
           </label>
         </div>
-        <div className="flex w-full gap-3">
-          <Button onClick={applyFilters}>Apply</Button>
-          <Button variant="secondary" onClick={refresh}>
-            Refresh
-          </Button>
-          <Button variant="secondary" onClick={clearFilters}>
-            Clear filters
-          </Button>
-        </div>
+        <FilterActions
+          onApply={applyFilters}
+          onClear={clearFilters}
+          onRefresh={refresh}
+          loading={loading}
+        />
       </FilterToolbar>
 
       {error ? <div className={`mt-4 ${ui.alertError}`}>{error}</div> : null}
@@ -493,7 +511,7 @@ export function ReportsMonitoringView({
                               }
                               onClick={() => setRemindLane(row)}
                             >
-                              <IconBell />
+                              <IconSend />
                             </IconButton>
                           ) : null}
                           {monitoringLaneReadyToReconcile(row) ? (

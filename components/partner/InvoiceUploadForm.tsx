@@ -10,6 +10,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { FieldLabel, Input, Select } from "@/components/ui/field";
+import { FileDropField } from "@/components/ui/file-drop-field";
 import {
   FormLayout,
   HelpPanel,
@@ -113,126 +114,128 @@ export function InvoiceUploadForm() {
   }
 
   return (
-    <FormLayout>
+    <FormLayout className="space-y-4 lg:grid lg:grid-cols-[minmax(0,1fr)_15rem] lg:items-start lg:gap-4 lg:space-y-0">
       <LoadingOverlay
         active={isSubmitting}
         label="Uploading invoice…"
-        className="min-h-[12rem]"
+        className="min-h-0"
       >
-      <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6">
-        <PageSection
-          title="Invoice details"
-          description="Choose the billing period and optionally set an invoice number."
-        >
-          <div className="grid max-w-2xl gap-4 sm:grid-cols-2">
-            <div>
-              <FieldLabel htmlFor="invoice-year" required>
-                Year
-              </FieldLabel>
-              <Select
-                id="invoice-year"
-                name="year"
-                value={year}
-                onChange={(event) =>
-                  handleYearChange(Number(event.target.value))
-                }
-                required
-              >
-                {yearOptions.map((value) => (
-                  <option key={value} value={value}>
-                    {value}
-                  </option>
-                ))}
-              </Select>
-            </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <PageSection
+            title="Invoice details"
+            description="Choose the billing period, optional invoice number, and PDF."
+            className="p-3 sm:p-4"
+          >
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <FieldLabel htmlFor="invoice-year" required>
+                  Year
+                </FieldLabel>
+                <Select
+                  id="invoice-year"
+                  name="year"
+                  value={year}
+                  onChange={(event) =>
+                    handleYearChange(Number(event.target.value))
+                  }
+                  required
+                >
+                  {yearOptions.map((value) => (
+                    <option key={value} value={value}>
+                      {value}
+                    </option>
+                  ))}
+                </Select>
+              </div>
 
-            <div>
-              <FieldLabel htmlFor="invoice-month" required>
-                Month
-              </FieldLabel>
-              <Select
-                id="invoice-month"
-                name="month"
-                value={month}
-                onChange={(event) => setMonth(Number(event.target.value))}
-                required
-              >
-                {monthOptions.map((name, index) => (
-                  <option key={name} value={index + 1}>
-                    {name}
-                  </option>
-                ))}
-              </Select>
-            </div>
+              <div>
+                <FieldLabel htmlFor="invoice-month" required>
+                  Month
+                </FieldLabel>
+                <Select
+                  id="invoice-month"
+                  name="month"
+                  value={month}
+                  onChange={(event) => setMonth(Number(event.target.value))}
+                  required
+                >
+                  {monthOptions.map((name, index) => (
+                    <option key={name} value={index + 1}>
+                      {name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
 
-            <div className="sm:col-span-2">
-              <FieldLabel htmlFor="invoice-number">
-                Invoice number (optional)
-              </FieldLabel>
-              <Input
-                id="invoice-number"
-                name="invoiceNumber"
-                type="text"
-                maxLength={64}
-                value={invoiceNumber}
-                onChange={(event) => setInvoiceNumber(event.target.value)}
-                placeholder="Auto-generated if left blank"
-              />
-            </div>
-          </div>
-        </PageSection>
+              <div className="sm:col-span-2">
+                <FieldLabel htmlFor="invoice-number">
+                  Invoice number (optional)
+                </FieldLabel>
+                <Input
+                  id="invoice-number"
+                  name="invoiceNumber"
+                  type="text"
+                  maxLength={64}
+                  value={invoiceNumber}
+                  onChange={(event) => setInvoiceNumber(event.target.value)}
+                  placeholder="Auto-generated if left blank"
+                />
+              </div>
 
-        <PageSection
-          title="Invoice PDF"
-          description="Upload the signed invoice PDF for this period."
-        >
-          <input
-            id="invoice-file"
-            name="file"
-            type="file"
-            accept=".pdf,application/pdf"
-            onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-            className="mt-1 block w-full text-sm text-foreground-muted"
-            required
-          />
-          {file ? (
-            <p className="mt-2 text-xs text-foreground-subtle">{file.name}</p>
-          ) : null}
-
-          {error ? <p className={`mt-4 ${ui.alertError}`}>{error}</p> : null}
-
-          {successInvoiceId ? (
-            <div className="mt-4 rounded-[18px] border border-border bg-surface p-4 text-sm">
-              <p className="font-medium text-foreground">Upload complete</p>
-              <div className="mt-3 flex flex-wrap gap-3">
-                <Link href="/partner/invoices/upload" className="underline">
-                  Upload another
-                </Link>
-                <Link href="/partner/invoices" className="underline">
-                  View invoices
-                </Link>
+              <div className="sm:col-span-2">
+                <FieldLabel htmlFor="invoice-file" required>
+                  Invoice PDF
+                </FieldLabel>
+                <FileDropField
+                  id="invoice-file"
+                  name="file"
+                  accept=".pdf,application/pdf"
+                  emptyLabel="Drop PDF here or browse"
+                  hint="Signed invoice PDF only (.pdf)"
+                  value={file}
+                  onChange={setFile}
+                  required
+                  disabled={isSubmitting}
+                  compact
+                  className="mt-1.5"
+                />
               </div>
             </div>
-          ) : null}
 
-          <div className="mt-5">
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Uploading..." : "Upload invoice"}
-            </Button>
-          </div>
-        </PageSection>
+            {error ? <p className={`mt-3 ${ui.alertError}`}>{error}</p> : null}
 
-        <HelpPanel title="Quick tips">
-          <ul className="list-disc space-y-1.5 pl-4">
-            <li>PDF only — match the OpCo billing period.</li>
-            <li>
-              Period: {MONTHS[month - 1]} {year}.
-            </li>
-            <li>Leave invoice number blank to auto-generate.</li>
-          </ul>
-        </HelpPanel>
-      </form>
+            {successInvoiceId ? (
+              <div className="mt-3 rounded-2xl border border-border bg-surface p-3 text-sm">
+                <p className="font-medium text-foreground">Upload complete</p>
+                <div className="mt-2 flex flex-wrap gap-3">
+                  <Link href="/partner/invoices/upload" className="underline">
+                    Upload another
+                  </Link>
+                  <Link href="/partner/invoices" className="underline">
+                    View invoices
+                  </Link>
+                </div>
+              </div>
+            ) : null}
+
+            <div className="mt-4">
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? "Uploading..." : "Upload invoice"}
+              </Button>
+            </div>
+          </PageSection>
+        </form>
       </LoadingOverlay>
+
+      <HelpPanel title="Quick tips" className="p-3 sm:p-4 lg:sticky lg:top-4">
+        <ul className="list-disc space-y-1 pl-4">
+          <li>PDF only — match the OpCo billing period.</li>
+          <li>
+            Period: {MONTHS[month - 1]} {year}.
+          </li>
+          <li>Leave invoice number blank to auto-generate.</li>
+        </ul>
+      </HelpPanel>
     </FormLayout>
   );
 }

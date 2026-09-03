@@ -8,6 +8,7 @@ import { jsonError, unauthorized } from "@/lib/errors/respond";
 
 import { requireAdminApiSession } from "@/lib/admin/api-auth";
 import {
+  CURRENT_MONTH_RATES_ONLY_MESSAGE,
   currentCalendarPeriod,
   getRatesForPeriod,
 } from "@/lib/admin/currency-rates";
@@ -20,6 +21,7 @@ import {
   assertExcelBufferMagic,
   validateExcelUploadFile,
 } from "@/lib/platform/excel-upload";
+import { isSameCalendarPeriod } from "@/lib/platform/currency-rates";
 
 export async function POST(request: Request) {
   const user = await requireAdminApiSession();
@@ -70,6 +72,17 @@ export async function POST(request: Request) {
       typeof yearRaw === "string" && yearRaw.trim() !== ""
         ? Number(yearRaw)
         : current.year;
+
+    if (
+      !Number.isInteger(month) ||
+      !Number.isInteger(year) ||
+      !isSameCalendarPeriod(month, year, current)
+    ) {
+      return NextResponse.json(
+        { error: CURRENT_MONTH_RATES_ONLY_MESSAGE },
+        { status: 400 },
+      );
+    }
 
     const [currencies, periodView] = await Promise.all([
       listCurrencies(),

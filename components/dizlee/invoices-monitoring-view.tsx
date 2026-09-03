@@ -6,7 +6,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 
 import { KpiCard } from "@/components/dizlee/kpi-card";
 import { InvoicesTabs } from "@/components/dizlee/invoices-tabs";
@@ -21,6 +21,7 @@ import {
   SortableDataTableTh,
 } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
+import { FilterActions } from "@/components/ui/filter-actions";
 import { IconEye } from "@/components/ui/icons";
 import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
@@ -111,7 +112,6 @@ export function InvoicesMonitoringView({
     useState<InvoiceFilterOptions>(initialFilterOptions);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const skipAutoReload = useRef(true);
 
   const loadMonitoring = useCallback(async (filters: InvoiceMonitoringFilters) => {
     setLoading(true);
@@ -137,11 +137,7 @@ export function InvoicesMonitoringView({
     }
   }, []);
 
-  useEffect(() => {
-    if (skipAutoReload.current) {
-      skipAutoReload.current = false;
-      return;
-    }
+  const applyFilters = () => {
     void loadMonitoring({
       month,
       year,
@@ -152,30 +148,31 @@ export function InvoicesMonitoringView({
       sortBy,
       sortDir,
     });
-  }, [month, year, opcoId, partnerId, missing, sortBy, sortDir, loadMonitoring]);
+  };
 
   const applySort = (field: InvoiceMonitoringSortField) => {
     const next = nextSortState(sortBy, sortDir, field);
     setSortBy(next.sortBy);
     setSortDir(next.sortDir);
-  };
-
-  const goToPage = (nextPage: number) => {
     void loadMonitoring({
+      ...result.filters,
       month,
       year,
       opcoId: opcoId || undefined,
       partnerId: partnerId || undefined,
       missing: missing || undefined,
-      page: nextPage,
-      sortBy,
-      sortDir,
+      page: 1,
+      sortBy: next.sortBy,
+      sortDir: next.sortDir,
     });
+  };
+
+  const refresh = () => {
+    void loadMonitoring({ ...result.filters, sortBy, sortDir, page: 1 });
   };
 
   const clearFilters = () => {
     const period = getCurrentPeriod();
-    skipAutoReload.current = true;
     setMonth(period.month);
     setYear(period.year);
     setOpcoId("");
@@ -190,6 +187,10 @@ export function InvoicesMonitoringView({
       sortBy: initialResult.filters.sortBy,
       sortDir: initialResult.filters.sortDir,
     });
+  };
+
+  const goToPage = (nextPage: number) => {
+    void loadMonitoring({ ...result.filters, page: nextPage });
   };
 
   const yearOptions = getPeriodYearOptions();
@@ -211,10 +212,26 @@ export function InvoicesMonitoringView({
       <InvoicesTabs active="monitoring" />
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard label="OpCo–Partner pairs" value={summary.linkedLanes} />
-        <KpiCard label="OpCo invoices missing" value={summary.opcoMissing} />
-        <KpiCard label="Partner invoices missing" value={summary.partnerMissing} />
-        <KpiCard label="Invoices submitted" value={summary.invoicesSubmitted} />
+        <KpiCard
+          label="OpCo–Partner pairs"
+          value={summary.linkedLanes}
+          tone="blue"
+        />
+        <KpiCard
+          label="OpCo invoices missing"
+          value={summary.opcoMissing}
+          tone="amber"
+        />
+        <KpiCard
+          label="Partner invoices missing"
+          value={summary.partnerMissing}
+          tone="purple"
+        />
+        <KpiCard
+          label="Invoices submitted"
+          value={summary.invoicesSubmitted}
+          tone="teal"
+        />
       </div>
 
       <FilterToolbar className="mt-4">
@@ -292,11 +309,12 @@ export function InvoicesMonitoringView({
             </select>
           </label>
         </div>
-        <div className="flex w-full gap-3">
-          <Button variant="secondary" onClick={clearFilters}>
-            Clear filters
-          </Button>
-        </div>
+        <FilterActions
+          onApply={applyFilters}
+          onClear={clearFilters}
+          onRefresh={refresh}
+          loading={loading}
+        />
       </FilterToolbar>
 
       {error ? <div className={`mt-4 ${ui.alertError}`}>{error}</div> : null}

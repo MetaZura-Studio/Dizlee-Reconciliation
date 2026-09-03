@@ -5,23 +5,25 @@
 
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import { InvoicesTabs } from "@/components/dizlee/invoices-tabs";
-import { Button } from "@/components/ui/button";
 import {
   DataTable,
   DataTableFrame,
   DataTableHead,
   DataTableTd,
-  DataTableTh,
+  SortableDataTableTh,
 } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
+import { FilterActions } from "@/components/ui/filter-actions";
+import { ListPagination } from "@/components/ui/list-pagination";
 import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
 import { LoadingOverlay } from "@/components/ui/loading";
 import { cn, ui } from "@/lib/ui/classes";
 import { invoiceStatusTone } from "@/lib/ui/status-tones";
+import { nextSortState, type SortDirection } from "@/lib/ui/sort";
 import type { InvoiceFilterOptions } from "@/lib/dizlee/invoices";
 import {
   getCurrentPeriod,
@@ -33,6 +35,7 @@ import type {
   LifecycleListFilters,
   LifecycleListItem,
   LifecycleListResult,
+  LifecycleSortField,
 } from "@/lib/dizlee/invoice-lifecycle";
 import { formatAppDateTime } from "@/lib/platform/format-datetime";
 import { formatAppError } from "@/lib/errors/format";
@@ -57,6 +60,8 @@ function buildListQuery(filters: LifecycleListFilters): string {
     month: String(filters.month),
     year: String(filters.year),
     page: String(filters.page),
+    sortBy: filters.sortBy,
+    sortDir: filters.sortDir,
   });
   if (filters.opcoId) {
     params.set("opcoId", filters.opcoId);
@@ -82,6 +87,12 @@ export function InvoicesLifecycleView({
   const [year, setYear] = useState(initialResult.filters.year);
   const [opcoId, setOpcoId] = useState(initialResult.filters.opcoId ?? "");
   const [partnerId, setPartnerId] = useState(initialResult.filters.partnerId ?? "");
+  const [sortBy, setSortBy] = useState<LifecycleSortField>(
+    initialResult.filters.sortBy,
+  );
+  const [sortDir, setSortDir] = useState<SortDirection>(
+    initialResult.filters.sortDir,
+  );
 
   const [result, setResult] = useState<LifecycleListResult>(initialResult);
   const [filterOptions, setFilterOptions] =
@@ -94,7 +105,6 @@ export function InvoicesLifecycleView({
   );
   const [detail, setDetail] = useState<InvoiceLifecycleDetail | null>(initialDetail);
   const [detailLoading, setDetailLoading] = useState(false);
-  const skipAutoReload = useRef(true);
   const selectedIdRef = useRef<string | null>(initialResult.items[0]?.id ?? null);
 
   const fetchDetail = useCallback(async (invoiceId: string) => {
@@ -164,11 +174,7 @@ export function InvoicesLifecycleView({
     [fetchDetail],
   );
 
-  useEffect(() => {
-    if (skipAutoReload.current) {
-      skipAutoReload.current = false;
-      return;
-    }
+  const applyFilters = () => {
     void loadList(
       {
         month,
@@ -176,19 +182,47 @@ export function InvoicesLifecycleView({
         opcoId: opcoId || undefined,
         partnerId: partnerId || undefined,
         page: 1,
+        sortBy,
+        sortDir,
       },
       selectedIdRef.current,
     );
-  }, [month, year, opcoId, partnerId, loadList]);
+  };
+
+  const refresh = () => {
+    void loadList(
+      {
+        ...result.filters,
+        sortBy,
+        sortDir,
+        page: 1,
+      },
+      selectedIdRef.current,
+    );
+  };
 
   const goToPage = (nextPage: number) => {
     void loadList(
       {
-        month,
-        year,
-        opcoId: opcoId || undefined,
-        partnerId: partnerId || undefined,
+        ...result.filters,
         page: nextPage,
+        sortBy,
+        sortDir,
+      },
+      selectedId,
+    );
+  };
+
+  const applySort = (field: LifecycleSortField) => {
+    const next = nextSortState(sortBy, sortDir, field);
+    setSortBy(next.sortBy);
+    setSortDir(next.sortDir);
+    void loadList(
+      {
+        ...result.filters,
+        page: 1,
+        sortBy: next.sortBy,
+        sortDir: next.sortDir,
       },
       selectedId,
     );
@@ -196,16 +230,19 @@ export function InvoicesLifecycleView({
 
   const clearFilters = () => {
     const period = getCurrentPeriod();
-    skipAutoReload.current = true;
     setMonth(period.month);
     setYear(period.year);
     setOpcoId("");
     setPartnerId("");
+    setSortBy(initialResult.filters.sortBy);
+    setSortDir(initialResult.filters.sortDir);
     void loadList(
       {
         month: period.month,
         year: period.year,
         page: 1,
+        sortBy: initialResult.filters.sortBy,
+        sortDir: initialResult.filters.sortDir,
       },
       null,
     );
@@ -289,11 +326,12 @@ export function InvoicesLifecycleView({
             </select>
           </label>
         </div>
-        <div className="flex w-full gap-3">
-          <Button variant="secondary" onClick={clearFilters}>
-            Clear filters
-          </Button>
-        </div>
+        <FilterActions
+          onApply={applyFilters}
+          onClear={clearFilters}
+          onRefresh={refresh}
+          loading={loading}
+        />
       </FilterToolbar>
 
       {error ? <div className={`mt-4 ${ui.alertError}`}>{error}</div> : null}
@@ -307,8 +345,19 @@ export function InvoicesLifecycleView({
                 <DataTable>
                   <DataTableHead>
                     <tr>
-                      <DataTableTh>Invoice</DataTableTh>
-                      <DataTableTh align="center">Status</DataTableTh>
+                      <SortableDataTableTh
+                        label="Invoice"
+                        active={sortBy === "invoice"}
+                        direction={sortDir}
+                        onSort={() => applySort("invoice")}
+                      />
+                      <SortableDataTableTh
+                        label="Status"
+                        active={sortBy === "status"}
+                        direction={sortDir}
+                        onSort={() => applySort("status")}
+                        align="center"
+                      />
                     </tr>
                   </DataTableHead>
                   <tbody>
@@ -342,27 +391,14 @@ export function InvoicesLifecycleView({
                 </DataTable>
               </DataTableFrame>
 
-              <div className="flex items-center justify-between text-sm text-foreground-muted">
-                <p>
-                  Page {result.page} / {result.totalPages}
-                </p>
-                <div className="flex gap-2">
-                  <Button
-                    variant="secondary"
-                    disabled={result.page <= 1}
-                    onClick={() => goToPage(result.page - 1)}
-                  >
-                    Prev
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    disabled={result.page >= result.totalPages}
-                    onClick={() => goToPage(result.page + 1)}
-                  >
-                    Next
-                  </Button>
-                </div>
-              </div>
+              <ListPagination
+                total={result.totalCount}
+                page={result.page}
+                totalPages={result.totalPages}
+                noun="invoice"
+                onPageChange={goToPage}
+                loading={loading}
+              />
             </div>
 
             <div className={ui.cardPadding}>

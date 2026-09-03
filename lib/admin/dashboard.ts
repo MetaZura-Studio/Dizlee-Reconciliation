@@ -125,7 +125,8 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     prisma.auditLog.findMany({
       include: auditLogInclude,
       orderBy: { createdAt: "desc" },
-      take: 5,
+      // Enough for dashboard filters + ListPagination (page size 10).
+      take: 100,
     }),
   ]);
 

@@ -22,8 +22,9 @@ import {
 } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FieldLabel, Select } from "@/components/ui/field";
+import { FilterActions } from "@/components/ui/filter-actions";
 import { IconButton } from "@/components/ui/icon-button";
-import { IconBell, IconEye } from "@/components/ui/icons";
+import { IconEye, IconSend } from "@/components/ui/icons";
 import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
 import { useToast } from "@/components/ui/toast";
@@ -163,6 +164,14 @@ export function ReconciliationView({
   const debouncedLaneSearch = useDebouncedValue(laneSearch, 300);
   const [historySearch, setHistorySearch] = useState("");
   const debouncedHistorySearch = useDebouncedValue(historySearch, 300);
+  const [historyOpcoId, setHistoryOpcoId] = useState("");
+  const [historyPartnerId, setHistoryPartnerId] = useState("");
+  const [appliedHistoryFilters, setAppliedHistoryFilters] = useState<{
+    month?: number;
+    year?: number;
+    opcoId?: string;
+    partnerId?: string;
+  }>({});
   const [compareSortBy, setCompareSortBy] = useState<CompareLaneSortField>(
     initialCompareFilters.sortBy,
   );
@@ -219,41 +228,67 @@ export function ReconciliationView({
     }
   }, []);
 
-  const loadHistory = useCallback(async (
-    page = 1,
-    search = debouncedHistorySearch,
-    sortBy = historySortBy,
-    sortDir = historySortDir,
-  ) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const params = new URLSearchParams({
-        page: String(page),
-        sortBy,
-        sortDir,
-      });
-      const term = search.trim();
-      if (term) {
-        params.set("search", term);
+  const loadHistory = useCallback(
+    async (
+      page = 1,
+      filters: {
+        month?: number;
+        year?: number;
+        opcoId?: string;
+        partnerId?: string;
+      } = appliedHistoryFilters,
+      search = debouncedHistorySearch,
+      sortBy = historySortBy,
+      sortDir = historySortDir,
+    ) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const params = new URLSearchParams({
+          page: String(page),
+          sortBy,
+          sortDir,
+        });
+        if (filters.month) {
+          params.set("month", String(filters.month));
+        }
+        if (filters.year) {
+          params.set("year", String(filters.year));
+        }
+        const term = search.trim();
+        if (term) {
+          params.set("search", term);
+        } else {
+          if (filters.opcoId) {
+            params.set("opcoId", filters.opcoId);
+          }
+          if (filters.partnerId) {
+            params.set("partnerId", filters.partnerId);
+          }
+        }
+        const response = await fetch(
+          `/api/dizlee/reconciliation/history?${params}`,
+        );
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(formatAppError(payload, "Failed to load history"));
+        }
+        const data = payload.data as ReconciliationHistoryResult;
+        setHistory(data);
+        setHistorySortBy(data.sortBy);
+        setHistorySortDir(data.sortDir);
+      } catch (loadError) {
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : "Failed to load history",
+        );
+      } finally {
+        setLoading(false);
       }
-      const response = await fetch(`/api/dizlee/reconciliation/history?${params}`);
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(formatAppError(payload, "Failed to load history"));
-      }
-      const data = payload.data as ReconciliationHistoryResult;
-      setHistory(data);
-      setHistorySortBy(data.sortBy);
-      setHistorySortDir(data.sortDir);
-    } catch (loadError) {
-      setError(
-        loadError instanceof Error ? loadError.message : "Failed to load history",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [debouncedHistorySearch, historySortBy, historySortDir]);
+    },
+    [appliedHistoryFilters, debouncedHistorySearch, historySortBy, historySortDir],
+  );
 
   const applyCompareFilters = () => {
     if (laneSearch) {
@@ -295,14 +330,63 @@ export function ReconciliationView({
     });
   };
 
+  const applyHistoryFilters = () => {
+    if (historySearch) {
+      skipHistorySearchEffect.current = true;
+      setHistorySearch("");
+    }
+    const next = {
+      month,
+      year,
+      opcoId: historyOpcoId || undefined,
+      partnerId: historyPartnerId || undefined,
+    };
+    setAppliedHistoryFilters(next);
+    void loadHistory(1, next, "");
+  };
+
   const clearHistoryFilters = () => {
+    const period = getCurrentPeriod();
     skipHistorySearchEffect.current = true;
     setHistorySearch("");
+    setMonth(period.month);
+    setYear(period.year);
+    setHistoryOpcoId("");
+    setHistoryPartnerId("");
     const defaultSortBy = initialHistory.sortBy ?? "runAt";
     const defaultSortDir = initialHistory.sortDir ?? "desc";
     setHistorySortBy(defaultSortBy);
     setHistorySortDir(defaultSortDir);
-    void loadHistory(1, "", defaultSortBy, defaultSortDir);
+    const next = {
+      month: period.month,
+      year: period.year,
+      opcoId: undefined,
+      partnerId: undefined,
+    };
+    setAppliedHistoryFilters(next);
+    void loadHistory(1, next, "", defaultSortBy, defaultSortDir);
+  };
+
+  const refreshCompare = () => {
+    const term = debouncedLaneSearch.trim();
+    void loadLanes({
+      month,
+      year,
+      searchBy,
+      entityId: term ? undefined : entityId || undefined,
+      search: term || undefined,
+      status: laneStatus,
+      sortBy: compareSortBy,
+      sortDir: compareSortDir,
+    });
+  };
+
+  const refreshHistory = () => {
+    void loadHistory(
+      history.page,
+      appliedHistoryFilters,
+      debouncedHistorySearch,
+    );
   };
 
   const applyCompareSort = (field: CompareLaneSortField) => {
@@ -325,7 +409,13 @@ export function ReconciliationView({
     const next = nextSortState(historySortBy, historySortDir, field);
     setHistorySortBy(next.sortBy);
     setHistorySortDir(next.sortDir);
-    void loadHistory(1, debouncedHistorySearch, next.sortBy, next.sortDir);
+    void loadHistory(
+      1,
+      appliedHistoryFilters,
+      debouncedHistorySearch,
+      next.sortBy,
+      next.sortDir,
+    );
   };
 
   // Debounced lane search — intentionally omit sort/status/period (Apply / sort handlers load those).
@@ -361,11 +451,13 @@ export function ReconciliationView({
     if (activeTab !== "history") {
       return;
     }
+    const term = debouncedHistorySearch.trim();
     const timer = window.setTimeout(() => {
-      void loadHistory(1, debouncedHistorySearch);
+      void loadHistory(1, appliedHistoryFilters, term);
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [debouncedHistorySearch, loadHistory, activeTab]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- live search only
+  }, [debouncedHistorySearch, activeTab]);
 
   const runReconciliation = async (lane: CompareLaneRow) => {
     const key = `${lane.opcoId}-${lane.partnerId}`;
@@ -414,13 +506,14 @@ export function ReconciliationView({
           sortDir: compareSortDir,
         });
       } else {
-        void loadHistory(history.page);
+        void loadHistory(history.page, appliedHistoryFilters);
       }
     };
     window.addEventListener("focus", handleFocus);
     return () => window.removeEventListener("focus", handleFocus);
   }, [
     activeTab,
+    appliedHistoryFilters,
     compareSortBy,
     compareSortDir,
     debouncedLaneSearch,
@@ -484,7 +577,11 @@ export function ReconciliationView({
                 onClick={() => {
                   setActiveTab(tab.id);
                   if (tab.id === "history") {
-                    void loadHistory(1);
+                    setError(null);
+                    setAppliedHistoryFilters({});
+                    skipHistorySearchEffect.current = true;
+                    setHistorySearch("");
+                    void loadHistory(1, {}, "");
                   }
                 }}
                 className={`border-b-2 px-1 pb-3 text-sm font-medium ${
@@ -594,12 +691,12 @@ export function ReconciliationView({
                   </Select>
                 </label>
               </div>
-              <div className="flex w-full flex-wrap gap-3">
-                <Button onClick={applyCompareFilters}>Apply filters</Button>
-                <Button variant="secondary" onClick={clearCompareFilters}>
-                  Clear filters
-                </Button>
-              </div>
+              <FilterActions
+                onApply={applyCompareFilters}
+                onClear={clearCompareFilters}
+                onRefresh={refreshCompare}
+                loading={loading}
+              />
             </FilterToolbar>
 
             <LoadingOverlay active={loading} className="mt-6 min-h-[12rem]" label="Loading pairs…">
@@ -700,7 +797,7 @@ export function ReconciliationView({
                                       }
                                       onClick={() => setRemindLane(lane)}
                                     >
-                                      <IconBell />
+                                      <IconSend />
                                     </IconButton>
                                   ) : null}
                                   {lane.reconciliationId ? (
@@ -746,15 +843,87 @@ export function ReconciliationView({
             <ListSearch
               className="mt-6"
               value={historySearch}
-              onChange={setHistorySearch}
+              onChange={(value) => {
+                setHistorySearch(value);
+                if (value.trim()) {
+                  setHistoryOpcoId("");
+                  setHistoryPartnerId("");
+                }
+              }}
               placeholder="OpCo, Partner, status, or run by"
             />
 
-            <div className="mt-4 flex gap-3">
-              <Button variant="secondary" onClick={clearHistoryFilters}>
-                Clear filters
-              </Button>
-            </div>
+            <OrFiltersDivider />
+
+            <FilterToolbar className="mt-4">
+              <div className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <label className="text-sm">
+                  <FieldLabel>Period (month)</FieldLabel>
+                  <Select
+                    value={month}
+                    onChange={(event) => setMonth(Number(event.target.value))}
+                  >
+                    {MONTHS.slice(0, maxMonth).map((name, index) => (
+                      <option key={name} value={index + 1}>
+                        {name}
+                      </option>
+                    ))}
+                  </Select>
+                </label>
+                <label className="text-sm">
+                  <FieldLabel>Year</FieldLabel>
+                  <Select
+                    value={year}
+                    onChange={(event) => {
+                      const nextYear = Number(event.target.value);
+                      setYear(nextYear);
+                      const capped = getMaxMonthForYear(nextYear);
+                      if (month > capped) setMonth(capped);
+                    }}
+                  >
+                    {yearOptions.map((value) => (
+                      <option key={value} value={value}>
+                        {value}
+                      </option>
+                    ))}
+                  </Select>
+                </label>
+                <label className="text-sm">
+                  <FieldLabel>OpCo</FieldLabel>
+                  <Select
+                    value={historyOpcoId}
+                    onChange={(event) => setHistoryOpcoId(event.target.value)}
+                  >
+                    <option value="">All OpCos</option>
+                    {filterOptions.opcos.map((opco) => (
+                      <option key={opco.id} value={opco.id}>
+                        {opco.name}
+                      </option>
+                    ))}
+                  </Select>
+                </label>
+                <label className="text-sm">
+                  <FieldLabel>Partner</FieldLabel>
+                  <Select
+                    value={historyPartnerId}
+                    onChange={(event) => setHistoryPartnerId(event.target.value)}
+                  >
+                    <option value="">All Partners</option>
+                    {filterOptions.partners.map((partner) => (
+                      <option key={partner.id} value={partner.id}>
+                        {partner.name}
+                      </option>
+                    ))}
+                  </Select>
+                </label>
+              </div>
+              <FilterActions
+                onApply={applyHistoryFilters}
+                onClear={clearHistoryFilters}
+                onRefresh={refreshHistory}
+                loading={loading}
+              />
+            </FilterToolbar>
 
             <LoadingOverlay active={loading} className="mt-6 min-h-[12rem]" label="Loading history…">
             {history.items.length > 0 ? (
@@ -840,7 +1009,7 @@ export function ReconciliationView({
             ) : (
               <EmptyState
                 title="No reconciliation history"
-                description="Run reconciliation on a ready pair to see results here."
+                description="Adjust period or OpCo/Partner filters, or run reconciliation on a ready pair."
               />
             )}
             </LoadingOverlay>

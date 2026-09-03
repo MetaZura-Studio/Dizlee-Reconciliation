@@ -22,6 +22,7 @@ import {
   SortableDataTableTh,
 } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
+import { FilterActions } from "@/components/ui/filter-actions";
 import { LoadingOverlay } from "@/components/ui/loading";
 import { PageCard } from "@/components/ui/page";
 import {
@@ -258,75 +259,76 @@ export function AuditLogsView({
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <FilterSelect
-            label="Category"
-            value={filters.entityType}
-            disabled={loading}
-            onChange={(entityType) => applyFilters({ entityType })}
-            options={[
-              { value: "all", label: "All categories" },
-              ...filterOptions.entityTypes.map((item) => ({
-                value: item.code,
-                label: item.label,
-              })),
-            ]}
-          />
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <FilterSelect
+              label="Category"
+              value={filters.entityType}
+              disabled={loading}
+              onChange={(entityType) => applyFilters({ entityType })}
+              options={[
+                { value: "all", label: "All categories" },
+                ...filterOptions.entityTypes.map((item) => ({
+                  value: item.code,
+                  label: item.label,
+                })),
+              ]}
+            />
 
-          <FilterSelect
-            label="Actor role"
-            value={filters.actorRole}
-            disabled={loading}
-            onChange={(actorRole) =>
-              applyFilters({
-                actorRole: actorRole as AuditLogListFilters["actorRole"],
-              })
-            }
-            options={[
-              { value: "all", label: "All roles" },
-              ...filterOptions.actorRoles.map((item) => ({
-                value: item.code,
-                label: item.label,
-              })),
-            ]}
-          />
+            <FilterSelect
+              label="Actor role"
+              value={filters.actorRole}
+              disabled={loading}
+              onChange={(actorRole) =>
+                applyFilters({
+                  actorRole: actorRole as AuditLogListFilters["actorRole"],
+                })
+              }
+              options={[
+                { value: "all", label: "All roles" },
+                ...filterOptions.actorRoles.map((item) => ({
+                  value: item.code,
+                  label: item.label,
+                })),
+              ]}
+            />
 
-          <FilterSelect
-            label="Action"
-            value={filters.action}
-            disabled={loading}
-            onChange={(action) => applyFilters({ action })}
-            options={[
-              { value: "all", label: "All actions" },
-              ...filterOptions.actions.map((item) => ({
-                value: item.code,
-                label: item.label,
-              })),
-            ]}
-          />
+            <FilterSelect
+              label="Action"
+              value={filters.action}
+              disabled={loading}
+              onChange={(action) => applyFilters({ action })}
+              options={[
+                { value: "all", label: "All actions" },
+                ...filterOptions.actions.map((item) => ({
+                  value: item.code,
+                  label: item.label,
+                })),
+              ]}
+            />
 
-          <DateRangePicker
-            disabled={loading}
-            value={{ dateFrom: filters.dateFrom, dateTo: filters.dateTo }}
-            onApply={(range) =>
-              applyFilters({
-                dateFrom: range.dateFrom,
-                dateTo: range.dateTo,
-              })
-            }
-          />
+            <DateRangePicker
+              disabled={loading}
+              value={{ dateFrom: filters.dateFrom, dateTo: filters.dateTo }}
+              onApply={(range) =>
+                applyFilters({
+                  dateFrom: range.dateFrom,
+                  dateTo: range.dateTo,
+                })
+              }
+            />
 
-          <div className="ml-auto flex flex-wrap items-center gap-2">
             <Button variant="secondary" onClick={exportCsv} disabled={loading}>
               Export CSV
             </Button>
-            <Button onClick={submitSearch} disabled={loading}>
-              {loading ? "Loading…" : "Apply"}
-            </Button>
-            <Button variant="secondary" onClick={clearFilters} disabled={loading}>
-              Clear filters
-            </Button>
           </div>
+
+          <FilterActions
+            onApply={submitSearch}
+            onClear={clearFilters}
+            loading={loading}
+            applyLabel={loading ? "Loading…" : "Apply"}
+          />
         </div>
 
         {(filters.dateFrom || filters.dateTo) && (

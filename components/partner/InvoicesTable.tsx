@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FieldLabel, Select } from "@/components/ui/field";
+import { FilterActions } from "@/components/ui/filter-actions";
 import { IconButton } from "@/components/ui/icon-button";
 import { IconEye } from "@/components/ui/icons";
 import { FilterToolbar } from "@/components/ui/page";
@@ -167,6 +168,18 @@ export function InvoicesTable({ initialResult, filterOptions }: InvoicesTablePro
     setSortBy("uploaded");
     setSortDir("desc");
     router.push("/partner/invoices");
+  }
+
+  function refresh() {
+    navigateWithFilters({
+      year: filters.year,
+      month: filters.month,
+      statusCode: filters.statusCode,
+      paymentStatus: filters.paymentStatus,
+      sortBy: filters.sortBy,
+      sortDir: filters.sortDir,
+      page: filters.page,
+    });
   }
 
   const openDetail = useCallback(async (invoiceId: string) => {
@@ -352,12 +365,7 @@ export function InvoicesTable({ initialResult, filterOptions }: InvoicesTablePro
               </Select>
             </div>
           </div>
-          <div className="flex w-full gap-2">
-            <Button type="submit">Apply filters</Button>
-            <Button type="button" variant="secondary" onClick={clearFilters}>
-              Clear filters
-            </Button>
-          </div>
+          <FilterActions applyType="submit" onClear={clearFilters} onRefresh={refresh} />
         </FilterToolbar>
       </form>
 

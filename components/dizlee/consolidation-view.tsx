@@ -20,6 +20,7 @@ import {
   SortableDataTableTh,
 } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
+import { FilterActions } from "@/components/ui/filter-actions";
 import { IconButton } from "@/components/ui/icon-button";
 import { IconDownload, IconEye } from "@/components/ui/icons";
 import { ListPagination } from "@/components/ui/list-pagination";
@@ -318,6 +319,18 @@ export function ConsolidationView({
     void loadReadiness(month, year, opcoId);
   };
 
+  const refreshGenerate = () => {
+    void loadReadiness(month, year, opcoId);
+  };
+
+  const refreshHistory = () => {
+    void loadHistory(
+      history.page,
+      appliedHistoryFilters,
+      debouncedHistorySearch,
+    );
+  };
+
   const runGenerate = async () => {
     if (!opcoId) {
       setError("Select an OpCo first.");
@@ -488,17 +501,15 @@ export function ConsolidationView({
               </label>
             </div>
 
-            <div className="flex w-full flex-wrap gap-3">
-              <Button
-                variant="secondary"
-                onClick={applyGenerateFilters}
-                disabled={!opcoId || loading}
-              >
-                Apply filters
-              </Button>
-              <Button variant="secondary" onClick={clearGenerateFilters} disabled={loading}>
-                Clear filters
-              </Button>
+            <div className="flex w-full flex-wrap items-center justify-end gap-3">
+              <FilterActions
+                className="w-auto"
+                onApply={applyGenerateFilters}
+                onClear={clearGenerateFilters}
+                onRefresh={refreshGenerate}
+                loading={loading}
+                disabled={!opcoId}
+              />
               <Button
                 onClick={() => void runGenerate()}
                 disabled={!canGenerate || generating || loading}
@@ -662,14 +673,12 @@ export function ConsolidationView({
               </label>
             </div>
 
-            <div className="flex w-full flex-wrap gap-3">
-              <Button onClick={applyHistoryFilters} disabled={loading}>
-                Apply filters
-              </Button>
-              <Button variant="secondary" onClick={clearHistoryFilters} disabled={loading}>
-                Clear filters
-              </Button>
-            </div>
+            <FilterActions
+              onApply={applyHistoryFilters}
+              onClear={clearHistoryFilters}
+              onRefresh={refreshHistory}
+              loading={loading}
+            />
           </FilterToolbar>
 
           <LoadingOverlay active={loading} className="min-h-[12rem]">

@@ -1,5 +1,5 @@
 /**
- * Communications → Reminders: list missing OpCo–Partner pairs; remind via per-row bell.
+ * Communications → Reminders: list missing OpCo–Partner pairs; remind via per-row send action.
  */
 
 "use client";
@@ -9,7 +9,6 @@ import { useCallback, useState } from "react";
 
 import { CommunicationsTabs } from "@/components/dizlee/communications-tabs";
 import { LaneRemindModal } from "@/components/dizlee/lane-remind-modal";
-import { Button } from "@/components/ui/button";
 import {
   DataTable,
   DataTableFrame,
@@ -17,21 +16,26 @@ import {
   DataTableRow,
   DataTableTd,
   DataTableTh,
+  SortableDataTableTh,
 } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
+import { FilterActions } from "@/components/ui/filter-actions";
 import { IconButton } from "@/components/ui/icon-button";
-import { IconBell } from "@/components/ui/icons";
+import { IconSend } from "@/components/ui/icons";
+import { ListPagination } from "@/components/ui/list-pagination";
 import { LoadingOverlay } from "@/components/ui/loading";
 import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
 import { useToast } from "@/components/ui/toast";
 import { ui } from "@/lib/ui/classes";
+import { nextSortState, type SortDirection } from "@/lib/ui/sort";
 import type { ReminderSettingsView } from "@/lib/dizlee/notifications/broadcast.shared";
 import type { ReportFilterOptions } from "@/lib/dizlee/reports";
 import type {
   MissingSideFilter,
   ReportMonitoringLane,
   ReportMonitoringResult,
+  ReportMonitoringSortField,
 } from "@/lib/dizlee/reports-monitoring.shared";
 import {
   monitoringLaneNeedsReminder,
@@ -92,11 +96,15 @@ function buildQuery(filters: {
   partnerId: string;
   missing: MissingSideFilter | "";
   page: number;
+  sortBy: ReportMonitoringSortField;
+  sortDir: SortDirection;
 }): string {
   const params = new URLSearchParams({
     month: String(filters.month),
     year: String(filters.year),
     page: String(filters.page),
+    sortBy: filters.sortBy,
+    sortDir: filters.sortDir,
   });
   if (filters.opcoId) {
     params.set("opcoId", filters.opcoId);
@@ -135,6 +143,12 @@ export function RemindersView({
   const [missing, setMissing] = useState<MissingSideFilter | "">(
     initialResult.filters.missing ?? "any",
   );
+  const [sortBy, setSortBy] = useState<ReportMonitoringSortField>(
+    initialResult.filters.sortBy,
+  );
+  const [sortDir, setSortDir] = useState<SortDirection>(
+    initialResult.filters.sortDir,
+  );
 
   const [remindLane, setRemindLane] = useState<ReportMonitoringLane | null>(
     null,
@@ -149,6 +163,8 @@ export function RemindersView({
     opcoId: string;
     partnerId: string;
     missing: MissingSideFilter | "";
+    sortBy: ReportMonitoringSortField;
+    sortDir: SortDirection;
   };
 
   const fetchReminders = useCallback(
@@ -190,10 +206,22 @@ export function RemindersView({
         opcoId: filterOverrides?.opcoId ?? opcoId,
         partnerId: filterOverrides?.partnerId ?? partnerId,
         missing: filterOverrides?.missing ?? missing,
+        sortBy: filterOverrides?.sortBy ?? sortBy,
+        sortDir: filterOverrides?.sortDir ?? sortDir,
       });
     },
-    [fetchReminders, missing, month, opcoId, partnerId, year],
+    [fetchReminders, missing, month, opcoId, partnerId, sortBy, sortDir, year],
   );
+
+  const applySort = (field: ReportMonitoringSortField) => {
+    const next = nextSortState(sortBy, sortDir, field);
+    setSortBy(next.sortBy);
+    setSortDir(next.sortDir);
+    void loadData(1, {
+      sortBy: next.sortBy,
+      sortDir: next.sortDir,
+    });
+  };
 
   const clearFilters = () => {
     const period = getCurrentPeriod();
@@ -202,12 +230,16 @@ export function RemindersView({
     setOpcoId("");
     setPartnerId("");
     setMissing("any");
+    setSortBy(initialResult.filters.sortBy);
+    setSortDir(initialResult.filters.sortDir);
     void loadData(1, {
       month: period.month,
       year: period.year,
       opcoId: "",
       partnerId: "",
       missing: "any",
+      sortBy: initialResult.filters.sortBy,
+      sortDir: initialResult.filters.sortDir,
     });
   };
 
@@ -223,7 +255,7 @@ export function RemindersView({
     <PageCard>
       <PageHeader
         title="Communications"
-        description="Review OpCo–Partner pairs with missing reports and send reminders from the bell. Sent items appear in Outbox."
+        description="Review OpCo–Partner pairs with missing reports and send reminders from each row. Sent items appear in Outbox."
       />
 
       <CommunicationsTabs active="reminders" />
@@ -239,7 +271,7 @@ export function RemindersView({
           {settings.remindersEnabled ? ` · Schedule: ${scheduleLabel}` : ""}
         </p>
         <p className="mt-1 text-foreground-subtle">
-          Manual sends use the bell on each row. History:{" "}
+          Manual sends use the send action on each row. History:{" "}
           <Link
             href="/dizlee/communications?tab=outbox&filter=reminder"
             className="font-medium text-foreground underline-offset-2 hover:underline"
@@ -336,25 +368,12 @@ export function RemindersView({
             </select>
           </label>
         </div>
-        <div className="flex w-full gap-3">
-          <Button onClick={() => void loadData(1)} disabled={loading}>
-            Apply
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() => void loadData(result.page)}
-            disabled={loading}
-          >
-            Refresh
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={clearFilters}
-            disabled={loading}
-          >
-            Clear filters
-          </Button>
-        </div>
+        <FilterActions
+          onApply={() => void loadData(1)}
+          onClear={clearFilters}
+          onRefresh={() => void loadData(result.page)}
+          loading={loading}
+        />
       </FilterToolbar>
 
       <div className="mt-6">
@@ -374,23 +393,33 @@ export function RemindersView({
             </LoadingOverlay>
           ) : (
             <LoadingOverlay active={loading} className="mt-4 min-h-[12rem]">
-              <>
+              <div className="space-y-4">
                 <DataTableFrame className="mt-0 w-full max-w-full">
                   <DataTable className="min-w-0 w-auto table-auto">
                     <DataTableHead>
                       <tr>
-                        <DataTableTh
+                        <SortableDataTableTh
+                          label="Period"
+                          active={sortBy === "period"}
+                          direction={sortDir}
+                          onSort={() => applySort("period")}
                           className="whitespace-nowrap px-3"
                           align="center"
-                        >
-                          Period
-                        </DataTableTh>
-                        <DataTableTh className="whitespace-nowrap px-3">
-                          OpCo
-                        </DataTableTh>
-                        <DataTableTh className="whitespace-nowrap px-3">
-                          Partner
-                        </DataTableTh>
+                        />
+                        <SortableDataTableTh
+                          label="OpCo"
+                          active={sortBy === "opco"}
+                          direction={sortDir}
+                          onSort={() => applySort("opco")}
+                          className="whitespace-nowrap px-3"
+                        />
+                        <SortableDataTableTh
+                          label="Partner"
+                          active={sortBy === "partner"}
+                          direction={sortDir}
+                          onSort={() => applySort("partner")}
+                          className="whitespace-nowrap px-3"
+                        />
                         <DataTableTh
                           className="whitespace-nowrap px-3"
                           align="center"
@@ -475,7 +504,7 @@ export function RemindersView({
                                 }
                                 onClick={() => setRemindLane(lane)}
                               >
-                                <IconBell />
+                                <IconSend />
                               </IconButton>
                             ) : (
                               <span className="text-xs text-foreground-subtle">
@@ -489,32 +518,15 @@ export function RemindersView({
                   </DataTable>
                 </DataTableFrame>
 
-                {result.totalPages > 1 ? (
-                  <div className="mt-4 flex items-center justify-between text-sm text-foreground-muted">
-                    <span>
-                      Page {result.page} of {result.totalPages}
-                    </span>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="secondary"
-                        disabled={result.page <= 1 || loading}
-                        onClick={() => void loadData(result.page - 1)}
-                      >
-                        Previous
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        disabled={
-                          result.page >= result.totalPages || loading
-                        }
-                        onClick={() => void loadData(result.page + 1)}
-                      >
-                        Next
-                      </Button>
-                    </div>
-                  </div>
-                ) : null}
-              </>
+                <ListPagination
+                  total={result.totalCount}
+                  page={result.page}
+                  totalPages={result.totalPages}
+                  noun="pair"
+                  onPageChange={(page) => void loadData(page)}
+                  loading={loading}
+                />
+              </div>
             </LoadingOverlay>
           )}
         </section>

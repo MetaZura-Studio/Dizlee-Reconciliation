@@ -7,6 +7,7 @@ import {
   formatAppDate,
   formatAppDateTime,
 } from "@/lib/platform/format-datetime";
+import { assertSafeXlsxZip } from "@/lib/platform/excel/assert-safe-xlsx-zip";
 
 const MAX_PREVIEW_ROWS = 1000;
 const MAX_PREVIEW_COLS = 80;
@@ -88,8 +89,15 @@ export async function readRawExcelSheetPreview(
   source: ArrayBuffer | Buffer | Uint8Array,
   preferredSheetName?: string | null,
 ): Promise<RawExcelSheetPreview> {
+  const buffer = Buffer.isBuffer(source)
+    ? source
+    : Buffer.from(source as ArrayBuffer);
+  const zipError = assertSafeXlsxZip(buffer);
+  if (zipError) {
+    throw new Error(zipError);
+  }
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(source as unknown as ExcelJS.Buffer);
+  await workbook.xlsx.load(buffer as unknown as ExcelJS.Buffer);
   const preferred = preferredSheetName?.trim();
   const sheet =
     (preferred

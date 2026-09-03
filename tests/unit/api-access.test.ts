@@ -12,6 +12,7 @@ import {
 describe("isPublicApiPath", () => {
   it("allows health, auth (except change-password), and cron", () => {
     expect(isPublicApiPath("/api/health")).toBe(true);
+    expect(isPublicApiPath("/api/health/ready")).toBe(true);
     expect(isPublicApiPath("/api/auth/forgot-password")).toBe(true);
     expect(isPublicApiPath("/api/auth/set-password")).toBe(true);
     expect(isPublicApiPath("/api/auth/callback/credentials")).toBe(true);

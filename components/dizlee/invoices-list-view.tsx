@@ -22,6 +22,7 @@ import {
   SortableDataTableTh,
 } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
+import { FilterActions } from "@/components/ui/filter-actions";
 import { IconButton } from "@/components/ui/icon-button";
 import { IconEye, IconPrint } from "@/components/ui/icons";
 import { ListSearch, OrFiltersDivider } from "@/components/ui/list-search";
@@ -132,7 +133,7 @@ export function InvoicesListView({
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
 
-  const skipAutoReload = useRef(true);
+  const skipSearchEffect = useRef(true);
 
   const loadInvoices = useCallback(async (filters: InvoiceListFilters) => {
     setLoading(true);
@@ -154,28 +155,58 @@ export function InvoicesListView({
     }
   }, []);
 
-  const searchTerm = debouncedSearch.trim();
-  const usingSearch = Boolean(searchTerm);
+  const handleSearchChange = (value: string) => {
+    setSearch(value);
+    if (value.trim()) {
+      setOpcoId("");
+      setPartnerId("");
+      setPaymentStatus("all");
+    }
+  };
 
-  const currentFilters = (): InvoiceListFilters => ({
-    month,
-    year,
-    opcoId: usingSearch ? undefined : opcoId || undefined,
-    partnerId: usingSearch ? undefined : partnerId || undefined,
-    paymentStatus: usingSearch ? "all" : paymentStatus,
-    search: searchTerm || undefined,
-    sortBy,
-    sortDir,
-    page: result.page,
-  });
+  const applyFilters = () => {
+    if (search) {
+      skipSearchEffect.current = true;
+      setSearch("");
+    }
+    void loadInvoices({
+      month,
+      year,
+      opcoId: opcoId || undefined,
+      partnerId: partnerId || undefined,
+      paymentStatus,
+      search: undefined,
+      sortBy,
+      sortDir,
+      page: 1,
+    });
+  };
+
+  const applySort = (field: InvoiceSortField) => {
+    const next = nextSortState(sortBy, sortDir, field);
+    setSortBy(next.sortBy);
+    setSortDir(next.sortDir);
+    const term = debouncedSearch.trim();
+    void loadInvoices({
+      month: result.filters.month,
+      year: result.filters.year,
+      opcoId: term ? undefined : result.filters.opcoId,
+      partnerId: term ? undefined : result.filters.partnerId,
+      paymentStatus: term ? "all" : result.filters.paymentStatus,
+      search: term || undefined,
+      sortBy: next.sortBy,
+      sortDir: next.sortDir,
+      page: 1,
+    });
+  };
 
   const refresh = () => {
-    void loadInvoices({ ...currentFilters(), page: 1 });
+    void loadInvoices({ ...result.filters, page: 1 });
   };
 
   const clearFilters = () => {
     const period = getCurrentPeriod();
-    skipAutoReload.current = true;
+    skipSearchEffect.current = true;
     setSearch("");
     setMonth(period.month);
     setYear(period.year);
@@ -194,52 +225,29 @@ export function InvoicesListView({
     });
   };
 
-  const applySort = (field: InvoiceSortField) => {
-    const next = nextSortState(sortBy, sortDir, field);
-    setSortBy(next.sortBy);
-    setSortDir(next.sortDir);
-  };
-
-  const handleSearchChange = (value: string) => {
-    setSearch(value);
-    if (value.trim()) {
-      setOpcoId("");
-      setPartnerId("");
-      setPaymentStatus("all");
-    }
-  };
-
   useEffect(() => {
-    if (skipAutoReload.current) {
-      skipAutoReload.current = false;
+    if (skipSearchEffect.current) {
+      skipSearchEffect.current = false;
       return;
     }
+    const term = debouncedSearch.trim();
     const timer = window.setTimeout(() => {
       void loadInvoices({
-        month,
-        year,
-        opcoId: usingSearch ? undefined : opcoId || undefined,
-        partnerId: usingSearch ? undefined : partnerId || undefined,
-        paymentStatus: usingSearch ? "all" : paymentStatus,
-        search: searchTerm || undefined,
-        sortBy,
-        sortDir,
+        month: result.filters.month,
+        year: result.filters.year,
+        opcoId: term ? undefined : result.filters.opcoId,
+        partnerId: term ? undefined : result.filters.partnerId,
+        paymentStatus: term ? "all" : result.filters.paymentStatus,
+        search: term || undefined,
+        sortBy: result.filters.sortBy,
+        sortDir: result.filters.sortDir,
         page: 1,
       });
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [
-    month,
-    year,
-    opcoId,
-    partnerId,
-    paymentStatus,
-    searchTerm,
-    usingSearch,
-    sortBy,
-    sortDir,
-    loadInvoices,
-  ]);
+    // Only re-run when the debounced keyword changes — filters use Apply.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional
+  }, [debouncedSearch, loadInvoices]);
 
   useEffect(() => {
     const handleFocus = () => {
@@ -250,7 +258,7 @@ export function InvoicesListView({
   }, [loadInvoices, result.filters]);
 
   const goToPage = (nextPage: number) => {
-    void loadInvoices({ ...currentFilters(), page: nextPage });
+    void loadInvoices({ ...result.filters, page: nextPage });
   };
 
   const openDetail = async (invoiceId: string) => {
@@ -357,7 +365,7 @@ export function InvoicesListView({
       <OrFiltersDivider />
 
       <FilterToolbar className="mt-4">
-        <div className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6">
+        <div className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <label className="text-sm">
             <span className={ui.label}>Period (month)</span>
             <select
@@ -448,15 +456,13 @@ export function InvoicesListView({
               <option value="pending">Pending</option>
             </select>
           </label>
-          <div className="flex items-end gap-3 2xl:col-span-2">
-            <Button variant="secondary" onClick={refresh} className="flex-1">
-              Refresh
-            </Button>
-            <Button variant="secondary" onClick={clearFilters} className="flex-1">
-              Clear filters
-            </Button>
-          </div>
         </div>
+        <FilterActions
+          onApply={applyFilters}
+          onClear={clearFilters}
+          onRefresh={refresh}
+          loading={loading}
+        />
       </FilterToolbar>
 
       {error ? <div className={`mt-4 ${ui.alertError}`}>{error}</div> : null}
@@ -614,7 +620,7 @@ export function InvoicesListView({
         defaultYear={year}
         onClose={() => setCreateOpen(false)}
         onCreated={() => {
-          void loadInvoices({ ...currentFilters(), page: 1 });
+          void loadInvoices({ ...result.filters, page: 1 });
         }}
       />
     </PageCard>

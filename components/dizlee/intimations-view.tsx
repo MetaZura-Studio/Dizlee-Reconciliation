@@ -543,26 +543,35 @@ export function IntimationsView({
                       </div>
                     </div>
 
-                    <div className="mt-2 max-h-52 space-y-2 overflow-y-auto rounded-xl border border-border p-3">
+                    <div className="mt-2 max-h-52 overflow-y-auto rounded-xl border border-border p-3">
                       {formOptions.opcos.length === 0 ? (
                         <p className="text-sm text-foreground-subtle">
                           No OpCos configured.
                         </p>
                       ) : (
-                        formOptions.opcos.map((opco) => (
-                          <label
-                            key={opco.id}
-                            className="flex cursor-pointer items-center gap-2 text-sm text-foreground"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selectedOpcoIds.includes(opco.id)}
-                              onChange={() => toggleOpco(opco.id)}
-                              className="rounded border-border"
-                            />
-                            {opco.name}
-                          </label>
-                        ))
+                        <div
+                          className={cn(
+                            "grid gap-2",
+                            showOpcos && showPartners
+                              ? "grid-cols-1 sm:grid-cols-2"
+                              : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3",
+                          )}
+                        >
+                          {formOptions.opcos.map((opco) => (
+                            <label
+                              key={opco.id}
+                              className="flex cursor-pointer items-center gap-2 text-sm text-foreground"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedOpcoIds.includes(opco.id)}
+                                onChange={() => toggleOpco(opco.id)}
+                                className="rounded border-border"
+                              />
+                              <span className="min-w-0 truncate">{opco.name}</span>
+                            </label>
+                          ))}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -594,26 +603,37 @@ export function IntimationsView({
                       </div>
                     </div>
 
-                    <div className="mt-2 max-h-52 space-y-2 overflow-y-auto rounded-xl border border-border p-3">
+                    <div className="mt-2 max-h-52 overflow-y-auto rounded-xl border border-border p-3">
                       {formOptions.partners.length === 0 ? (
                         <p className="text-sm text-foreground-subtle">
                           No Partners configured.
                         </p>
                       ) : (
-                        formOptions.partners.map((partner) => (
-                          <label
-                            key={partner.id}
-                            className="flex cursor-pointer items-center gap-2 text-sm text-foreground"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selectedPartnerIds.includes(partner.id)}
-                              onChange={() => togglePartner(partner.id)}
-                              className="rounded border-border"
-                            />
-                            {partner.name}
-                          </label>
-                        ))
+                        <div
+                          className={cn(
+                            "grid gap-2",
+                            showOpcos && showPartners
+                              ? "grid-cols-1 sm:grid-cols-2"
+                              : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3",
+                          )}
+                        >
+                          {formOptions.partners.map((partner) => (
+                            <label
+                              key={partner.id}
+                              className="flex cursor-pointer items-center gap-2 text-sm text-foreground"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedPartnerIds.includes(partner.id)}
+                                onChange={() => togglePartner(partner.id)}
+                                className="rounded border-border"
+                              />
+                              <span className="min-w-0 truncate">
+                                {partner.name}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
                       )}
                     </div>
                   </div>

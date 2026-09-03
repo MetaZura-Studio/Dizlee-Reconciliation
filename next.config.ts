@@ -1,9 +1,11 @@
 import type { NextConfig } from "next";
 
-import { MAX_EXCEL_UPLOAD_BYTES } from "@/lib/platform/excel-upload";
-
-/** Headroom above app Excel cap for multipart encoding overhead. */
-const UPLOAD_BODY_LIMIT_BYTES = MAX_EXCEL_UPLOAD_BYTES + 5 * 1024 * 1024;
+/**
+ * Must stay above app Excel upload cap (`MAX_EXCEL_UPLOAD_BYTES` = 20 MiB in
+ * `lib/platform/excel-upload.ts`) plus multipart overhead. Kept as a literal so
+ * `next.config` does not pull Excel/ZIP validation into the config compiler.
+ */
+const UPLOAD_BODY_LIMIT_BYTES = 25 * 1024 * 1024;
 
 /**
  * Browser security headers for all routes.

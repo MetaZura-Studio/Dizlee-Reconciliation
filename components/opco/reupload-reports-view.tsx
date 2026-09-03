@@ -5,7 +5,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { SubmissionRequestChangeDialog } from "@/components/opco/submission-request-change-dialog";
 import { SubmissionReuploadDialog } from "@/components/opco/submission-reupload-dialog";
@@ -18,16 +18,20 @@ import {
   DataTableRow,
   DataTableTd,
   DataTableTh,
+  SortableDataTableTh,
 } from "@/components/ui/data-table";
 import { IconButton } from "@/components/ui/icon-button";
 import { IconRefresh, IconUpload } from "@/components/ui/icons";
+import { ListPagination } from "@/components/ui/list-pagination";
 import { StatusPill } from "@/components/ui/status-pill";
 import { useToast } from "@/components/ui/toast";
+import { formatAppError } from "@/lib/errors/format";
 import type { OpcoSubmissionListItem } from "@/lib/opco/queries/submissions";
 import { readRawExcelSheetPreview } from "@/lib/platform/excel/read-raw-sheet";
 import { opcoSubmissionRawFilePreviewUrl } from "@/lib/platform/reports/preview-url";
+import { paginateItems } from "@/lib/ui/list-pagination";
+import { nextSortState, type SortDirection } from "@/lib/ui/sort";
 import { reportStatusTone } from "@/lib/ui/status-tones";
-import { formatAppError } from "@/lib/errors/format";
 
 type ReuploadReportsViewProps = {
   items: OpcoSubmissionListItem[];
@@ -46,6 +50,53 @@ type RawPreviewState = {
   totalRows: number | null;
 };
 
+type SortField = "period" | "status" | "filename";
+
+function displayStatusLabel(row: OpcoSubmissionListItem): string {
+  if (row.hasPendingChangeRequest) {
+    return "Request submitted";
+  }
+  if (row.canReupload) {
+    return "Request accepted";
+  }
+  return row.statusLabel;
+}
+
+function compareSubmissions(
+  a: OpcoSubmissionListItem,
+  b: OpcoSubmissionListItem,
+  sortBy: SortField,
+  sortDir: SortDirection,
+): number {
+  const dir = sortDir === "asc" ? 1 : -1;
+  switch (sortBy) {
+    case "status":
+      return (
+        (displayStatusLabel(a).localeCompare(displayStatusLabel(b)) ||
+          a.year * 12 +
+            a.month -
+            (b.year * 12 + b.month) ||
+          a.id.localeCompare(b.id)) *
+        dir
+      );
+    case "filename":
+      return (
+        ((a.filename ?? "").localeCompare(b.filename ?? "") ||
+          a.year * 12 +
+            a.month -
+            (b.year * 12 + b.month) ||
+          a.id.localeCompare(b.id)) *
+        dir
+      );
+    case "period":
+    default:
+      return (
+        (a.year * 12 + a.month - (b.year * 12 + b.month) ||
+          a.id.localeCompare(b.id)) * dir
+      );
+  }
+}
+
 export function ReuploadReportsView({
   items,
   preferredSheetName = null,
@@ -57,6 +108,24 @@ export function ReuploadReportsView({
   const [changeRequestSubmission, setChangeRequestSubmission] =
     useState<OpcoSubmissionListItem | null>(null);
   const [rawPreview, setRawPreview] = useState<RawPreviewState | null>(null);
+  const [sortBy, setSortBy] = useState<SortField>("period");
+  const [sortDir, setSortDir] = useState<SortDirection>("desc");
+  const [page, setPage] = useState(1);
+
+  const sorted = useMemo(
+    () =>
+      [...items].sort((a, b) => compareSubmissions(a, b, sortBy, sortDir)),
+    [items, sortBy, sortDir],
+  );
+
+  const paged = useMemo(() => paginateItems(sorted, page), [sorted, page]);
+
+  const applySort = (field: SortField) => {
+    const next = nextSortState(sortBy, sortDir, field);
+    setSortBy(next.sortBy);
+    setSortDir(next.sortDir);
+    setPage(1);
+  };
 
   function handleReuploadSuccess() {
     setReuploadSubmission(null);
@@ -145,20 +214,41 @@ export function ReuploadReportsView({
 
   return (
     <div className="space-y-6">
-      <DataTableFrame>
+      <div className="space-y-4">
+        <DataTableFrame>
           <DataTable>
             <DataTableHead>
               <tr>
-                <DataTableTh align="center">Period</DataTableTh>
-                <DataTableTh align="center">Status</DataTableTh>
-                <DataTableTh>Raw file</DataTableTh>
+                <SortableDataTableTh
+                  label="Period"
+                  active={sortBy === "period"}
+                  direction={sortDir}
+                  onSort={() => applySort("period")}
+                  align="center"
+                />
+                <SortableDataTableTh
+                  label="Status"
+                  active={sortBy === "status"}
+                  direction={sortDir}
+                  onSort={() => applySort("status")}
+                  align="center"
+                />
+                <SortableDataTableTh
+                  label="Raw file"
+                  active={sortBy === "filename"}
+                  direction={sortDir}
+                  onSort={() => applySort("filename")}
+                />
                 <DataTableTh align="center">Actions</DataTableTh>
               </tr>
             </DataTableHead>
             <tbody>
-              {items.map((row) => (
+              {paged.items.map((row) => (
                 <DataTableRow key={row.id}>
-                  <DataTableTd className="font-medium text-foreground" align="center">
+                  <DataTableTd
+                    className="font-medium text-foreground"
+                    align="center"
+                  >
                     {row.periodLabel}
                   </DataTableTd>
                   <DataTableTd align="center">
@@ -221,7 +311,16 @@ export function ReuploadReportsView({
               ))}
             </tbody>
           </DataTable>
-      </DataTableFrame>
+        </DataTableFrame>
+
+        <ListPagination
+          total={paged.total}
+          page={paged.page}
+          totalPages={paged.totalPages}
+          noun="submission"
+          onPageChange={setPage}
+        />
+      </div>
 
       {reuploadSubmission ? (
         <SubmissionReuploadDialog

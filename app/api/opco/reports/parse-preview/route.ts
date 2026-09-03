@@ -17,6 +17,7 @@ import { getOpcoSession } from "@/lib/opco/auth";
 import { findUnlinkedPartnersInOpcoFile } from "@/lib/opco/queries/unlinked-partners-in-file";
 import { emptyUnlinkedPartnersInFile } from "@/lib/opco/unlinked-partners-in-file.shared";
 import { validateReportUploadFile } from "@/lib/opco/validation/report-upload";
+import { assertExcelBufferMagic } from "@/lib/platform/excel-upload";
 import { mapParsedLinesToPreview } from "@/lib/platform/report-preview";
 import { getOpcoReportFx } from "@/lib/platform/report-fx";
 
@@ -41,6 +42,10 @@ export async function POST(request: Request) {
 
     const uploadFile = file as File;
     const buffer = Buffer.from(await uploadFile.arrayBuffer());
+    const magicError = assertExcelBufferMagic(buffer, uploadFile.name);
+    if (magicError) {
+      return jsonError(appErrorFromUnknown(magicError, 400));
+    }
     const year = Number(formData.get("year"));
     const month = Number(formData.get("month"));
     const fx =

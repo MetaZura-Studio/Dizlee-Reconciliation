@@ -42,7 +42,8 @@ export type PartnerDashboardData = {
   missingCount: number;
   changeRequestedCount: number;
   pendingCount: number;
-  invoicesNotUploaded: number;
+  /** Whether a partner→client invoice exists for this period. */
+  periodInvoiceUploaded: boolean;
   opcoSummaries: OpcoSubmissionSummary[];
   recentUploads: RecentUploadSummary[];
 };
@@ -133,7 +134,7 @@ export async function getPartnerDashboard(
           },
         },
         orderBy: { createdAt: "desc" },
-        take: 5,
+        take: 100,
       }),
       prisma.invoice.findMany({
         where: {
@@ -148,7 +149,7 @@ export async function getPartnerDashboard(
     ]);
 
   const latestReportsByOpco = getLatestReportsByOpco(periodReports);
-  const hasPeriodInvoice = periodInvoices.length > 0;
+  const periodInvoiceUploaded = periodInvoices.length > 0;
 
   const opcoSummaries: OpcoSubmissionSummary[] = opcoLinks.map((link) => {
     const report = latestReportsByOpco.get(link.opcoId.toString());
@@ -176,7 +177,6 @@ export async function getPartnerDashboard(
   const pendingCount = opcoSummaries.filter(
     (item) => item.status === "pending",
   ).length;
-  const invoicesNotUploaded = hasPeriodInvoice ? 0 : 1;
 
   return {
     year,
@@ -187,7 +187,7 @@ export async function getPartnerDashboard(
     missingCount,
     changeRequestedCount,
     pendingCount,
-    invoicesNotUploaded,
+    periodInvoiceUploaded,
     opcoSummaries,
     recentUploads: recentReports.map((report) => ({
       reportId: report.id.toString(),

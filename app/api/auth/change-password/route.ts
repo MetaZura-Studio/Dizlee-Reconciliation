@@ -20,7 +20,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    assertRateLimit({
+    await assertRateLimit({
       key: `change-password:user:${sessionUser.id}`,
       limit: AUTH_RATE_LIMITS.changePasswordUser.limit,
       windowMs: AUTH_RATE_LIMITS.changePasswordUser.windowMs,

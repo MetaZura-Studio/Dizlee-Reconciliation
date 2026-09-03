@@ -10,16 +10,8 @@ import Link from "next/link";
 import { useCallback, useState } from "react";
 
 import { DonutChart } from "@/components/dizlee/donut-chart";
+import { DashboardUploadActivity } from "@/components/dizlee/dashboard-upload-activity";
 import { KpiCard } from "@/components/dizlee/kpi-card";
-import {
-  DataTable,
-  DataTableFrame,
-  DataTableHead,
-  DataTableRow,
-  DataTableTd,
-  DataTableTh,
-} from "@/components/ui/data-table";
-import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingOverlay } from "@/components/ui/loading";
 import { PageCard, PageHeader, PageStack } from "@/components/ui/page";
 import type {
@@ -323,54 +315,12 @@ export function DashboardView({ initialData }: DashboardViewProps) {
             </Link>
           }
         >
-          {recentUploads.length > 0 ? (
-            <DataTableFrame>
-              <DataTable>
-                <DataTableHead>
-                  <tr>
-                    <DataTableTh>Submitted by</DataTableTh>
-                    <DataTableTh>OpCo / Partner</DataTableTh>
-                    <DataTableTh align="center">Uploaded</DataTableTh>
-                  </tr>
-                </DataTableHead>
-                <tbody>
-                  {recentUploads.map((upload) => (
-                    <DataTableRow key={upload.id}>
-                      <DataTableTd>
-                        <Link
-                          href={reportsLink(month, year, { reportId: upload.id })}
-                          className="underline decoration-foreground-subtle underline-offset-2 hover:text-foreground hover:decoration-foreground"
-                        >
-                          {upload.actorRole}
-                        </Link>
-                      </DataTableTd>
-                      <DataTableTd className="text-foreground-muted">
-                        <Link
-                          href={reportsLink(month, year, { reportId: upload.id })}
-                          className="underline decoration-foreground-subtle underline-offset-2 hover:text-foreground hover:decoration-foreground"
-                        >
-                          {upload.lane}
-                        </Link>
-                      </DataTableTd>
-                      <DataTableTd className="text-foreground-muted" align="center">
-                        <Link
-                          href={reportsLink(month, year, { reportId: upload.id })}
-                          className="underline decoration-foreground-subtle underline-offset-2 hover:text-foreground hover:decoration-foreground"
-                        >
-                          {formatAppDateTime(upload.uploadedAt)}
-                        </Link>
-                      </DataTableTd>
-                    </DataTableRow>
-                  ))}
-                </tbody>
-              </DataTable>
-            </DataTableFrame>
-          ) : (
-            <EmptyState
-              title="No uploads yet"
-              description="Report uploads for this period will appear here."
-            />
-          )}
+          <DashboardUploadActivity
+            items={recentUploads}
+            reportHref={(reportId) =>
+              reportsLink(month, year, { reportId })
+            }
+          />
         </DashboardSection>
       </PageStack>
       </LoadingOverlay>
