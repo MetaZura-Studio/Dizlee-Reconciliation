@@ -24,7 +24,7 @@ export function authRateLimitsActive(): boolean {
   return process.env.NODE_ENV !== "development";
 }
 
-function useMemoryRateLimitStore(): boolean {
+function shouldUseMemoryRateLimitStore(): boolean {
   if (process.env.RATE_LIMIT_STORE === "memory") {
     return true;
   }
@@ -102,7 +102,6 @@ async function consumeDbRateLimit(params: {
   windowMs: number;
   now: number;
 }): Promise<RateLimitResult> {
-  const nowDate = new Date(params.now);
   const key = params.key.slice(0, 255);
 
   return prisma.$transaction(async (tx) => {
@@ -111,7 +110,7 @@ async function consumeDbRateLimit(params: {
     });
 
     let count = 0;
-    let resetAt =
+    const resetAt =
       existing && existing.resetAt.getTime() > params.now
         ? existing.resetAt
         : new Date(params.now + params.windowMs);
@@ -171,7 +170,7 @@ export async function consumeRateLimit(params: {
   }
 
   const now = params.now ?? Date.now();
-  if (useMemoryRateLimitStore()) {
+  if (shouldUseMemoryRateLimitStore()) {
     return consumeMemoryRateLimit({ ...params, now });
   }
   return consumeDbRateLimit({ ...params, now });
