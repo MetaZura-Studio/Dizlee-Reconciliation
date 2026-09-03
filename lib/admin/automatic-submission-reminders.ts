@@ -9,6 +9,12 @@ import {
   type DueScheduleStep,
   type ScheduleAudience,
 } from "@/lib/admin/notification-schedules.shared";
+import {
+  SUBMISSION_REMINDERS_JOB_KEY,
+  calendarDateUtc,
+  cronStepKey,
+  tryClaimCronStep,
+} from "@/lib/admin/cron-job-ledger";
 import { getReminderSettings } from "@/lib/admin/reminder-settings";
 import { sendBroadcastNotification } from "@/lib/dizlee/notifications/intimations";
 import {
@@ -223,14 +229,45 @@ export async function runAutomaticSubmissionReminders(params?: {
   let opcoNotifications = 0;
   let partnerNotifications = 0;
   const messages: string[] = [];
+  let stepsFired = 0;
+  let stepsSkippedDuplicate = 0;
+  const runDate = calendarDateUtc(now);
 
   for (const step of dueSteps) {
+    const claimed = await tryClaimCronStep({
+      jobKey: SUBMISSION_REMINDERS_JOB_KEY,
+      runDate,
+      stepKey: cronStepKey(step),
+      periodYear: period.year,
+      periodMonth: period.month,
+    });
+    if (!claimed) {
+      stepsSkippedDuplicate += 1;
+      messages.push(
+        `${step.kind.toLowerCase()} (day ${step.dayOfMonth} → ${step.audience}): skipped duplicate`,
+      );
+      continue;
+    }
+
     const result = await fireScheduleStep({ step, period, fromUserId });
+    stepsFired += 1;
     opcoNotifications += result.opcoNotifications;
     partnerNotifications += result.partnerNotifications;
     messages.push(
       `${step.kind.toLowerCase()} (day ${step.dayOfMonth} → ${step.audience}): ${result.opcoNotifications + result.partnerNotifications} recipients`,
     );
+  }
+
+  if (stepsFired === 0 && stepsSkippedDuplicate > 0) {
+    return {
+      status: "skipped",
+      reason: "no_recipients",
+      period,
+      opcoNotifications: 0,
+      partnerNotifications: 0,
+      message: `All due steps already ran today. ${messages.join("; ")}`,
+      stepsFired: 0,
+    };
   }
 
   if (opcoNotifications === 0 && partnerNotifications === 0) {
@@ -241,7 +278,7 @@ export async function runAutomaticSubmissionReminders(params?: {
       opcoNotifications: 0,
       partnerNotifications: 0,
       message: `Due steps ran but no recipients were notified. ${messages.join("; ")}`,
-      stepsFired: dueSteps.length,
+      stepsFired,
     };
   }
 
@@ -250,7 +287,7 @@ export async function runAutomaticSubmissionReminders(params?: {
     period,
     opcoNotifications,
     partnerNotifications,
-    stepsFired: dueSteps.length,
-    message: `Fired ${dueSteps.length} schedule step(s). ${messages.join("; ")}`,
+    stepsFired,
+    message: `Fired ${stepsFired} schedule step(s). ${messages.join("; ")}`,
   };
 }

@@ -20,6 +20,7 @@ import {
   SortableDataTableTh,
 } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
+import { FilterActions } from "@/components/ui/filter-actions";
 import { IconButton } from "@/components/ui/icon-button";
 import { IconPencil, IconTrash } from "@/components/ui/icons";
 import { ListPagination } from "@/components/ui/list-pagination";
@@ -180,8 +181,8 @@ export function CurrenciesView({
       />
 
       <div className="mt-6 space-y-4">
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="block min-w-[12rem] max-w-md flex-1 text-sm">
+        <div className="space-y-3">
+          <label className="block min-w-[12rem] max-w-md text-sm">
             <span className={ui.label}>Search</span>
             <input
               type="search"
@@ -194,9 +195,7 @@ export function CurrenciesView({
               className={ui.input}
             />
           </label>
-          <Button type="button" variant="secondary" onClick={clearFilters}>
-            Clear filters
-          </Button>
+          <FilterActions onClear={clearFilters} />
         </div>
 
         {filteredCurrencies.length === 0 ? (

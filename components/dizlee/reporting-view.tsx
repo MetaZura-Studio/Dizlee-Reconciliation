@@ -9,7 +9,6 @@ import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 
 import { KpiCard } from "@/components/dizlee/kpi-card";
-import { Button } from "@/components/ui/button";
 import {
   DataTable,
   DataTableFrame,
@@ -17,8 +16,10 @@ import {
   DataTableRow,
   DataTableTd,
   DataTableTh,
+  SortableDataTableTh,
 } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
+import { FilterActions } from "@/components/ui/filter-actions";
 import { ListSearch } from "@/components/ui/list-search";
 import { ListPagination } from "@/components/ui/list-pagination";
 import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
@@ -26,6 +27,7 @@ import { StatusPill } from "@/components/ui/status-pill";
 import { LoadingOverlay } from "@/components/ui/loading";
 import { cn, ui } from "@/lib/ui/classes";
 import { paginateItems } from "@/lib/ui/list-pagination";
+import { nextSortState, type SortDirection } from "@/lib/ui/sort";
 import { useDebouncedValue } from "@/lib/ui/use-debounced-value";
 import type { ReportFilterOptions } from "@/lib/dizlee/reports";
 import {
@@ -57,6 +59,35 @@ const MONTHS = [
 ];
 
 type StatusFilter = "all" | ReportingLaneStatus;
+type LaneSortField = "lane" | "overall" | "reconciliation";
+
+function compareLanes(
+  a: ReportingLaneRow,
+  b: ReportingLaneRow,
+  sortBy: LaneSortField,
+  sortDir: SortDirection,
+): number {
+  const dir = sortDir === "asc" ? 1 : -1;
+  if (sortBy === "overall") {
+    const byStatus = a.overallStatus.localeCompare(b.overallStatus) * dir;
+    if (byStatus !== 0) {
+      return byStatus;
+    }
+  }
+  if (sortBy === "reconciliation") {
+    const byRecon =
+      (a.reconciliationStatus ?? "").localeCompare(b.reconciliationStatus ?? "") *
+      dir;
+    if (byRecon !== 0) {
+      return byRecon;
+    }
+  }
+  const byOpco = a.opcoName.localeCompare(b.opcoName);
+  if (byOpco !== 0) {
+    return byOpco * (sortBy === "lane" ? dir : 1);
+  }
+  return a.partnerName.localeCompare(b.partnerName) * (sortBy === "lane" ? dir : 1);
+}
 
 function overallStatusTone(
   status: ReportingLaneStatus,
@@ -110,6 +141,27 @@ function buildQuery(month: number, year: number, opcoId: string, partnerId: stri
   }
   if (partnerId) {
     params.set("partnerId", partnerId);
+  }
+  return params.toString();
+}
+
+/** Reconciliation compare uses searchBy + entityId (one org), not dual OpCo+Partner. */
+function buildReconciliationQuery(
+  month: number,
+  year: number,
+  opcoId: string,
+  partnerId: string,
+) {
+  const params = new URLSearchParams({
+    month: String(month),
+    year: String(year),
+  });
+  if (opcoId) {
+    params.set("searchBy", "opco");
+    params.set("entityId", opcoId);
+  } else if (partnerId) {
+    params.set("searchBy", "partner");
+    params.set("entityId", partnerId);
   }
   return params.toString();
 }
@@ -208,6 +260,8 @@ export function ReportingView({
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 300);
   const [lanePage, setLanePage] = useState(1);
+  const [sortBy, setSortBy] = useState<LaneSortField>("lane");
+  const [sortDir, setSortDir] = useState<SortDirection>("asc");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -270,7 +324,18 @@ export function ReportingView({
   const maxMonth = getMaxMonthForYear(year);
 
   const { summary } = overview;
-  const periodQuery = `month=${overview.filters.month}&year=${overview.filters.year}`;
+  const detailQuery = buildQuery(
+    overview.filters.month,
+    overview.filters.year,
+    overview.filters.opcoId ?? "",
+    overview.filters.partnerId ?? "",
+  );
+  const reconciliationQuery = buildReconciliationQuery(
+    overview.filters.month,
+    overview.filters.year,
+    overview.filters.opcoId ?? "",
+    overview.filters.partnerId ?? "",
+  );
 
   const statusCounts = useMemo(() => {
     const counts = { all: overview.lanes.length, Complete: 0, Partial: 0, Missing: 0 };
@@ -282,24 +347,33 @@ export function ReportingView({
 
   const filteredLanes = useMemo(() => {
     const term = debouncedSearch.trim().toLowerCase();
-    return overview.lanes.filter((lane) => {
-      if (statusFilter !== "all" && lane.overallStatus !== statusFilter) {
-        return false;
-      }
-      if (!term) {
-        return true;
-      }
-      return (
-        lane.opcoName.toLowerCase().includes(term) ||
-        lane.partnerName.toLowerCase().includes(term)
-      );
-    });
-  }, [debouncedSearch, overview.lanes, statusFilter]);
+    return overview.lanes
+      .filter((lane) => {
+        if (statusFilter !== "all" && lane.overallStatus !== statusFilter) {
+          return false;
+        }
+        if (!term) {
+          return true;
+        }
+        return (
+          lane.opcoName.toLowerCase().includes(term) ||
+          lane.partnerName.toLowerCase().includes(term)
+        );
+      })
+      .sort((a, b) => compareLanes(a, b, sortBy, sortDir));
+  }, [debouncedSearch, overview.lanes, sortBy, sortDir, statusFilter]);
 
   const pagedLanes = useMemo(
     () => paginateItems(filteredLanes, lanePage),
     [filteredLanes, lanePage],
   );
+
+  const applySort = (field: LaneSortField) => {
+    const next = nextSortState(sortBy, sortDir, field);
+    setSortBy(next.sortBy);
+    setSortDir(next.sortDir);
+    setLanePage(1);
+  };
 
   const setStatusAndResetPage = (next: StatusFilter) => {
     setStatusFilter(next);
@@ -389,21 +463,12 @@ export function ReportingView({
             </select>
           </label>
         </div>
-        <div className="flex w-full gap-3">
-          <Button onClick={() => void loadOverview()} disabled={loading}>
-            Apply
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() => void loadOverview()}
-            disabled={loading}
-          >
-            Refresh
-          </Button>
-          <Button variant="secondary" onClick={clearFilters} disabled={loading}>
-            Clear filters
-          </Button>
-        </div>
+        <FilterActions
+          onApply={() => void loadOverview()}
+          onClear={clearFilters}
+          onRefresh={() => void loadOverview()}
+          loading={loading}
+        />
       </FilterToolbar>
 
       <LoadingOverlay active={loading} className="mt-4 min-h-[12rem]">
@@ -486,17 +551,17 @@ export function ReportingView({
         <h2 className="text-sm font-semibold text-foreground">Open in detail</h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <QuickLink
-            href={`/dizlee/reports?${periodQuery}`}
+            href={`/dizlee/reports?${detailQuery}`}
             label="Reports"
             description="Submitted files for this period"
           />
           <QuickLink
-            href={`/dizlee/invoices?${periodQuery}`}
+            href={`/dizlee/invoices?${detailQuery}`}
             label="Invoices"
             description="Billing status and totals"
           />
           <QuickLink
-            href={`/dizlee/reconciliation?${periodQuery}`}
+            href={`/dizlee/reconciliation?${reconciliationQuery}`}
             label="Reconciliation"
             description="Compare and resolve pairs"
           />
@@ -560,13 +625,30 @@ export function ReportingView({
               <DataTable>
                 <DataTableHead>
                   <tr>
-                    <DataTableTh>OpCo / Partner</DataTableTh>
+                    <SortableDataTableTh
+                      label="OpCo / Partner"
+                      active={sortBy === "lane"}
+                      direction={sortDir}
+                      onSort={() => applySort("lane")}
+                    />
                     <DataTableTh align="center">OpCo report</DataTableTh>
                     <DataTableTh align="center">Partner report</DataTableTh>
                     <DataTableTh align="center">OpCo invoice</DataTableTh>
                     <DataTableTh align="center">Partner invoice</DataTableTh>
-                    <DataTableTh align="center">Reconciliation</DataTableTh>
-                    <DataTableTh align="center">Overall</DataTableTh>
+                    <SortableDataTableTh
+                      label="Reconciliation"
+                      active={sortBy === "reconciliation"}
+                      direction={sortDir}
+                      onSort={() => applySort("reconciliation")}
+                      align="center"
+                    />
+                    <SortableDataTableTh
+                      label="Overall"
+                      active={sortBy === "overall"}
+                      direction={sortDir}
+                      onSort={() => applySort("overall")}
+                      align="center"
+                    />
                   </tr>
                 </DataTableHead>
                 <tbody>

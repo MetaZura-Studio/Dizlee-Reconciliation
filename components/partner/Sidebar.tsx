@@ -18,7 +18,6 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/partner/reports", label: "Reports" },
   { href: "/partner/invoices", label: "Invoices" },
   { href: "/partner/notifications", label: "Notifications" },
-  { href: "/partner/settings", label: "Settings", footer: true },
 ];
 
 function isActive(pathname: string, href: string) {

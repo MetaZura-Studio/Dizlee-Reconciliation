@@ -16,7 +16,7 @@ import { jsonError } from "@/lib/errors/respond";
 export async function POST(request: Request) {
   try {
     const ip = getClientIp(request);
-    assertRateLimit({
+    await assertRateLimit({
       key: `set-password:ip:${ip}`,
       limit: AUTH_RATE_LIMITS.setPasswordIp.limit,
       windowMs: AUTH_RATE_LIMITS.setPasswordIp.windowMs,

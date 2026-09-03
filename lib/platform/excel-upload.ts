@@ -1,7 +1,9 @@
 /**
- * Shared Excel upload checks: size cap, extension, and MIME hardening.
+ * Shared Excel upload checks: size cap, extension, MIME, and xlsx ZIP safety.
  * Used by Admin imports and OpCo/Partner report uploads.
  */
+
+import { assertSafeXlsxZip } from "@/lib/platform/excel/assert-safe-xlsx-zip";
 
 export const MAX_EXCEL_UPLOAD_BYTES = 20 * 1024 * 1024;
 
@@ -120,6 +122,9 @@ export function assertExcelBufferMagic(
   }
   if (lower.endsWith(".xls") && !isOle && !isZip) {
     return "File content is not a valid Excel workbook (.xls)";
+  }
+  if (lower.endsWith(".xlsx") && isZip) {
+    return assertSafeXlsxZip(buffer);
   }
   return null;
 }

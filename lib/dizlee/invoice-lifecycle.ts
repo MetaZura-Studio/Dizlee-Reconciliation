@@ -12,6 +12,10 @@ import {
 } from "@/lib/dizlee/invoices";
 import { formatAppMonthYear } from "@/lib/platform/format-datetime";
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
+
+export type LifecycleSortField = "invoice" | "status" | "opco";
+export type LifecycleSortDirection = "asc" | "desc";
 
 export type LifecycleListFilters = {
   month: number;
@@ -19,6 +23,8 @@ export type LifecycleListFilters = {
   opcoId?: string;
   partnerId?: string;
   page: number;
+  sortBy: LifecycleSortField;
+  sortDir: LifecycleSortDirection;
 };
 
 export type LifecycleListItem = {
@@ -166,6 +172,8 @@ export function parseLifecycleListFilters(
   const month = Number(searchParams.get("month"));
   const year = Number(searchParams.get("year"));
   const page = Number(searchParams.get("page"));
+  const sortBy = searchParams.get("sortBy");
+  const sortDir = searchParams.get("sortDir");
 
   return {
     month:
@@ -175,7 +183,27 @@ export function parseLifecycleListFilters(
     opcoId: searchParams.get("opcoId") ?? undefined,
     partnerId: searchParams.get("partnerId") ?? undefined,
     page: Number.isInteger(page) && page >= 1 ? page : 1,
+    sortBy:
+      sortBy === "invoice" || sortBy === "status" || sortBy === "opco"
+        ? sortBy
+        : "invoice",
+    sortDir: sortDir === "desc" ? "desc" : "asc",
   };
+}
+
+function buildLifecycleOrderBy(
+  sortBy: LifecycleSortField,
+  sortDir: LifecycleSortDirection,
+): Prisma.InvoiceOrderByWithRelationInput | Prisma.InvoiceOrderByWithRelationInput[] {
+  switch (sortBy) {
+    case "status":
+      return { invoiceStatus: { code: sortDir } };
+    case "opco":
+      return [{ opco: { name: sortDir } }, { invoiceNumber: "asc" }];
+    case "invoice":
+    default:
+      return [{ invoiceNumber: sortDir }, { createdAt: "desc" }];
+  }
 }
 
 export async function listLifecycleInvoices(
@@ -202,7 +230,7 @@ export async function listLifecycleInvoices(
     prisma.invoice.count({ where }),
     prisma.invoice.findMany({
       where,
-      orderBy: [{ createdAt: "desc" }],
+      orderBy: buildLifecycleOrderBy(filters.sortBy, filters.sortDir),
       skip: (filters.page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
       include: {

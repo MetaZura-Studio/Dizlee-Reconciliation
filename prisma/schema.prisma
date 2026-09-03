@@ -901,3 +901,30 @@ model InvoiceActivityLog {
 
   @@map("invoice_activity_logs")
 }
+
+/// Shared auth rate-limit buckets (works across serverless instances).
+model AuthRateLimitBucket {
+  id        BigInt   @id @default(autoincrement())
+  bucketKey String   @unique @map("bucket_key") @db.VarChar(255)
+  count     Int      @default(0)
+  resetAt   DateTime @map("reset_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([resetAt], map: "idx_auth_rate_limit_reset_at")
+  @@map("auth_rate_limit_buckets")
+}
+
+/// Cron / job run ledger for idempotent scheduled sends.
+model CronJobRun {
+  id          BigInt   @id @default(autoincrement())
+  jobKey      String   @map("job_key") @db.VarChar(64)
+  runDate     String   @map("run_date") @db.VarChar(10)
+  stepKey     String   @map("step_key") @db.VarChar(255)
+  periodYear  Int      @map("period_year")
+  periodMonth Int      @map("period_month")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@unique([jobKey, runDate, stepKey], map: "uq_cron_job_runs")
+  @@index([jobKey, runDate], map: "idx_cron_job_runs_job_date")
+  @@map("cron_job_runs")
+}

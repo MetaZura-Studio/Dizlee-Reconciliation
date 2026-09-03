@@ -5,10 +5,12 @@
  */
 import "server-only";
 
-import { resolveDownloadMimeType } from "@/lib/platform/file-response-headers";
+import { resolveDownloadMimeType, fileExtension } from "@/lib/platform/file-response-headers";
 import { resolveAllowedNotificationAttachmentMime } from "@/lib/platform/notification-attachment-allowlist";
 import { MAX_NOTIFICATION_ATTACHMENTS } from "@/lib/platform/notification-attachments.shared";
 import { saveNotificationFileLocally } from "@/lib/platform/storage/save-notification-file";
+import { assertExcelBufferMagic } from "@/lib/platform/excel-upload";
+import { assertPdfBufferMagic } from "@/lib/partner/validation/invoice-upload";
 import { prisma } from "@/lib/prisma";
 import { DomainError } from "@/lib/errors/app-error";
 
@@ -56,12 +58,77 @@ export function validateNotificationAttachmentFile(
   };
 }
 
+/** Magic-byte / content checks for allowlisted attachment types. */
+export function assertNotificationAttachmentMagic(
+  buffer: Buffer,
+  filename: string,
+): string | null {
+  const ext = fileExtension(filename);
+  if (ext === "pdf") {
+    return assertPdfBufferMagic(buffer);
+  }
+  if (ext === "xlsx" || ext === "xls") {
+    return assertExcelBufferMagic(buffer, filename);
+  }
+  if (ext === "png") {
+    if (
+      buffer.length < 8 ||
+      buffer[0] !== 0x89 ||
+      buffer[1] !== 0x50 ||
+      buffer[2] !== 0x4e ||
+      buffer[3] !== 0x47
+    ) {
+      return "File content is not a valid PNG image";
+    }
+    return null;
+  }
+  if (ext === "jpg" || ext === "jpeg") {
+    if (buffer.length < 3 || buffer[0] !== 0xff || buffer[1] !== 0xd8) {
+      return "File content is not a valid JPEG image";
+    }
+    return null;
+  }
+  if (ext === "gif") {
+    const header = buffer.subarray(0, 6).toString("ascii");
+    if (header !== "GIF87a" && header !== "GIF89a") {
+      return "File content is not a valid GIF image";
+    }
+    return null;
+  }
+  if (ext === "webp") {
+    if (
+      buffer.length < 12 ||
+      buffer.subarray(0, 4).toString("ascii") !== "RIFF" ||
+      buffer.subarray(8, 12).toString("ascii") !== "WEBP"
+    ) {
+      return "File content is not a valid WEBP image";
+    }
+    return null;
+  }
+  if (ext === "bmp") {
+    if (buffer.length < 2 || buffer[0] !== 0x42 || buffer[1] !== 0x4d) {
+      return "File content is not a valid BMP image";
+    }
+    return null;
+  }
+  // csv/txt — no reliable magic; extension allowlist already applied
+  return null;
+}
+
 export async function createNotificationAttachmentFile(params: {
   buffer: Buffer;
   filename: string;
   mimeType: string;
   userId: bigint;
 }): Promise<{ fileId: string; filename: string }> {
+  const magicError = assertNotificationAttachmentMagic(
+    params.buffer,
+    params.filename,
+  );
+  if (magicError) {
+    throw new NotificationAttachmentError(magicError, 400);
+  }
+
   const saved = await saveNotificationFileLocally({
     buffer: params.buffer,
     filename: params.filename,

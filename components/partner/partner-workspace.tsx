@@ -137,12 +137,6 @@ export function PartnerWorkspace({
         icon: "bell",
         badge: unreadCount > 0 ? unreadCount : undefined,
       },
-      {
-        href: "/partner/settings",
-        label: "Settings",
-        icon: "settings",
-        footer: true,
-      },
     ],
     [unreadCount],
   );

@@ -3,16 +3,14 @@
  * Period selector drives summary metrics and deep links.
  */
 
+import { DashboardRecentUploads } from "@/components/partner/dashboard-recent-uploads";
 import { OpcoSubmissionsTable } from "@/components/partner/OpcoSubmissionsTable";
 import { PeriodSelector } from "@/components/partner/PeriodSelector";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageCard, PageHeader } from "@/components/ui/page";
 import { StatCard } from "@/components/ui/stat-card";
-import { StatusPill } from "@/components/ui/status-pill";
 import type { PartnerDashboardData } from "@/lib/partner/queries/dashboard";
 import { formatPeriodLabel } from "@/lib/partner/period";
-import { formatAppDateTime } from "@/lib/platform/format-datetime";
-import { ui } from "@/lib/ui/classes";
 
 type DashboardSummaryProps = {
   data: PartnerDashboardData;
@@ -29,7 +27,10 @@ function reportsHref(year: number, month: number, status?: string): string {
   return `/partner/reports?${params.toString()}`;
 }
 
-function invoicesHref(year: number, month: number): string {
+function invoicesHref(year: number, month: number, hasInvoice: boolean): string {
+  if (!hasInvoice) {
+    return "/partner/invoices/upload";
+  }
   const params = new URLSearchParams({
     year: String(year),
     month: String(month),
@@ -38,30 +39,21 @@ function invoicesHref(year: number, month: number): string {
 }
 
 export function DashboardSummary({ data }: DashboardSummaryProps) {
-  const dashboardPeriodHref = `/partner?year=${data.year}&month=${data.month}#opco-submissions`;
-
   return (
     <PageCard>
       <PageHeader
         title="Dashboard"
         description={`${data.partnerName} — OpCo submission summary for ${formatPeriodLabel(data.year, data.month)}`}
+        actions={<PeriodSelector year={data.year} month={data.month} />}
       />
 
-      <PeriodSelector year={data.year} month={data.month} />
-
-      <div className="mt-6 grid items-stretch gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-6 grid items-stretch gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <StatCard
-          label="Submitted"
-          value={data.submittedCount}
+          label="Report submitted"
+          value={`${data.submittedCount}/${data.linkedOpcos}`}
           hint={`${data.linkedOpcos} linked OpCos`}
           tone="teal"
           href={reportsHref(data.year, data.month, "SUBMITTED")}
-        />
-        <StatCard
-          label="Not submitted"
-          value={data.missingCount}
-          tone="amber"
-          href={dashboardPeriodHref}
         />
         <StatCard
           label="Change requested"
@@ -70,10 +62,11 @@ export function DashboardSummary({ data }: DashboardSummaryProps) {
           href={reportsHref(data.year, data.month, "CHANGE_REQUESTED")}
         />
         <StatCard
-          label="Invoices not uploaded"
-          value={data.invoicesNotUploaded}
+          label="Period invoice"
+          value={data.periodInvoiceUploaded ? "Uploaded" : "Missing"}
+          hint="Partner → client invoice for this month"
           tone="blue"
-          href={invoicesHref(data.year, data.month)}
+          href={invoicesHref(data.year, data.month, data.periodInvoiceUploaded)}
         />
       </div>
 
@@ -95,38 +88,7 @@ export function DashboardSummary({ data }: DashboardSummaryProps) {
         <h2 className="mb-4 text-sm font-semibold text-foreground">
           Recent uploads
         </h2>
-        {data.recentUploads.length === 0 ? (
-          <EmptyState
-            title="No uploads yet"
-            description="No reports uploaded yet for this partner."
-          />
-        ) : (
-          <div className={ui.cardPadding}>
-            <ul className="divide-y divide-border">
-              {data.recentUploads.map((upload) => (
-                <li
-                  key={upload.reportId}
-                  className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm first:pt-0 last:pb-0"
-                >
-                  <div>
-                    <p className="font-medium text-foreground">
-                      {upload.opcoName}
-                    </p>
-                    <p className="text-foreground-subtle">
-                      {formatPeriodLabel(upload.year, upload.month)}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <StatusPill tone="neutral">{upload.statusLabel}</StatusPill>
-                    <p className="mt-1 text-xs text-foreground-subtle">
-                      {formatAppDateTime(upload.uploadedAt)}
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        <DashboardRecentUploads items={data.recentUploads} />
       </section>
     </PageCard>
   );

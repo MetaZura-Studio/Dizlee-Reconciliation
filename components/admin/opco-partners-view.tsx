@@ -16,9 +16,11 @@ import {
   DataTableRow,
   DataTableTd,
   DataTableTh,
+  SortableDataTableTh,
 } from "@/components/ui/data-table";
 import { FieldLegend } from "@/components/ui/field";
 import { EmptyState } from "@/components/ui/empty-state";
+import { FilterActions } from "@/components/ui/filter-actions";
 import { LoadingOverlay } from "@/components/ui/loading";
 import { ListPagination } from "@/components/ui/list-pagination";
 import { FilterToolbar, PageCard } from "@/components/ui/page";
@@ -30,12 +32,49 @@ import type {
 } from "@/lib/admin/opco-partner-links.shared";
 import type { AdminPartnerLinkRequestItem } from "@/lib/admin/opco-partner-link-requests";
 import { paginateItems } from "@/lib/ui/list-pagination";
+import { nextSortState, type SortDirection } from "@/lib/ui/sort";
 import { cn, ui } from "@/lib/ui/classes";
 import { formatAppDateTime } from "@/lib/platform/format-datetime";
 import { formatAppError } from "@/lib/errors/format";
 
 type LinkStatusFilter = "all" | "linked" | "unlinked";
 type PageTab = "links" | "requests";
+type RequestSortField =
+  | "opcoName"
+  | "period"
+  | "partners"
+  | "message"
+  | "createdAt";
+
+function compareRequests(
+  a: AdminPartnerLinkRequestItem,
+  b: AdminPartnerLinkRequestItem,
+  sortBy: RequestSortField,
+  sortDir: SortDirection,
+): number {
+  const dir = sortDir === "asc" ? 1 : -1;
+  switch (sortBy) {
+    case "opcoName":
+      return a.opcoName.localeCompare(b.opcoName) * dir || a.id.localeCompare(b.id);
+    case "period":
+      return (
+        (a.year - b.year || a.month - b.month || a.opcoName.localeCompare(b.opcoName)) *
+          dir || a.id.localeCompare(b.id)
+      );
+    case "partners":
+      return (
+        a.partnerNames.join(", ").localeCompare(b.partnerNames.join(", ")) * dir ||
+        a.id.localeCompare(b.id)
+      );
+    case "message":
+      return a.message.localeCompare(b.message) * dir || a.id.localeCompare(b.id);
+    case "createdAt":
+    default:
+      return (
+        a.createdAt.localeCompare(b.createdAt) * dir || a.id.localeCompare(b.id)
+      );
+  }
+}
 
 type OpcoPartnersViewProps = {
   initialData: OpcoPartnerLinksPageData;
@@ -90,6 +129,10 @@ export function OpcoPartnersView({
   const [requestsError, setRequestsError] = useState<string | null>(null);
   const [actionId, setActionId] = useState<string | null>(null);
   const [missingWarning, setMissingWarning] = useState<string | null>(null);
+  const [requestSortBy, setRequestSortBy] =
+    useState<RequestSortField>("createdAt");
+  const [requestSortDir, setRequestSortDir] = useState<SortDirection>("desc");
+  const [requestPage, setRequestPage] = useState(1);
 
   const focusOpcoId = searchParams.get("opcoId");
 
@@ -378,6 +421,26 @@ export function OpcoPartnersView({
     return focused.length > 0 ? focused : requests;
   }, [requests, focusOpcoId]);
 
+  const sortedRequests = useMemo(
+    () =>
+      [...visibleRequests].sort((a, b) =>
+        compareRequests(a, b, requestSortBy, requestSortDir),
+      ),
+    [visibleRequests, requestSortBy, requestSortDir],
+  );
+
+  const pagedRequests = useMemo(
+    () => paginateItems(sortedRequests, requestPage, 10),
+    [sortedRequests, requestPage],
+  );
+
+  const applyRequestSort = (field: RequestSortField) => {
+    const next = nextSortState(requestSortBy, requestSortDir, field);
+    setRequestSortBy(next.sortBy);
+    setRequestSortDir(next.sortDir);
+    setRequestPage(1);
+  };
+
   if (opcos.length === 0) {
     return (
       <p className={ui.alertWarning}>
@@ -454,60 +517,97 @@ export function OpcoPartnersView({
                 description="When an OpCo asks to link partners, the request appears here."
               />
             ) : (
-              <DataTableFrame>
-                <DataTable>
-                  <DataTableHead>
-                    <tr>
-                      <DataTableTh>OpCo</DataTableTh>
-                      <DataTableTh align="center">Period</DataTableTh>
-                      <DataTableTh>Partners</DataTableTh>
-                      <DataTableTh>Message</DataTableTh>
-                      <DataTableTh align="center">Requested at</DataTableTh>
-                      <DataTableTh>Actions</DataTableTh>
-                    </tr>
-                  </DataTableHead>
-                  <tbody>
-                    {visibleRequests.map((row) => (
-                      <DataTableRow key={row.id}>
-                        <DataTableTd>{row.opcoName}</DataTableTd>
-                        <DataTableTd align="center">{row.periodLabel}</DataTableTd>
-                        <DataTableTd>
-                          {row.partnerNames.length
-                            ? row.partnerNames.join(", ")
-                            : "—"}
-                        </DataTableTd>
-                        <DataTableTd>
-                          <span className="line-clamp-3 whitespace-pre-wrap">
-                            {row.message || "—"}
-                          </span>
-                        </DataTableTd>
-                        <DataTableTd align="center">
-                          {formatAppDateTime(row.createdAt)}
-                        </DataTableTd>
-                        <DataTableTd>
-                          <div className="flex flex-wrap gap-2">
-                            <Button
-                              type="button"
-                              disabled={actionId !== null}
-                              onClick={() => void acceptRequest(row.id)}
-                            >
-                              {actionId === row.id ? "Working…" : "Accept"}
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              disabled={actionId !== null}
-                              onClick={() => void rejectRequest(row.id)}
-                            >
-                              Reject
-                            </Button>
-                          </div>
-                        </DataTableTd>
-                      </DataTableRow>
-                    ))}
-                  </tbody>
-                </DataTable>
-              </DataTableFrame>
+              <>
+                <DataTableFrame>
+                  <DataTable>
+                    <DataTableHead>
+                      <tr>
+                        <SortableDataTableTh
+                          label="OpCo"
+                          active={requestSortBy === "opcoName"}
+                          direction={requestSortDir}
+                          onSort={() => applyRequestSort("opcoName")}
+                        />
+                        <SortableDataTableTh
+                          label="Period"
+                          active={requestSortBy === "period"}
+                          direction={requestSortDir}
+                          onSort={() => applyRequestSort("period")}
+                          align="center"
+                        />
+                        <SortableDataTableTh
+                          label="Partners"
+                          active={requestSortBy === "partners"}
+                          direction={requestSortDir}
+                          onSort={() => applyRequestSort("partners")}
+                        />
+                        <SortableDataTableTh
+                          label="Message"
+                          active={requestSortBy === "message"}
+                          direction={requestSortDir}
+                          onSort={() => applyRequestSort("message")}
+                        />
+                        <SortableDataTableTh
+                          label="Requested at"
+                          active={requestSortBy === "createdAt"}
+                          direction={requestSortDir}
+                          onSort={() => applyRequestSort("createdAt")}
+                          align="center"
+                        />
+                        <DataTableTh>Actions</DataTableTh>
+                      </tr>
+                    </DataTableHead>
+                    <tbody>
+                      {pagedRequests.items.map((row) => (
+                        <DataTableRow key={row.id}>
+                          <DataTableTd>{row.opcoName}</DataTableTd>
+                          <DataTableTd align="center">{row.periodLabel}</DataTableTd>
+                          <DataTableTd>
+                            {row.partnerNames.length
+                              ? row.partnerNames.join(", ")
+                              : "—"}
+                          </DataTableTd>
+                          <DataTableTd>
+                            <span className="line-clamp-3 whitespace-pre-wrap">
+                              {row.message || "—"}
+                            </span>
+                          </DataTableTd>
+                          <DataTableTd align="center">
+                            {formatAppDateTime(row.createdAt)}
+                          </DataTableTd>
+                          <DataTableTd>
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                type="button"
+                                disabled={actionId !== null}
+                                onClick={() => void acceptRequest(row.id)}
+                              >
+                                {actionId === row.id ? "Working…" : "Accept"}
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                disabled={actionId !== null}
+                                onClick={() => void rejectRequest(row.id)}
+                              >
+                                Reject
+                              </Button>
+                            </div>
+                          </DataTableTd>
+                        </DataTableRow>
+                      ))}
+                    </tbody>
+                  </DataTable>
+                </DataTableFrame>
+                <ListPagination
+                  total={pagedRequests.total}
+                  page={pagedRequests.page}
+                  totalPages={pagedRequests.totalPages}
+                  noun="request"
+                  nounPlural="requests"
+                  onPageChange={setRequestPage}
+                />
+              </>
             )}
           </LoadingOverlay>
         </PageCard>
@@ -571,14 +671,10 @@ export function OpcoPartnersView({
                   </select>
                 </label>
               </div>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={clearFilters}
+              <FilterActions
+                onClear={clearFilters}
                 disabled={loading || saving}
-              >
-                Clear filters
-              </Button>
+              />
             </FilterToolbar>
 
             <LoadingOverlay active={loading} className="min-h-[12rem]">

@@ -24,6 +24,9 @@ vi.mock("@/lib/prisma", () => ({
     user: {
       findFirst: (...args: unknown[]) => mockedFindAdmin(...args),
     },
+    cronJobRun: {
+      create: vi.fn().mockResolvedValue({ id: 1n }),
+    },
   },
 }));
 

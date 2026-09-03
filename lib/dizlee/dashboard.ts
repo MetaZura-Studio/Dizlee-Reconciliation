@@ -334,7 +334,7 @@ export async function getDashboardData(
     };
   });
 
-  const recentUploads: RecentUpload[] = reports.slice(0, 8).map((report) => ({
+  const recentUploads: RecentUpload[] = reports.slice(0, 100).map((report) => ({
     id: report.id.toString(),
     actorRole: report.uploadedByUser?.role?.code === "PARTNER" ? "Partner" : "OpCo",
     lane: `${report.opco.name} / ${report.partner.name}`,

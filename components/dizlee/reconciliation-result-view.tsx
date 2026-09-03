@@ -7,7 +7,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { ReportFilenameLink } from "@/components/shared/report-filename-link";
 import {
@@ -16,7 +16,16 @@ import {
   type PendingAttachment,
 } from "@/components/shared/notification-attachment-picker";
 import { Button } from "@/components/ui/button";
+import {
+  DataTable,
+  DataTableFrame,
+  DataTableHead,
+  DataTableRow,
+  DataTableTd,
+  SortableDataTableTh,
+} from "@/components/ui/data-table";
 import { FieldLegend } from "@/components/ui/field";
+import { ListPagination } from "@/components/ui/list-pagination";
 import { ModalCloseButton } from "@/components/ui/modal-close-button";
 import { SuccessDialog } from "@/components/ui/success-dialog";
 import { useToast } from "@/components/ui/toast";
@@ -25,11 +34,16 @@ import {
   type NotificationDeliveryChannel,
 } from "@/lib/dizlee/notifications/broadcast.shared";
 import type { ReconciliationAlertTemplates } from "@/lib/dizlee/notifications/reconciliation-alerts";
-import type { ReconciliationDetail } from "@/lib/dizlee/reconciliation";
+import type {
+  ReconciliationDetail,
+  ReconciliationItemView,
+} from "@/lib/dizlee/reconciliation";
 import { reportRawFilePreviewUrl } from "@/lib/platform/reports/preview-url";
 import { formatUsd } from "@/lib/platform/format-money";
 import { formatAppDateTime, formatAppMonthYear } from "@/lib/platform/format-datetime";
 import { formatAppError } from "@/lib/errors/format";
+import { paginateItems } from "@/lib/ui/list-pagination";
+import { nextSortState, type SortDirection } from "@/lib/ui/sort";
 
 const DELIVERY_OPTIONS: Array<{
   value: NotificationDeliveryChannel;
@@ -53,6 +67,14 @@ const DELIVERY_OPTIONS: Array<{
   },
 ];
 
+type ItemSortField =
+  | "service"
+  | "opcoAmount"
+  | "partnerAmount"
+  | "variance"
+  | "confirmed"
+  | "status";
+
 function isMatchedStatus(status: string): boolean {
   return status.replaceAll(" ", "_").toUpperCase() === "MATCHED";
 }
@@ -67,6 +89,34 @@ function statusBadgeClass(status: string): string {
   return isMatchedStatus(status)
     ? "rounded-full bg-success-muted px-2 py-0.5 text-xs font-medium text-success"
     : "rounded-full bg-danger-muted px-2 py-0.5 text-xs font-medium text-danger";
+}
+
+function itemServiceLabel(item: ReconciliationItemView): string {
+  return item.description ?? item.serviceCode;
+}
+
+function compareItems(
+  a: ReconciliationItemView,
+  b: ReconciliationItemView,
+  sortBy: ItemSortField,
+  sortDir: SortDirection,
+): number {
+  const dir = sortDir === "asc" ? 1 : -1;
+  switch (sortBy) {
+    case "opcoAmount":
+      return ((a.opcoAmount ?? 0) - (b.opcoAmount ?? 0)) * dir;
+    case "partnerAmount":
+      return ((a.partnerAmount ?? 0) - (b.partnerAmount ?? 0)) * dir;
+    case "variance":
+      return ((a.varianceAmount ?? 0) - (b.varianceAmount ?? 0)) * dir;
+    case "confirmed":
+      return ((a.confirmedValue ?? 0) - (b.confirmedValue ?? 0)) * dir;
+    case "status":
+      return a.matchStatus.localeCompare(b.matchStatus) * dir;
+    case "service":
+    default:
+      return itemServiceLabel(a).localeCompare(itemServiceLabel(b)) * dir;
+  }
 }
 
 type ReconciliationResultViewProps = {
@@ -108,6 +158,26 @@ export function ReconciliationResultView({
   const [alertTarget, setAlertTarget] = useState<"opco" | "partner" | "both">(
     "both",
   );
+  const [sortBy, setSortBy] = useState<ItemSortField>("service");
+  const [sortDir, setSortDir] = useState<SortDirection>("asc");
+  const [itemPage, setItemPage] = useState(1);
+
+  const sortedItems = useMemo(
+    () =>
+      [...detail.items].sort((a, b) => compareItems(a, b, sortBy, sortDir)),
+    [detail.items, sortBy, sortDir],
+  );
+  const pagedItems = useMemo(
+    () => paginateItems(sortedItems, itemPage),
+    [itemPage, sortedItems],
+  );
+
+  function applySort(field: ItemSortField) {
+    const next = nextSortState(sortBy, sortDir, field);
+    setSortBy(next.sortBy);
+    setSortDir(next.sortDir);
+    setItemPage(1);
+  }
 
   async function confirmReconciliation() {
     setConfirming(true);
@@ -337,49 +407,94 @@ export function ReconciliationResultView({
         </div>
       ) : null}
 
-      <div className="overflow-hidden rounded-[28px] border border-border bg-surface shadow-[var(--shadow-md)]">
-        <table className="min-w-full divide-y divide-border text-sm">
-          <thead className="bg-surface-muted">
-            <tr>
-              <th className="px-4 py-3 text-left font-medium text-foreground-muted">
-                Service
-              </th>
-              <th className="px-4 py-3 text-right font-medium text-foreground-muted">
-                OpCo (USD)
-              </th>
-              <th className="px-4 py-3 text-right font-medium text-foreground-muted">
-                Partner (USD)
-              </th>
-              <th className="px-4 py-3 text-right font-medium text-foreground-muted">
-                Variance
-              </th>
-              <th className="px-4 py-3 text-right font-medium text-foreground-muted">
-                Confirmed
-              </th>
-              <th className="px-4 py-3 text-center font-medium text-foreground-muted">
-                Status
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {detail.items.map((item) => (
-              <tr key={item.serviceCode} className={rowToneClass(item.matchStatus)}>
-                <td className="px-4 py-3 font-medium">
-                  {item.description ?? item.serviceCode}
-                </td>
-                <td className="px-4 py-3 text-right tabular-nums">{formatUsd(item.opcoAmount)}</td>
-                <td className="px-4 py-3 text-right tabular-nums">{formatUsd(item.partnerAmount)}</td>
-                <td className="px-4 py-3 text-right tabular-nums">{formatUsd(item.varianceAmount)}</td>
-                <td className="px-4 py-3 text-right tabular-nums">{formatUsd(item.confirmedValue)}</td>
-                <td className="px-4 py-3 text-center">
-                  <span className={statusBadgeClass(item.matchStatus)}>
-                    {item.matchStatus}
-                  </span>
-                </td>
+      <div className="space-y-4">
+        <DataTableFrame>
+          <DataTable>
+            <DataTableHead>
+              <tr>
+                <SortableDataTableTh
+                  label="Service"
+                  active={sortBy === "service"}
+                  direction={sortDir}
+                  onSort={() => applySort("service")}
+                />
+                <SortableDataTableTh
+                  label="OpCo (USD)"
+                  active={sortBy === "opcoAmount"}
+                  direction={sortDir}
+                  onSort={() => applySort("opcoAmount")}
+                  align="right"
+                />
+                <SortableDataTableTh
+                  label="Partner (USD)"
+                  active={sortBy === "partnerAmount"}
+                  direction={sortDir}
+                  onSort={() => applySort("partnerAmount")}
+                  align="right"
+                />
+                <SortableDataTableTh
+                  label="Variance"
+                  active={sortBy === "variance"}
+                  direction={sortDir}
+                  onSort={() => applySort("variance")}
+                  align="right"
+                />
+                <SortableDataTableTh
+                  label="Confirmed"
+                  active={sortBy === "confirmed"}
+                  direction={sortDir}
+                  onSort={() => applySort("confirmed")}
+                  align="right"
+                />
+                <SortableDataTableTh
+                  label="Status"
+                  active={sortBy === "status"}
+                  direction={sortDir}
+                  onSort={() => applySort("status")}
+                  align="center"
+                />
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </DataTableHead>
+            <tbody>
+              {pagedItems.items.map((item) => (
+                <DataTableRow
+                  key={item.serviceCode}
+                  className={rowToneClass(item.matchStatus)}
+                >
+                  <DataTableTd className="font-medium">
+                    {itemServiceLabel(item)}
+                  </DataTableTd>
+                  <DataTableTd align="right">
+                    {formatUsd(item.opcoAmount)}
+                  </DataTableTd>
+                  <DataTableTd align="right">
+                    {formatUsd(item.partnerAmount)}
+                  </DataTableTd>
+                  <DataTableTd align="right">
+                    {formatUsd(item.varianceAmount)}
+                  </DataTableTd>
+                  <DataTableTd align="right">
+                    {formatUsd(item.confirmedValue)}
+                  </DataTableTd>
+                  <DataTableTd align="center">
+                    <span className={statusBadgeClass(item.matchStatus)}>
+                      {item.matchStatus}
+                    </span>
+                  </DataTableTd>
+                </DataTableRow>
+              ))}
+            </tbody>
+          </DataTable>
+        </DataTableFrame>
+
+        <ListPagination
+          total={pagedItems.total}
+          page={pagedItems.page}
+          totalPages={pagedItems.totalPages}
+          noun="line"
+          nounPlural="lines"
+          onPageChange={setItemPage}
+        />
       </div>
 
       <p className="text-xs text-foreground-subtle">

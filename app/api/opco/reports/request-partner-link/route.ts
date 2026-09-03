@@ -23,7 +23,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    assertRateLimit({
+    await assertRateLimit({
       key: `opco-link-request:${session.userId}`,
       limit: 10,
       windowMs: 15 * 60 * 1000,

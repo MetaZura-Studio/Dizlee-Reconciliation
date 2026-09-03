@@ -133,7 +133,7 @@ export async function getOpcoDashboard(
           },
         },
         orderBy: { createdAt: "desc" },
-        take: 5,
+        take: 100,
       }),
       prisma.invoice.count({
         where: {

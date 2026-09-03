@@ -11,6 +11,7 @@ import { appErrorFromUnknown } from "@/lib/errors/app-error";
 import { parseReportWorkbook } from "@/lib/partner/excel/parse-report";
 import { getPartnerSession } from "@/lib/partner/auth";
 import { validateReportUploadFile } from "@/lib/partner/validation/report-upload";
+import { assertExcelBufferMagic } from "@/lib/platform/excel-upload";
 import { mapParsedLinesToPreview } from "@/lib/platform/report-preview";
 
 export async function POST(request: Request) {
@@ -34,6 +35,10 @@ export async function POST(request: Request) {
 
     const uploadFile = file as File;
     const buffer = Buffer.from(await uploadFile.arrayBuffer());
+    const magicError = assertExcelBufferMagic(buffer, uploadFile.name);
+    if (magicError) {
+      return jsonError(appErrorFromUnknown(magicError, 400));
+    }
     const lineItems = await parseReportWorkbook(buffer);
     const preview = mapParsedLinesToPreview(lineItems, {
       currencyCode: "USD",

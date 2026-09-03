@@ -7,7 +7,6 @@
 
 import { useMemo, useState } from "react";
 
-import { Button } from "@/components/ui/button";
 import {
   DataTable,
   DataTableFrame,
@@ -16,16 +15,16 @@ import {
   DataTableTd,
   SortableDataTableTh,
 } from "@/components/ui/data-table";
+import { ListPagination } from "@/components/ui/list-pagination";
 import { StatusPill } from "@/components/ui/status-pill";
 import type {
   PartnerSubmissionStatus,
   PartnerSubmissionSummary,
 } from "@/lib/opco/queries/dashboard";
 import { formatAppDateTime } from "@/lib/platform/format-datetime";
+import { paginateItems } from "@/lib/ui/list-pagination";
 import { nextSortState, type SortDirection } from "@/lib/ui/sort";
 import { submissionStatusTone } from "@/lib/ui/status-tones";
-
-const PAGE_SIZE = 10;
 
 const STATUS_LABELS: Record<PartnerSubmissionStatus, string> = {
   submitted: "Submitted",
@@ -83,9 +82,7 @@ export function PartnerSubmissionsTable({ partners }: PartnerSubmissionsTablePro
     return rows;
   }, [partners, sortBy, sortDir]);
 
-  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
-  const safePage = Math.min(page, totalPages);
-  const pageRows = sorted.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const paged = useMemo(() => paginateItems(sorted, page), [sorted, page]);
 
   const applySort = (field: SortField) => {
     const next = nextSortState(sortBy, sortDir, field);
@@ -123,7 +120,7 @@ export function PartnerSubmissionsTable({ partners }: PartnerSubmissionsTablePro
             </tr>
           </DataTableHead>
           <tbody>
-            {pageRows.map((partner) => (
+            {paged.items.map((partner) => (
               <DataTableRow key={partner.partnerId}>
                 <DataTableTd className="font-medium text-foreground">
                   {partner.partnerName}
@@ -144,31 +141,13 @@ export function PartnerSubmissionsTable({ partners }: PartnerSubmissionsTablePro
         </DataTable>
       </DataTableFrame>
 
-      {sorted.length > PAGE_SIZE ? (
-        <div className="flex items-center justify-between text-sm text-foreground-muted">
-          <p>
-            Page {safePage} / {totalPages}
-          </p>
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={safePage <= 1}
-              onClick={() => setPage((current) => Math.max(1, current - 1))}
-            >
-              Prev
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={safePage >= totalPages}
-              onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
-      ) : null}
+      <ListPagination
+        total={paged.total}
+        page={paged.page}
+        totalPages={paged.totalPages}
+        noun="partner"
+        onPageChange={setPage}
+      />
     </div>
   );
 }

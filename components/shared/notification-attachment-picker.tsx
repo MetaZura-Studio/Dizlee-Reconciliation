@@ -4,12 +4,13 @@ import { useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { FieldLabel } from "@/components/ui/field";
+import { IconUpload } from "@/components/ui/icons";
 import { formatAppError } from "@/lib/errors/format";
 import {
   MAX_NOTIFICATION_ATTACHMENTS,
   NOTIFICATION_ATTACHMENT_ACCEPT,
 } from "@/lib/platform/notification-attachments.shared";
-import { ui } from "@/lib/ui/classes";
+import { cn, ui } from "@/lib/ui/classes";
 
 export { MAX_NOTIFICATION_ATTACHMENTS };
 
@@ -32,9 +33,13 @@ export function NotificationAttachmentPicker({
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const atLimit = attachments.length >= MAX_NOTIFICATION_ATTACHMENTS;
+  const pickerDisabled = disabled || uploading || atLimit;
 
   async function handleFilesSelected(files: FileList | null) {
-    if (!files || files.length === 0 || disabled || uploading) {
+    if (!files || files.length === 0 || pickerDisabled) {
       return;
     }
 
@@ -90,6 +95,10 @@ export function NotificationAttachmentPicker({
     onChange(attachments.filter((attachment) => attachment.fileId !== fileId));
   }
 
+  function openPicker() {
+    if (!pickerDisabled) inputRef.current?.click();
+  }
+
   return (
     <div className="space-y-2">
       <div>
@@ -106,16 +115,62 @@ export function NotificationAttachmentPicker({
         type="file"
         multiple
         accept={NOTIFICATION_ATTACHMENT_ACCEPT}
-        disabled={
-          disabled || uploading || attachments.length >= MAX_NOTIFICATION_ATTACHMENTS
-        }
-        className="block w-full text-sm text-foreground-muted file:mr-3 file:rounded-md file:border-0 file:bg-surface-muted file:px-3 file:py-2 file:text-sm file:font-medium file:text-foreground hover:file:bg-surface-muted/80 disabled:opacity-60"
+        disabled={pickerDisabled}
+        className="sr-only"
         onChange={(event) => void handleFilesSelected(event.target.files)}
       />
 
-      {uploading ? (
-        <p className="text-xs text-foreground-subtle">Uploading…</p>
-      ) : null}
+      <div
+        role="button"
+        tabIndex={pickerDisabled ? -1 : 0}
+        aria-disabled={pickerDisabled || undefined}
+        onClick={openPicker}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            openPicker();
+          }
+        }}
+        onDragEnter={(event) => {
+          event.preventDefault();
+          if (!pickerDisabled) setIsDragging(true);
+        }}
+        onDragOver={(event) => {
+          event.preventDefault();
+          if (!pickerDisabled) setIsDragging(true);
+        }}
+        onDragLeave={(event) => {
+          event.preventDefault();
+          setIsDragging(false);
+        }}
+        onDrop={(event) => {
+          event.preventDefault();
+          setIsDragging(false);
+          void handleFilesSelected(event.dataTransfer.files);
+        }}
+        className={cn(
+          "relative flex min-h-[7.5rem] cursor-pointer flex-col items-center justify-center rounded-[22px] border border-dashed px-5 py-5 text-center transition-colors",
+          isDragging
+            ? "border-primary bg-primary-muted/50"
+            : "border-border-strong bg-primary-muted/15 hover:border-primary hover:bg-primary-muted/30",
+          pickerDisabled && "pointer-events-none opacity-60",
+        )}
+      >
+        <span className="inline-flex items-center justify-center rounded-2xl bg-primary/10 p-2.5 text-primary">
+          <IconUpload className="h-5 w-5" />
+        </span>
+        <p className="mt-3 text-sm font-semibold text-foreground">
+          {uploading ? "Uploading…" : "Drop files here or browse"}
+        </p>
+        <p className="mt-1 text-xs text-foreground-subtle">
+          {atLimit
+            ? `Maximum of ${MAX_NOTIFICATION_ATTACHMENTS} attachments reached`
+            : "PDF, images, Excel, CSV, or TXT"}
+        </p>
+        {!uploading && !atLimit ? (
+          <span className={`mt-4 ${ui.btnSecondary}`}>Choose files</span>
+        ) : null}
+      </div>
 
       {error ? <p className={`text-xs ${ui.alertError}`}>{error}</p> : null}
 

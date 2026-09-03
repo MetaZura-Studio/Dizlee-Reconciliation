@@ -13,6 +13,7 @@ import {
   SortableDataTableTh,
 } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
+import { FilterActions } from "@/components/ui/filter-actions";
 import { LoadingOverlay } from "@/components/ui/loading";
 import { ListPagination } from "@/components/ui/list-pagination";
 import { StatusPill } from "@/components/ui/status-pill";
@@ -22,6 +23,11 @@ import type {
   CurrencyRatesPeriodView,
   MonthlyRateRow,
 } from "@/lib/admin/currencies.shared";
+import {
+  CURRENT_MONTH_RATES_ONLY_MESSAGE,
+  formatRateInput,
+  sanitizeRateInput,
+} from "@/lib/admin/currency-rate-input";
 import { paginateItems } from "@/lib/ui/list-pagination";
 import { cn, ui } from "@/lib/ui/classes";
 import { nextSortState, type SortDirection } from "@/lib/ui/sort";
@@ -45,7 +51,7 @@ function toFormRows(rates: MonthlyRateRow[]): RateFormRow[] {
     rateInput:
       rate.rateToUsd === null || rate.rateToUsd === undefined
         ? ""
-        : String(rate.rateToUsd),
+        : formatRateInput(rate.rateToUsd),
     isBase: rate.isBase,
   }));
 }
@@ -110,6 +116,7 @@ export function CurrencyRatesSection({
   const month = periodView.month;
   const year = periodView.year;
   const isDirty = !rowsEqual(rows, baseline);
+  const canEdit = isCurrent;
 
   const applyCurrencySort = () => {
     const next = nextSortState(sortBy, sortDir, "currency");
@@ -175,7 +182,7 @@ export function CurrencyRatesSection({
   };
 
   const onPeriodChange = (value: string) => {
-    if (isDirty || importDraft) {
+    if (canEdit && (isDirty || importDraft)) {
       const ok = window.confirm(
         "You have unsaved rate changes. Discard them and switch period?",
       );
@@ -194,6 +201,10 @@ export function CurrencyRatesSection({
 
   const saveRates = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (!canEdit) {
+      setError(CURRENT_MONTH_RATES_ONLY_MESSAGE);
+      return;
+    }
     setError(null);
     setSaving(true);
 
@@ -204,7 +215,7 @@ export function CurrencyRatesSection({
         }
 
         const trimmed = row.rateInput.trim();
-        if (trimmed === "") {
+        if (trimmed === "" || trimmed === ".") {
           return { currencyId: row.currencyId, rateToUsd: null };
         }
 
@@ -243,12 +254,19 @@ export function CurrencyRatesSection({
   };
 
   const discardChanges = () => {
+    if (!canEdit) {
+      return;
+    }
     setRows(baseline.map((row) => ({ ...row })));
     setImportDraft(false);
     setError(null);
   };
 
   const importExcel = async (file: File) => {
+    if (!canEdit) {
+      setError(CURRENT_MONTH_RATES_ONLY_MESSAGE);
+      return;
+    }
     setError(null);
     setImporting(true);
 
@@ -376,14 +394,25 @@ export function CurrencyRatesSection({
               </h2>
               {isCurrent ? (
                 <StatusPill tone="success">Current</StatusPill>
-              ) : null}
-              {isDirty || importDraft ? (
+              ) : (
+                <StatusPill tone="neutral">Read-only</StatusPill>
+              )}
+              {canEdit && (isDirty || importDraft) ? (
                 <StatusPill tone="warning">Unsaved changes</StatusPill>
               ) : null}
             </div>
             <p className="text-sm text-foreground-muted">
-              Enter how many USD equal <strong>1 unit</strong> of each currency
-              (example: 1 KWD = 3.25 USD).
+              {canEdit ? (
+                <>
+                  Enter how many USD equal <strong>1 unit</strong> of each currency
+                  (example: 1 KWD = 3.25 USD).
+                </>
+              ) : (
+                <>
+                  Past periods are view-only. Edit rates for the{" "}
+                  <strong>current month</strong> only.
+                </>
+              )}
             </p>
           </div>
 
@@ -409,7 +438,7 @@ export function CurrencyRatesSection({
           </label>
         </div>
 
-        {importDraft ? (
+        {canEdit && importDraft ? (
           <p className={ui.alertWarning}>
             Excel values are loaded into this form only. Click{" "}
             <strong>Save rates</strong> to store them.
@@ -419,56 +448,51 @@ export function CurrencyRatesSection({
 
       <div className="space-y-4 p-5 sm:p-6">
         {error ? <p className={ui.alertError}>{error}</p> : null}
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="min-w-[12rem] flex-1 text-sm">
-            <span className={ui.label}>Search</span>
-            <input
-              type="search"
-              value={search}
-              onChange={(event) => {
-                setSearch(event.target.value);
-                setPage(1);
-              }}
-              placeholder="Currency code or symbol"
-              className={ui.input}
-              disabled={busy || loading}
-            />
-          </label>
-          <div className="flex rounded-2xl border border-border bg-surface-muted/40 p-1">
-            {(
-              [
-                ["all", "All"],
-                ["missing", "Missing"],
-                ["set", "Set"],
-              ] as const
-            ).map(([id, label]) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => {
-                  setRateStatus(id);
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="min-w-[12rem] flex-1 text-sm">
+              <span className={ui.label}>Search</span>
+              <input
+                type="search"
+                value={search}
+                onChange={(event) => {
+                  setSearch(event.target.value);
                   setPage(1);
                 }}
-                className={cn(
-                  "rounded-xl px-3 py-1.5 text-sm font-medium transition-colors",
-                  rateStatus === id
-                    ? "bg-surface text-foreground shadow-[var(--shadow-sm)]"
-                    : "text-foreground-muted hover:text-foreground",
-                )}
-                disabled={busy}
-              >
-                {label}
-              </button>
-            ))}
+                placeholder="Currency code or symbol"
+                className={ui.input}
+                disabled={busy || loading}
+              />
+            </label>
+            <div className="flex rounded-2xl border border-border bg-surface-muted/40 p-1">
+              {(
+                [
+                  ["all", "All"],
+                  ["missing", "Missing"],
+                  ["set", "Set"],
+                ] as const
+              ).map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => {
+                    setRateStatus(id);
+                    setPage(1);
+                  }}
+                  className={cn(
+                    "rounded-xl px-3 py-1.5 text-sm font-medium transition-colors",
+                    rateStatus === id
+                      ? "bg-surface text-foreground shadow-[var(--shadow-sm)]"
+                      : "text-foreground-muted hover:text-foreground",
+                  )}
+                  disabled={busy}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={clearFilters}
-            disabled={busy}
-          >
-            Clear filters
-          </Button>
+          <FilterActions onClear={clearFilters} disabled={busy} />
         </div>
 
         <LoadingOverlay active={loading} className="min-h-[12rem]">
@@ -525,36 +549,43 @@ export function CurrencyRatesSection({
                               <span className="text-foreground-muted">
                                 1.00 (USD locked)
                               </span>
-                            ) : (
+                            ) : canEdit ? (
                               <div className="ml-auto flex max-w-xs items-center gap-2">
                                 <span className="shrink-0 text-xs text-foreground-subtle">
                                   1 {row.isoCode} =
                                 </span>
                                 <input
-                                  type="number"
-                                  min={0}
-                                  step="0.00000001"
+                                  type="text"
+                                  inputMode="decimal"
+                                  autoComplete="off"
                                   value={row.rateInput}
-                                  onChange={(event) =>
+                                  onChange={(event) => {
+                                    const next = sanitizeRateInput(
+                                      event.target.value,
+                                    );
                                     setRows((current) =>
                                       current.map((item) =>
                                         item.currencyId === row.currencyId
-                                          ? {
-                                              ...item,
-                                              rateInput: event.target.value,
-                                            }
+                                          ? { ...item, rateInput: next }
                                           : item,
                                       ),
-                                    )
-                                  }
+                                    );
+                                  }}
                                   placeholder="Not set"
-                                  className={ui.input}
+                                  className={cn(ui.input, "text-right tabular-nums")}
                                   disabled={busy}
+                                  aria-label={`USD rate for 1 ${row.isoCode}`}
                                 />
                                 <span className="shrink-0 text-xs text-foreground-subtle">
                                   USD
                                 </span>
                               </div>
+                            ) : (
+                              <span className="text-foreground-muted tabular-nums">
+                                {row.rateInput.trim()
+                                  ? `1 ${row.isoCode} = ${row.rateInput} USD`
+                                  : "Not set"}
+                              </span>
                             )}
                           </DataTableTd>
                           <DataTableTd align="center">
@@ -584,46 +615,61 @@ export function CurrencyRatesSection({
           ) : null}
 
           <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">
-              <Button type="submit" disabled={busy || (!isDirty && !importDraft)}>
-                {saving ? "Saving…" : "Save rates"}
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={discardChanges}
-                disabled={busy || (!isDirty && !importDraft)}
-              >
-                Discard
-              </Button>
+              {canEdit ? (
+                <>
+                  <Button
+                    type="submit"
+                    disabled={busy || (!isDirty && !importDraft)}
+                  >
+                    {saving ? "Saving…" : "Save rates"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={discardChanges}
+                    disabled={busy || (!isDirty && !importDraft)}
+                  >
+                    Discard
+                  </Button>
+                </>
+              ) : null}
               <a
                 href={`/api/admin/currency-rates/template?month=${month}&year=${year}`}
                 className={ui.btnSecondary}
               >
                 Download template
               </a>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                className="hidden"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) {
-                    void importExcel(file);
-                  }
-                }}
-              />
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={busy}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                {importing ? "Importing…" : "Import Excel"}
-              </Button>
-              <p className="text-xs text-foreground-subtle">
-                Import fills the form — you still need to Save.
-              </p>
+              {canEdit ? (
+                <>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    className="hidden"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (file) {
+                        void importExcel(file);
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={busy}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    {importing ? "Importing…" : "Import Excel"}
+                  </Button>
+                  <p className="text-xs text-foreground-subtle">
+                    Import fills the form — you still need to Save.
+                  </p>
+                </>
+              ) : (
+                <p className="text-xs text-foreground-subtle">
+                  Switch to the current month to edit or import rates.
+                </p>
+              )}
             </div>
         </form>
         </LoadingOverlay>

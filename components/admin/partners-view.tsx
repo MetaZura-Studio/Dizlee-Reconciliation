@@ -20,6 +20,7 @@ import {
   SortableDataTableTh,
 } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
+import { FilterActions } from "@/components/ui/filter-actions";
 import { IconButton } from "@/components/ui/icon-button";
 import { IconPencil, IconTrash } from "@/components/ui/icons";
 import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
@@ -207,9 +208,7 @@ export function PartnersView({ initialPartners }: PartnersViewProps) {
             </select>
           </label>
         </div>
-        <Button type="button" variant="secondary" onClick={clearFilters}>
-          Clear filters
-        </Button>
+        <FilterActions onClear={clearFilters} />
       </FilterToolbar>
 
       <div className="mt-6 space-y-4">

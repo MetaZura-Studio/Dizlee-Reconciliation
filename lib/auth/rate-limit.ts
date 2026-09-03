@@ -1,9 +1,10 @@
 /**
- * In-memory sliding-window rate limits for auth endpoints.
- * Suitable for a single Node process; use a shared store if you run multiple instances.
+ * Auth rate limits — DB-backed across serverless instances.
+ * Falls back to in-memory when RATE_LIMIT_STORE=memory or under Vitest.
  */
 
 import { appError } from "@/lib/errors/app-error";
+import { prisma } from "@/lib/prisma";
 
 export type RateLimitResult = {
   allowed: boolean;
@@ -16,11 +17,21 @@ type BucketEntry = {
   resetAt: number;
 };
 
-const buckets = new Map<string, BucketEntry>();
+const memoryBuckets = new Map<string, BucketEntry>();
 
 /** Local `next dev` skips auth rate limits so Partner/OpCo/Admin switching is not blocked. */
 export function authRateLimitsActive(): boolean {
   return process.env.NODE_ENV !== "development";
+}
+
+function useMemoryRateLimitStore(): boolean {
+  if (process.env.RATE_LIMIT_STORE === "memory") {
+    return true;
+  }
+  if (process.env.RATE_LIMIT_STORE === "db") {
+    return false;
+  }
+  return process.env.VITEST === "true" || process.env.NODE_ENV === "test";
 }
 
 /** Auth presets (window = 15 minutes). */
@@ -48,12 +59,109 @@ export function getClientIp(request: Request): string {
   return "unknown";
 }
 
-export function consumeRateLimit(params: {
+function consumeMemoryRateLimit(params: {
+  key: string;
+  limit: number;
+  windowMs: number;
+  now: number;
+}): RateLimitResult {
+  let entry = memoryBuckets.get(params.key);
+
+  if (!entry || entry.resetAt <= params.now) {
+    entry = { count: 0, resetAt: params.now + params.windowMs };
+  }
+
+  if (entry.count >= params.limit) {
+    memoryBuckets.set(params.key, entry);
+    return {
+      allowed: false,
+      remaining: 0,
+      retryAfterSeconds: Math.max(
+        1,
+        Math.ceil((entry.resetAt - params.now) / 1000),
+      ),
+    };
+  }
+
+  entry = { count: entry.count + 1, resetAt: entry.resetAt };
+  memoryBuckets.set(params.key, entry);
+
+  return {
+    allowed: true,
+    remaining: Math.max(0, params.limit - entry.count),
+    retryAfterSeconds: Math.max(
+      1,
+      Math.ceil((entry.resetAt - params.now) / 1000),
+    ),
+  };
+}
+
+async function consumeDbRateLimit(params: {
+  key: string;
+  limit: number;
+  windowMs: number;
+  now: number;
+}): Promise<RateLimitResult> {
+  const nowDate = new Date(params.now);
+  const key = params.key.slice(0, 255);
+
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.authRateLimitBucket.findUnique({
+      where: { bucketKey: key },
+    });
+
+    let count = 0;
+    let resetAt =
+      existing && existing.resetAt.getTime() > params.now
+        ? existing.resetAt
+        : new Date(params.now + params.windowMs);
+
+    if (existing && existing.resetAt.getTime() > params.now) {
+      count = existing.count;
+    }
+
+    if (count >= params.limit) {
+      return {
+        allowed: false,
+        remaining: 0,
+        retryAfterSeconds: Math.max(
+          1,
+          Math.ceil((resetAt.getTime() - params.now) / 1000),
+        ),
+      };
+    }
+
+    count += 1;
+    await tx.authRateLimitBucket.upsert({
+      where: { bucketKey: key },
+      create: {
+        bucketKey: key,
+        count,
+        resetAt,
+      },
+      update: {
+        count,
+        resetAt,
+      },
+    });
+
+    return {
+      allowed: true,
+      remaining: Math.max(0, params.limit - count),
+      retryAfterSeconds: Math.max(
+        1,
+        Math.ceil((resetAt.getTime() - params.now) / 1000),
+      ),
+    };
+  });
+}
+
+export async function consumeRateLimit(params: {
   key: string;
   limit: number;
   windowMs: number;
   now?: number;
-}): RateLimitResult {
+}): Promise<RateLimitResult> {
   if (!authRateLimitsActive()) {
     return {
       allowed: true,
@@ -63,37 +171,18 @@ export function consumeRateLimit(params: {
   }
 
   const now = params.now ?? Date.now();
-  let entry = buckets.get(params.key);
-
-  if (!entry || entry.resetAt <= now) {
-    entry = { count: 0, resetAt: now + params.windowMs };
+  if (useMemoryRateLimitStore()) {
+    return consumeMemoryRateLimit({ ...params, now });
   }
-
-  if (entry.count >= params.limit) {
-    buckets.set(params.key, entry);
-    return {
-      allowed: false,
-      remaining: 0,
-      retryAfterSeconds: Math.max(1, Math.ceil((entry.resetAt - now) / 1000)),
-    };
-  }
-
-  entry = { count: entry.count + 1, resetAt: entry.resetAt };
-  buckets.set(params.key, entry);
-
-  return {
-    allowed: true,
-    remaining: Math.max(0, params.limit - entry.count),
-    retryAfterSeconds: Math.max(1, Math.ceil((entry.resetAt - now) / 1000)),
-  };
+  return consumeDbRateLimit({ ...params, now });
 }
 
-export function assertRateLimit(params: {
+export async function assertRateLimit(params: {
   key: string;
   limit: number;
   windowMs: number;
-}): RateLimitResult {
-  const result = consumeRateLimit(params);
+}): Promise<RateLimitResult> {
+  const result = await consumeRateLimit(params);
   if (!result.allowed) {
     throw appError("RATE_LIMITED");
   }
@@ -104,7 +193,7 @@ export function normalizeRateLimitEmail(email: string): string {
   return email.trim().toLowerCase().slice(0, 255);
 }
 
-/** Test helper — clears all buckets. */
+/** Test helper — clears memory buckets. */
 export function resetAuthRateLimitStoreForTests(): void {
-  buckets.clear();
+  memoryBuckets.clear();
 }

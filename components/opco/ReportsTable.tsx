@@ -22,6 +22,7 @@ import {
   SortableDataTableTh,
 } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
+import { FilterActions } from "@/components/ui/filter-actions";
 import { IconButton } from "@/components/ui/icon-button";
 import { IconEye } from "@/components/ui/icons";
 import { ListSearch, OrFiltersDivider } from "@/components/ui/list-search";
@@ -384,15 +385,11 @@ export function ReportsTable({
             </select>
           </label>
         </div>
-        <div className="flex w-full gap-3">
-          <Button onClick={applyFilters}>Apply filters</Button>
-          <Button variant="secondary" onClick={clearFilters}>
-            Clear filters
-          </Button>
-          <Button variant="secondary" onClick={refresh}>
-            Refresh
-          </Button>
-        </div>
+        <FilterActions
+          onApply={applyFilters}
+          onClear={clearFilters}
+          onRefresh={refresh}
+        />
       </FilterToolbar>
 
       {error ? <div className={ui.alertError}>{error}</div> : null}

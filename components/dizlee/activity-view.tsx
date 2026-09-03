@@ -8,8 +8,8 @@
 import Link from "next/link";
 import { useCallback, useState } from "react";
 
-import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { FilterActions } from "@/components/ui/filter-actions";
 import { LoadingOverlay } from "@/components/ui/loading";
 import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
@@ -265,21 +265,13 @@ export function ActivityView({
             </select>
           </label>
         </div>
-        <div className="flex w-full flex-wrap gap-3">
-          <Button onClick={applyFilters} disabled={!hasEntity || loading}>
-            Apply
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={refresh}
-            disabled={!hasEntity || loading}
-          >
-            Refresh
-          </Button>
-          <Button variant="secondary" onClick={clearFilters} disabled={loading}>
-            Clear filters
-          </Button>
-        </div>
+        <FilterActions
+          onApply={applyFilters}
+          onClear={clearFilters}
+          onRefresh={refresh}
+          loading={loading}
+          disabled={!hasEntity}
+        />
         <p className={ui.hint}>
           Select at least one OpCo or Partner. Selecting both narrows to that
           lane.

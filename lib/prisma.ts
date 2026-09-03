@@ -37,10 +37,11 @@ const SOFT_DELETE_MODELS = new Set([
   "ReconciliationItem",
   "Invoice",
   "InvoiceItem",
+  "RevenueShareReport",
 ]);
 
 /** Bump when adding Prisma models so stale Turbopack/global clients are dropped. */
-const PRISMA_CLIENT_GENERATION = 3;
+const PRISMA_CLIENT_GENERATION = 4;
 
 type CachedPrisma = {
   generation: number;
@@ -75,12 +76,16 @@ function createPrismaClient() {
 }
 
 function hasRequiredDelegates(client: PrismaClient): boolean {
-  const submission = (
-    client as unknown as {
-      opcoReportSubmission?: { findMany?: unknown };
-    }
-  ).opcoReportSubmission;
-  return typeof submission?.findMany === "function";
+  const c = client as unknown as {
+    opcoReportSubmission?: { findMany?: unknown };
+    cronJobRun?: { findMany?: unknown };
+    authRateLimitBucket?: { findUnique?: unknown };
+  };
+  return (
+    typeof c.opcoReportSubmission?.findMany === "function" &&
+    typeof c.cronJobRun?.findMany === "function" &&
+    typeof c.authRateLimitBucket?.findUnique === "function"
+  );
 }
 
 function resolvePrismaClient(): PrismaClient {

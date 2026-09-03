@@ -3,6 +3,8 @@
 Continuous Integration already runs on GitHub Actions (`CI` workflow).  
 This guide covers **Continuous Deployment**: MySQL on **TiDB Cloud**, app hosting on **Vercel**, deploys from `develop` / `main`.
 
+**Future (Phase 2):** After production is stable here, Contabo VPS cutover is documented in [`CD_CONTABO_VPS.md`](CD_CONTABO_VPS.md). That path is **not** a substitute for finishing this Vercel + TiDB setup first.
+
 ## Architecture
 
 | Piece | Role |
@@ -28,10 +30,12 @@ Suggested flow: feature PR → `develop` (auto deploy staging) → PR `develop` 
 7. Copy a URL like:
 
 ```text
-mysql://USERNAME:PASSWORD@HOST:4000/dizlee_staging?sslaccept=strict
+mysql://USERNAME:PASSWORD@HOST:4000/dizlee_staging?sslaccept=strict&connection_limit=5
 ```
 
 TiDB often uses port **4000**. Special characters in the password must be URL-encoded (e.g. `@` → `%40`).
+
+**Serverless (Vercel):** always set a low Prisma `connection_limit` (e.g. `5`) on `DATABASE_URL`, or use an external pooler. Each Vercel instance opens its own pool — without a limit, concurrent lambdas can exhaust TiDB connections.
 
 Keep **separate** connection strings for staging and production.
 
@@ -40,12 +44,14 @@ Keep **separate** connection strings for staging and production.
 From your laptop (with the staging URL):
 
 ```bash
-export DATABASE_URL="mysql://USER:PASS@HOST:4000/dizlee_staging?sslaccept=strict"
+export DATABASE_URL="mysql://USER:PASS@HOST:4000/dizlee_staging?sslaccept=strict&connection_limit=5"
 npx prisma migrate deploy
 npx prisma db seed   # optional for staging only — do not seed production lightly
 ```
 
 Later deploys can run `migrate deploy` automatically via Vercel build (`npm run build:vercel`).
+
+**Caution:** If Preview deployments share one database, concurrent `migrate deploy` during builds can race. Prefer a dedicated staging DB and production-only migrate, or serialize production deploys.
 
 ---
 
@@ -168,3 +174,9 @@ Repo secrets are only needed if you add a custom Actions deploy later (`VERCEL_T
 - **Cron 401** — `CRON_SECRET` missing or mismatched.
 - **Cron 503** — `CRON_SECRET` not configured in that environment.
 - **Prisma + TiDB** — keep schema vanilla MySQL (already the project rule).
+
+---
+
+## Future: Contabo
+
+When you move off Vercel onto a Contabo Cloud VPS, use the full handover: [`CD_CONTABO_VPS.md`](CD_CONTABO_VPS.md) (systemd, Caddy, local uploads, crontab, Vercel→Contabo cutover). Keep using this doc until that migration starts.
