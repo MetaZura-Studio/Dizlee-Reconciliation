@@ -187,7 +187,12 @@ export function ReportUploadForm({
   }, []);
 
   useEffect(() => {
-    void loadPeriodStatus(year, month);
+    // Defer so setState inside loadPeriodStatus is not synchronous in the effect body
+    // (react-hooks/set-state-in-effect).
+    const timer = window.setTimeout(() => {
+      void loadPeriodStatus(year, month);
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [year, month, loadPeriodStatus]);
 
   function handleYearChange(nextYear: number) {
