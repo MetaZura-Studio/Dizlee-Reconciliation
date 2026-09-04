@@ -20,6 +20,7 @@ import { IconButton } from "@/components/ui/icon-button";
 import { IconPencil, IconTrash } from "@/components/ui/icons";
 import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
 import { ListPagination } from "@/components/ui/list-pagination";
+import { LoadingOverlay } from "@/components/ui/loading";
 import { useToast } from "@/components/ui/toast";
 import type { OpcoListItem } from "@/lib/admin/opcos.shared";
 import type { PartnerListItem } from "@/lib/admin/partners.shared";
@@ -151,6 +152,8 @@ export function ServicePartnerMapsView({
       const data = body.data as {
         created: number;
         updated: number;
+        partnersCreated: number;
+        partnersRestored: number;
         issues: Array<{ rowNumber: number; message: string }>;
       };
       await reload();
@@ -158,8 +161,19 @@ export function ServicePartnerMapsView({
         data.issues.length > 0
           ? ` ${data.issues.length} row issue(s).`
           : "";
+      const partnerNoteParts: string[] = [];
+      if (data.partnersCreated > 0) {
+        partnerNoteParts.push(`${data.partnersCreated} partners created`);
+      }
+      if (data.partnersRestored > 0) {
+        partnerNoteParts.push(`${data.partnersRestored} partners restored`);
+      }
+      const partnerNote =
+        partnerNoteParts.length > 0
+          ? ` ${partnerNoteParts.join(", ")}.`
+          : "";
       toast.success(
-        `Import complete: ${data.created} created, ${data.updated} updated.${issueNote}`,
+        `Import complete: ${data.created} created, ${data.updated} updated.${partnerNote}${issueNote}`,
       );
       if (data.issues.length > 0) {
         setError(
@@ -182,6 +196,11 @@ export function ServicePartnerMapsView({
   };
 
   return (
+    <LoadingOverlay
+      active={importBusy}
+      label="Importing Excel…"
+      className="min-h-[12rem]"
+    >
     <PageCard>
       <PageHeader
         title="Service–Partner maps"
@@ -365,5 +384,6 @@ export function ServicePartnerMapsView({
         onDeleted={(message) => void handleDeleted(message)}
       />
     </PageCard>
+    </LoadingOverlay>
   );
 }

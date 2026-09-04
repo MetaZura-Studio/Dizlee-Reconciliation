@@ -5,7 +5,7 @@
 
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import { PartnerDeleteModal } from "@/components/admin/partner-delete-modal";
 import { PartnerFormModal } from "@/components/admin/partner-form-modal";
@@ -25,6 +25,7 @@ import { IconButton } from "@/components/ui/icon-button";
 import { IconPencil, IconTrash } from "@/components/ui/icons";
 import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
 import { ListPagination } from "@/components/ui/list-pagination";
+import { LoadingOverlay } from "@/components/ui/loading";
 import { StatusPill } from "@/components/ui/status-pill";
 import { useToast } from "@/components/ui/toast";
 import type { AdminEntityStatus, PartnerListItem } from "@/lib/admin/partners.shared";
@@ -71,6 +72,8 @@ export function PartnersView({ initialPartners }: PartnersViewProps) {
   const [sortDir, setSortDir] = useState<SortDirection>("asc");
   const [page, setPage] = useState(1);
   const [error, setError] = useState<string | null>(null);
+  const [importBusy, setImportBusy] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const toast = useToast();
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
@@ -167,12 +170,99 @@ export function PartnersView({ initialPartners }: PartnersViewProps) {
     }
   };
 
+  const handleImport = async (file: File) => {
+    setImportBusy(true);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await fetch("/api/admin/partners/import", {
+        method: "POST",
+        body: formData,
+      });
+      const body = await response.json();
+      if (!response.ok) {
+        throw new Error(formatAppError(body, "Import failed"));
+      }
+      const data = body.data as {
+        created: number;
+        skipped: number;
+        restored: number;
+        issues: Array<{ rowNumber: number; message: string }>;
+      };
+      await reload();
+      const issueNote =
+        data.issues.length > 0
+          ? ` ${data.issues.length} row issue(s).`
+          : "";
+      toast.success(
+        `Import complete: ${data.created} created, ${data.skipped} skipped, ${data.restored} restored.${issueNote}`,
+      );
+      if (data.issues.length > 0) {
+        setError(
+          data.issues
+            .slice(0, 5)
+            .map((issue) => `Row ${issue.rowNumber}: ${issue.message}`)
+            .join(" · "),
+        );
+      }
+    } catch (importError) {
+      setError(
+        importError instanceof Error ? importError.message : "Import failed",
+      );
+    } finally {
+      setImportBusy(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
   return (
+    <LoadingOverlay
+      active={importBusy}
+      label="Importing partners…"
+      className="min-h-[12rem]"
+    >
     <PageCard>
       <PageHeader
         title="Partners"
         description="Create Partner organizations first, then assign users under them from Users."
-        actions={<Button onClick={openCreate}>Create Partner</Button>}
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                window.location.href = "/api/admin/partners/template";
+              }}
+            >
+              Download template
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={importBusy}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {importBusy ? "Importing…" : "Upload Excel"}
+            </Button>
+            <Button onClick={openCreate}>Create Partner</Button>
+          </div>
+        }
+      />
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".xlsx,.xls"
+        className="sr-only"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) {
+            void handleImport(file);
+          }
+        }}
       />
 
       {error ? <p className={ui.alertError}>{error}</p> : null}
@@ -312,5 +402,6 @@ export function PartnersView({ initialPartners }: PartnersViewProps) {
         onDeleted={(message) => void handleDeleted(message)}
       />
     </PageCard>
+    </LoadingOverlay>
   );
 }

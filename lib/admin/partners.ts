@@ -8,6 +8,10 @@ import type {
   PartnerListItem,
 } from "@/lib/admin/partners.shared";
 import {
+  parsePartnersExcel,
+  type PartnerParseIssue,
+} from "@/lib/admin/partners-excel";
+import {
   createPartnerSchema,
   updatePartnerSchema,
   type CreatePartnerInput,
@@ -15,6 +19,7 @@ import {
 } from "@/lib/admin/validation/partners";
 import { prisma } from "@/lib/prisma";
 import { DomainError } from "@/lib/errors/app-error";
+import { compactPartnerKey } from "@/lib/platform/service-partner-map";
 
 export type {
   AdminEntityStatus,
@@ -195,4 +200,134 @@ export async function deletePartner(
     message: `Partner deleted: ${existing.name}`,
     metadata: { name: existing.name },
   });
+}
+
+export type ImportPartnersResult = {
+  created: number;
+  skipped: number;
+  restored: number;
+  issues: PartnerParseIssue[];
+};
+
+export async function importPartnersFromExcel(
+  buffer: Buffer,
+  actorUserId: bigint,
+): Promise<ImportPartnersResult> {
+  const parsed = await parsePartnersExcel(buffer);
+  const issues: PartnerParseIssue[] = [...parsed.issues];
+
+  if (parsed.rows.length === 0) {
+    return { created: 0, skipped: 0, restored: 0, issues };
+  }
+
+  const existing = await prisma.partner.findMany({
+    select: {
+      id: true,
+      name: true,
+      isDeleted: true,
+    },
+  });
+
+  const byKey = new Map<
+    string,
+    { id: bigint; name: string; isDeleted: boolean }
+  >();
+  for (const partner of existing) {
+    const key = compactPartnerKey(partner.name);
+    if (!key) {
+      continue;
+    }
+    const current = byKey.get(key);
+    // Prefer active over soft-deleted when multiple match.
+    if (!current || (current.isDeleted && !partner.isDeleted)) {
+      byKey.set(key, partner);
+    }
+  }
+
+  const [activeStatusId, inactiveStatusId] = await Promise.all([
+    getLookupId("USER_STATUS", "ACTIVE"),
+    getLookupId("USER_STATUS", "INACTIVE"),
+  ]);
+
+  let created = 0;
+  let skipped = 0;
+  let restored = 0;
+
+  for (const row of parsed.rows) {
+    const key = compactPartnerKey(row.name);
+    const match = byKey.get(key);
+    const statusId =
+      row.status === "ACTIVE" ? activeStatusId : inactiveStatusId;
+
+    if (match && !match.isDeleted) {
+      skipped += 1;
+      continue;
+    }
+
+    if (match && match.isDeleted) {
+      await prisma.partner.update({
+        where: { id: match.id },
+        data: {
+          name: row.name,
+          statusId,
+          isDeleted: false,
+          deletedAt: null,
+          deletedByUserId: null,
+          updatedByUserId: actorUserId,
+        },
+      });
+      byKey.set(key, { id: match.id, name: row.name, isDeleted: false });
+      restored += 1;
+      await writePartnerAuditLog({
+        actorUserId,
+        action: "PARTNER_UPDATED",
+        partnerId: match.id,
+        message: `Partner restored via import: ${row.name}`,
+        metadata: { name: row.name, status: row.status, source: "excel_import" },
+      });
+      continue;
+    }
+
+    const createdRow = await prisma.partner.create({
+      data: {
+        name: row.name,
+        statusId,
+        createdByUserId: actorUserId,
+        updatedByUserId: actorUserId,
+      },
+      select: { id: true, name: true },
+    });
+    byKey.set(key, {
+      id: createdRow.id,
+      name: createdRow.name,
+      isDeleted: false,
+    });
+    created += 1;
+    await writePartnerAuditLog({
+      actorUserId,
+      action: "PARTNER_CREATED",
+      partnerId: createdRow.id,
+      message: `Partner created via import: ${createdRow.name}`,
+      metadata: {
+        name: createdRow.name,
+        status: row.status,
+        source: "excel_import",
+      },
+    });
+  }
+
+  await writePartnerAuditLog({
+    actorUserId,
+    action: "PARTNER_IMPORTED",
+    partnerId: BigInt(0),
+    message: `Partners imported (created ${created}, skipped ${skipped}, restored ${restored}, issues ${issues.length})`,
+    metadata: {
+      created,
+      skipped,
+      restored,
+      issueCount: issues.length,
+    },
+  });
+
+  return { created, skipped, restored, issues };
 }

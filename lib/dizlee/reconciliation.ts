@@ -121,7 +121,10 @@ export type ReconciliationDetail = {
   tolerancePercent: number;
   runAt: string;
   items: ReconciliationItemView[];
+  alertedAt: string | null;
   canConfirm: boolean;
+  canAlert: boolean;
+  canRerun: boolean;
 };
 
 const HISTORY_PAGE_SIZE = 10;
@@ -145,6 +148,69 @@ function toNumber(value: unknown): number | null {
     return null;
   }
   return Number(value as never);
+}
+
+async function findLatestLaneReportIds(params: {
+  opcoId: bigint;
+  partnerId: bigint;
+  month: number;
+  year: number;
+}): Promise<{ opcoReportId: bigint | null; partnerReportId: bigint | null }> {
+  const [opcoReport, partnerReport] = await Promise.all([
+    prisma.report.findFirst({
+      where: {
+        opcoId: params.opcoId,
+        partnerId: params.partnerId,
+        month: params.month,
+        year: params.year,
+        isDeleted: false,
+        uploadedByUser: { role: { code: "OPCO" } },
+      },
+      orderBy: [{ version: "desc" }, { id: "desc" }],
+      select: { id: true },
+    }),
+    prisma.report.findFirst({
+      where: {
+        opcoId: params.opcoId,
+        partnerId: params.partnerId,
+        month: params.month,
+        year: params.year,
+        isDeleted: false,
+        uploadedByUser: { role: { code: "PARTNER" } },
+      },
+      orderBy: [{ version: "desc" }, { id: "desc" }],
+      select: { id: true },
+    }),
+  ]);
+
+  return {
+    opcoReportId: opcoReport?.id ?? null,
+    partnerReportId: partnerReport?.id ?? null,
+  };
+}
+
+function computeActionFlags(params: {
+  statusCode: string;
+  unmatchedCount: number;
+  alertedAt: Date | null;
+  reconciliationOpcoReportId: bigint;
+  reconciliationPartnerReportId: bigint;
+  latestOpcoReportId: bigint | null;
+  latestPartnerReportId: bigint | null;
+}): { canConfirm: boolean; canAlert: boolean; canRerun: boolean } {
+  const inProgress = params.statusCode === "IN_PROGRESS";
+  const hasMismatch = params.unmatchedCount > 0;
+  const hasNewerReport =
+    (params.latestOpcoReportId != null &&
+      params.latestOpcoReportId !== params.reconciliationOpcoReportId) ||
+    (params.latestPartnerReportId != null &&
+      params.latestPartnerReportId !== params.reconciliationPartnerReportId);
+
+  return {
+    canConfirm: inProgress && !hasMismatch,
+    canAlert: inProgress && hasMismatch,
+    canRerun: inProgress && params.alertedAt != null && hasNewerReport,
+  };
 }
 
 export function parseCompareLaneFilters(
@@ -473,6 +539,7 @@ export async function runReconciliation(params: {
         lineItems: { where: { isDeleted: false } },
         currency: { select: { id: true } },
       },
+      orderBy: [{ version: "desc" }, { id: "desc" }],
     }),
     prisma.report.findFirst({
       where: {
@@ -484,6 +551,7 @@ export async function runReconciliation(params: {
         uploadedByUser: { role: { code: "PARTNER" } },
       },
       include: { lineItems: { where: { isDeleted: false } } },
+      orderBy: [{ version: "desc" }, { id: "desc" }],
     }),
     getTolerancePercent(),
   ]);
@@ -623,6 +691,8 @@ export async function runReconciliation(params: {
         runByUserId,
         runAt,
         updatedByUserId: runByUserId,
+        alertedAt: null,
+        alertedByUserId: null,
         isDeleted: false,
         deletedAt: null,
         deletedByUserId: null,
@@ -797,6 +867,23 @@ export async function getReconciliationDetail(
     return null;
   }
 
+  const latest = await findLatestLaneReportIds({
+    opcoId: reconciliation.opcoId,
+    partnerId: reconciliation.partnerId,
+    month: reconciliation.month,
+    year: reconciliation.year,
+  });
+
+  const flags = computeActionFlags({
+    statusCode: reconciliation.status.code,
+    unmatchedCount: reconciliation.unmatchedCount ?? 0,
+    alertedAt: reconciliation.alertedAt,
+    reconciliationOpcoReportId: reconciliation.opcoReportId,
+    reconciliationPartnerReportId: reconciliation.partnerReportId,
+    latestOpcoReportId: latest.opcoReportId,
+    latestPartnerReportId: latest.partnerReportId,
+  });
+
   return {
     id: reconciliation.id,
     period: periodFromParts(reconciliation.month, reconciliation.year),
@@ -824,7 +911,8 @@ export async function getReconciliationDetail(
       confirmedValue: toNumber(item.confirmedValue),
       matchStatus: item.matchStatus.code.replaceAll("_", " "),
     })),
-    canConfirm: reconciliation.status.code === "IN_PROGRESS",
+    alertedAt: reconciliation.alertedAt?.toISOString() ?? null,
+    ...flags,
   };
 }
 
@@ -856,6 +944,13 @@ export async function confirmReconciliation(
     );
   }
 
+  if ((reconciliation.unmatchedCount ?? 0) > 0) {
+    throw new ReconciliationError(
+      "Resolve all mismatches before confirming reconciliation.",
+      400,
+    );
+  }
+
   const completedStatusId = await getLookupId("RECONCILIATION_STATUS", "COMPLETED");
   const actorUserId = BigInt(userId);
 
@@ -872,6 +967,56 @@ export async function confirmReconciliation(
     reconciliationId: id,
     message: "Reconciliation confirmed.",
   });
+}
+
+export async function markReconciliationAlerted(
+  id: number,
+  userId: string,
+): Promise<ReconciliationDetail> {
+  const reconciliation = await prisma.reconciliation.findFirst({
+    where: { id, isDeleted: false },
+    include: { status: true },
+  });
+
+  if (!reconciliation) {
+    throw new ReconciliationError("Reconciliation not found.", 404);
+  }
+
+  if (reconciliation.status.code !== "IN_PROGRESS") {
+    throw new ReconciliationError(
+      "Only in-progress reconciliations can be alerted.",
+      400,
+    );
+  }
+
+  if ((reconciliation.unmatchedCount ?? 0) === 0) {
+    throw new ReconciliationError(
+      "Alerts are only available when there are mismatches.",
+      400,
+    );
+  }
+
+  const actorUserId = BigInt(userId);
+  await prisma.reconciliation.update({
+    where: { id },
+    data: {
+      alertedAt: new Date(),
+      alertedByUserId: actorUserId,
+      updatedByUserId: actorUserId,
+    },
+  });
+
+  await writeAuditLog({
+    actorUserId,
+    reconciliationId: id,
+    message: "Reconciliation mismatch alert sent to OpCo and/or Partner.",
+  });
+
+  const detail = await getReconciliationDetail(id);
+  if (!detail) {
+    throw new ReconciliationError("Reconciliation not found.", 404);
+  }
+  return detail;
 }
 
 export { getTolerancePercent };

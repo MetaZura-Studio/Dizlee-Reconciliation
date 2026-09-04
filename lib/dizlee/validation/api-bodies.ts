@@ -49,6 +49,18 @@ export const sendBroadcastBodySchema = z.object({
     .optional(),
 });
 
+export const reconciliationAlertBodySchema = z.object({
+  audience: z.enum(["opco", "partner", "both"]),
+  opcoSubject: z.string().trim().min(1),
+  opcoBody: z.string().trim().min(1),
+  partnerSubject: z.string().trim().min(1),
+  partnerBody: z.string().trim().min(1),
+  attachmentFileIds: idList,
+  deliveryChannel: z
+    .enum(["SYSTEM", "EMAIL", "BOTH", "system", "email", "both"])
+    .optional(),
+});
+
 export const sendRemindersBodySchema = z.object({
   month: monthSchema,
   year: yearSchema,

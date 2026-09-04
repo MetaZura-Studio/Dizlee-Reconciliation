@@ -235,6 +235,7 @@ model User {
   opcoSubmissionChangeDecisions OpcoSubmissionChangeRequest[] @relation("OpcoSubmissionChangeDecider")
   consolidationsRun       Consolidation[] @relation("ConsolidationRunner")
   reconciliationsRun      Reconciliation[] @relation("ReconciliationRunner")
+  reconciliationsAlerted  Reconciliation[] @relation("ReconciliationAlerter")
   invoicesUploaded        Invoice[] @relation("InvoiceUploader")
   invoiceActivityLogs     InvoiceActivityLog[]
   revenueShareReportsGenerated RevenueShareReport[] @relation("RevenueShareReportGenerator")
@@ -770,6 +771,9 @@ model Reconciliation {
   unmatchedCount    Int?     @map("unmatched_count")
   runByUserId       BigInt   @map("run_by_user_id")
   runAt             DateTime @map("run_at")
+  /// Set when Dizlee alerts OpCo and/or Partner about mismatches (enables Re-run after resubmit).
+  alertedAt         DateTime? @map("alerted_at")
+  alertedByUserId   BigInt?   @map("alerted_by_user_id")
   createdByUserId   BigInt?  @map("created_by_user_id")
   updatedByUserId   BigInt?  @map("updated_by_user_id")
   createdAt         DateTime @default(now()) @map("created_at")
@@ -784,6 +788,7 @@ model Reconciliation {
   partnerReport Report               @relation("PartnerReport", fields: [partnerReportId], references: [id])
   status        Lookup               @relation("ReconciliationStatus", fields: [statusId], references: [id])
   runBy         User                 @relation("ReconciliationRunner", fields: [runByUserId], references: [id])
+  alertedBy     User?                @relation("ReconciliationAlerter", fields: [alertedByUserId], references: [id])
   items         ReconciliationItem[]
 
   @@unique([opcoId, partnerId, year, month, opcoReportId, partnerReportId], map: "uq_reconciliations")

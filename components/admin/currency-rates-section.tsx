@@ -495,7 +495,17 @@ export function CurrencyRatesSection({
           <FilterActions onClear={clearFilters} disabled={busy} />
         </div>
 
-        <LoadingOverlay active={loading} className="min-h-[12rem]">
+        <LoadingOverlay
+          active={busy}
+          className="min-h-[12rem]"
+          label={
+            importing
+              ? "Importing Excel…"
+              : saving
+                ? "Saving rates…"
+                : "Loading…"
+          }
+        >
         <form onSubmit={(event) => void saveRates(event)} className="space-y-4">
           {filteredRows.length === 0 ? (
             <EmptyState
