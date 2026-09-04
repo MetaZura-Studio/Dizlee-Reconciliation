@@ -14,9 +14,9 @@ describe("password reset tokens", () => {
     expect(INVITE_TOKEN_TTL_MS).toBe(60 * 60 * 1000);
   });
 
-  it("uses 24 hours for forgot-password links", () => {
+  it("uses 1 hour for forgot-password links", () => {
     expect(getPasswordResetTtlMs("forgot")).toBe(FORGOT_PASSWORD_TOKEN_TTL_MS);
-    expect(FORGOT_PASSWORD_TOKEN_TTL_MS).toBe(24 * 60 * 60 * 1000);
+    expect(FORGOT_PASSWORD_TOKEN_TTL_MS).toBe(60 * 60 * 1000);
   });
 
   it("hashes tokens consistently", () => {

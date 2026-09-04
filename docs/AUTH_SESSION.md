@@ -88,7 +88,7 @@ Full list (7 OpCos, 35 Partners, 44 users): **`docs/SEED_DATA.md`**
 | Flow | URL | Expiry |
 |------|-----|--------|
 | Admin creates user → set-password email | `/set-password?token=…` | **1 hour** |
-| Forgot password (login pages) | `/reset-password?token=…` | **24 hours** |
+| Forgot password (login pages) | `/reset-password?token=…` | **1 hour** |
 | Logged-in change password | `/change-password` | — |
 
 - Admin **create user** does not set a password — an invite email is sent.
