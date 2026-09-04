@@ -50,7 +50,7 @@ export default function ResetPasswordPage() {
           <div className="space-y-1">
             <h1 className="text-xl font-semibold">Reset your password</h1>
             <p className="text-sm text-foreground-muted">
-              Choose a new password for your account. This link expires in 24 hours
+              Choose a new password for your account. This link expires in 1 hour
               and can only be used once.
             </p>
           </div>

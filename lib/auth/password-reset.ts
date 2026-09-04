@@ -5,11 +5,11 @@
 
 import { createHash, randomBytes } from "crypto";
 
-/** Admin invite link — industry common: 1 hour */
+/** Admin invite link — 1 hour */
 export const INVITE_TOKEN_TTL_MS = 60 * 60 * 1000;
 
-/** Self-service forgot password — SRS: 24 hours */
-export const FORGOT_PASSWORD_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+/** Self-service forgot password — 1 hour */
+export const FORGOT_PASSWORD_TOKEN_TTL_MS = 60 * 60 * 1000;
 
 export type PasswordResetPurpose = "invite" | "forgot";
 

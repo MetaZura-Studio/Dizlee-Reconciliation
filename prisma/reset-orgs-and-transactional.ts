@@ -26,12 +26,21 @@ async function clearTransactionalData() {
     prisma.reconciliation.deleteMany(),
     prisma.consolidationItem.deleteMany(),
     prisma.consolidation.deleteMany(),
+    prisma.revenueShareReportItem.deleteMany(),
+    prisma.revenueShareReport.deleteMany(),
     prisma.reportChangeRequest.deleteMany(),
+    prisma.opcoSubmissionChangeRequest.deleteMany(),
+    prisma.opcoPartnerLinkRequest.deleteMany(),
     prisma.reportLineItem.deleteMany(),
     prisma.report.deleteMany(),
+    prisma.opcoReportSubmission.deleteMany(),
     prisma.invoice.deleteMany(),
+    prisma.opcoReportMapping.deleteMany(),
+    prisma.servicePartnerMap.deleteMany(),
     prisma.file.deleteMany(),
     prisma.auditLog.deleteMany(),
+    prisma.authRateLimitBucket.deleteMany(),
+    prisma.cronJobRun.deleteMany(),
   ]);
 }
 
