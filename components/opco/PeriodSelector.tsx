@@ -2,16 +2,19 @@
 
 import { useRouter } from "next/navigation";
 
+import { FilterActions } from "@/components/ui/filter-actions";
+import { getDefaultPeriod } from "@/lib/opco/period";
 import {
   clampPeriodToPresent,
   getMaxMonthForYear,
   getPeriodYearOptions,
 } from "@/lib/platform/period";
-import { ui } from "@/lib/ui/classes";
+import { cn, ui } from "@/lib/ui/classes";
 
 type PeriodSelectorProps = {
   year: number;
   month: number;
+  className?: string;
 };
 
 const MONTHS = [
@@ -29,10 +32,12 @@ const MONTHS = [
   "December",
 ];
 
-export function PeriodSelector({ year, month }: PeriodSelectorProps) {
+export function PeriodSelector({ year, month, className }: PeriodSelectorProps) {
   const router = useRouter();
   const yearOptions = getPeriodYearOptions();
   const maxMonth = getMaxMonthForYear(year);
+  const defaults = getDefaultPeriod();
+  const isDefaultPeriod = year === defaults.year && month === defaults.month;
 
   function navigate(nextYear: number, nextMonth: number) {
     const next = clampPeriodToPresent(nextYear, nextMonth);
@@ -40,8 +45,13 @@ export function PeriodSelector({ year, month }: PeriodSelectorProps) {
   }
 
   return (
-    <div className="flex items-end gap-3">
-      <label className="w-36 text-sm">
+    <div
+      className={cn(
+        "flex w-full flex-wrap items-end gap-3 sm:gap-4",
+        className,
+      )}
+    >
+      <label className="w-full text-sm sm:w-40">
         <span className={ui.label}>Month</span>
         <select
           value={month}
@@ -55,7 +65,7 @@ export function PeriodSelector({ year, month }: PeriodSelectorProps) {
           ))}
         </select>
       </label>
-      <label className="w-28 text-sm">
+      <label className="w-full text-sm sm:w-28">
         <span className={ui.label}>Year</span>
         <select
           value={year}
@@ -69,6 +79,12 @@ export function PeriodSelector({ year, month }: PeriodSelectorProps) {
           ))}
         </select>
       </label>
+      <FilterActions
+        className="sm:ml-auto sm:w-auto"
+        clearLabel="Clear filters"
+        disabled={isDefaultPeriod}
+        onClear={() => navigate(defaults.year, defaults.month)}
+      />
     </div>
   );
 }

@@ -4,9 +4,15 @@
 
 import { z } from "zod";
 
+/** Large OpCos (e.g. Kuwait service-map files) can list hundreds of names. */
+const MAX_PARTNER_NAMES_PER_LIST = 2000;
+
 const partnerNameList = z
   .array(z.string().trim().min(1).max(255))
-  .max(100)
+  .max(
+    MAX_PARTNER_NAMES_PER_LIST,
+    `At most ${MAX_PARTNER_NAMES_PER_LIST} partner names can be requested at once`,
+  )
   .default([]);
 
 export const requestPartnerLinkSchema = z

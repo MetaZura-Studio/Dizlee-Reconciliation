@@ -1,19 +1,25 @@
 /**
  * Upload and validate a new report file for the selected billing period.
  * Runs parse preview before confirming submission to Dizlee.
+ * Blocks choose-file when a monthly submission already exists; reupload uses
+ * the approved submission change-request flow on this page.
  */
 
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
+import { SubmissionRequestChangeDialog } from "@/components/opco/submission-request-change-dialog";
+import { SubmissionReuploadDialog } from "@/components/opco/submission-reupload-dialog";
 import {
   formatFileSizeLabel,
   ReportUploadReviewModal,
 } from "@/components/shared/report-upload-review-modal";
 import { Button } from "@/components/ui/button";
 import { FieldLabel, Select } from "@/components/ui/field";
+import { IconButton } from "@/components/ui/icon-button";
+import { IconRefresh, IconUpload } from "@/components/ui/icons";
 import { Modal } from "@/components/ui/modal";
 import {
   FormLayout,
@@ -22,6 +28,7 @@ import {
 } from "@/components/ui/page";
 import { LoadingOverlay, LoadingSpinner } from "@/components/ui/loading";
 import type { LinkedPartner } from "@/lib/opco/queries/partners";
+import type { OpcoSubmissionListItem } from "@/lib/opco/queries/submissions";
 import { getDefaultPeriod } from "@/lib/opco/period";
 import { validateReportUploadFile } from "@/lib/opco/validation/report-upload";
 import {
@@ -37,6 +44,23 @@ import {
 import { cn, ui } from "@/lib/ui/classes";
 import { useToast } from "@/components/ui/toast";
 import { formatAppError } from "@/lib/errors/format";
+
+function formatNotifyAdminError(payload: unknown): string {
+  if (payload && typeof payload === "object" && "details" in payload) {
+    const details = (payload as { details?: unknown }).details;
+    if (details && typeof details === "object") {
+      for (const value of Object.values(details as Record<string, unknown>)) {
+        if (Array.isArray(value) && typeof value[0] === "string" && value[0].trim()) {
+          return value[0].trim();
+        }
+        if (typeof value === "string" && value.trim()) {
+          return value.trim();
+        }
+      }
+    }
+  }
+  return formatAppError(payload, "Failed to notify Admin");
+}
 
 type ReportUploadFormProps = {
   partners: LinkedPartner[];
@@ -102,6 +126,16 @@ export function ReportUploadForm({
   );
   const [isNotifyingAdmin, setIsNotifyingAdmin] = useState(false);
   const [linkRequestError, setLinkRequestError] = useState<string | null>(null);
+  const [periodSubmission, setPeriodSubmission] =
+    useState<OpcoSubmissionListItem | null>(null);
+  const [periodStatusLoading, setPeriodStatusLoading] = useState(true);
+  const [periodStatusError, setPeriodStatusError] = useState<string | null>(
+    null,
+  );
+  const [changeRequestSubmission, setChangeRequestSubmission] =
+    useState<OpcoSubmissionListItem | null>(null);
+  const [reuploadSubmission, setReuploadSubmission] =
+    useState<OpcoSubmissionListItem | null>(null);
   const toast = useToast();
 
   const selectedPartnerName = partnerFromServiceMap
@@ -112,6 +146,50 @@ export function ReportUploadForm({
   const maxMonth = getMaxUploadMonthForYear(year);
   const monthOptions = MONTHS.slice(0, maxMonth);
 
+  const periodBlocked =
+    periodStatusLoading ||
+    (periodSubmission != null && !periodSubmission.canReupload);
+  /** Initial dropzone is only for first upload; corrected files use reupload dialog. */
+  const dropzoneDisabled =
+    periodStatusLoading ||
+    periodSubmission != null ||
+    isLoadingPreview ||
+    isConfirming;
+
+  const historyHref = `/opco/reports?year=${year}&month=${month}`;
+
+  const loadPeriodStatus = useCallback(async (nextYear: number, nextMonth: number) => {
+    setPeriodStatusLoading(true);
+    setPeriodStatusError(null);
+    try {
+      const response = await fetch(
+        `/api/opco/submissions/period?year=${nextYear}&month=${nextMonth}`,
+      );
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(
+          formatAppError(payload, "Failed to check period submission"),
+        );
+      }
+      setPeriodSubmission(
+        (payload.data as OpcoSubmissionListItem | null) ?? null,
+      );
+    } catch (loadError) {
+      setPeriodSubmission(null);
+      setPeriodStatusError(
+        loadError instanceof Error
+          ? loadError.message
+          : "Failed to check period submission",
+      );
+    } finally {
+      setPeriodStatusLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadPeriodStatus(year, month);
+  }, [year, month, loadPeriodStatus]);
+
   function handleYearChange(nextYear: number) {
     setYear(nextYear);
     const capped = getMaxUploadMonthForYear(nextYear);
@@ -121,6 +199,10 @@ export function ReportUploadForm({
   }
 
   async function openRawPreview(selectedFile: File) {
+    if (periodSubmission != null) {
+      return;
+    }
+
     setError(null);
     setConfirmError(null);
     setSuccess(null);
@@ -175,6 +257,9 @@ export function ReportUploadForm({
   }
 
   function handleChooseFile() {
+    if (dropzoneDisabled) {
+      return;
+    }
     fileInputRef.current?.click();
   }
 
@@ -191,7 +276,7 @@ export function ReportUploadForm({
   function handleDrop(event: React.DragEvent<HTMLDivElement>) {
     event.preventDefault();
     setIsDragging(false);
-    if (isLoadingPreview || isConfirming) {
+    if (dropzoneDisabled) {
       return;
     }
     const selectedFile = event.dataTransfer.files?.[0] ?? null;
@@ -201,7 +286,7 @@ export function ReportUploadForm({
   }
 
   async function handleConfirmUpload() {
-    if (!file) {
+    if (!file || periodSubmission != null) {
       return;
     }
 
@@ -263,6 +348,7 @@ export function ReportUploadForm({
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
+      void loadPeriodStatus(year, month);
     } catch {
       setConfirmError("Failed to upload report");
     } finally {
@@ -307,9 +393,7 @@ export function ReportUploadForm({
       });
       const payload = await response.json();
       if (!response.ok) {
-        setLinkRequestError(
-          formatAppError(payload, "Failed to notify Admin"),
-        );
+        setLinkRequestError(formatNotifyAdminError(payload));
         return;
       }
       toast.success(
@@ -421,11 +505,75 @@ export function ReportUploadForm({
               Merchant / Vendor column (or Service–Partner maps for Iraq/Sudan).
             </p>
           ) : null}
+
+          {periodStatusError ? (
+            <p className={`mt-4 ${ui.alertError}`}>{periodStatusError}</p>
+          ) : null}
+
+          {periodStatusLoading ? (
+            <p className="mt-4 text-sm text-foreground-muted">
+              Checking whether a monthly report already exists for this
+              period…
+            </p>
+          ) : null}
+
+          {periodSubmission ? (
+            <div className={`mt-4 ${ui.alertWarning}`}>
+              <p className="font-medium text-foreground">
+                A monthly report already exists for{" "}
+                {periodSubmission.periodLabel}.
+              </p>
+              <p className="mt-1 text-sm text-foreground-muted">
+                {periodSubmission.filename
+                  ? `Current file: ${periodSubmission.filename}. `
+                  : null}
+                Replace it only after Dizlee approves a reupload request — not
+                via a new first-time upload.
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {periodSubmission.canRequestReupload ? (
+                  <IconButton
+                    label="Request reupload"
+                    onClick={() =>
+                      setChangeRequestSubmission(periodSubmission)
+                    }
+                  >
+                    <IconRefresh />
+                  </IconButton>
+                ) : null}
+                {periodSubmission.hasPendingChangeRequest ? (
+                  <span className="text-sm text-foreground-muted">
+                    Request submitted — awaiting Dizlee approval.
+                  </span>
+                ) : null}
+                {periodSubmission.canReupload ? (
+                  <Button
+                    type="button"
+                    onClick={() => setReuploadSubmission(periodSubmission)}
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <IconUpload className="h-4 w-4" />
+                      Upload corrected file
+                    </span>
+                  </Button>
+                ) : null}
+                <Link href={historyHref} className={ui.btnSecondary}>
+                  Open report history
+                </Link>
+              </div>
+            </div>
+          ) : null}
         </PageSection>
 
         <PageSection
           title="Excel file"
-          description="Drop your monthly .xlsx workbook. You will preview the sheet before confirming."
+          description={
+            periodSubmission && !periodSubmission.canReupload
+              ? "File upload is disabled for this period until Dizlee approves a reupload request."
+              : periodSubmission?.canReupload
+                ? "Use Upload corrected file above to replace the monthly Excel after approval."
+                : "Drop your monthly .xlsx workbook. You will preview the sheet before confirming."
+          }
         >
           <input
             ref={fileInputRef}
@@ -434,12 +582,13 @@ export function ReportUploadForm({
             type="file"
             accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             onChange={handleFileChange}
-            disabled={isLoadingPreview || isConfirming}
+            disabled={dropzoneDisabled}
             className="sr-only"
           />
           <div
             role="button"
-            tabIndex={0}
+            tabIndex={dropzoneDisabled ? -1 : 0}
+            aria-disabled={dropzoneDisabled || undefined}
             onClick={handleChooseFile}
             onKeyDown={(event) => {
               if (event.key === "Enter" || event.key === " ") {
@@ -449,11 +598,11 @@ export function ReportUploadForm({
             }}
             onDragEnter={(event) => {
               event.preventDefault();
-              setIsDragging(true);
+              if (!dropzoneDisabled) setIsDragging(true);
             }}
             onDragOver={(event) => {
               event.preventDefault();
-              setIsDragging(true);
+              if (!dropzoneDisabled) setIsDragging(true);
             }}
             onDragLeave={(event) => {
               event.preventDefault();
@@ -465,8 +614,8 @@ export function ReportUploadForm({
               isDragging
                 ? "border-primary bg-primary-muted/50"
                 : "border-border-strong bg-surface hover:border-primary hover:bg-primary-muted/20",
-              (isLoadingPreview || isConfirming) &&
-                "pointer-events-none opacity-60",
+              dropzoneDisabled &&
+                "pointer-events-none cursor-not-allowed opacity-60",
             )}
           >
             {isLoadingPreview ? (
@@ -479,31 +628,54 @@ export function ReportUploadForm({
                   Reading your Excel workbook
                 </p>
               </>
+            ) : periodBlocked && periodSubmission ? (
+              <>
+                <p className="text-base font-medium text-foreground">
+                  Upload locked for {periodSubmission.periodLabel}
+                </p>
+                <p className="mt-1.5 text-sm text-foreground-subtle">
+                  {periodSubmission.canRequestReupload
+                    ? "Request a reupload above, then wait for Dizlee approval."
+                    : periodSubmission.hasPendingChangeRequest
+                      ? "Your reupload request is awaiting Dizlee approval."
+                      : "Use Upload corrected file above when your request is accepted."}
+                </p>
+              </>
+            ) : periodSubmission?.canReupload ? (
+              <>
+                <p className="text-base font-medium text-foreground">
+                  Corrected file ready to upload
+                </p>
+                <p className="mt-1.5 text-sm text-foreground-subtle">
+                  Use Upload corrected file in the banner above (not this
+                  dropzone).
+                </p>
+              </>
             ) : (
               <>
-            <p className="text-base font-medium text-foreground">
-              {file ? file.name : "Drop .xlsx here or browse"}
-            </p>
-            <p className="mt-1.5 text-sm text-foreground-subtle">
-              {file
-                ? formatFileSizeLabel(file.size)
-                : "Excel workbook only (.xlsx)"}
-            </p>
-            {!file ? (
-              <span className={`mt-5 ${ui.btnSecondary}`}>Choose file</span>
-            ) : (
-              <Button
-                type="button"
-                variant="secondary"
-                className="mt-5"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  handleChooseDifferentFile();
-                }}
-              >
-                Replace file
-              </Button>
-            )}
+                <p className="text-base font-medium text-foreground">
+                  {file ? file.name : "Drop .xlsx here or browse"}
+                </p>
+                <p className="mt-1.5 text-sm text-foreground-subtle">
+                  {file
+                    ? formatFileSizeLabel(file.size)
+                    : "Excel workbook only (.xlsx)"}
+                </p>
+                {!file ? (
+                  <span className={`mt-5 ${ui.btnSecondary}`}>Choose file</span>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="mt-5"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleChooseDifferentFile();
+                    }}
+                  >
+                    Replace file
+                  </Button>
+                )}
               </>
             )}
           </div>
@@ -516,7 +688,7 @@ export function ReportUploadForm({
                 Upload complete
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
-                <Link href="/opco/reports" className={ui.btnSecondary}>
+                <Link href={historyHref} className={ui.btnSecondary}>
                   View reports history
                 </Link>
                 <Button
@@ -543,14 +715,14 @@ export function ReportUploadForm({
                 : `Partner and period: ${selectedPartnerName} — ${MONTHS[month - 1]} ${year}.`}
             </li>
             <li>
-              Re-uploading the same partner and period may create a new version
-              or need approval.
+              If this period already has a monthly file, request a reupload and
+              wait for Dizlee approval before replacing it.
             </li>
           </ul>
           <p className="text-xs text-foreground-subtle">
             Need an older file?{" "}
             <Link
-              href="/opco/reports"
+              href={historyHref}
               className="underline hover:text-foreground"
             >
               Open reports history
@@ -584,6 +756,30 @@ export function ReportUploadForm({
         />
       ) : null}
 
+      {changeRequestSubmission ? (
+        <SubmissionRequestChangeDialog
+          submission={changeRequestSubmission}
+          onClose={() => setChangeRequestSubmission(null)}
+          onSuccess={() => {
+            toast.success("Reupload request submitted.");
+            void loadPeriodStatus(year, month);
+          }}
+        />
+      ) : null}
+
+      {reuploadSubmission ? (
+        <SubmissionReuploadDialog
+          submission={reuploadSubmission}
+          preferredSheetName={preferredSheetName}
+          onClose={() => setReuploadSubmission(null)}
+          onSuccess={() => {
+            toast.success("Corrected monthly report uploaded.");
+            setReuploadSubmission(null);
+            void loadPeriodStatus(year, month);
+          }}
+        />
+      ) : null}
+
       <Modal
         open={Boolean(linkRequest)}
         title="Partners not linked with you"
@@ -594,6 +790,11 @@ export function ReportUploadForm({
         }}
         className="max-w-lg"
       >
+        <LoadingOverlay
+          active={isNotifyingAdmin}
+          label="Notifying Admin…"
+          className="min-h-[8rem]"
+        >
         <p className="text-sm text-foreground-muted">
           These partners are not linked with you. Notify Admin to add the
           OpCo–Partner links, then you can upload this file.
@@ -638,6 +839,7 @@ export function ReportUploadForm({
             {isNotifyingAdmin ? "Notifying…" : "Notify Admin"}
           </Button>
         </div>
+        </LoadingOverlay>
       </Modal>
     </>
   );

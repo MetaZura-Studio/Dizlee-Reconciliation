@@ -125,6 +125,24 @@ export async function listOpcoSubmissionsForReuploadPage(
   };
 }
 
+/** Single monthly submission for OpCo + period, or null if none. */
+export async function getOpcoSubmissionForPeriod(
+  opcoId: bigint,
+  year: number,
+  month: number,
+): Promise<OpcoSubmissionListItem | null> {
+  const row = await prisma.opcoReportSubmission.findFirst({
+    where: {
+      opcoId,
+      year,
+      month,
+      isDeleted: false,
+    },
+    include: submissionInclude,
+  });
+  return row ? mapSubmissionRow(row) : null;
+}
+
 /** @deprecated Prefer {@link listOpcoSubmissionsForReuploadPage}. */
 export async function listRequestableSubmissionsForOpco(
   opcoId: bigint,

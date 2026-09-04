@@ -5,6 +5,7 @@ import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FieldLabel } from "@/components/ui/field";
 import { IconUpload } from "@/components/ui/icons";
+import { LoadingOverlay } from "@/components/ui/loading";
 import { formatAppError } from "@/lib/errors/format";
 import {
   MAX_NOTIFICATION_ATTACHMENTS,
@@ -100,6 +101,7 @@ export function NotificationAttachmentPicker({
   }
 
   return (
+    <LoadingOverlay active={uploading} label="Uploading attachments…">
     <div className="space-y-2">
       <div>
         <FieldLabel htmlFor="notification-attachments">Attachments</FieldLabel>
@@ -196,6 +198,7 @@ export function NotificationAttachmentPicker({
         </ul>
       ) : null}
     </div>
+    </LoadingOverlay>
   );
 }
 

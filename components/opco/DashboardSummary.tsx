@@ -7,7 +7,7 @@ import { DashboardRecentUploads } from "@/components/opco/dashboard-recent-uploa
 import { PartnerSubmissionsTable } from "@/components/opco/PartnerSubmissionsTable";
 import { PeriodSelector } from "@/components/opco/PeriodSelector";
 import { EmptyState } from "@/components/ui/empty-state";
-import { PageCard, PageHeader } from "@/components/ui/page";
+import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
 import { StatCard } from "@/components/ui/stat-card";
 import type { OpcoDashboardData } from "@/lib/opco/queries/dashboard";
 import { formatPeriodLabel } from "@/lib/opco/period";
@@ -39,8 +39,11 @@ export function DashboardSummary({ data }: DashboardSummaryProps) {
       <PageHeader
         title="Dashboard"
         description={`${data.opcoName} — partner submission summary for ${formatPeriodLabel(data.year, data.month)}`}
-        actions={<PeriodSelector year={data.year} month={data.month} />}
       />
+
+      <FilterToolbar className="mt-4">
+        <PeriodSelector year={data.year} month={data.month} />
+      </FilterToolbar>
 
       <div className="mt-6 grid items-stretch gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard

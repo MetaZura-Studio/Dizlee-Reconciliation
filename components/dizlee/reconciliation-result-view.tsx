@@ -196,6 +196,8 @@ export function ReconciliationResultView({
         status: "COMPLETED",
         statusCode: "COMPLETED",
         canConfirm: false,
+        canAlert: false,
+        canRerun: false,
       }));
       setConfirmSuccessMessage(
         (payload.data?.message as string | undefined) ??
@@ -264,50 +266,45 @@ export function ReconciliationResultView({
     setAlertOpen(true);
   }
 
-  async function postAlert(
-    audience: "opco" | "partner",
-    subject: string,
-    body: string,
-  ) {
-    const response = await fetch("/api/dizlee/notifications/intimations", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        audience,
-        messageSource: "custom",
-        deliveryChannel,
-        opcoIds: audience === "opco" ? [detail.opcoId] : [],
-        partnerIds: audience === "partner" ? [detail.partnerId] : [],
-        month: detail.period.month,
-        year: detail.period.year,
-        subject,
-        body,
-        priority: detail.unmatchedCount > 0 ? "HIGH" : "NORMAL",
-        attachmentFileIds: attachmentFileIds(alertAttachments),
-      }),
-    });
-    const payload = await response.json();
-    if (!response.ok) {
-      throw new Error(formatAppError(payload, "Failed to send alert"));
-    }
-    return payload.data?.message as string | undefined;
-  }
-
   async function sendAlert(audience: "opco" | "partner" | "both") {
     setAlerting(true);
     setError(null);
     try {
-      if (audience === "opco") {
-        const message = await postAlert("opco", opcoSubject, opcoBody);
-        toast.success(message ?? "Alert sent to OpCo.");
-      } else if (audience === "partner") {
-        const message = await postAlert("partner", partnerSubject, partnerBody);
-        toast.success(message ?? "Alert sent to Partner.");
-      } else {
-        await postAlert("opco", opcoSubject, opcoBody);
-        await postAlert("partner", partnerSubject, partnerBody);
-        toast.success("Alerts sent to OpCo and Partner.");
+      const response = await fetch(
+        `/api/dizlee/reconciliation/${detail.id}/alert`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            audience,
+            opcoSubject,
+            opcoBody,
+            partnerSubject,
+            partnerBody,
+            deliveryChannel,
+            attachmentFileIds: attachmentFileIds(alertAttachments),
+          }),
+        },
+      );
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(formatAppError(payload, "Failed to send alert"));
       }
+      if (payload.data?.detail) {
+        setDetail(payload.data.detail as ReconciliationDetail);
+      } else {
+        // Fallback if detail missing: at least clear alert gate after success.
+        setDetail((current) => ({
+          ...current,
+          alertedAt: current.alertedAt ?? new Date().toISOString(),
+          canAlert: current.unmatchedCount > 0,
+          canRerun: false,
+        }));
+      }
+      toast.success(
+        (payload.data?.message as string | undefined) ??
+          "Alert sent successfully.",
+      );
       setAlertOpen(false);
       setAlertAttachments([]);
     } catch (alertError) {
@@ -351,13 +348,6 @@ export function ReconciliationResultView({
             />
           </p>
         </div>
-        <Button
-          variant="dangerSolid"
-          disabled={!detail.canConfirm}
-          onClick={openAlertModal}
-        >
-          Alert OpCo / Partner
-        </Button>
       </div>
 
       {error ? (
@@ -387,22 +377,45 @@ export function ReconciliationResultView({
         </div>
       </div>
 
-      {detail.canConfirm ? (
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            disabled={confirming || rerunning}
+      {detail.statusCode === "IN_PROGRESS" ? (
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <Button
+            variant="primary"
+            disabled={!detail.canConfirm || confirming || rerunning || alerting}
+            title={
+              detail.canConfirm
+                ? undefined
+                : "Resolve all mismatches before confirming"
+            }
             onClick={() => void confirmReconciliation()}
-            className="rounded-md bg-success px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-success/90 disabled:opacity-40"
           >
             {confirming ? "Confirming…" : "Confirm reconciliation"}
-          </button>
+          </Button>
           <Button
             variant="secondary"
-            disabled={confirming || rerunning}
+            disabled={!detail.canRerun || confirming || rerunning || alerting}
+            title={
+              detail.canRerun
+                ? undefined
+                : detail.alertedAt
+                  ? "Wait for OpCo or Partner to resubmit a newer report"
+                  : "Alert first, then wait for OpCo or Partner to resubmit"
+            }
             onClick={() => void rerunReconciliation()}
           >
             {rerunning ? "Re-running…" : "Re-run"}
+          </Button>
+          <Button
+            variant="danger"
+            disabled={!detail.canAlert || confirming || rerunning || alerting}
+            title={
+              detail.canAlert
+                ? undefined
+                : "Only available when there are mismatches"
+            }
+            onClick={openAlertModal}
+          >
+            Alert OpCo / Partner
           </Button>
         </div>
       ) : null}

@@ -1,7 +1,11 @@
 /**
  * Admin Service–Partner map CRUD and Excel upsert import.
  */
-import { writeServicePartnerMapAuditLog } from "@/lib/admin/audit";
+import {
+  writePartnerAuditLog,
+  writeServicePartnerMapAuditLog,
+} from "@/lib/admin/audit";
+import { getLookupId } from "@/lib/admin/lookups";
 import {
   parseServicePartnerMapsExcel,
   type ParsedServicePartnerMapRow,
@@ -286,15 +290,108 @@ export async function deleteServicePartnerMap(
 export type ImportServicePartnerMapsResult = {
   created: number;
   updated: number;
+  partnersCreated: number;
+  partnersRestored: number;
   issues: ServicePartnerMapImportIssue[];
 };
+
+export type ImportPartnerRef = {
+  id: bigint;
+  name: string;
+  isDeleted: boolean;
+};
+
+/**
+ * Resolve a Partner for map import: reuse active, restore soft-deleted, or create ACTIVE.
+ * Mutates `partners` when creating so later rows reuse the same org.
+ */
+export async function ensurePartnerForMapImport(
+  partnerName: string,
+  partners: ImportPartnerRef[],
+  actorUserId: bigint,
+): Promise<{
+  partner: ImportPartnerRef;
+  created: boolean;
+  restored: boolean;
+}> {
+  const trimmed = partnerName.trim();
+  const activePartners = partners.filter((partner) => !partner.isDeleted);
+  const matchedActive = matchLinkedPartner(trimmed, activePartners);
+  if (matchedActive) {
+    return { partner: matchedActive, created: false, restored: false };
+  }
+
+  const deletedPartners = partners.filter((partner) => partner.isDeleted);
+  const matchedDeleted = matchLinkedPartner(trimmed, deletedPartners);
+  if (matchedDeleted) {
+    const activeStatusId = await getLookupId("USER_STATUS", "ACTIVE");
+    await prisma.partner.update({
+      where: { id: matchedDeleted.id },
+      data: {
+        name: trimmed,
+        statusId: activeStatusId,
+        isDeleted: false,
+        deletedAt: null,
+        deletedByUserId: null,
+        updatedByUserId: actorUserId,
+      },
+    });
+    matchedDeleted.isDeleted = false;
+    matchedDeleted.name = trimmed;
+    await writePartnerAuditLog({
+      actorUserId,
+      action: "PARTNER_UPDATED",
+      partnerId: matchedDeleted.id,
+      message: `Partner restored via Service–Partner map import: ${trimmed}`,
+      metadata: {
+        name: trimmed,
+        status: "ACTIVE",
+        source: "service_partner_map_import",
+      },
+    });
+    return { partner: matchedDeleted, created: false, restored: true };
+  }
+
+  const activeStatusId = await getLookupId("USER_STATUS", "ACTIVE");
+  const createdRow = await prisma.partner.create({
+    data: {
+      name: trimmed,
+      statusId: activeStatusId,
+      createdByUserId: actorUserId,
+      updatedByUserId: actorUserId,
+    },
+    select: { id: true, name: true },
+  });
+  const ref: ImportPartnerRef = {
+    id: createdRow.id,
+    name: createdRow.name,
+    isDeleted: false,
+  };
+  partners.push(ref);
+  await writePartnerAuditLog({
+    actorUserId,
+    action: "PARTNER_CREATED",
+    partnerId: createdRow.id,
+    message: `Partner created via Service–Partner map import: ${createdRow.name}`,
+    metadata: {
+      name: createdRow.name,
+      status: "ACTIVE",
+      source: "service_partner_map_import",
+    },
+  });
+  return { partner: ref, created: true, restored: false };
+}
 
 async function upsertParsedRow(
   row: ParsedServicePartnerMapRow,
   actorUserId: bigint,
   opcos: { id: bigint; name: string }[],
-  partners: { id: bigint; name: string }[],
-): Promise<"created" | "updated" | ServicePartnerMapImportIssue> {
+  partners: ImportPartnerRef[],
+): Promise<
+  | { kind: "created"; partnersCreated: number; partnersRestored: number }
+  | { kind: "updated"; partnersCreated: number; partnersRestored: number }
+  | ServicePartnerMapImportIssue
+> {
   const opco = matchLinkedPartner(row.opcoName, opcos);
   if (!opco) {
     return {
@@ -303,13 +400,14 @@ async function upsertParsedRow(
     };
   }
 
-  const partner = matchLinkedPartner(row.partnerName, partners);
-  if (!partner) {
-    return {
-      rowNumber: row.rowNumber,
-      message: `Unknown Partner "${row.partnerName}"`,
-    };
-  }
+  const ensured = await ensurePartnerForMapImport(
+    row.partnerName,
+    partners,
+    actorUserId,
+  );
+  const partnersCreated = ensured.created ? 1 : 0;
+  const partnersRestored = ensured.restored ? 1 : 0;
+  const partner = ensured.partner;
 
   const serviceName = row.serviceName.trim();
   const serviceKey = normalizeServiceKey(serviceName);
@@ -328,7 +426,7 @@ async function upsertParsedRow(
         updatedByUserId: actorUserId,
       },
     });
-    return "updated";
+    return { kind: "updated", partnersCreated, partnersRestored };
   }
 
   await prisma.servicePartnerMap.create({
@@ -341,7 +439,7 @@ async function upsertParsedRow(
       updatedByUserId: actorUserId,
     },
   });
-  return "created";
+  return { kind: "created", partnersCreated, partnersRestored };
 }
 
 export async function importServicePartnerMapsFromExcel(
@@ -350,31 +448,49 @@ export async function importServicePartnerMapsFromExcel(
 ): Promise<ImportServicePartnerMapsResult> {
   const parsed = await parseServicePartnerMapsExcel(buffer);
   const issues: ServicePartnerMapImportIssue[] = [...parsed.issues];
+  const emptyResult: ImportServicePartnerMapsResult = {
+    created: 0,
+    updated: 0,
+    partnersCreated: 0,
+    partnersRestored: 0,
+    issues,
+  };
 
-  if (parsed.rows.length === 0 && issues.length > 0) {
-    return { created: 0, updated: 0, issues };
+  if (parsed.rows.length === 0) {
+    return emptyResult;
   }
 
-  const [opcos, partners] = await Promise.all([
+  const [opcos, partnerRows] = await Promise.all([
     prisma.opco.findMany({
       where: { isDeleted: false, status: { code: "ACTIVE" } },
       select: { id: true, name: true },
     }),
     prisma.partner.findMany({
-      where: { isDeleted: false, status: { code: "ACTIVE" } },
-      select: { id: true, name: true },
+      select: { id: true, name: true, isDeleted: true },
     }),
   ]);
 
+  const partners: ImportPartnerRef[] = partnerRows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    isDeleted: row.isDeleted,
+  }));
+
   let created = 0;
   let updated = 0;
+  let partnersCreated = 0;
+  let partnersRestored = 0;
 
   for (const row of parsed.rows) {
     const result = await upsertParsedRow(row, actorUserId, opcos, partners);
-    if (result === "created") {
-      created += 1;
-    } else if (result === "updated") {
-      updated += 1;
+    if ("kind" in result) {
+      if (result.kind === "created") {
+        created += 1;
+      } else {
+        updated += 1;
+      }
+      partnersCreated += result.partnersCreated;
+      partnersRestored += result.partnersRestored;
     } else {
       issues.push(result);
     }
@@ -384,9 +500,15 @@ export async function importServicePartnerMapsFromExcel(
     actorUserId,
     action: "SERVICE_PARTNER_MAP_IMPORTED",
     mapId: BigInt(1),
-    message: `Service–Partner maps imported (created ${created}, updated ${updated}, issues ${issues.length})`,
-    metadata: { created, updated, issueCount: issues.length },
+    message: `Service–Partner maps imported (created ${created}, updated ${updated}, partnersCreated ${partnersCreated}, partnersRestored ${partnersRestored}, issues ${issues.length})`,
+    metadata: {
+      created,
+      updated,
+      partnersCreated,
+      partnersRestored,
+      issueCount: issues.length,
+    },
   });
 
-  return { created, updated, issues };
+  return { created, updated, partnersCreated, partnersRestored, issues };
 }
