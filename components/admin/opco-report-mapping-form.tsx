@@ -5,6 +5,7 @@ import { useCallback, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { FieldLegend } from "@/components/ui/field";
+import { LoadingOverlay } from "@/components/ui/loading";
 import { PageCard, PageHeader } from "@/components/ui/page";
 import { useToast } from "@/components/ui/toast";
 import type {
@@ -252,6 +253,11 @@ export function OpcoReportMappingForm({
   const busy = uploading || saving || selectingSheet;
 
   return (
+    <LoadingOverlay
+      active={uploading || selectingSheet}
+      label={uploading ? "Uploading sample…" : "Loading sheet…"}
+      className="min-h-[12rem]"
+    >
     <PageCard>
       <PageHeader
         title={`Report mapping — ${mapping.opcoName}`}
@@ -569,5 +575,6 @@ export function OpcoReportMappingForm({
         </form>
       </div>
     </PageCard>
+    </LoadingOverlay>
   );
 }

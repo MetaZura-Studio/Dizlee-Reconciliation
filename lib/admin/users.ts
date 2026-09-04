@@ -236,6 +236,7 @@ export async function listUsers(filters: UserListFilters): Promise<UserListResul
 export type CreateUserResult = UserListItem & {
   inviteEmail: {
     sent: boolean;
+    reason?: "email_disabled" | "smtp_not_configured" | "smtp_send_failed";
     devPreviewUrl?: string;
   };
 };
@@ -280,7 +281,27 @@ export async function createUser(
     },
   });
 
-  const { emailResult } = await issuePasswordResetForUser(user.id, "invite");
+  let inviteEmail: CreateUserResult["inviteEmail"] = {
+    sent: false,
+    reason: undefined,
+    devPreviewUrl: undefined,
+  };
+
+  try {
+    const { emailResult } = await issuePasswordResetForUser(user.id, "invite");
+    inviteEmail = {
+      sent: emailResult.sent,
+      reason: emailResult.reason,
+      devPreviewUrl: emailResult.devPreviewUrl,
+    };
+  } catch (inviteError) {
+    console.error("[admin] User created but invite email failed:", inviteError);
+    inviteEmail = {
+      sent: false,
+      reason: "smtp_send_failed",
+      devPreviewUrl: undefined,
+    };
+  }
 
   await writeUserAuditLog({
     actorUserId: actorId,
@@ -294,15 +315,13 @@ export async function createUser(
       status: input.status,
       opcoId: user.opcoId?.toString() ?? null,
       partnerId: user.partnerId?.toString() ?? null,
+      inviteEmailSent: inviteEmail.sent,
     },
   });
 
   return {
     ...mapUserRow(user),
-    inviteEmail: {
-      sent: emailResult.sent,
-      devPreviewUrl: emailResult.devPreviewUrl,
-    },
+    inviteEmail,
   };
 }
 

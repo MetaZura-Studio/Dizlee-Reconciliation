@@ -31,7 +31,8 @@ type OpcoAuditAction = "OPCO_CREATED" | "OPCO_UPDATED" | "OPCO_DELETED";
 type PartnerAuditAction =
   | "PARTNER_CREATED"
   | "PARTNER_UPDATED"
-  | "PARTNER_DELETED";
+  | "PARTNER_DELETED"
+  | "PARTNER_IMPORTED";
 
 type ServicePartnerMapAuditAction =
   | "SERVICE_PARTNER_MAP_CREATED"

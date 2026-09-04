@@ -76,6 +76,11 @@ When the user later asks to update the ERD / [`04_DATABASE_SCHEMA_FOR_CURSOR.md`
 - Table `reports`: add nullable `submission_id` → `opco_report_submissions.id`
 - Backfill: one submission per existing OpCo-lane (version=1) period group
 
+### Applied migration — reconciliation alerted_at
+- Migration: `prisma/migrations/20260904130000_reconciliation_alerted_at`
+- Table `reconciliations`: add `alerted_at` DATETIME(3) NULL, `alerted_by_user_id` BIGINT NULL → `users.id`
+- Set when Dizlee alerts OpCo/Partner about mismatches; gates Re-run until a newer report exists
+
 ## Source of truth until ERD is refreshed
 1. [`prisma/schema.prisma`](prisma/schema.prisma)
 2. Files under [`prisma/migrations/`](prisma/migrations/)

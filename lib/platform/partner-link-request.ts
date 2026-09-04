@@ -34,7 +34,15 @@ export function stripPartnerLinkRequestMachinePrefix(body: string): string {
 }
 
 function joinNames(names: string[]): string {
-  return names.length > 0 ? names.join(", ") : "—";
+  if (names.length === 0) {
+    return "—";
+  }
+  const previewLimit = 40;
+  if (names.length <= previewLimit) {
+    return names.join(", ");
+  }
+  const rest = names.length - previewLimit;
+  return `${names.slice(0, previewLimit).join(", ")} … and ${rest} more`;
 }
 
 export function formatPartnerLinkRequestBody(

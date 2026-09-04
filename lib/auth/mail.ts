@@ -19,7 +19,7 @@ export type SendPasswordEmailInput = {
 export type SendMailResult = {
   sent: boolean;
   devPreviewUrl?: string;
-  reason?: "email_disabled" | "smtp_not_configured";
+  reason?: "email_disabled" | "smtp_not_configured" | "smtp_send_failed";
 };
 
 export type SendPlatformEmailInput = {
@@ -151,6 +151,21 @@ export async function sendPasswordEmail(
     html: content.html,
   });
 
-  await deliverEmail(smtpResult.config, routed);
-  return { sent: true };
+  try {
+    await deliverEmail(smtpResult.config, routed);
+    return { sent: true };
+  } catch (error) {
+    console.error("[mail] Password email send failed:", formatSmtpSendError(error));
+    if (process.env.NODE_ENV === "development") {
+      console.info(
+        `[dev] Password email for ${input.to} (${input.purpose}): ${content.link}`,
+      );
+      return {
+        sent: false,
+        devPreviewUrl: content.link,
+        reason: "smtp_send_failed",
+      };
+    }
+    return { sent: false, reason: "smtp_send_failed" };
+  }
 }

@@ -196,13 +196,21 @@ function UserFormModalContent({
 
       if (mode === "create") {
         const inviteEmail = body.data?.inviteEmail as
-          | { sent?: boolean; devPreviewUrl?: string }
+          | {
+              sent?: boolean;
+              reason?: string;
+              devPreviewUrl?: string;
+            }
           | undefined;
         if (inviteEmail?.sent) {
           onSaved("User created. Set-password email sent.");
         } else if (inviteEmail?.devPreviewUrl) {
           onSaved(
             `User created. Dev set-password link: ${inviteEmail.devPreviewUrl}`,
+          );
+        } else if (inviteEmail?.reason === "smtp_send_failed") {
+          onSaved(
+            "User created, but the invite email failed to send. Check SMTP connectivity and try again later.",
           );
         } else {
           onSaved("User created. Configure SMTP to email the set-password link.");

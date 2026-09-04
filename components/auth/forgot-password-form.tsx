@@ -58,11 +58,6 @@ export function ForgotPasswordForm() {
         <div className="rounded-md border border-border bg-surface-muted/50 px-4 py-4">
           <p className="text-sm font-medium">Check your email</p>
           <p className="mt-2 text-sm">{message}</p>
-          <p className="mt-3 text-sm">
-            We sent a reset link to{" "}
-            <span className="font-medium">{email}</span>. The link expires in 24
-            hours and can only be used once.
-          </p>
         </div>
 
         <p className="text-center text-sm text-foreground-muted">
