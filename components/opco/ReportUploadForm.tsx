@@ -186,21 +186,60 @@ export function ReportUploadForm({
     }
   }, []);
 
+  // Fetch in promise callbacks only — no synchronous setState in the effect body
+  // (react-hooks/set-state-in-effect). Period change handlers flip loading=true.
   useEffect(() => {
-    // Defer so setState inside loadPeriodStatus is not synchronous in the effect body
-    // (react-hooks/set-state-in-effect).
-    const timer = window.setTimeout(() => {
-      void loadPeriodStatus(year, month);
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [year, month, loadPeriodStatus]);
+    const controller = new AbortController();
+
+    void fetch(
+      `/api/opco/submissions/period?year=${year}&month=${month}`,
+      { signal: controller.signal },
+    )
+      .then(async (response) => {
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(
+            formatAppError(payload, "Failed to check period submission"),
+          );
+        }
+        return (payload.data as OpcoSubmissionListItem | null) ?? null;
+      })
+      .then((submission) => {
+        setPeriodSubmission(submission);
+        setPeriodStatusError(null);
+        setPeriodStatusLoading(false);
+      })
+      .catch((loadError: unknown) => {
+        if (controller.signal.aborted) return;
+        setPeriodSubmission(null);
+        setPeriodStatusError(
+          loadError instanceof Error
+            ? loadError.message
+            : "Failed to check period submission",
+        );
+        setPeriodStatusLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [year, month]);
+
+  function beginPeriodChange() {
+    setPeriodStatusLoading(true);
+    setPeriodStatusError(null);
+  }
 
   function handleYearChange(nextYear: number) {
-    setYear(nextYear);
     const capped = getMaxUploadMonthForYear(nextYear);
+    beginPeriodChange();
+    setYear(nextYear);
     if (month > capped) {
       setMonth(capped);
     }
+  }
+
+  function handleMonthChange(nextMonth: number) {
+    beginPeriodChange();
+    setMonth(nextMonth);
   }
 
   async function openRawPreview(selectedFile: File) {
@@ -473,7 +512,9 @@ export function ReportUploadForm({
                 id="month"
                 name="month"
                 value={month}
-                onChange={(event) => setMonth(Number(event.target.value))}
+                onChange={(event) =>
+                  handleMonthChange(Number(event.target.value))
+                }
                 required
               >
                 {monthOptions.map((label, index) => (
