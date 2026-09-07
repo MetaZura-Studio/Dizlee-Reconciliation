@@ -82,6 +82,8 @@ export type OpcoInvoiceDetail = {
   preparedBy: string | null;
   approvedBy: string | null;
   lineItems: OpcoInvoiceLineItem[];
+  includeUsdCopy: boolean;
+  usdFxRate: number | null;
 };
 
 export type OpcoInvoiceFilterOptions = {
@@ -191,6 +193,11 @@ function mapInvoiceDetail(
       unitPrice: toNumber(item.unitPrice),
       lineTotal: toNumber(item.lineTotal),
     })),
+    includeUsdCopy: Boolean(invoice.includeUsdCopy),
+    usdFxRate:
+      invoice.usdFxRate === null || invoice.usdFxRate === undefined
+        ? null
+        : toNumber(invoice.usdFxRate),
   };
 }
 

@@ -9,8 +9,11 @@ import type { Prisma } from "@prisma/client";
 
 import { formatPeriodLabel } from "@/lib/partner/period";
 import { getLinkedOpcosForPartner } from "@/lib/partner/queries/opcos";
-import { mapReuploadEligibility } from "@/lib/partner/reupload/eligibility";
-import { PARTNER_REPORT_VERSION } from "@/lib/platform/reports/sides";
+import { mapPartnerReportReuploadFlags } from "@/lib/partner/reupload/eligibility";
+import {
+  laneReportWhere,
+  PARTNER_REPORT_VERSION,
+} from "@/lib/platform/reports/sides";
 import prisma from "@/lib/prisma";
 
 export type PartnerReportSortField = "uploaded" | "period" | "opco";
@@ -39,7 +42,27 @@ export type PartnerReportListItem = {
   lineItemCount: number;
   uploadedAt: string;
   hasPendingChangeRequest: boolean;
+  canRequestReupload: boolean;
   canReupload: boolean;
+};
+
+/** Upload period gate — existing Partner lane report for OpCo + month/year. */
+export type PartnerPeriodReport = {
+  id: string;
+  opcoId: string;
+  opcoName: string;
+  year: number;
+  month: number;
+  periodLabel: string;
+  statusLabel: string;
+  statusCode: string;
+  filename: string | null;
+  lineItemCount: number;
+  uploadedAt: string;
+  hasPendingChangeRequest: boolean;
+  canRequestReupload: boolean;
+  canReupload: boolean;
+  reuploadReason: string | null;
 };
 
 export type PartnerReportListResult = {
@@ -78,6 +101,7 @@ export type PartnerReportDetail = {
   currencyCode: string;
   lineItems: PartnerReportLineItem[];
   hasPendingChangeRequest: boolean;
+  canRequestReupload: boolean;
   canReupload: boolean;
 };
 
@@ -249,6 +273,7 @@ export async function searchReportsForPartner(
         changeRequests: {
           select: {
             id: true,
+            reason: true,
             decidedAt: true,
             completedAt: true,
             status: { select: { code: true } },
@@ -262,27 +287,93 @@ export async function searchReportsForPartner(
   const totalPages = Math.max(1, Math.ceil(totalCount / PARTNER_REPORTS_PAGE_SIZE));
 
   return {
-    items: rows.map((report) => ({
-      id: report.id.toString(),
-      opcoId: report.opco.id.toString(),
-      opcoName: report.opco.name,
-      year: report.year,
-      month: report.month,
-      statusLabel: report.status.label,
-      statusCode: report.status.code,
-      filename: report.file?.filename ?? null,
-      lineItemCount: report._count.lineItems,
-      uploadedAt: report.createdAt.toISOString(),
-      hasPendingChangeRequest: report.changeRequests.some(
-        (request) => request.decidedAt === null,
-      ),
-      canReupload: mapReuploadEligibility(report.status.code, report.changeRequests),
-    })),
+    items: rows.map((report) => {
+      const flags = mapPartnerReportReuploadFlags(
+        report.status.code,
+        report.changeRequests,
+      );
+      return {
+        id: report.id.toString(),
+        opcoId: report.opco.id.toString(),
+        opcoName: report.opco.name,
+        year: report.year,
+        month: report.month,
+        statusLabel: report.status.label,
+        statusCode: report.status.code,
+        filename: report.file?.filename ?? null,
+        lineItemCount: report._count.lineItems,
+        uploadedAt: report.createdAt.toISOString(),
+        hasPendingChangeRequest: flags.hasPendingChangeRequest,
+        canRequestReupload: flags.canRequestReupload,
+        canReupload: flags.canReupload,
+      };
+    }),
     page: filters.page,
     pageSize: PARTNER_REPORTS_PAGE_SIZE,
     totalPages,
     totalCount,
     filters,
+  };
+}
+
+/**
+ * Existing Partner report for OpCo + period (Upload early gate).
+ * Returns null when no lane report exists yet.
+ */
+export async function getPartnerReportForPeriod(
+  partnerId: bigint,
+  opcoId: bigint,
+  year: number,
+  month: number,
+): Promise<PartnerPeriodReport | null> {
+  const report = await prisma.report.findFirst({
+    where: laneReportWhere("partner", {
+      opcoId,
+      partnerId,
+      year,
+      month,
+    }),
+    include: {
+      opco: { select: { id: true, name: true } },
+      status: { select: { code: true, label: true } },
+      file: { select: { filename: true } },
+      changeRequests: {
+        select: {
+          reason: true,
+          decidedAt: true,
+          completedAt: true,
+          status: { select: { code: true } },
+        },
+      },
+      _count: { select: { lineItems: true } },
+    },
+  });
+
+  if (!report) {
+    return null;
+  }
+
+  const flags = mapPartnerReportReuploadFlags(
+    report.status.code,
+    report.changeRequests,
+  );
+
+  return {
+    id: report.id.toString(),
+    opcoId: report.opco.id.toString(),
+    opcoName: report.opco.name,
+    year: report.year,
+    month: report.month,
+    periodLabel: formatPeriodLabel(report.year, report.month),
+    statusLabel: report.status.label,
+    statusCode: report.status.code,
+    filename: report.file?.filename ?? null,
+    lineItemCount: report._count.lineItems,
+    uploadedAt: report.createdAt.toISOString(),
+    hasPendingChangeRequest: flags.hasPendingChangeRequest,
+    canRequestReupload: flags.canRequestReupload,
+    canReupload: flags.canReupload,
+    reuploadReason: flags.reuploadReason,
   };
 }
 
@@ -307,6 +398,7 @@ export async function getReportDetailForPartner(
       changeRequests: {
         select: {
           id: true,
+          reason: true,
           decidedAt: true,
           completedAt: true,
           status: { select: { code: true } },
@@ -318,6 +410,11 @@ export async function getReportDetailForPartner(
   if (!report) {
     return null;
   }
+
+  const flags = mapPartnerReportReuploadFlags(
+    report.status.code,
+    report.changeRequests,
+  );
 
   return {
     id: report.id.toString(),
@@ -333,9 +430,8 @@ export async function getReportDetailForPartner(
     lineItemCount: report.lineItems.length,
     currencyCode: "USD",
     lineItems: report.lineItems.map(mapLineItem),
-    hasPendingChangeRequest: report.changeRequests.some(
-      (request) => request.decidedAt === null,
-    ),
-    canReupload: mapReuploadEligibility(report.status.code, report.changeRequests),
+    hasPendingChangeRequest: flags.hasPendingChangeRequest,
+    canRequestReupload: flags.canRequestReupload,
+    canReupload: flags.canReupload,
   };
 }

@@ -1,13 +1,10 @@
 "use client";
 
+import { DizleeOpcoInvoiceCopies } from "@/components/shared/dizlee-opco-invoice-copies";
 import Link from "next/link";
+import type { DizleeOpcoInvoiceCopiesProps } from "@/components/shared/dizlee-opco-invoice-copies";
 
-import {
-  DizleeOpcoInvoiceDocument,
-  type DizleeOpcoInvoiceDocumentProps,
-} from "@/components/shared/dizlee-opco-invoice-document";
-
-type DizleeOpcoInvoicePrintViewProps = DizleeOpcoInvoiceDocumentProps & {
+type DizleeOpcoInvoicePrintViewProps = DizleeOpcoInvoiceCopiesProps & {
   backHref: string;
   backLabel: string;
 };
@@ -38,7 +35,7 @@ export function DizleeOpcoInvoicePrintView({
         </button>
       </div>
 
-      <DizleeOpcoInvoiceDocument {...documentProps} />
+      <DizleeOpcoInvoiceCopies {...documentProps} />
     </div>
   );
 }

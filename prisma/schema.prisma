@@ -835,6 +835,10 @@ model Invoice {
   fileId            BigInt?   @map("file_id")
   currencyId        BigInt    @map("currency_id")
   bankDetailsJson   String?   @map("bank_details_json") @db.Text
+  /** When true, detail/print also shows a USD-equivalent page (CLIENT_TO_OPCO). */
+  includeUsdCopy    Boolean   @default(false) @map("include_usd_copy")
+  /** Local → USD rate snapshotted at create (null when includeUsdCopy is false). */
+  usdFxRate         Decimal?  @map("usd_fx_rate") @db.Decimal(18, 8)
   uploadedByUserId  BigInt?   @map("uploaded_by_user_id")
   invoiceStatusId   Int       @map("invoice_status_id")
   paymentStatusId   Int?      @map("payment_status_id")

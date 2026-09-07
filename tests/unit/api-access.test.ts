@@ -35,6 +35,9 @@ describe("roleMayAccessApiPath", () => {
     expect(roleMayAccessApiPath("client", "/api/dizlee/reports")).toBe(true);
     expect(roleMayAccessApiPath("opco", "/api/opco/reports")).toBe(true);
     expect(roleMayAccessApiPath("partner", "/api/partner/reports")).toBe(true);
+    expect(
+      roleMayAccessApiPath("partner", "/api/partner/reports/period"),
+    ).toBe(true);
   });
 
   it("allows any role to change password", () => {

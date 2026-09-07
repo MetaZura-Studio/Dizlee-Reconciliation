@@ -311,6 +311,11 @@ function CreateOpcoInvoiceModalInner({
         approvedBy: approvedBy.trim(),
         lineItems,
         deliveryChannel,
+        includeUsdCopy: effectiveCopyMode === "local_and_usd",
+        usdFxRate:
+          effectiveCopyMode === "local_and_usd" && rateToUsd !== null
+            ? rateToUsd
+            : undefined,
       };
       const response = await fetch("/api/dizlee/invoices", {
         method: "POST",
@@ -369,17 +374,13 @@ function CreateOpcoInvoiceModalInner({
         <div className="space-y-4">
           <div className="space-y-0">
             <section className="rounded-lg border-2 border-zinc-900 bg-white p-4 sm:p-6 print:rounded-none print:border-0 print:p-0">
-              <div className="mb-4 border-b-2 border-zinc-900 pb-3 print:mb-5">
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                  Invoice 1 of {usdPreviewLines ? 2 : 1}
-                </p>
-                <p className="mt-1 text-base font-semibold text-zinc-900">
-                  Local currency
-                  {selectedCurrency?.isoCode
-                    ? ` (${selectedCurrency.isoCode})`
-                    : ""}
-                </p>
-              </div>
+              {usdPreviewLines ? (
+                <div className="mb-4 border-b-2 border-zinc-900 pb-3 print:mb-5">
+                  <p className="text-base font-semibold text-zinc-900">
+                    Invoice (Local Currency)
+                  </p>
+                </div>
+              ) : null}
               <DizleeOpcoInvoiceDocument
                 invoiceNumber="INV-DRAFT"
                 issuedAt={new Date().toISOString()}
@@ -400,22 +401,15 @@ function CreateOpcoInvoiceModalInner({
                 >
                   <div className="h-px flex-1 bg-zinc-900" />
                   <span className="shrink-0 rounded-full border border-zinc-900 bg-zinc-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-zinc-800">
-                    Next: USD equivalent
+                    Next: Invoice (USD)
                   </span>
                   <div className="h-px flex-1 bg-zinc-900" />
                 </div>
 
                 <section className="rounded-lg border-2 border-zinc-900 bg-white p-4 sm:p-6 print:break-before-page print:rounded-none print:border-0 print:p-0">
                   <div className="mb-4 border-b-2 border-zinc-900 pb-3 print:mb-5">
-                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                      Invoice 2 of 2
-                    </p>
-                    <p className="mt-1 text-base font-semibold text-zinc-900">
-                      USD equivalent
-                    </p>
-                    <p className="mt-1 text-sm text-zinc-600">
-                      Converted from {selectedCurrency?.isoCode ?? "local"} using
-                      rate {rateToUsd} ({MONTHS[month - 1]} {year})
+                    <p className="text-base font-semibold text-zinc-900">
+                      Invoice (USD)
                     </p>
                   </div>
                   <DizleeOpcoInvoiceDocument

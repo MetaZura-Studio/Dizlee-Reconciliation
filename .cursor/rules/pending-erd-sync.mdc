@@ -81,6 +81,11 @@ When the user later asks to update the ERD / [`04_DATABASE_SCHEMA_FOR_CURSOR.md`
 - Table `reconciliations`: add `alerted_at` DATETIME(3) NULL, `alerted_by_user_id` BIGINT NULL → `users.id`
 - Set when Dizlee alerts OpCo/Partner about mismatches; gates Re-run until a newer report exists
 
+### Applied migration — invoice USD copy
+- Migration: `prisma/migrations/20260907120000_invoice_usd_copy`
+- Table `invoices`: add `include_usd_copy` BOOLEAN NOT NULL DEFAULT false, `usd_fx_rate` DECIMAL(18,8) NULL
+- When Dizlee creates OpCo invoice with “Local + USD”, flag + FX rate are stored so OpCo/Dizlee detail & print show both pages
+
 ## Source of truth until ERD is refreshed
 1. [`prisma/schema.prisma`](prisma/schema.prisma)
 2. Files under [`prisma/migrations/`](prisma/migrations/)
