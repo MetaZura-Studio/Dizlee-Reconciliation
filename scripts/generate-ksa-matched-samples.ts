@@ -171,7 +171,7 @@ async function loadPacksFromOpcoReports(params: {
 }
 
 function assertAllMatched(packs: PartnerPack[], rateToUsd: number): void {
-  let lineId = 1n;
+  let lineId = BigInt(1);
   for (const pack of packs) {
     const opcoLines: CompareLineInput[] = pack.lines.map((line, index) => ({
       lineId: lineId++,
@@ -270,7 +270,8 @@ async function main() {
   }
 
   const fx = await getOpcoReportFx({ opcoId: opco.id, month, year });
-  if (fx.rateToUsd == null) {
+  const rateToUsd = fx.rateToUsd;
+  if (rateToUsd == null) {
     throw new Error(
       `No USD rate for Zain KSA ${periodLabel} — set Admin monthly rates.`,
     );
@@ -281,7 +282,7 @@ async function main() {
     month,
     year,
   });
-  assertAllMatched(packs, fx.rateToUsd);
+  assertAllMatched(packs, rateToUsd);
 
   await clearXlsx(OPCO_DIR);
   await clearXlsx(PARTNER_DIR);
@@ -298,7 +299,7 @@ async function main() {
     "## Period",
     `- Upload month/year: **${periodLabel}** (${month}/${year})`,
     `- OpCo currency: **${fx.currencyCode}**`,
-    `- Admin ${fx.currencyCode} → USD rate: **${fx.rateToUsd}**`,
+    `- Admin ${fx.currencyCode} → USD rate: **${rateToUsd}**`,
     "- Partner **Gross amount (LC)** is already USD (same rounding as recon)",
     "",
     "## How to use",
@@ -318,9 +319,9 @@ async function main() {
 
   for (const pack of packs) {
     const filename = `partner-${pack.slug}-zain-ksa-matched-${suffix}.xlsx`;
-    await writePartnerWorkbook(pack, fx.rateToUsd, filename);
+    await writePartnerWorkbook(pack, rateToUsd, filename);
     const totalUsd = pack.lines.reduce(
-      (sum, line) => sum + usdFromSar(line.amountSar, fx.rateToUsd),
+      (sum, line) => sum + usdFromSar(line.amountSar, rateToUsd),
       0,
     );
     const services = pack.lines
