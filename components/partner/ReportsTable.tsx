@@ -53,8 +53,6 @@ import type {
 import { formatAppDate, formatAppMonthYear } from "@/lib/platform/format-datetime";
 import { formatAppError } from "@/lib/errors/format";
 
-const REQUESTABLE_STATUSES = new Set(["SUBMITTED", "APPROVED", "RESUBMITTED"]);
-
 const MONTHS = [
   "January",
   "February",
@@ -69,12 +67,6 @@ const MONTHS = [
   "November",
   "December",
 ];
-
-function canRequestChange(report: PartnerReportListItem): boolean {
-  return (
-    REQUESTABLE_STATUSES.has(report.statusCode) && !report.hasPendingChangeRequest
-  );
-}
 
 function buildReportsQuery(filters: PartnerReportListFilters): string {
   const params = new URLSearchParams({
@@ -482,7 +474,7 @@ export function ReportsTable({
                           >
                             <IconEye />
                           </IconButton>
-                          {canRequestChange(row) ? (
+                          {row.canRequestReupload ? (
                             <IconButton
                               label="Request reupload"
                               onClick={() => setChangeRequestReport(row)}

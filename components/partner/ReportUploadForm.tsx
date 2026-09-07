@@ -1,19 +1,24 @@
 /**
  * Upload and validate a partner report before final submission.
- * Uses parse preview to catch template errors early.
+ * Blocks choose-file when a report already exists for OpCo + period;
+ * reupload uses the approved change-request flow on this page.
  */
 
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
+import { ReportReuploadDialog } from "@/components/partner/ReportReuploadDialog";
+import { RequestChangeDialog } from "@/components/partner/RequestChangeDialog";
 import {
   formatFileSizeLabel,
   ReportUploadReviewModal,
 } from "@/components/shared/report-upload-review-modal";
 import { Button } from "@/components/ui/button";
 import { FieldLabel, Select } from "@/components/ui/field";
+import { IconButton } from "@/components/ui/icon-button";
+import { IconRefresh, IconUpload } from "@/components/ui/icons";
 import {
   FormLayout,
   HelpPanel,
@@ -21,6 +26,10 @@ import {
 } from "@/components/ui/page";
 import { LoadingOverlay, LoadingSpinner } from "@/components/ui/loading";
 import type { LinkedOpco } from "@/lib/partner/queries/opcos";
+import type {
+  PartnerPeriodReport,
+  PartnerReportListItem,
+} from "@/lib/partner/queries/reports";
 import { getDefaultPeriod } from "@/lib/partner/period";
 import { validateReportUploadFile } from "@/lib/partner/validation/report-upload";
 import { readRawExcelSheetPreview } from "@/lib/platform/excel/read-raw-sheet";
@@ -65,6 +74,26 @@ const MONTHS = [
   "December",
 ];
 
+function periodReportToListItem(
+  report: PartnerPeriodReport,
+): PartnerReportListItem {
+  return {
+    id: report.id,
+    opcoId: report.opcoId,
+    opcoName: report.opcoName,
+    year: report.year,
+    month: report.month,
+    statusLabel: report.statusLabel,
+    statusCode: report.statusCode,
+    filename: report.filename,
+    lineItemCount: report.lineItemCount,
+    uploadedAt: report.uploadedAt,
+    hasPendingChangeRequest: report.hasPendingChangeRequest,
+    canRequestReupload: report.canRequestReupload,
+    canReupload: report.canReupload,
+  };
+}
+
 export function ReportUploadForm({ opcos }: ReportUploadFormProps) {
   const defaultPeriod = getDefaultPeriod();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -79,23 +108,150 @@ export function ReportUploadForm({ opcos }: ReportUploadFormProps) {
   const [isConfirming, setIsConfirming] = useState(false);
   const [review, setReview] = useState<ReviewState | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [periodReport, setPeriodReport] = useState<PartnerPeriodReport | null>(
+    null,
+  );
+  const [periodStatusLoading, setPeriodStatusLoading] = useState(true);
+  const [periodStatusError, setPeriodStatusError] = useState<string | null>(
+    null,
+  );
+  const [changeRequestReport, setChangeRequestReport] =
+    useState<PartnerReportListItem | null>(null);
+  const [reuploadReport, setReuploadReport] =
+    useState<PartnerReportListItem | null>(null);
   const toast = useToast();
 
-  const selectedOpcoName = opcos.find((opco) => opco.id === opcoId)?.name ?? "OpCo";
+  const selectedOpcoName =
+    opcos.find((opco) => opco.id === opcoId)?.name ?? "OpCo";
 
   const yearOptions = getUploadYearOptions();
   const maxMonth = getMaxUploadMonthForYear(year);
   const monthOptions = MONTHS.slice(0, maxMonth);
 
+  const periodBlocked =
+    periodStatusLoading || (periodReport != null && !periodReport.canReupload);
+  /** Initial dropzone is only for first upload; corrected files use reupload dialog. */
+  const dropzoneDisabled =
+    periodStatusLoading ||
+    periodReport != null ||
+    isLoadingPreview ||
+    isConfirming;
+
+  const historyHref = `/partner/reports?opcoId=${opcoId}&year=${year}&month=${month}`;
+
+  const loadPeriodStatus = useCallback(
+    async (nextOpcoId: string, nextYear: number, nextMonth: number) => {
+      if (!nextOpcoId) {
+        setPeriodReport(null);
+        setPeriodStatusLoading(false);
+        setPeriodStatusError(null);
+        return;
+      }
+
+      setPeriodStatusLoading(true);
+      setPeriodStatusError(null);
+      try {
+        const response = await fetch(
+          `/api/partner/reports/period?opcoId=${encodeURIComponent(nextOpcoId)}&year=${nextYear}&month=${nextMonth}`,
+        );
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(
+            formatAppError(payload, "Failed to check period report"),
+          );
+        }
+        setPeriodReport((payload.data as PartnerPeriodReport | null) ?? null);
+      } catch (loadError) {
+        setPeriodReport(null);
+        setPeriodStatusError(
+          loadError instanceof Error
+            ? loadError.message
+            : "Failed to check period report",
+        );
+      } finally {
+        setPeriodStatusLoading(false);
+      }
+    },
+    [],
+  );
+
+  // Fetch in promise callbacks only — no synchronous setState in the effect body
+  // (react-hooks/set-state-in-effect). Period change handlers flip loading=true.
+  useEffect(() => {
+    if (!opcoId) {
+      return;
+    }
+
+    const controller = new AbortController();
+
+    void fetch(
+      `/api/partner/reports/period?opcoId=${encodeURIComponent(opcoId)}&year=${year}&month=${month}`,
+      { signal: controller.signal },
+    )
+      .then(async (response) => {
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(
+            formatAppError(payload, "Failed to check period report"),
+          );
+        }
+        return (payload.data as PartnerPeriodReport | null) ?? null;
+      })
+      .then((report) => {
+        setPeriodReport(report);
+        setPeriodStatusError(null);
+        setPeriodStatusLoading(false);
+      })
+      .catch((loadError: unknown) => {
+        if (controller.signal.aborted) return;
+        setPeriodReport(null);
+        setPeriodStatusError(
+          loadError instanceof Error
+            ? loadError.message
+            : "Failed to check period report",
+        );
+        setPeriodStatusLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [opcoId, year, month]);
+
+  function beginPeriodChange() {
+    setPeriodStatusLoading(true);
+    setPeriodStatusError(null);
+    setSuccess(null);
+    setFile(null);
+    setReview(null);
+    setError(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }
+
+  function handleOpcoChange(nextOpcoId: string) {
+    beginPeriodChange();
+    setOpcoId(nextOpcoId);
+  }
+
   function handleYearChange(nextYear: number) {
-    setYear(nextYear);
     const capped = getMaxUploadMonthForYear(nextYear);
+    beginPeriodChange();
+    setYear(nextYear);
     if (month > capped) {
       setMonth(capped);
     }
   }
 
+  function handleMonthChange(nextMonth: number) {
+    beginPeriodChange();
+    setMonth(nextMonth);
+  }
+
   async function openRawPreview(selectedFile: File) {
+    if (periodReport != null) {
+      return;
+    }
+
     setError(null);
     setConfirmError(null);
     setSuccess(null);
@@ -126,7 +282,9 @@ export function ReportUploadForm({ opcos }: ReportUploadFormProps) {
         truncated: preview.truncated,
       });
     } catch {
-      setError("Could not read this Excel file. Please choose a valid .xlsx file.");
+      setError(
+        "Could not read this Excel file. Please choose a valid .xlsx file.",
+      );
       setFile(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
@@ -148,6 +306,9 @@ export function ReportUploadForm({ opcos }: ReportUploadFormProps) {
   }
 
   function handleChooseFile() {
+    if (dropzoneDisabled) {
+      return;
+    }
     fileInputRef.current?.click();
   }
 
@@ -164,7 +325,7 @@ export function ReportUploadForm({ opcos }: ReportUploadFormProps) {
   function handleDrop(event: React.DragEvent<HTMLDivElement>) {
     event.preventDefault();
     setIsDragging(false);
-    if (isLoadingPreview || isConfirming) {
+    if (dropzoneDisabled) {
       return;
     }
     const selectedFile = event.dataTransfer.files?.[0] ?? null;
@@ -174,7 +335,7 @@ export function ReportUploadForm({ opcos }: ReportUploadFormProps) {
   }
 
   async function handleConfirmUpload() {
-    if (!file) {
+    if (!file || periodReport != null) {
       return;
     }
 
@@ -217,6 +378,7 @@ export function ReportUploadForm({ opcos }: ReportUploadFormProps) {
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
+      await loadPeriodStatus(opcoId, year, month);
     } catch {
       setConfirmError("Failed to upload report");
     } finally {
@@ -240,205 +402,302 @@ export function ReportUploadForm({ opcos }: ReportUploadFormProps) {
         label="Opening preview…"
         className="min-h-[12rem]"
       >
-      <FormLayout>
-        <PageSection
-          title="OpCo & period"
-          description="Select the OpCo and billing period for this upload."
-        >
-          <div className="grid max-w-2xl gap-4 sm:grid-cols-3">
-            <div>
-              <FieldLabel htmlFor="opcoId" required>
-                OpCo
-              </FieldLabel>
-              <Select
-                id="opcoId"
-                name="opcoId"
-                value={opcoId}
-                onChange={(event) => setOpcoId(event.target.value)}
-                required
-              >
-                {opcos.map((opco) => (
-                  <option key={opco.id} value={opco.id}>
-                    {opco.name}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            <div>
-              <FieldLabel htmlFor="month" required>
-                Month
-              </FieldLabel>
-              <Select
-                id="month"
-                name="month"
-                value={month}
-                onChange={(event) => setMonth(Number(event.target.value))}
-                required
-              >
-                {monthOptions.map((label, index) => (
-                  <option key={label} value={index + 1}>
-                    {label}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            <div>
-              <FieldLabel htmlFor="year" required>
-                Year
-              </FieldLabel>
-              <Select
-                id="year"
-                name="year"
-                value={year}
-                onChange={(event) =>
-                  handleYearChange(Number(event.target.value))
-                }
-                required
-              >
-                {yearOptions.map((value) => (
-                  <option key={value} value={value}>
-                    {value}
-                  </option>
-                ))}
-              </Select>
-            </div>
-          </div>
-        </PageSection>
-
-        <PageSection
-          title="Excel file"
-          description="Drop your monthly .xlsx workbook. You will preview the sheet before confirming."
-        >
-          <input
-            ref={fileInputRef}
-            id="file"
-            name="file"
-            type="file"
-            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            onChange={handleFileChange}
-            disabled={isLoadingPreview || isConfirming}
-            className="sr-only"
-          />
-          <div
-            role="button"
-            tabIndex={0}
-            onClick={handleChooseFile}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                handleChooseFile();
-              }
-            }}
-            onDragEnter={(event) => {
-              event.preventDefault();
-              setIsDragging(true);
-            }}
-            onDragOver={(event) => {
-              event.preventDefault();
-              setIsDragging(true);
-            }}
-            onDragLeave={(event) => {
-              event.preventDefault();
-              setIsDragging(false);
-            }}
-            onDrop={handleDrop}
-            className={cn(
-              "relative flex min-h-[11rem] cursor-pointer flex-col items-center justify-center rounded-[22px] border border-dashed px-6 py-8 text-center transition-colors sm:min-h-[12.5rem]",
-              isDragging
-                ? "border-primary bg-primary-muted/50"
-                : "border-border-strong bg-surface hover:border-primary hover:bg-primary-muted/20",
-              (isLoadingPreview || isConfirming) &&
-                "pointer-events-none opacity-60",
-            )}
+        <FormLayout>
+          <PageSection
+            title="OpCo & period"
+            description="Select the OpCo and billing period for this upload."
           >
-            {isLoadingPreview ? (
-              <>
-                <LoadingSpinner />
-                <p className="mt-4 text-base font-medium text-foreground">
-                  Opening preview…
-                </p>
-                <p className="mt-1.5 text-sm text-foreground-subtle">
-                  Reading your Excel workbook
-                </p>
-              </>
-            ) : (
-              <>
-            <p className="text-base font-medium text-foreground">
-              {file ? file.name : "Drop .xlsx here or browse"}
-            </p>
-            <p className="mt-1.5 text-sm text-foreground-subtle">
-              {file
-                ? formatFileSizeLabel(file.size)
-                : "Excel workbook only (.xlsx)"}
-            </p>
-            {!file ? (
-              <span className={`mt-5 ${ui.btnSecondary}`}>Choose file</span>
-            ) : (
-              <Button
-                type="button"
-                variant="secondary"
-                className="mt-5"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  handleChooseDifferentFile();
-                }}
-              >
-                Replace file
-              </Button>
-            )}
-              </>
-            )}
-          </div>
-
-          {error ? <p className={`mt-4 ${ui.alertError}`}>{error}</p> : null}
-
-          {success ? (
-            <div className="mt-4 rounded-[18px] border border-border bg-surface p-4">
-              <p className="text-sm font-medium text-foreground">
-                Upload complete
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Link href="/partner/reports" className={ui.btnSecondary}>
-                  View reports history
-                </Link>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => {
-                    setSuccess(null);
-                    setError(null);
-                  }}
+            <div className="grid max-w-2xl gap-4 sm:grid-cols-3">
+              <div>
+                <FieldLabel htmlFor="opcoId" required>
+                  OpCo
+                </FieldLabel>
+                <Select
+                  id="opcoId"
+                  name="opcoId"
+                  value={opcoId}
+                  onChange={(event) => handleOpcoChange(event.target.value)}
+                  required
                 >
-                  Upload another
-                </Button>
+                  {opcos.map((opco) => (
+                    <option key={opco.id} value={opco.id}>
+                      {opco.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              <div>
+                <FieldLabel htmlFor="month" required>
+                  Month
+                </FieldLabel>
+                <Select
+                  id="month"
+                  name="month"
+                  value={month}
+                  onChange={(event) =>
+                    handleMonthChange(Number(event.target.value))
+                  }
+                  required
+                >
+                  {monthOptions.map((label, index) => (
+                    <option key={label} value={index + 1}>
+                      {label}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              <div>
+                <FieldLabel htmlFor="year" required>
+                  Year
+                </FieldLabel>
+                <Select
+                  id="year"
+                  name="year"
+                  value={year}
+                  onChange={(event) =>
+                    handleYearChange(Number(event.target.value))
+                  }
+                  required
+                >
+                  {yearOptions.map((value) => (
+                    <option key={value} value={value}>
+                      {value}
+                    </option>
+                  ))}
+                </Select>
               </div>
             </div>
-          ) : null}
-        </PageSection>
 
-        <HelpPanel title="Quick tips">
-          <ul className="list-disc space-y-1.5 pl-4">
-            <li>Use the standard monthly Excel template (.xlsx).</li>
-            <li>
-              OpCo and period: {selectedOpcoName} — {MONTHS[month - 1]} {year}.
-            </li>
-            <li>
-              Re-uploading the same OpCo and period may create a new version or
-              need approval.
-            </li>
-          </ul>
-          <p className="text-xs text-foreground-subtle">
-            Need an older file?{" "}
-            <Link
-              href="/partner/reports"
-              className="underline hover:text-foreground"
+            {periodStatusError ? (
+              <p className={`mt-4 ${ui.alertError}`}>{periodStatusError}</p>
+            ) : null}
+
+            {periodStatusLoading ? (
+              <p className="mt-4 text-sm text-foreground-muted">
+                Checking whether a report already exists for this OpCo and
+                period…
+              </p>
+            ) : null}
+
+            {periodReport ? (
+              <div className={`mt-4 ${ui.alertWarning}`}>
+                <p className="font-medium text-foreground">
+                  A report already exists for {selectedOpcoName} —{" "}
+                  {periodReport.periodLabel}.
+                </p>
+                <p className="mt-1 text-sm text-foreground-muted">
+                  {periodReport.filename
+                    ? `Current file: ${periodReport.filename}. `
+                    : null}
+                  Replace it only after Dizlee approves a reupload request — not
+                  via a new first-time upload.
+                </p>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  {periodReport.canRequestReupload ? (
+                    <IconButton
+                      label="Request reupload"
+                      onClick={() =>
+                        setChangeRequestReport(
+                          periodReportToListItem(periodReport),
+                        )
+                      }
+                    >
+                      <IconRefresh />
+                    </IconButton>
+                  ) : null}
+                  {periodReport.hasPendingChangeRequest ? (
+                    <span className="text-sm text-foreground-muted">
+                      Request submitted — awaiting Dizlee approval.
+                    </span>
+                  ) : null}
+                  {periodReport.canReupload ? (
+                    <Button
+                      type="button"
+                      onClick={() =>
+                        setReuploadReport(periodReportToListItem(periodReport))
+                      }
+                    >
+                      <span className="inline-flex items-center gap-2">
+                        <IconUpload className="h-4 w-4" />
+                        Upload corrected file
+                      </span>
+                    </Button>
+                  ) : null}
+                  <Link href={historyHref} className={ui.btnSecondary}>
+                    Open report history
+                  </Link>
+                </div>
+              </div>
+            ) : null}
+          </PageSection>
+
+          <PageSection
+            title="Excel file"
+            description={
+              periodReport && !periodReport.canReupload
+                ? "File upload is disabled for this OpCo and period until Dizlee approves a reupload request."
+                : periodReport?.canReupload
+                  ? "Use Upload corrected file above to replace the Excel after approval."
+                  : "Drop your monthly .xlsx workbook. You will preview the sheet before confirming."
+            }
+          >
+            <input
+              ref={fileInputRef}
+              id="file"
+              name="file"
+              type="file"
+              accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              onChange={handleFileChange}
+              disabled={dropzoneDisabled}
+              className="sr-only"
+            />
+            <div
+              role="button"
+              tabIndex={dropzoneDisabled ? -1 : 0}
+              aria-disabled={dropzoneDisabled || undefined}
+              onClick={handleChooseFile}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  handleChooseFile();
+                }
+              }}
+              onDragEnter={(event) => {
+                event.preventDefault();
+                if (!dropzoneDisabled) setIsDragging(true);
+              }}
+              onDragOver={(event) => {
+                event.preventDefault();
+                if (!dropzoneDisabled) setIsDragging(true);
+              }}
+              onDragLeave={(event) => {
+                event.preventDefault();
+                setIsDragging(false);
+              }}
+              onDrop={handleDrop}
+              className={cn(
+                "relative flex min-h-[11rem] cursor-pointer flex-col items-center justify-center rounded-[22px] border border-dashed px-6 py-8 text-center transition-colors sm:min-h-[12.5rem]",
+                isDragging
+                  ? "border-primary bg-primary-muted/50"
+                  : "border-border-strong bg-surface hover:border-primary hover:bg-primary-muted/20",
+                dropzoneDisabled &&
+                  "pointer-events-none cursor-not-allowed opacity-60",
+              )}
             >
-              Open reports history
-            </Link>
-            .
-          </p>
-        </HelpPanel>
-      </FormLayout>
+              {isLoadingPreview ? (
+                <>
+                  <LoadingSpinner />
+                  <p className="mt-4 text-base font-medium text-foreground">
+                    Opening preview…
+                  </p>
+                  <p className="mt-1.5 text-sm text-foreground-subtle">
+                    Reading your Excel workbook
+                  </p>
+                </>
+              ) : periodBlocked && periodReport ? (
+                <>
+                  <p className="text-base font-medium text-foreground">
+                    Upload locked for {periodReport.periodLabel}
+                  </p>
+                  <p className="mt-1.5 text-sm text-foreground-subtle">
+                    {periodReport.canRequestReupload
+                      ? "Request a reupload above, then wait for Dizlee approval."
+                      : periodReport.hasPendingChangeRequest
+                        ? "Your reupload request is awaiting Dizlee approval."
+                        : "Use Upload corrected file above when your request is accepted."}
+                  </p>
+                </>
+              ) : periodReport?.canReupload ? (
+                <>
+                  <p className="text-base font-medium text-foreground">
+                    Corrected file ready to upload
+                  </p>
+                  <p className="mt-1.5 text-sm text-foreground-subtle">
+                    Use Upload corrected file in the banner above (not this
+                    dropzone).
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-base font-medium text-foreground">
+                    {file ? file.name : "Drop .xlsx here or browse"}
+                  </p>
+                  <p className="mt-1.5 text-sm text-foreground-subtle">
+                    {file
+                      ? formatFileSizeLabel(file.size)
+                      : "Excel workbook only (.xlsx)"}
+                  </p>
+                  {!file ? (
+                    <span className={`mt-5 ${ui.btnSecondary}`}>
+                      Choose file
+                    </span>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="mt-5"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleChooseDifferentFile();
+                      }}
+                    >
+                      Replace file
+                    </Button>
+                  )}
+                </>
+              )}
+            </div>
+
+            {error ? <p className={`mt-4 ${ui.alertError}`}>{error}</p> : null}
+
+            {success ? (
+              <div className="mt-4 rounded-[18px] border border-border bg-surface p-4">
+                <p className="text-sm font-medium text-foreground">
+                  Upload complete
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Link href={historyHref} className={ui.btnSecondary}>
+                    View reports history
+                  </Link>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      setSuccess(null);
+                      setError(null);
+                    }}
+                  >
+                    Done
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+          </PageSection>
+
+          <HelpPanel title="Quick tips">
+            <ul className="list-disc space-y-1.5 pl-4">
+              <li>Use the standard monthly Excel template (.xlsx).</li>
+              <li>
+                OpCo and period: {selectedOpcoName} — {MONTHS[month - 1]} {year}.
+              </li>
+              <li>
+                If a report already exists for this OpCo and period, request a
+                reupload and wait for Dizlee approval before uploading a
+                corrected file.
+              </li>
+            </ul>
+            <p className="text-xs text-foreground-subtle">
+              Need an older file?{" "}
+              <Link
+                href="/partner/reports"
+                className="underline hover:text-foreground"
+              >
+                Open reports history
+              </Link>
+              .
+            </p>
+          </HelpPanel>
+        </FormLayout>
       </LoadingOverlay>
 
       {review ? (
@@ -460,6 +719,29 @@ export function ReportUploadForm({ opcos }: ReportUploadFormProps) {
               setReview(null);
               setConfirmError(null);
             }
+          }}
+        />
+      ) : null}
+
+      {changeRequestReport ? (
+        <RequestChangeDialog
+          report={changeRequestReport}
+          onClose={() => setChangeRequestReport(null)}
+          onSuccess={() => {
+            toast.success("Reupload request submitted.");
+            void loadPeriodStatus(opcoId, year, month);
+          }}
+        />
+      ) : null}
+
+      {reuploadReport ? (
+        <ReportReuploadDialog
+          report={reuploadReport}
+          onClose={() => setReuploadReport(null)}
+          onSuccess={() => {
+            toast.success("Corrected report uploaded.");
+            setSuccess(null);
+            void loadPeriodStatus(opcoId, year, month);
           }}
         />
       ) : null}

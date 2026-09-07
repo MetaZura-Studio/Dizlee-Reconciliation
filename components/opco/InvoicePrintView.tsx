@@ -20,6 +20,9 @@ export function InvoicePrintView({ detail }: InvoicePrintViewProps) {
       bankDetails={detail.bankDetails}
       preparedBy={detail.preparedBy}
       approvedBy={detail.approvedBy}
+      includeUsdCopy={detail.includeUsdCopy}
+      usdFxRate={detail.usdFxRate}
+      periodLabel={detail.periodLabel}
     />
   );
 }

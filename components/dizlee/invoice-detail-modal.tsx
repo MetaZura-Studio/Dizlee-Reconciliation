@@ -4,7 +4,7 @@ import { formatAppDateTime } from "@/lib/platform/format-datetime";
 import Link from "next/link";
 import { useState } from "react";
 
-import { DizleeOpcoInvoiceDocument } from "@/components/shared/dizlee-opco-invoice-document";
+import { DizleeOpcoInvoiceCopies } from "@/components/shared/dizlee-opco-invoice-copies";
 import { Button } from "@/components/ui/button";
 import {
   DataTable,
@@ -123,7 +123,7 @@ export function InvoiceDetailModal({
           </dl>
 
           {detail.isDigital ? (
-            <DizleeOpcoInvoiceDocument
+            <DizleeOpcoInvoiceCopies
               invoiceNumber={detail.invoiceNumber ?? `Invoice #${detail.id}`}
               issuedAt={detail.uploadedAt}
               billedPartyName={detail.opcoName}
@@ -132,6 +132,9 @@ export function InvoiceDetailModal({
               bankDetails={detail.bankDetails}
               preparedBy={detail.preparedBy}
               approvedBy={detail.approvedBy}
+              includeUsdCopy={detail.includeUsdCopy}
+              usdFxRate={detail.usdFxRate}
+              periodLabel={detail.period.label}
             />
           ) : (
             <>

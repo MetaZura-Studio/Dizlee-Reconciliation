@@ -107,6 +107,8 @@ export type InvoiceDetail = {
   approvedBy: string | null;
   canMarkPayment: boolean;
   lineItems: InvoiceLineItemView[];
+  includeUsdCopy: boolean;
+  usdFxRate: number | null;
 };
 
 export type CreateOpcoInvoiceLineInput = {
@@ -126,13 +128,17 @@ export type CreateOpcoInvoiceInput = {
   lineItems: CreateOpcoInvoiceLineInput[];
   /** SYSTEM | EMAIL | BOTH — defaults to BOTH. */
   deliveryChannel?: string;
+  /** When true (and currency is not USD), store USD copy for detail/print. */
+  includeUsdCopy?: boolean;
+  /** Local → USD rate snapshotted with includeUsdCopy. */
+  usdFxRate?: number;
 };
 
 export type CreateOpcoInvoiceFormOptions = {
   opcos: Array<{ id: string; name: string; defaultCurrencyId: string }>;
   currencies: Array<{ id: string; isoCode: string; symbol: string | null }>;
   bankAccounts: InvoiceBankAccount[];
-  /** Period FX rates (local → USD). Used for dual-currency PDF preview; not persisted yet. */
+  /** Period FX rates (local → USD) for dual-currency preview and create. */
   fxRates: Array<{ currencyId: string; rateToUsd: number }>;
   fxPeriod: { month: number; year: number };
 };
@@ -525,6 +531,18 @@ export async function createOpcoInvoice(
       ? JSON.stringify({ preparedBy, approvedBy })
       : null;
 
+  const wantUsdCopy = Boolean(input.includeUsdCopy) && currency.isoCode !== "USD";
+  let usdFxRate: number | null = null;
+  if (wantUsdCopy) {
+    const rate = input.usdFxRate;
+    if (rate === undefined || !Number.isFinite(rate) || rate <= 0) {
+      throw new InvoiceActionError(
+        "A valid USD FX rate is required when including a USD invoice copy.",
+      );
+    }
+    usdFxRate = rate;
+  }
+
   const now = new Date();
   const invoiceNumber = buildInvoiceNumber(opcoId, input.month, input.year);
 
@@ -538,6 +556,8 @@ export async function createOpcoInvoice(
       invoiceTypeId,
       currencyId,
       bankDetailsJson,
+      includeUsdCopy: wantUsdCopy,
+      usdFxRate: usdFxRate,
       invoiceStatusId: sentStatusId,
       paymentStatusId: unpaidStatusId,
       sentAt: now,
@@ -949,6 +969,11 @@ function mapInvoiceDetail(
       unitPrice: toNumber(item.unitPrice),
       lineTotal: toNumber(item.lineTotal),
     })),
+    includeUsdCopy: Boolean(invoice.includeUsdCopy),
+    usdFxRate:
+      invoice.usdFxRate === null || invoice.usdFxRate === undefined
+        ? null
+        : toNumber(invoice.usdFxRate),
   };
 }
 

@@ -1,6 +1,6 @@
 /**
- * Convert local-currency invoice lines to USD for dual-copy PDF preview.
- * Persistence of includeUsdCopy / usdFxRate on invoices comes later.
+ * Convert local-currency invoice lines to USD for dual-copy invoice pages.
+ * Rate is snapshotted on create as invoices.usd_fx_rate when include_usd_copy is true.
  */
 
 import { roundMoney } from "@/lib/platform/format-money";

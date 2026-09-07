@@ -116,6 +116,34 @@ describe("createOpcoInvoiceBodySchema", () => {
     }
   });
 
+  it("accepts includeUsdCopy with positive usdFxRate", () => {
+    const parsed = createOpcoInvoiceBodySchema.safeParse({
+      month: 8,
+      year: 2026,
+      opcoId: "5",
+      lineItems: [{ description: "Service", quantity: 1, unitPrice: 100 }],
+      includeUsdCopy: true,
+      usdFxRate: 0.26,
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.includeUsdCopy).toBe(true);
+      expect(parsed.data.usdFxRate).toBe(0.26);
+    }
+  });
+
+  it("rejects non-positive usdFxRate", () => {
+    const parsed = createOpcoInvoiceBodySchema.safeParse({
+      month: 8,
+      year: 2026,
+      opcoId: "5",
+      lineItems: [{ description: "A", quantity: 1, unitPrice: 10 }],
+      includeUsdCopy: true,
+      usdFxRate: 0,
+    });
+    expect(parsed.success).toBe(false);
+  });
+
   it("rejects invalid deliveryChannel", () => {
     const parsed = createOpcoInvoiceBodySchema.safeParse({
       month: 8,

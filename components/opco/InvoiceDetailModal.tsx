@@ -3,7 +3,7 @@
 import { formatAppDateTime } from "@/lib/platform/format-datetime";
 import Link from "next/link";
 
-import { DizleeOpcoInvoiceDocument } from "@/components/shared/dizlee-opco-invoice-document";
+import { DizleeOpcoInvoiceCopies } from "@/components/shared/dizlee-opco-invoice-copies";
 import { ModalCloseButton } from "@/components/ui/modal-close-button";
 import type { OpcoInvoiceDetail } from "@/lib/opco/queries/invoices";
 
@@ -57,7 +57,7 @@ export function InvoiceDetailModal({
                 </p>
               ) : null}
 
-              <DizleeOpcoInvoiceDocument
+              <DizleeOpcoInvoiceCopies
                 invoiceNumber={detail.invoiceNumber ?? `Invoice #${detail.id}`}
                 issuedAt={detail.issuedAt}
                 billedPartyName={detail.opcoName}
@@ -66,6 +66,9 @@ export function InvoiceDetailModal({
                 bankDetails={detail.bankDetails}
                 preparedBy={detail.preparedBy}
                 approvedBy={detail.approvedBy}
+                includeUsdCopy={detail.includeUsdCopy}
+                usdFxRate={detail.usdFxRate}
+                periodLabel={detail.periodLabel}
               />
             </div>
           ) : null}

@@ -95,6 +95,10 @@ export const createOpcoInvoiceBodySchema = z.object({
   deliveryChannel: z
     .enum(["SYSTEM", "EMAIL", "BOTH", "system", "email", "both"])
     .optional(),
+  /** Persist dual-page USD copy for OpCo/Dizlee detail & print. */
+  includeUsdCopy: z.coerce.boolean().optional(),
+  /** Local → USD rate used for the USD page (required when includeUsdCopy). */
+  usdFxRate: z.coerce.number().positive().optional(),
 });
 
 export const runReconciliationBodySchema = z.object({
