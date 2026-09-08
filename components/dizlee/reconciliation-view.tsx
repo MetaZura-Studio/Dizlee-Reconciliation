@@ -27,7 +27,6 @@ import { IconButton } from "@/components/ui/icon-button";
 import { IconEye, IconSend } from "@/components/ui/icons";
 import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
-import { useToast } from "@/components/ui/toast";
 import { ListPagination } from "@/components/ui/list-pagination";
 import { ListSearch, OrFiltersDivider } from "@/components/ui/list-search";
 import { LoadingOverlay } from "@/components/ui/loading";
@@ -42,6 +41,11 @@ import type {
   ReconciliationSearchBy,
   SortDirection,
 } from "@/lib/dizlee/reconciliation";
+import {
+  consumeCompareFiltersRestore,
+  discardCompareFiltersRestore,
+  saveCompareFiltersForRestore,
+} from "@/lib/dizlee/reconciliation-compare-filters-session";
 import { ui } from "@/lib/ui/classes";
 import { paginateItems } from "@/lib/ui/list-pagination";
 import { nextSortState } from "@/lib/ui/sort";
@@ -76,6 +80,8 @@ function stateTone(
   switch (state) {
     case "READY":
       return "success";
+    case "IN_PROGRESS":
+      return "info";
     case "RECONCILED":
       return "info";
     case "NO_OPCO_REPORT":
@@ -147,9 +153,6 @@ export function ReconciliationView({
   initialHistory,
 }: ReconciliationViewProps) {
   const router = useRouter();
-  const openReconciliationResult = (id: number | string) => {
-    router.push(`/dizlee/reconciliation/${id}`);
-  };
   const [activeTab, setActiveTab] = useState<"compare" | "history">(initialTab);
   const [month, setMonth] = useState(initialCompareFilters.month);
   const [year, setYear] = useState(initialCompareFilters.year);
@@ -200,9 +203,27 @@ export function ReconciliationView({
   const [loading, setLoading] = useState(false);
   const [actionId, setActionId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const toast = useToast();
   const [remindLane, setRemindLane] = useState<CompareLaneRow | null>(null);
   const [reconcilingLabel, setReconcilingLabel] = useState<string | null>(null);
+
+  const openReconciliationResult = (
+    id: number | string,
+    options?: { preserveCompareFilters?: boolean },
+  ) => {
+    if (options?.preserveCompareFilters) {
+      saveCompareFiltersForRestore({
+        month,
+        year,
+        searchBy,
+        entityId: entityId || undefined,
+        search: laneSearch.trim() || undefined,
+        status: laneStatus,
+        sortBy: compareSortBy,
+        sortDir: compareSortDir,
+      });
+    }
+    router.push(`/dizlee/reconciliation/${id}`);
+  };
 
   const loadLanes = useCallback(async (filters: CompareLaneFilters) => {
     setLoading(true);
@@ -420,6 +441,12 @@ export function ReconciliationView({
 
   // Debounced lane search — intentionally omit sort/status/period (Apply / sort handlers load those).
   useEffect(() => {
+    if (initialTab === "compare") {
+      discardCompareFiltersRestore();
+    }
+  }, [initialTab]);
+
+  useEffect(() => {
     if (skipLaneSearchEffect.current) {
       skipLaneSearchEffect.current = false;
       return;
@@ -480,7 +507,9 @@ export function ReconciliationView({
         throw new Error(formatAppError(payload, "Failed to run reconciliation"));
       }
       const reconciliationId = payload.data.id as number;
-      openReconciliationResult(reconciliationId);
+      openReconciliationResult(reconciliationId, {
+        preserveCompareFilters: true,
+      });
     } catch (runError) {
       setError(
         runError instanceof Error ? runError.message : "Failed to run reconciliation",
@@ -576,13 +605,35 @@ export function ReconciliationView({
                 type="button"
                 onClick={() => {
                   setActiveTab(tab.id);
+                  router.replace(
+                    tab.id === "history"
+                      ? "/dizlee/reconciliation?tab=history"
+                      : "/dizlee/reconciliation?tab=compare",
+                  );
                   if (tab.id === "history") {
                     setError(null);
                     setAppliedHistoryFilters({});
                     skipHistorySearchEffect.current = true;
                     setHistorySearch("");
                     void loadHistory(1, {}, "");
+                    return;
                   }
+
+                  const restored = consumeCompareFiltersRestore();
+                  if (!restored) {
+                    return;
+                  }
+                  skipLaneSearchEffect.current = true;
+                  setMonth(restored.month);
+                  setYear(restored.year);
+                  setSearchBy(restored.searchBy);
+                  setEntityId(restored.entityId ?? "");
+                  setLaneStatus(restored.status);
+                  setLaneSearch(restored.search ?? "");
+                  setCompareSortBy(restored.sortBy);
+                  setCompareSortDir(restored.sortDir);
+                  setError(null);
+                  void loadLanes(restored);
                 }}
                 className={`border-b-2 px-1 pb-3 text-sm font-medium ${
                   activeTab === tab.id
@@ -657,6 +708,7 @@ export function ReconciliationView({
                   >
                     <option value="all">All</option>
                     <option value="READY">Ready to process</option>
+                    <option value="IN_PROGRESS">In progress</option>
                     <option value="NO_OPCO_REPORT">Waiting for OpCo</option>
                     <option value="NO_PARTNER_REPORT">Waiting for Partner</option>
                     <option value="MISSING">Waiting for both</option>
@@ -806,6 +858,7 @@ export function ReconciliationView({
                                       onClick={() =>
                                         openReconciliationResult(
                                           lane.reconciliationId as string,
+                                          { preserveCompareFilters: true },
                                         )
                                       }
                                     >
@@ -1023,8 +1076,7 @@ export function ReconciliationView({
           month={month}
           year={year}
           onClose={() => setRemindLane(null)}
-          onSent={(sentMessage) => {
-            toast.success(sentMessage);
+          onSent={() => {
             void loadLanes({
               month,
               year,

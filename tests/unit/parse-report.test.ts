@@ -3,7 +3,6 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import {
-  ReportParseError,
   parseReportWorkbook,
 } from "@/lib/opco/excel/parse-report";
 
@@ -42,16 +41,17 @@ describe("parse report workbook", () => {
     expect(lines[1]?.description).toBe("SMS traffic");
   });
 
-  it("throws when the workbook has no recognized columns", async () => {
+  it("throws Format is incorrect when the workbook has no recognized columns", async () => {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet("Report");
     worksheet.addRow(["foo", "bar"]);
     worksheet.addRow(["baz", "qux"]);
     const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
 
-    await expect(parseReportWorkbook(buffer)).rejects.toBeInstanceOf(
-      ReportParseError,
-    );
+    await expect(parseReportWorkbook(buffer)).rejects.toMatchObject({
+      name: "WrongReportTypeError",
+      message: "Format is incorrect.",
+    });
   });
 
   it("parses partner sample report headers", async () => {

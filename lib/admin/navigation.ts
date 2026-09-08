@@ -9,6 +9,7 @@ export type AdminNavIcon =
   | "organization"
   | "email-settings"
   | "email-templates"
+  | "email-delivery"
   | "reminder"
   | "opcos"
   | "partners"
@@ -103,6 +104,13 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
         href: "/admin/email-templates",
         icon: "email-templates",
         description: "Manage email templates and version history.",
+        section: "main",
+      },
+      {
+        label: "Email delivery",
+        href: "/admin/email-delivery",
+        icon: "email-delivery",
+        description: "Inspect outbound SMTP delivery attempts and errors.",
         section: "main",
       },
       {

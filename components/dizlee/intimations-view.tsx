@@ -10,6 +10,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { CommunicationsTabs } from "@/components/dizlee/communications-tabs";
+import { EmailNotConfiguredNotice } from "@/components/shared/email-not-configured-notice";
 import {
   attachmentFileIds,
   NotificationAttachmentPicker,
@@ -17,8 +18,9 @@ import {
 } from "@/components/shared/notification-attachment-picker";
 import { Button } from "@/components/ui/button";
 import { FieldLegend } from "@/components/ui/field";
+import { FullPageLoading } from "@/components/ui/loading";
 import { PageCard, PageHeader } from "@/components/ui/page";
-import { useToast } from "@/components/ui/toast";
+import { SuccessDialog } from "@/components/ui/success-dialog";
 import { cn, ui } from "@/lib/ui/classes";
 import {
   getMaxMonthForYear,
@@ -117,8 +119,8 @@ export function IntimationsView({
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
 
   const [sending, setSending] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const toast = useToast();
 
   const showOpcos = audience === "opco" || audience === "both";
   const showPartners = audience === "partner" || audience === "both";
@@ -255,7 +257,8 @@ export function IntimationsView({
         throw new Error(formatAppError(payload, "Failed to send notification"));
       }
 
-      toast.success(payload.data.message as string);
+      const message =
+        (payload.data?.message as string | undefined) ?? "Intimation sent.";
       setSubject("");
       setBody("");
       setPriority("");
@@ -263,6 +266,7 @@ export function IntimationsView({
       setSelectedOpcoIds([]);
       setSelectedPartnerIds([]);
       setAttachments([]);
+      setSuccessMessage(message);
     } catch (sendError) {
       setError(
         sendError instanceof Error ? sendError.message : "Failed to send notification",
@@ -274,6 +278,21 @@ export function IntimationsView({
 
   return (
     <PageCard>
+      {sending ? (
+        <FullPageLoading
+          label="Sending…"
+          description="Please wait while we deliver this message."
+        />
+      ) : null}
+
+      <SuccessDialog
+        open={successMessage != null}
+        title="Intimation sent"
+        message={successMessage ?? ""}
+        actionLabel="Done"
+        onAction={() => setSuccessMessage(null)}
+      />
+
       <PageHeader
         title="Communications"
         description="Send messages to OpCos and/or Partners via in-app, email, or both."
@@ -497,6 +516,7 @@ export function IntimationsView({
                   );
                 })}
               </div>
+              <EmailNotConfiguredNotice channel={deliveryChannel} />
             </fieldset>
           </div>
 

@@ -2,6 +2,8 @@
  * Dizlee manual missing-report reminders — lane selection, attachments, template override.
  * Creates in-app notifications for OpCo/Partner users on unsubmitted report lanes.
  */
+import { randomUUID } from "crypto";
+
 import { getLookupId } from "@/lib/admin/lookups";
 import {
   listReportMonitoringLanes,
@@ -203,6 +205,8 @@ export async function sendMissingReportReminders(
   const sentAt = new Date();
   let opcoNotifications = 0;
   let partnerNotifications = 0;
+  const createdNotificationIds: bigint[] = [];
+  const emailCorrelationId = randomUUID();
 
   const shouldSendOpco = target === "opco" || target === "both";
   const shouldSendPartner = target === "partner" || target === "both";
@@ -246,11 +250,12 @@ export async function sendMissingReportReminders(
     const subject = applyTemplate(subjectTemplate, { period });
     const body = applyTemplate(bodyTemplate, { period });
 
-    await prisma.notification.create({
+    const created = await prisma.notification.create({
       data: {
         subject: subject.slice(0, 255),
         body,
         deliveryChannel,
+        emailCorrelationId,
         statusId: sentStatusId,
         priority: "REMINDER",
         sentAt,
@@ -267,7 +272,9 @@ export async function sendMissingReportReminders(
         },
         ...(attachments ? { attachments } : {}),
       },
+      select: { id: true },
     });
+    createdNotificationIds.push(created.id);
     opcoNotifications += 1;
   }
 
@@ -275,11 +282,12 @@ export async function sendMissingReportReminders(
     const subject = applyTemplate(subjectTemplate, { period });
     const body = applyTemplate(bodyTemplate, { period });
 
-    await prisma.notification.create({
+    const created = await prisma.notification.create({
       data: {
         subject: subject.slice(0, 255),
         body,
         deliveryChannel,
+        emailCorrelationId,
         statusId: sentStatusId,
         priority: "REMINDER",
         sentAt,
@@ -296,7 +304,9 @@ export async function sendMissingReportReminders(
         },
         ...(attachments ? { attachments } : {}),
       },
+      select: { id: true },
     });
+    createdNotificationIds.push(created.id);
     partnerNotifications += 1;
   }
 
@@ -323,6 +333,10 @@ export async function sendMissingReportReminders(
       recipients: emailRecipients,
       subject,
       body,
+      purpose: "REMINDER",
+      correlationId: emailCorrelationId,
+      notificationId: createdNotificationIds[0] ?? null,
+      actorUserId: fromUserId,
     });
   }
 

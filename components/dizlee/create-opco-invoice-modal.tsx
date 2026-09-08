@@ -3,9 +3,12 @@
 import { useEffect, useState } from "react";
 
 import { DizleeOpcoInvoiceDocument } from "@/components/shared/dizlee-opco-invoice-document";
+import { EmailNotConfiguredNotice } from "@/components/shared/email-not-configured-notice";
 import { Button } from "@/components/ui/button";
 import { FieldLabel, FieldLegend, Input, Select } from "@/components/ui/field";
+import { FullPageLoading } from "@/components/ui/loading";
 import { Modal } from "@/components/ui/modal";
+import { SuccessDialog } from "@/components/ui/success-dialog";
 import type {
   CreateOpcoInvoiceFormOptions,
   CreateOpcoInvoiceInput,
@@ -123,6 +126,7 @@ function CreateOpcoInvoiceModalInner({
   );
   const [loadingOptions, setLoadingOptions] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [month, setMonth] = useState(defaultMonth);
@@ -278,7 +282,7 @@ function CreateOpcoInvoiceModalInner({
         return `Line ${index + 1}: description is required.`;
       }
       if (!Number.isFinite(line.quantity) || line.quantity <= 0) {
-        return `Line ${index + 1}: number must be greater than 0.`;
+        return `Line ${index + 1}: quantity must be greater than 0.`;
       }
       if (!Number.isFinite(line.unitPrice) || line.unitPrice < 0) {
         return `Line ${index + 1}: amount must be 0 or greater.`;
@@ -327,7 +331,27 @@ function CreateOpcoInvoiceModalInner({
         throw new Error(formatAppError(payload, "Failed to create invoice"));
       }
       onCreated();
-      onClose();
+      const invoiceNumber =
+        typeof payload?.data?.invoiceNumber === "string" &&
+        payload.data.invoiceNumber.trim()
+          ? payload.data.invoiceNumber.trim()
+          : null;
+      const invoicePart = invoiceNumber
+        ? `Invoice ${invoiceNumber} was sent`
+        : "Invoice was sent";
+      if (deliveryChannel === "EMAIL") {
+        setSuccessMessage(
+          `${invoicePart} by email (PDF attached). It is logged in Outbox.`,
+        );
+      } else if (deliveryChannel === "SYSTEM") {
+        setSuccessMessage(
+          `${invoicePart} as a system notification. OpCo users can open it from their inbox.`,
+        );
+      } else {
+        setSuccessMessage(
+          `${invoicePart} in-app and by email (PDF attached).`,
+        );
+      }
     } catch (submitError) {
       setError(
         submitError instanceof Error
@@ -355,13 +379,32 @@ function CreateOpcoInvoiceModalInner({
       : null;
 
   return (
-    <Modal
-      open
-      title={isPreview ? "Preview invoice" : "Create invoice to OpCo"}
-      onClose={onClose}
-      wide
-      className={isPreview ? "max-w-6xl p-8" : "max-w-2xl"}
-    >
+    <>
+      {submitting ? (
+        <FullPageLoading
+          label="Sending invoice…"
+          description="Generating the PDF and delivering the notification."
+        />
+      ) : null}
+
+      <SuccessDialog
+        open={successMessage != null}
+        title="Invoice sent"
+        message={successMessage ?? ""}
+        actionLabel="Done"
+        onAction={() => {
+          setSuccessMessage(null);
+          onClose();
+        }}
+      />
+
+      <Modal
+        open={successMessage == null}
+        title={isPreview ? "Preview invoice" : "Create invoice to OpCo"}
+        onClose={onClose}
+        wide
+        className={isPreview ? "max-w-6xl p-8" : "max-w-2xl"}
+      >
       {!isPreview ? (
         <p className="mb-4 text-sm text-foreground-muted">
           Digital Dizlee → OpCo invoice for the selected period.
@@ -464,6 +507,7 @@ function CreateOpcoInvoiceModalInner({
                 );
               })}
             </div>
+            <EmailNotConfiguredNotice channel={deliveryChannel} />
           </fieldset>
           {error ? <p className={ui.alertError}>{error}</p> : null}
           <div className="flex justify-end gap-3 print:hidden">
@@ -763,7 +807,7 @@ function CreateOpcoInvoiceModalInner({
                   />
                 </div>
                 <div className="space-y-1">
-                  <FieldLabel required>Number</FieldLabel>
+                  <FieldLabel required>Quantity</FieldLabel>
                   <Input
                     type="text"
                     inputMode="numeric"
@@ -795,7 +839,7 @@ function CreateOpcoInvoiceModalInner({
               </div>
             ))}
             <p className={ui.hint}>
-              Number × Amount is the line total (e.g. 2 × 10.50 = 21.00).
+              Quantity × Amount is the line total (e.g. 2 × 10.50 = 21.00).
             </p>
           </div>
 
@@ -812,5 +856,6 @@ function CreateOpcoInvoiceModalInner({
         </div>
       )}
     </Modal>
+    </>
   );
 }

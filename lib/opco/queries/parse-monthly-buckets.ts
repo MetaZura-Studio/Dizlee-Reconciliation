@@ -22,6 +22,7 @@ import {
 import { findUnlinkedPartnersInOpcoFile } from "@/lib/opco/queries/unlinked-partners-in-file";
 import { hasUnlinkedPartnersInFile } from "@/lib/opco/unlinked-partners-in-file.shared";
 import { DomainError } from "@/lib/errors/app-error";
+import { assertOpcoPortalReportWorkbook } from "@/lib/platform/excel/report-workbook-kind";
 
 export class OpcoMonthlyParseError extends DomainError {
   constructor(keyOrMessage: string, status?: number) {
@@ -51,6 +52,8 @@ export async function parseOpcoMonthlyPartnerBuckets(params: {
   opcoId: bigint;
   buffer: Buffer;
 }): Promise<{ buckets: OpcoPartnerBucket[]; preferredSheetName: string | null }> {
+  await assertOpcoPortalReportWorkbook(params.buffer);
+
   const mappingRow = await getOpcoReportMappingByOpcoId(params.opcoId);
   if (!mappingRow) {
     throw new OpcoMonthlyParseError(

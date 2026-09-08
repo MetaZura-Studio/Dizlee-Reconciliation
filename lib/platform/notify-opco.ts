@@ -2,12 +2,15 @@
  * In-app (+ optional email) notification delivery to all users of a single OpCo.
  * Event-driven callers default to BOTH; SMTP failures are logged, not thrown.
  */
+import { randomUUID } from "crypto";
+
 import {
   type NotificationMetadata,
   serializeNotificationMetadata,
 } from "@/lib/platform/notification-metadata";
 import {
   DEFAULT_NOTIFICATION_DELIVERY_CHANNEL,
+  deliverySendsEmail,
   parseDeliveryChannel,
   type NotificationDeliveryChannel,
 } from "@/lib/platform/notification-delivery.shared";
@@ -28,6 +31,14 @@ export async function notifyOpcoUsers(params: {
   body: string;
   metadata?: NotificationMetadata;
   deliveryChannel?: NotificationDeliveryChannel;
+  /** File IDs to link on the in-app notification (inbox / Outbox). */
+  attachmentFileIds?: Array<bigint | string>;
+  /** Binary attachments for SMTP when Email/Both is selected. */
+  emailAttachments?: Array<{
+    filename: string;
+    content: Buffer;
+    contentType?: string;
+  }>;
 }): Promise<void> {
   const deliveryChannel = parseDeliveryChannel(
     params.deliveryChannel,
@@ -55,11 +66,21 @@ export async function notifyOpcoUsers(params: {
     return;
   }
 
-  await prisma.notification.create({
+  const emailCorrelationId = deliverySendsEmail(deliveryChannel)
+    ? randomUUID()
+    : null;
+
+  const attachmentCreates = (params.attachmentFileIds ?? [])
+    .map((id) => BigInt(id))
+    .filter((id) => id > BigInt(0))
+    .map((fileId) => ({ fileId }));
+
+  const notification = await prisma.notification.create({
     data: {
       subject: params.subject,
       body: params.body,
       deliveryChannel,
+      emailCorrelationId,
       metadataJson: params.metadata
         ? serializeNotificationMetadata(params.metadata)
         : null,
@@ -73,7 +94,11 @@ export async function notifyOpcoUsers(params: {
           fromUserId: params.fromUserId,
         },
       },
+      ...(attachmentCreates.length > 0
+        ? { attachments: { create: attachmentCreates } }
+        : {}),
     },
+    select: { id: true },
   });
 
   const emailRecipients = await resolveOrgUserEmails({
@@ -85,5 +110,10 @@ export async function notifyOpcoUsers(params: {
     recipients: emailRecipients,
     subject: params.subject,
     body: params.body,
+    purpose: "EVENT",
+    notificationId: notification.id,
+    actorUserId: params.fromUserId,
+    correlationId: emailCorrelationId ?? undefined,
+    attachments: params.emailAttachments,
   });
 }

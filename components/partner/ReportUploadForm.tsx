@@ -489,8 +489,7 @@ export function ReportUploadForm({ opcos }: ReportUploadFormProps) {
                   {periodReport.filename
                     ? `Current file: ${periodReport.filename}. `
                     : null}
-                  Replace it only after Dizlee approves a reupload request — not
-                  via a new first-time upload.
+                  To replace it, request a reupload and wait for Dizlee approval.
                 </p>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   {periodReport.canRequestReupload ? (

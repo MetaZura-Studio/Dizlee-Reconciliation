@@ -32,6 +32,7 @@ describe("admin navigation", () => {
     const settings = ADMIN_MAIN_NAV_ITEMS.find((item) => item.label === "Settings");
     expect(settings?.children?.map((item) => item.label)).toEqual([
       "Email Templates",
+      "Email delivery",
       "Reconciliation tolerance",
       "Currencies & USD rates",
       "Invoice bank details",
@@ -73,6 +74,9 @@ describe("admin navigation", () => {
     );
     expect(getAdminNavItemForPath("/admin/email-settings")?.label).toBe(
       "Email Settings",
+    );
+    expect(getAdminNavItemForPath("/admin/email-delivery")?.label).toBe(
+      "Email delivery",
     );
     expect(getAdminNavItemForPath("/admin/reminder-settings")?.label).toBe(
       "Reminder Settings",

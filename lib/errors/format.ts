@@ -34,6 +34,7 @@ const CLIENT_MESSAGES: Partial<Record<ErrorKey, string>> = {
   INVALID_EXCEL_FILE: "Please upload a valid Excel file.",
   ATTACHMENT_TYPE_NOT_ALLOWED: "This file type is not allowed.",
   REPORT_PARSE_FAILED: "Could not read the report file.",
+  REPORT_COLUMNS_UNRECOGNIZED: "Format is incorrect.",
   REPORT_NO_LINE_ITEMS: "The report has no line items.",
   OPCO_UNLINKED_PARTNERS_IN_FILE:
     "This file has partners that are not linked to your OpCo.",
@@ -141,14 +142,15 @@ export function formatAppError(
     if (apiMessage) {
       return apiMessage;
     }
-    // Auth / rate-limit: prefer specific copy over generic fallback.
+    // Prefer specific copy over generic call-site fallbacks (e.g. upload).
     if (
       key &&
       (key === "INVALID_CREDENTIALS" ||
         key === "RATE_LIMITED" ||
         key === "UNAUTHORIZED" ||
         key === "USER_NOT_ACTIVE" ||
-        key === "ACCOUNT_NOT_ACTIVE")
+        key === "ACCOUNT_NOT_ACTIVE" ||
+        key === "REPORT_COLUMNS_UNRECOGNIZED")
     ) {
       return clientMessageForKey(key);
     }

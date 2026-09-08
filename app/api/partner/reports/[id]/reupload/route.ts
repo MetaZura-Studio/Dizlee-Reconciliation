@@ -12,6 +12,7 @@ import { getPartnerSession } from "@/lib/partner/auth";
 import { reuploadCorrectedReport } from "@/lib/partner/queries/reupload-report";
 import { validateReportUploadFile } from "@/lib/partner/validation/report-upload";
 import { assertExcelBufferMagic } from "@/lib/platform/excel-upload";
+import { assertPartnerPortalReportWorkbook } from "@/lib/platform/excel/report-workbook-kind";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -48,6 +49,7 @@ export async function POST(request: Request, context: RouteContext) {
     if (magicError) {
       return jsonError(appErrorFromUnknown(magicError, 400));
     }
+    await assertPartnerPortalReportWorkbook(buffer);
     const lineItems = await parseReportWorkbook(buffer);
     const result = await reuploadCorrectedReport({
       partnerId: BigInt(session.partnerId),

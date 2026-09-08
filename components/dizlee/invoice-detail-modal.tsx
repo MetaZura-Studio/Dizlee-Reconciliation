@@ -171,7 +171,7 @@ export function InvoiceDetailModal({
                         <DataTableHead>
                           <DataTableRow>
                             <DataTableTh>Description</DataTableTh>
-                            <DataTableTh align="right">Qty</DataTableTh>
+                            <DataTableTh align="right">Quantity</DataTableTh>
                             <DataTableTh align="right">Unit price</DataTableTh>
                             <DataTableTh align="right">Total</DataTableTh>
                           </DataTableRow>

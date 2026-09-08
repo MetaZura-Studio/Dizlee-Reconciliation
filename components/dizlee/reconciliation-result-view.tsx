@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import { ReportFilenameLink } from "@/components/shared/report-filename-link";
+import { EmailNotConfiguredNotice } from "@/components/shared/email-not-configured-notice";
 import {
   attachmentFileIds,
   NotificationAttachmentPicker,
@@ -26,9 +27,10 @@ import {
 } from "@/components/ui/data-table";
 import { FieldLegend } from "@/components/ui/field";
 import { ListPagination } from "@/components/ui/list-pagination";
+import { FullPageLoading } from "@/components/ui/loading";
 import { ModalCloseButton } from "@/components/ui/modal-close-button";
+import { StatCard } from "@/components/ui/stat-card";
 import { SuccessDialog } from "@/components/ui/success-dialog";
-import { useToast } from "@/components/ui/toast";
 import {
   DEFAULT_NOTIFICATION_DELIVERY_CHANNEL,
   type NotificationDeliveryChannel,
@@ -129,7 +131,6 @@ export function ReconciliationResultView({
   initialAlertTemplates,
 }: ReconciliationResultViewProps) {
   const router = useRouter();
-  const toast = useToast();
   const [detail, setDetail] = useState(initialDetail);
   const [confirming, setConfirming] = useState(false);
   const [rerunning, setRerunning] = useState(false);
@@ -140,6 +141,10 @@ export function ReconciliationResultView({
   );
   const [alertOpen, setAlertOpen] = useState(false);
   const [alerting, setAlerting] = useState(false);
+  const [alertSuccessOpen, setAlertSuccessOpen] = useState(false);
+  const [alertSuccessMessage, setAlertSuccessMessage] = useState(
+    "Alert sent successfully.",
+  );
   const [opcoSubject, setOpcoSubject] = useState(
     initialAlertTemplates.opco.subject,
   );
@@ -301,12 +306,13 @@ export function ReconciliationResultView({
           canRerun: false,
         }));
       }
-      toast.success(
+      setAlertSuccessMessage(
         (payload.data?.message as string | undefined) ??
           "Alert sent successfully.",
       );
       setAlertOpen(false);
       setAlertAttachments([]);
+      setAlertSuccessOpen(true);
     } catch (alertError) {
       setError(
         alertError instanceof Error ? alertError.message : "Failed to send alert",
@@ -318,6 +324,13 @@ export function ReconciliationResultView({
 
   return (
     <div className="space-y-6">
+      {alerting ? (
+        <FullPageLoading
+          label="Sending…"
+          description="Please wait while we deliver this message."
+        />
+      ) : null}
+
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-sm text-foreground-muted">
@@ -356,25 +369,31 @@ export function ReconciliationResultView({
         </div>
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-4">
-        <div className="rounded-md border border-border bg-surface p-3 text-sm">
-          <p className="text-xs text-foreground-subtle">Matched</p>
-          <p className="font-medium text-success">{detail.matchedCount}</p>
-        </div>
-        <div className="rounded-md border border-border bg-surface p-3 text-sm">
-          <p className="text-xs text-foreground-subtle">Unmatched</p>
-          <p className="font-medium text-danger">{detail.unmatchedCount}</p>
-        </div>
-        <div className="rounded-md border border-border bg-surface p-3 text-sm">
-          <p className="text-xs text-foreground-subtle">Total variance</p>
-          <p className="font-medium text-foreground">
-            {formatUsd(detail.totalVariance)}
-          </p>
-        </div>
-        <div className="rounded-md border border-border bg-surface p-3 text-sm">
-          <p className="text-xs text-foreground-subtle">Tolerance</p>
-          <p className="font-medium text-foreground">{detail.tolerancePercent}%</p>
-        </div>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          label="Matched"
+          value={
+            <span className="text-success">{detail.matchedCount}</span>
+          }
+          tone="teal"
+        />
+        <StatCard
+          label="Unmatched"
+          value={
+            <span className="text-danger">{detail.unmatchedCount}</span>
+          }
+          tone="amber"
+        />
+        <StatCard
+          label="Total variance"
+          value={formatUsd(detail.totalVariance)}
+          tone="purple"
+        />
+        <StatCard
+          label="Tolerance"
+          value={`${detail.tolerancePercent}%`}
+          tone="blue"
+        />
       </div>
 
       {detail.statusCode === "IN_PROGRESS" ? (
@@ -574,6 +593,7 @@ export function ReconciliationResultView({
                     );
                   })}
                 </div>
+                <EmailNotConfiguredNotice channel={deliveryChannel} />
               </fieldset>
 
               <section className="space-y-3 rounded-2xl border border-border p-4">
@@ -692,6 +712,14 @@ export function ReconciliationResultView({
         open={confirmSuccessOpen}
         title="Reconciliation confirmed"
         message={confirmSuccessMessage}
+        actionLabel="Back to history"
+        onAction={goToHistory}
+      />
+
+      <SuccessDialog
+        open={alertSuccessOpen}
+        title="Alert sent"
+        message={alertSuccessMessage}
         actionLabel="Back to history"
         onAction={goToHistory}
       />
