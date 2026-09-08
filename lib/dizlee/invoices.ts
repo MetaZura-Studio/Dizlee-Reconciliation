@@ -23,11 +23,13 @@ import {
   BASE_CURRENCY_RATE,
   getMonthlyRatesForPeriod,
 } from "@/lib/platform/currency-rates";
+import { buildOpcoInvoicePdf } from "@/lib/dizlee/invoice-pdf";
 import { formatAppMonthYear } from "@/lib/platform/format-datetime";
 import { formatMoney, roundMoney } from "@/lib/platform/format-money";
 import { prisma } from "@/lib/prisma";
 import { isFuturePeriod } from "@/lib/platform/period";
 import { notifyOpcoUsers } from "@/lib/platform/notify-opco";
+import { saveStoredObject } from "@/lib/platform/storage/object-storage";
 import { prepareEmailDelivery } from "@/lib/platform/notification-delivery";
 import {
   DEFAULT_NOTIFICATION_DELIVERY_CHANNEL,
@@ -597,15 +599,80 @@ export async function createOpcoInvoice(
     throw new InvoiceActionError("Failed to load created invoice.", 500);
   }
 
+  const invoiceLabel = detail.invoiceNumber ?? `invoice-${detail.id}`;
+  const pdfFilename = `${invoiceLabel.replace(/[^\w.-]+/g, "_")}.pdf`;
+  const pdfBuffer = await buildOpcoInvoicePdf({
+    invoiceNumber: invoiceLabel,
+    periodLabel: detail.period.label,
+    opcoName: detail.opcoName,
+    currencyCode: detail.currencyCode,
+    totalAmount: detail.totalAmount,
+    preparedBy: detail.preparedBy,
+    approvedBy: detail.approvedBy,
+    bankName: detail.bankDetails?.bankName,
+    accountName: detail.bankDetails?.accountName,
+    accountNumber: detail.bankDetails?.accountNumber,
+    iban: detail.bankDetails?.iban,
+    lineItems: detail.lineItems,
+  });
+
+  const savedPdf = await saveStoredObject({
+    folder: "invoices",
+    buffer: pdfBuffer,
+    filename: pdfFilename,
+    mimeType: "application/pdf",
+  });
+
+  const pdfFile = await prisma.file.create({
+    data: {
+      filename: pdfFilename,
+      storageKey: savedPdf.storageKey,
+      mimeType: "application/pdf",
+      sizeBytes: savedPdf.sizeBytes,
+      checksum: savedPdf.checksum,
+      uploadedByUserId: actorId,
+    },
+  });
+
+  await prisma.invoice.update({
+    where: { id: invoice.id },
+    data: {
+      fileId: pdfFile.id,
+      updatedByUserId: actorId,
+    },
+  });
+
+  const refreshed = await getInvoiceDetail(invoice.id.toString());
+  if (!refreshed) {
+    throw new InvoiceActionError("Failed to load created invoice.", 500);
+  }
+
   await notifyOpcoUsers({
     opcoId,
     fromUserId: actorId,
     subject: "Invoice received from Dizlee",
-    body: `Dizlee sent invoice ${detail.invoiceNumber ?? `#${detail.id}`} for ${detail.period.label}. Total ${formatMoney(detail.totalAmount, detail.currencyCode)}.`,
+    body: `Dizlee sent invoice ${refreshed.invoiceNumber ?? `#${refreshed.id}`} for ${refreshed.period.label}. Total ${formatMoney(refreshed.totalAmount, refreshed.currencyCode)}.`,
     deliveryChannel,
+    metadata: {
+      type: "INVOICE_SENT",
+      invoiceId: refreshed.id,
+      invoiceNumber: refreshed.invoiceNumber,
+      opcoId: opcoId.toString(),
+      opcoName: refreshed.opcoName,
+      month: refreshed.period.month,
+      year: refreshed.period.year,
+    },
+    attachmentFileIds: [pdfFile.id],
+    emailAttachments: [
+      {
+        filename: pdfFilename,
+        content: pdfBuffer,
+        contentType: "application/pdf",
+      },
+    ],
   });
 
-  return detail;
+  return refreshed;
 }
 
 export async function markInvoicePaymentDone(

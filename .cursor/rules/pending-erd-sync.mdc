@@ -86,6 +86,19 @@ When the user later asks to update the ERD / [`04_DATABASE_SCHEMA_FOR_CURSOR.md`
 - Table `invoices`: add `include_usd_copy` BOOLEAN NOT NULL DEFAULT false, `usd_fx_rate` DECIMAL(18,8) NULL
 - When Dizlee creates OpCo invoice with “Local + USD”, flag + FX rate are stored so OpCo/Dizlee detail & print show both pages
 
+### Applied migration — email deliveries (SMTP handoff log)
+- Migration: `prisma/migrations/20260908120000_email_deliveries`
+- Table `email_deliveries`: append-only outbound mail attempts
+- Columns: `to_email`, `from_email`, `subject`, `purpose`, `notification_id`, `status` (SKIPPED|ACCEPTED|FAILED), `skip_reason`, `provider_message_id`, `error_code`, `error_message`, `original_to_email`, `actor_user_id`, `correlation_id`, `created_at`
+- Indexes: created_at; status+created_at; to_email+created_at; notification_id; purpose+created_at
+- V1 tracks SMTP accept/fail/skip only (no bounce webhooks)
+
+### Applied migration — notification email correlation id
+- Migration: `prisma/migrations/20260908130000_notification_email_correlation_id`
+- Table `notifications`: add `email_correlation_id` VARCHAR(64) NULL
+- Index: `idx_notifications_email_correlation_id`
+- Links Outbox rows to a shared email fan-out (reminders); Dizlee Outbox shows Sent / Not sent / Failed / Partly sent
+
 ## Source of truth until ERD is refreshed
 1. [`prisma/schema.prisma`](prisma/schema.prisma)
 2. Files under [`prisma/migrations/`](prisma/migrations/)

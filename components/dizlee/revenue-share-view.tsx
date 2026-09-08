@@ -28,7 +28,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { FieldLabel, Select } from "@/components/ui/field";
 import { FilterActions } from "@/components/ui/filter-actions";
 import { ListPagination } from "@/components/ui/list-pagination";
-import { LoadingOverlay } from "@/components/ui/loading";
+import { FullPageLoading, LoadingOverlay } from "@/components/ui/loading";
 import { Modal } from "@/components/ui/modal";
 import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
@@ -138,6 +138,9 @@ export function RevenueShareView({
   const [dashboard, setDashboard] = useState(initialDashboard);
   const [loading, setLoading] = useState(false);
   const [generatingOpcoId, setGeneratingOpcoId] = useState<string | null>(null);
+  const [generatingOpcoName, setGeneratingOpcoName] = useState<string | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
   const [detailsRow, setDetailsRow] = useState<RevenueShareDashboardRow | null>(
     null,
@@ -215,6 +218,7 @@ export function RevenueShareView({
 
   async function generateReport(row: RevenueShareDashboardRow) {
     setGeneratingOpcoId(row.opcoId);
+    setGeneratingOpcoName(row.opcoName);
     setError(null);
     try {
       const response = await fetch("/api/dizlee/revenue-share/generate", {
@@ -250,6 +254,7 @@ export function RevenueShareView({
       );
     } finally {
       setGeneratingOpcoId(null);
+      setGeneratingOpcoName(null);
     }
   }
 
@@ -290,6 +295,17 @@ export function RevenueShareView({
 
   return (
     <div className="space-y-6">
+      {generatingOpcoId ? (
+        <FullPageLoading
+          label="Generating RS report…"
+          description={
+            generatingOpcoName
+              ? `Please wait while we generate the revenue share report for ${generatingOpcoName}.`
+              : "Please wait while we generate the revenue share report."
+          }
+        />
+      ) : null}
+
       <PageCard>
         <PageHeader
           title="RS Reports"

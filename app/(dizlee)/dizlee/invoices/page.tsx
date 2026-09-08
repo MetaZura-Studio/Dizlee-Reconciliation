@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+
 import { InvoicesListView } from "@/components/dizlee/invoices-list-view";
 import {
   getInvoiceFilterOptions,
@@ -16,6 +18,7 @@ type DizleeInvoicesPageProps = {
     sortBy?: string;
     sortDir?: string;
     page?: string;
+    id?: string;
   }>;
 };
 
@@ -26,7 +29,7 @@ export default async function DizleeInvoicesPage({
   const query = new URLSearchParams();
 
   for (const [key, value] of Object.entries(params)) {
-    if (value && key !== "from") {
+    if (value && key !== "from" && key !== "id") {
       query.set(key, value);
     }
   }
@@ -38,10 +41,12 @@ export default async function DizleeInvoicesPage({
   ]);
 
   return (
-    <InvoicesListView
-      initialResult={initialResult}
-      initialFilterOptions={filterOptions}
-      fromDashboard={params.from === "dashboard"}
-    />
+    <Suspense fallback={null}>
+      <InvoicesListView
+        initialResult={initialResult}
+        initialFilterOptions={filterOptions}
+        fromDashboard={params.from === "dashboard"}
+      />
+    </Suspense>
   );
 }

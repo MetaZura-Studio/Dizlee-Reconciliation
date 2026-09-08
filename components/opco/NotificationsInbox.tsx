@@ -5,6 +5,7 @@
 
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 
@@ -293,6 +294,16 @@ export function NotificationsInbox({ initialResult }: NotificationsInboxProps) {
                 ) : null}
               </div>
               <p className="whitespace-pre-wrap text-sm text-foreground-muted">{detail.body}</p>
+              {detail.action ? (
+                <div>
+                  <Link
+                    href={detail.action.href}
+                    className={cn(ui.btnPrimary, "inline-flex items-center")}
+                  >
+                    {detail.action.label}
+                  </Link>
+                </div>
+              ) : null}
               {detail.attachments.length > 0 ? (
                 <div>
                   <h4 className="text-sm font-medium text-foreground">Attachments</h4>

@@ -5,8 +5,11 @@ import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { FieldLabel, FieldLegend, Input, Select } from "@/components/ui/field";
+import { FullPageLoading } from "@/components/ui/loading";
 import { Modal } from "@/components/ui/modal";
 import { FilterToolbar } from "@/components/ui/page";
+import { SuccessDialog } from "@/components/ui/success-dialog";
+import { EmailNotConfiguredNotice } from "@/components/shared/email-not-configured-notice";
 import {
   attachmentFileIds,
   NotificationAttachmentPicker,
@@ -101,6 +104,7 @@ export function LaneRemindModal({
 }: LaneRemindModalProps) {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<LaneNotificationHistoryResult | null>(
     null,
@@ -221,6 +225,7 @@ export function LaneRemindModal({
         (payload.data?.message as string | undefined) ?? "Reminder sent.";
       onSent(message);
       setAttachments([]);
+      setSuccessMessage(message);
 
       const refresh = await fetch(
         `/api/dizlee/reconciliation/lane-notifications?${new URLSearchParams({
@@ -302,6 +307,7 @@ export function LaneRemindModal({
                 );
               })}
             </div>
+            <EmailNotConfiguredNotice channel={deliveryChannel} />
           </fieldset>
           <div>
             <FieldLabel htmlFor="lane-remind-template">Template</FieldLabel>
@@ -474,31 +480,51 @@ export function LaneRemindModal({
   }
 
   return (
-    <Modal
-      open
-      title="Remind to submit reports"
-      onClose={onClose}
-      wide
-      className="!max-w-6xl w-[min(96vw,72rem)] !max-h-[94vh]"
-    >
-      <p className="mb-6 text-sm text-foreground-muted">
-        {lane.opcoName} / {lane.partnerName} · {periodLabel}
-      </p>
+    <>
+      {sending ? (
+        <FullPageLoading
+          label="Sending…"
+          description="Please wait while we deliver this message."
+        />
+      ) : null}
 
-      <div className="space-y-6">
-        {loading ? (
-          <p className="text-sm text-foreground-subtle">Loading…</p>
-        ) : null}
+      <SuccessDialog
+        open={successMessage != null}
+        title="Reminder sent"
+        message={successMessage ?? ""}
+        actionLabel="Back"
+        onAction={() => {
+          setSuccessMessage(null);
+          onClose();
+        }}
+      />
 
-        {error ? <p className={ui.alertError}>{error}</p> : null}
+      <Modal
+        open={successMessage == null}
+        title="Remind to submit reports"
+        onClose={onClose}
+        wide
+        className="!max-w-6xl w-[min(96vw,72rem)] !max-h-[94vh]"
+      >
+        <p className="mb-6 text-sm text-foreground-muted">
+          {lane.opcoName} / {lane.partnerName} · {periodLabel}
+        </p>
 
-        {history ? (
-          <>
-            {renderCompose()}
-            {renderStatus()}
-          </>
-        ) : null}
-      </div>
-    </Modal>
+        <div className="space-y-6">
+          {loading ? (
+            <p className="text-sm text-foreground-subtle">Loading…</p>
+          ) : null}
+
+          {error ? <p className={ui.alertError}>{error}</p> : null}
+
+          {history ? (
+            <>
+              {renderCompose()}
+              {renderStatus()}
+            </>
+          ) : null}
+        </div>
+      </Modal>
+    </>
   );
 }

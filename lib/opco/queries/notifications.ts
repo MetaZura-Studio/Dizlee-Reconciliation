@@ -9,6 +9,12 @@ import type { Prisma } from "@prisma/client";
 
 import { trimNotificationPreview } from "@/lib/opco/notifications/shared";
 import { inboxDeliveryChannelFilter } from "@/lib/platform/notification-delivery.shared";
+import {
+  parseNotificationMetadata,
+  resolveNotificationAction,
+  type NotificationAction,
+  type NotificationMetadata,
+} from "@/lib/platform/notification-metadata";
 import prisma from "@/lib/prisma";
 import { DomainError } from "@/lib/errors/app-error";
 
@@ -54,6 +60,8 @@ export type OpcoInboxDetail = {
   isRead: boolean;
   readAt: string | null;
   attachments: OpcoInboxAttachment[];
+  metadata: NotificationMetadata | null;
+  action: NotificationAction | null;
 };
 
 export type OpcoInboxFilters = {
@@ -214,6 +222,7 @@ export async function getOpcoInboxNotificationDetail(params: {
 
   const fromUser = row.recipients[0]?.fromUser;
   const read = row.reads[0];
+  const metadata = parseNotificationMetadata(row.metadataJson);
 
   return {
     id: row.id.toString(),
@@ -228,6 +237,8 @@ export async function getOpcoInboxNotificationDetail(params: {
       id: attachment.id.toString(),
       filename: attachment.file.filename,
     })),
+    metadata,
+    action: resolveNotificationAction(metadata, row.subject),
   };
 }
 

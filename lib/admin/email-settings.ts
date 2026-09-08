@@ -166,6 +166,10 @@ export async function sendTestEmail(
     subject: "Dizlee Reconciliation test email",
     text: "This is a test email from Dizlee Reconciliation. If you received this message, outbound email is configured correctly.",
     html: `<p>This is a test email from <strong>Dizlee Reconciliation</strong>.</p><p>If you received this message, outbound email is configured correctly.</p>`,
+    logContext: {
+      purpose: "ADMIN_TEST",
+      actorUserId,
+    },
   });
 
   if (!result.sent) {

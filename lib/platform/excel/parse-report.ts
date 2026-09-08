@@ -5,6 +5,9 @@
 import ExcelJS from "exceljs";
 import { DomainError } from "@/lib/errors/app-error";
 import { assertSafeXlsxZip } from "@/lib/platform/excel/assert-safe-xlsx-zip";
+import {
+  WrongReportTypeError,
+} from "@/lib/platform/excel/report-workbook-kind";
 
 export type ParsedReportLine = {
   lineNumber: number;
@@ -20,8 +23,8 @@ export type ParsedReportLine = {
 };
 
 export class ReportParseError extends DomainError {
-  constructor(keyOrMessage: string) {
-    super("ReportParseError", keyOrMessage);
+  constructor(keyOrMessage: string, status?: number) {
+    super("ReportParseError", keyOrMessage, status);
   }
 }
 
@@ -151,9 +154,8 @@ export async function parseReportWorkbook(
   });
 
   if (columnMap.size === 0) {
-    throw new ReportParseError(
-      "No recognized columns found. Expected headers such as description, usage_amount, usage_usd, service name, or gross amount.",
-    );
+    // Wrong / unknown Excel shape — show “Format is incorrect.” (not catalog fallback).
+    throw new WrongReportTypeError();
   }
 
   const lines: ParsedReportLine[] = [];

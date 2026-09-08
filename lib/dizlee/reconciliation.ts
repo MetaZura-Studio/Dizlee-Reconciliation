@@ -25,6 +25,7 @@ export type LaneState =
   | "NO_OPCO_REPORT"
   | "NO_PARTNER_REPORT"
   | "READY"
+  | "IN_PROGRESS"
   | "RECONCILED";
 
 export type CompareLaneStatusFilter = "all" | LaneState;
@@ -237,6 +238,7 @@ export function parseCompareLaneFilters(
       status === "NO_OPCO_REPORT" ||
       status === "NO_PARTNER_REPORT" ||
       status === "READY" ||
+      status === "IN_PROGRESS" ||
       status === "RECONCILED"
         ? status
         : "all",
@@ -327,6 +329,12 @@ function laneState(params: {
   }
   if (params.reconciliationStatusCode === "COMPLETED") {
     return "RECONCILED";
+  }
+  if (
+    params.reconciliationStatusCode === "IN_PROGRESS" ||
+    params.reconciliationStatusCode === "PENDING"
+  ) {
+    return "IN_PROGRESS";
   }
   return "READY";
 }
@@ -431,12 +439,17 @@ export async function listCompareLanes(
     reportsByLane.set(laneKey, entry);
   }
 
-  const reconciliationByLane = new Map(
-    reconciliations.map((row) => [
-      `${row.opcoId.toString()}-${row.partnerId.toString()}`,
-      row,
-    ]),
-  );
+  const reconciliationByLane = new Map<
+    string,
+    (typeof reconciliations)[number]
+  >();
+  for (const row of reconciliations) {
+    const laneKey = `${row.opcoId.toString()}-${row.partnerId.toString()}`;
+    const existing = reconciliationByLane.get(laneKey);
+    if (!existing || row.id > existing.id) {
+      reconciliationByLane.set(laneKey, row);
+    }
+  }
 
   const notificationSummaries = await getLaneNotificationSummaries({
     month: filters.month,

@@ -48,4 +48,46 @@ describe("resolveNotificationHref", () => {
       ),
     ).toBe("/opco/reports");
   });
+
+  it("routes OpCo invoice notifications to the specific invoice", () => {
+    expect(
+      resolveNotificationHref(
+        "opco",
+        {
+          id: "4",
+          subject: "Invoice received from Dizlee",
+          metadataJson: JSON.stringify({
+            type: "INVOICE_SENT",
+            invoiceId: "99",
+            invoiceNumber: "INV-1",
+            opcoId: "7",
+            month: 8,
+            year: 2026,
+          }),
+        },
+        "/opco/notifications",
+      ),
+    ).toBe("/opco/invoices?id=99");
+  });
+
+  it("routes Dizlee invoice outbox deep links to Dizlee invoices", () => {
+    expect(
+      resolveNotificationHref(
+        "dizlee",
+        {
+          id: "5",
+          subject: "Invoice received from Dizlee",
+          metadataJson: JSON.stringify({
+            type: "INVOICE_SENT",
+            invoiceId: "99",
+            invoiceNumber: "INV-1",
+            opcoId: "7",
+            month: 8,
+            year: 2026,
+          }),
+        },
+        "/dizlee/notifications?tab=inbox",
+      ),
+    ).toBe("/dizlee/invoices?id=99");
+  });
 });

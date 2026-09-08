@@ -63,13 +63,24 @@ export type PartnerReportUploadMetadata = {
   year: number;
 };
 
+export type InvoiceSentMetadata = {
+  type: "INVOICE_SENT";
+  invoiceId: string;
+  invoiceNumber: string | null;
+  opcoId: string;
+  opcoName?: string;
+  month: number;
+  year: number;
+};
+
 export type NotificationMetadata =
   | OpcoReportUploadMetadata
   | OpcoReportResubmittedMetadata
   | ReuploadRequestMetadata
   | PartnerLinkRequestMetadata
   | PartnerLinkDecisionMetadata
-  | PartnerReportUploadMetadata;
+  | PartnerReportUploadMetadata
+  | InvoiceSentMetadata;
 
 export type NotificationAction = {
   label: string;
@@ -240,6 +251,13 @@ export function resolveNotificationAction(
     metadata?.type === "PARTNER_LINK_REJECTED"
   ) {
     return { label: "Upload report", href: "/opco/upload" };
+  }
+
+  if (metadata?.type === "INVOICE_SENT") {
+    return {
+      label: "Open invoice",
+      href: `/opco/invoices?id=${encodeURIComponent(metadata.invoiceId)}`,
+    };
   }
 
   if (

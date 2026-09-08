@@ -2,7 +2,10 @@
  * Loading and skeleton helpers for route fallbacks, full-viewport blocking states, and in-view refetch overlays.
  */
 
+"use client";
+
 import type { ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 import { cn } from "@/lib/ui/classes";
 
@@ -80,7 +83,9 @@ export function PageLoading({
   );
 }
 
-/** Viewport-covering loader for sign-in and other blocking transitions. */
+/** Viewport-covering loader for sign-in and other blocking transitions.
+ * Portaled to `document.body` so it stacks above modals (which also portal).
+ */
 export function FullPageLoading({
   label = "Loading…",
   description = "Please wait while we prepare this page.",
@@ -88,14 +93,19 @@ export function FullPageLoading({
   label?: string;
   description?: string;
 }) {
-  return (
-    <div className="fixed inset-0 z-[400] flex items-center justify-center bg-canvas/90 px-4 backdrop-blur-sm">
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  return createPortal(
+    <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]">
       <PageLoading
         label={label}
         description={description}
-        className="w-full max-w-md border-border bg-surface"
+        className="w-full max-w-md border-border bg-surface shadow-[var(--shadow-md)]"
       />
-    </div>
+    </div>,
+    document.body,
   );
 }
 

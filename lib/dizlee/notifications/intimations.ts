@@ -4,6 +4,8 @@
  * Persists platform notifications with optional attachments and multi-audience recipients.
  */
 
+import { randomUUID } from "crypto";
+
 import { getLookupId } from "@/lib/dizlee/lookups";
 import {
   BROADCAST_PICKER_CATEGORIES,
@@ -441,11 +443,16 @@ export async function sendBroadcastNotification(params: {
     })),
   ];
 
+  const emailCorrelationId = deliverySendsEmail(deliveryChannel)
+    ? randomUUID()
+    : null;
+
   const notification = await prisma.notification.create({
     data: {
       subject,
       body,
       deliveryChannel,
+      emailCorrelationId,
       statusId: sentStatusId,
       priority,
       expiresAt,
@@ -466,6 +473,10 @@ export async function sendBroadcastNotification(params: {
           recipients: emailRecipients,
           subject,
           body,
+          purpose: "INTIMATION",
+          notificationId: notification.id,
+          actorUserId: fromUserId,
+          correlationId: emailCorrelationId ?? undefined,
         })
       : null
     : await maybeSendEventEmails({
@@ -473,6 +484,10 @@ export async function sendBroadcastNotification(params: {
         recipients: emailRecipients,
         subject,
         body,
+        purpose: "INTIMATION",
+        notificationId: notification.id,
+        actorUserId: fromUserId,
+        correlationId: emailCorrelationId ?? undefined,
       });
 
   const recipientCount = recipientCreates.length;

@@ -117,6 +117,21 @@ describe("formatAppError", () => {
     ).toBe("Failed to upload report");
   });
 
+  it("surfaces Format is incorrect for unrecognized report columns over upload fallback", () => {
+    expect(
+      formatAppError(
+        {
+          error: {
+            code: ERROR_CATALOG.REPORT_COLUMNS_UNRECOGNIZED.code,
+            key: "REPORT_COLUMNS_UNRECOGNIZED" as ErrorKey,
+            message: "REPORT COLUMNS UNRECOGNIZED",
+          },
+        },
+        "Failed to upload report",
+      ),
+    ).toBe("Format is incorrect.");
+  });
+
   it("surfaces human-readable domain errors over upload fallback", () => {
     expect(
       formatAppError(

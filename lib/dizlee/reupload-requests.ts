@@ -3,6 +3,8 @@
  * Consumed by reupload requests UI; writes platform audit entries on decisions.
  */
 
+import { randomUUID } from "crypto";
+
 import type { Prisma } from "@prisma/client";
 
 import { currentPeriod, type DashboardPeriod } from "@/lib/dizlee/dashboard";
@@ -13,7 +15,10 @@ import {
   getReportFilterOptions,
   type ReportFilterOptions,
 } from "@/lib/dizlee/reports";
-import { DEFAULT_NOTIFICATION_DELIVERY_CHANNEL } from "@/lib/platform/notification-delivery.shared";
+import {
+  DEFAULT_NOTIFICATION_DELIVERY_CHANNEL,
+  deliverySendsEmail,
+} from "@/lib/platform/notification-delivery.shared";
 import {
   maybeSendEventEmails,
   resolveUserEmailsByIds,
@@ -645,12 +650,16 @@ async function notifyRequester(params: {
   ]);
 
   const deliveryChannel = DEFAULT_NOTIFICATION_DELIVERY_CHANNEL;
+  const emailCorrelationId = deliverySendsEmail(deliveryChannel)
+    ? randomUUID()
+    : null;
 
-  await prisma.notification.create({
+  const notification = await prisma.notification.create({
     data: {
       subject: params.subject,
       body: params.body,
       deliveryChannel,
+      emailCorrelationId,
       statusId: sentStatusId,
       sentAt: new Date(),
       createdByUserId: params.fromUserId,
@@ -662,6 +671,7 @@ async function notifyRequester(params: {
         },
       },
     },
+    select: { id: true },
   });
 
   const recipients = await resolveUserEmailsByIds([params.requesterUserId]);
@@ -670,6 +680,10 @@ async function notifyRequester(params: {
     recipients,
     subject: params.subject,
     body: params.body,
+    purpose: "EVENT",
+    notificationId: notification.id,
+    actorUserId: params.fromUserId,
+    correlationId: emailCorrelationId ?? undefined,
   });
 }
 

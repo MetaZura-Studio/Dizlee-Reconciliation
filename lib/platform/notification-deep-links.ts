@@ -43,8 +43,12 @@ export function resolveNotificationHref(
   const metadata = parseNotificationMetadata(item.metadataJson);
 
   if (portal === "dizlee") {
+    if (metadata?.type === "INVOICE_SENT" && metadata.invoiceId) {
+      return `/dizlee/invoices?id=${encodeURIComponent(metadata.invoiceId)}`;
+    }
     const action = resolveNotificationAction(metadata, subject);
-    if (action) {
+    // OpCo-scoped actions (e.g. invoice CTA) must not send Dizlee users to /opco.
+    if (action && !action.href.startsWith("/opco/")) {
       return action.href;
     }
   }
@@ -96,6 +100,13 @@ export function resolveNotificationHref(
   }
 
   if (/invoice/i.test(subject)) {
+    if (
+      portal === "opco" &&
+      metadata?.type === "INVOICE_SENT" &&
+      metadata.invoiceId
+    ) {
+      return `/opco/invoices?id=${encodeURIComponent(metadata.invoiceId)}`;
+    }
     if (portal === "opco") {
       return "/opco/invoices";
     }
@@ -103,6 +114,9 @@ export function resolveNotificationHref(
       return "/partner/invoices";
     }
     if (portal === "dizlee") {
+      if (metadata?.type === "INVOICE_SENT" && metadata.invoiceId) {
+        return `/dizlee/invoices?id=${encodeURIComponent(metadata.invoiceId)}`;
+      }
       return "/dizlee/invoices";
     }
   }
