@@ -25,6 +25,32 @@ describe("email settings validation", () => {
       smtpHost: "smtp.titan.email",
       smtpPort: 465,
       senderAddress: "noreply@dizlee.com",
+      smtpUser: "user@example.com",
+      smtpPassword: "secret",
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("requires user and password together when either is sent", () => {
+    const result = updateEmailSettingsSchema.safeParse({
+      emailEnabled: true,
+      smtpHost: "smtp.titan.email",
+      smtpPort: 465,
+      senderAddress: "noreply@dizlee.com",
+      smtpUser: "user@example.com",
+      smtpPassword: "",
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("allows update without credentials when leaving existing ones untouched", () => {
+    const result = updateEmailSettingsSchema.safeParse({
+      emailEnabled: true,
+      smtpHost: "smtp.titan.email",
+      smtpPort: 465,
+      senderAddress: "noreply@dizlee.com",
     });
 
     expect(result.success).toBe(true);

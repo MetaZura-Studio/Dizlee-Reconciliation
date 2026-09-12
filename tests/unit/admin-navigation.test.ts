@@ -9,12 +9,12 @@ import {
 } from "@/lib/admin/navigation";
 
 describe("admin navigation", () => {
-  it("defines main navigation with Organization and Settings groups", () => {
+  it("defines main navigation with Organization, Logs, and Settings groups", () => {
     expect(ADMIN_MAIN_NAV_ITEMS.map((item) => item.label)).toEqual([
       "Dashboard",
       "Users",
       "Organization",
-      "Audit logs",
+      "Logs",
       "Settings",
       "Notifications",
     ]);
@@ -29,10 +29,15 @@ describe("admin navigation", () => {
       "Service–Partner maps",
     ]);
 
+    const logs = ADMIN_MAIN_NAV_ITEMS.find((item) => item.label === "Logs");
+    expect(logs?.children?.map((item) => item.label)).toEqual([
+      "Audit logs",
+      "Email delivery logs",
+    ]);
+
     const settings = ADMIN_MAIN_NAV_ITEMS.find((item) => item.label === "Settings");
     expect(settings?.children?.map((item) => item.label)).toEqual([
       "Email Templates",
-      "Email delivery",
       "Reconciliation tolerance",
       "Currencies & USD rates",
       "Invoice bank details",
@@ -76,7 +81,7 @@ describe("admin navigation", () => {
       "Email Settings",
     );
     expect(getAdminNavItemForPath("/admin/email-delivery")?.label).toBe(
-      "Email delivery",
+      "Email delivery logs",
     );
     expect(getAdminNavItemForPath("/admin/reminder-settings")?.label).toBe(
       "Reminder Settings",

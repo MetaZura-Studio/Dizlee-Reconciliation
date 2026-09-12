@@ -272,10 +272,6 @@ export function ActivityView({
           loading={loading}
           disabled={!hasEntity}
         />
-        <p className={ui.hint}>
-          Select at least one OpCo or Partner. Selecting both narrows to that
-          lane.
-        </p>
       </FilterToolbar>
 
       {error ? <div className={`mt-4 ${ui.alertError}`}>{error}</div> : null}

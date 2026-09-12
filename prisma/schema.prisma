@@ -371,6 +371,10 @@ model AppSettings {
   smtpHost                        String?  @map("smtp_host") @db.VarChar(255)
   smtpPort                        Int?     @map("smtp_port")
   senderAddress                   String?  @map("sender_address") @db.VarChar(255)
+  /** SMTP auth username (Admin Email Settings). */
+  smtpUser                        String?  @map("smtp_user") @db.VarChar(255)
+  /** AES-GCM ciphertext for SMTP password (never return plaintext to clients). */
+  smtpPasswordEnc                 String?  @map("smtp_password_enc") @db.Text
   remindersEnabled                Boolean  @default(false) @map("reminders_enabled")
   reminderValue                   Int?     @map("reminder_value")
   reminderUnit                    String?  @map("reminder_unit") @db.VarChar(16)

@@ -36,12 +36,7 @@ export default async function AdminEmailSettingsPage() {
       <FormLayout>
         <PageHeader
           title="Email Notification Settings"
-          description={
-            <>
-              Configure SMTP host, port, and sender. Credentials stay in{" "}
-              <code>.env</code>.
-            </>
-          }
+          description="Configure SMTP host, port, sender, user, and password for outbound email."
         />
         <EmailSettingsForm initialSettings={settings!} />
       </FormLayout>

@@ -27,6 +27,7 @@ export function AdminNavIconGlyph({ name, className = "h-5 w-5" }: NavIconProps)
         </svg>
       );
     case "audit":
+    case "logs":
       return (
         <svg {...props}>
           <path

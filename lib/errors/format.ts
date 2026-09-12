@@ -18,6 +18,7 @@ const CLIENT_MESSAGES: Partial<Record<ErrorKey, string>> = {
   USER_NOT_FOUND: "Login failed. Check your email and password.",
   USER_NOT_ACTIVE: "This account is not active. Contact your administrator.",
   ACCOUNT_NOT_ACTIVE: "This account is not active. Contact your administrator.",
+  ACCOUNT_SUSPENDED: "Your account has been suspended. Contact support.",
   PASSWORD_LINK_INVALID: "This password link is invalid.",
   PASSWORD_LINK_EXPIRED: "This password link has expired.",
   CURRENT_PASSWORD_INCORRECT: "Current password is incorrect.",
@@ -150,6 +151,7 @@ export function formatAppError(
         key === "UNAUTHORIZED" ||
         key === "USER_NOT_ACTIVE" ||
         key === "ACCOUNT_NOT_ACTIVE" ||
+        key === "ACCOUNT_SUSPENDED" ||
         key === "REPORT_COLUMNS_UNRECOGNIZED")
     ) {
       return clientMessageForKey(key);

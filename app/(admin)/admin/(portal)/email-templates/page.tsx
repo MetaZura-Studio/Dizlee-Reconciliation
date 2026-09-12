@@ -33,16 +33,7 @@ export default async function AdminEmailTemplatesPage() {
   }
 
   return (
-    <div className="w-full space-y-6">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Email templates</h1>
-        <p className="text-sm text-foreground-muted">
-          Generic monthly notices and reminders for OpCos and Partners. Password
-          invite and reset emails are editable under Other. Each save creates a
-          new version.
-        </p>
-      </div>
-
+    <div className="w-full">
       <EmailTemplatesView
         initialData={{
           templates: pageData!.templates,

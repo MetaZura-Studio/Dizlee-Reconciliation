@@ -38,6 +38,33 @@ type OpcoFormModalContentProps = {
   onSaved: (opco: OpcoListItem, message: string) => void;
 };
 
+/** Digits + optional decimal (max 2 places). No letters, signs, or extras. */
+function sanitizeVatPercentInput(raw: string): string {
+  let cleaned = raw.replace(/[^0-9.]/g, "");
+  const firstDot = cleaned.indexOf(".");
+  if (firstDot === -1) {
+    return cleaned;
+  }
+  const whole = cleaned.slice(0, firstDot);
+  const fraction = cleaned
+    .slice(firstDot + 1)
+    .replace(/\./g, "")
+    .slice(0, 2);
+  return `${whole}.${fraction}`;
+}
+
+function parseVatPercentInput(raw: string): number | null {
+  const trimmed = raw.trim();
+  if (!trimmed || !/^\d+(\.\d{1,2})?$/.test(trimmed)) {
+    return null;
+  }
+  const value = Number.parseFloat(trimmed);
+  if (!Number.isFinite(value) || value < 0 || value > 100) {
+    return null;
+  }
+  return value;
+}
+
 function getInitialValues(
   mode: "create" | "edit",
   opco: OpcoListItem | null,
@@ -81,11 +108,17 @@ function OpcoFormModalContent({
     setError(null);
 
     try {
-      const parsedVat = Number.parseFloat(values.vatPercent.trim());
+      const parsedVat = parseVatPercentInput(values.vatPercent);
+      if (parsedVat === null) {
+        setError("VAT % must be a number from 0 to 100 (up to 2 decimal places).");
+        setSubmitting(false);
+        return;
+      }
+
       const payload = {
         name: values.name,
         defaultCurrencyId: values.defaultCurrencyId,
-        vatPercent: Number.isFinite(parsedVat) ? parsedVat : 0,
+        vatPercent: parsedVat,
         status: values.status,
       };
 
@@ -178,17 +211,22 @@ function OpcoFormModalContent({
               <input
                 type="text"
                 inputMode="decimal"
+                pattern="^\d+(\.\d{1,2})?$"
                 value={values.vatPercent}
                 onChange={(event) =>
                   setValues((current) => ({
                     ...current,
-                    vatPercent: event.target.value,
+                    vatPercent: sanitizeVatPercentInput(event.target.value),
                   }))
                 }
                 placeholder="e.g. 5 or 15.5"
                 required
                 className={ui.input}
+                aria-describedby="opco-vat-hint"
               />
+              <p id="opco-vat-hint" className="mt-1 text-xs text-foreground-muted">
+                Number from 0 to 100 only (no letters or negative values).
+              </p>
             </label>
 
             <label className="block text-sm">

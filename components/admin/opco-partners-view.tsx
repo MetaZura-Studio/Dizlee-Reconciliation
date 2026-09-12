@@ -33,7 +33,7 @@ import type {
 import type { AdminPartnerLinkRequestItem } from "@/lib/admin/opco-partner-link-requests";
 import { paginateItems } from "@/lib/ui/list-pagination";
 import { nextSortState, type SortDirection } from "@/lib/ui/sort";
-import { cn, ui } from "@/lib/ui/classes";
+import { ui } from "@/lib/ui/classes";
 import { formatAppDateTime } from "@/lib/platform/format-datetime";
 import { formatAppError } from "@/lib/errors/format";
 
@@ -455,35 +455,43 @@ export function OpcoPartnersView({
 
   return (
     <div className="space-y-4">
-      <div className="flex rounded-2xl border border-border bg-surface-muted/50 p-1">
+      <div
+        className="mb-1 flex flex-wrap gap-2 border-b border-border pb-3"
+        role="tablist"
+        aria-label="OpCo partners sections"
+      >
         {(
           [
             ["links", "Links"],
             ["requests", "Requests"],
           ] as const
-        ).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => selectTab(id)}
-            className={cn(
-              "inline-flex items-center gap-2 rounded-xl px-3.5 py-1.5 text-sm font-medium transition-colors",
-              tab === id
-                ? "bg-surface text-foreground shadow-[var(--shadow-sm)]"
-                : "text-foreground-muted hover:text-foreground",
-            )}
-          >
-            {label}
-            {id === "requests" && pendingRequestCount > 0 ? (
-              <span
-                className="inline-flex min-w-5 items-center justify-center rounded-full bg-danger px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white"
-                aria-label={`${pendingRequestCount} pending request${pendingRequestCount === 1 ? "" : "s"}`}
-              >
-                {pendingRequestCount > 9 ? "9+" : pendingRequestCount}
-              </span>
-            ) : null}
-          </button>
-        ))}
+        ).map(([id, label]) => {
+          const selected = tab === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              onClick={() => selectTab(id)}
+              className={
+                selected
+                  ? "inline-flex items-center gap-2 rounded-full bg-primary-muted px-3.5 py-1.5 text-sm font-semibold text-primary"
+                  : "inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-medium text-foreground-muted hover:bg-surface-muted hover:text-foreground"
+              }
+            >
+              {label}
+              {id === "requests" && pendingRequestCount > 0 ? (
+                <span
+                  className="inline-flex min-w-5 items-center justify-center rounded-full bg-danger px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white"
+                  aria-label={`${pendingRequestCount} pending request${pendingRequestCount === 1 ? "" : "s"}`}
+                >
+                  {pendingRequestCount > 9 ? "9+" : pendingRequestCount}
+                </span>
+              ) : null}
+            </button>
+          );
+        })}
       </div>
 
       {tab === "requests" ? (
@@ -615,13 +623,7 @@ export function OpcoPartnersView({
         <PageCard>
           {error ? <p className={ui.alertError}>{error}</p> : null}
 
-          <p className={`mt-4 ${ui.cardPadding} text-sm text-foreground-muted`}>
-            Linked partners control upload dropdowns, monitoring pairs, and report
-            validation. OpCo Excel files that name unlinked or unknown partners are
-            blocked until you add the link.
-          </p>
-
-          <form onSubmit={(event) => void save(event)} className="mt-6 space-y-6">
+          <form onSubmit={(event) => void save(event)} className="mt-4 space-y-6">
             <FilterToolbar>
               <div className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <label className="text-sm">

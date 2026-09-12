@@ -40,6 +40,22 @@ function kindTone(kind: OutboxKind): "danger" | "info" | "neutral" {
   return "neutral";
 }
 
+function isHighPriority(priority: string | null): boolean {
+  return priority?.trim().toUpperCase() === "HIGH";
+}
+
+/** Short channel label for the compact outbox list. */
+function outboxChannelTag(channel: string | null | undefined): string {
+  switch ((channel ?? "SYSTEM").toUpperCase()) {
+    case "EMAIL":
+      return "Email";
+    case "BOTH":
+      return "In-app + Email";
+    default:
+      return "In-app";
+  }
+}
+
 function emailSendTone(
   status: NotificationHistoryItem["emailSendStatus"],
 ): "success" | "warning" | "danger" | "neutral" {
@@ -220,14 +236,20 @@ export function NotificationHistoryView({
 
       {error ? <div className={`mt-4 ${ui.alertError}`}>{error}</div> : null}
 
-      <div className="mt-4 grid gap-6 lg:grid-cols-2">
-        <LoadingOverlay active={loading} className={cn(ui.tableWrap, "min-h-[16rem]")}>
-          <div className="border-b border-border px-4 py-3">
+      <div className="mt-4 grid gap-6 lg:grid-cols-2 lg:items-start">
+        <LoadingOverlay
+          active={loading}
+          className={cn(
+            ui.tableWrap,
+            "flex max-h-[min(40rem,70vh)] min-h-[16rem] flex-col overflow-hidden",
+          )}
+        >
+          <div className="shrink-0 border-b border-border px-4 py-3">
             <h2 className="font-medium text-foreground">Outbox</h2>
             <p className="text-sm text-foreground-subtle">{result.totalCount} total</p>
           </div>
 
-          <div className="divide-y divide-border">
+          <div className="min-h-0 flex-1 divide-y divide-border overflow-y-auto">
             {result.items.length === 0 ? (
               <EmptyState
                 className="border-0 bg-transparent shadow-none"
@@ -243,63 +265,38 @@ export function NotificationHistoryView({
               />
             ) : (
               result.items.map((item) => (
-                <div
+                <button
                   key={item.id}
+                  type="button"
+                  onClick={() => void loadDetail(item.id)}
                   className={cn(
                     "w-full px-4 py-3 text-left transition-colors hover:bg-surface-muted",
                     selectedId === item.id && "bg-surface-muted",
                   )}
                 >
-                  <button
-                    type="button"
-                    onClick={() => void loadDetail(item.id)}
-                    className="w-full text-left"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="font-medium text-foreground">{item.subject}</p>
-                      <div className="flex shrink-0 flex-wrap justify-end gap-2">
-                        <StatusPill tone="info">
-                          {item.deliveryChannelLabel}
-                        </StatusPill>
-                        <StatusPill tone={kindTone(item.kind)}>
-                          {item.kindLabel}
-                        </StatusPill>
-                      </div>
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="min-w-0 flex-1 truncate font-medium text-foreground">
+                      {item.subject}
+                    </p>
+                    <div className="flex shrink-0 flex-wrap justify-end gap-1.5">
+                      <StatusPill tone={kindTone(item.kind)}>
+                        {item.kindLabel}
+                      </StatusPill>
+                      <StatusPill tone="info">
+                        {outboxChannelTag(item.deliveryChannel)}
+                      </StatusPill>
                     </div>
-                    <p className="mt-1 text-sm text-foreground-muted">
-                      {item.bodyPreview}
-                    </p>
-                    <p className="mt-2 text-xs text-foreground-subtle">
-                      To: {item.recipientSummary}
-                    </p>
-                    <p className="mt-1 text-xs text-foreground-subtle">
-                      {formatAppDateTime(item.sentAt)} · {item.sentBy}
-                    </p>
-                  </button>
-                  {showsEmailDelivery(item.deliveryChannel) ? (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        title="View in-app vs email delivery details"
-                        aria-label={`${item.emailSendPillLabel}. View delivery details.`}
-                        onClick={() =>
-                          void loadDetail(item.id, { focusDelivery: true })
-                        }
-                        className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-                      >
-                        <StatusPill tone={emailSendTone(item.emailSendStatus)}>
-                          {item.emailSendPillLabel}
-                        </StatusPill>
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
+                  </div>
+                  <p className="mt-1.5 text-xs text-foreground-subtle">
+                    Sent {formatAppDateTime(item.sentAt)}
+                  </p>
+                </button>
               ))
             )}
           </div>
 
           {result.totalPages > 1 ? (
-            <div className="flex items-center justify-between border-t border-border px-4 py-3 text-sm text-foreground-muted">
+            <div className="flex shrink-0 items-center justify-between border-t border-border px-4 py-3 text-sm text-foreground-muted">
               <span>
                 Page {result.page} of {result.totalPages}
               </span>
@@ -325,8 +322,12 @@ export function NotificationHistoryView({
 
         <LoadingOverlay
           active={detailLoading}
-          className={cn(ui.cardPadding, "min-h-[12rem]")}
+          className={cn(
+            ui.tableWrap,
+            "flex max-h-[min(40rem,70vh)] min-h-[16rem] flex-col overflow-hidden",
+          )}
         >
+          <div className={cn(ui.cardPadding, "min-h-0 flex-1 overflow-y-auto")}>
           <h2 className="font-medium text-foreground">Detail</h2>
           {detail ? (
             <div className="mt-4 space-y-4">
@@ -352,6 +353,9 @@ export function NotificationHistoryView({
                   <StatusPill tone={kindTone(detail.kind)}>
                     {detail.kindLabel}
                   </StatusPill>
+                  {isHighPriority(detail.priority) ? (
+                    <StatusPill tone="danger">High priority</StatusPill>
+                  ) : null}
                 </div>
                 <p className="mt-1 text-sm text-foreground-subtle">
                   Sent {formatAppDateTime(detail.sentAt)} by {detail.sentBy}
@@ -415,6 +419,7 @@ export function NotificationHistoryView({
               Select a notification to view details.
             </p>
           )}
+          </div>
         </LoadingOverlay>
       </div>
     </PageCard>

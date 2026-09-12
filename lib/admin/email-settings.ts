@@ -1,9 +1,7 @@
 /**
- * Admin outbound email configuration — DB overrides merged with SMTP env credentials.
- * Supports test send and audit on change; secrets never returned in the view model.
+ * Admin outbound email configuration — DB settings with optional encrypted SMTP credentials.
+ * Secrets are never returned in the view model (masked flags only).
  */
-import type { Prisma } from "@prisma/client";
-
 import { writeSettingsAuditLog } from "@/lib/admin/audit";
 import {
   sendTestEmailSchema,
@@ -17,6 +15,7 @@ import {
   normalizeSmtpHost,
   resolveSmtpConfig,
 } from "@/lib/auth/smtp-config";
+import { encryptSmtpPassword } from "@/lib/platform/smtp-credentials-crypto";
 import { prisma } from "@/lib/prisma";
 import { DomainError } from "@/lib/errors/app-error";
 
@@ -27,6 +26,8 @@ export type EmailSettingsView = {
   smtpPort: number | null;
   smtpUserConfigured: boolean;
   smtpPasswordConfigured: boolean;
+  /** True when credentials come from Admin DB (vs .env only). */
+  smtpCredentialsFromDb: boolean;
 };
 
 export class EmailSettingsError extends DomainError {
@@ -35,22 +36,22 @@ export class EmailSettingsError extends DomainError {
   }
 }
 
-function credentialFlags() {
-  return {
-    smtpUserConfigured: Boolean(process.env.SMTP_USER?.trim()),
-    smtpPasswordConfigured: Boolean(process.env.SMTP_PASSWORD),
-  };
-}
-
 function mapMergedSettings(row: {
   emailEnabled: boolean;
   senderAddress: string | null;
   smtpHost: string | null;
   smtpPort: number | null;
+  smtpUser: string | null;
+  smtpPasswordEnc: string | null;
 } | null): EmailSettingsView {
   const env = getEmailSettingsFromEnv();
   const dbHost = normalizeSmtpHost(row?.smtpHost);
   const hasDbHost = Boolean(dbHost);
+  const dbUserConfigured = Boolean(row?.smtpUser?.trim());
+  const dbPasswordConfigured = Boolean(row?.smtpPasswordEnc?.trim());
+  const smtpCredentialsFromDb = dbUserConfigured && dbPasswordConfigured;
+  const envUserConfigured = Boolean(process.env.SMTP_USER?.trim());
+  const envPasswordConfigured = Boolean(process.env.SMTP_PASSWORD);
 
   return {
     emailEnabled: hasDbHost ? Boolean(row?.emailEnabled) : env.emailEnabled,
@@ -61,19 +62,25 @@ function mapMergedSettings(row: {
     senderAddress: hasDbHost
       ? (row?.senderAddress?.trim() || env.senderAddress)
       : env.senderAddress,
-    ...credentialFlags(),
+    smtpUserConfigured: smtpCredentialsFromDb || envUserConfigured,
+    smtpPasswordConfigured: smtpCredentialsFromDb || envPasswordConfigured,
+    smtpCredentialsFromDb,
   };
 }
+
+const settingsSelect = {
+  emailEnabled: true,
+  senderAddress: true,
+  smtpHost: true,
+  smtpPort: true,
+  smtpUser: true,
+  smtpPasswordEnc: true,
+} as const;
 
 export async function getEmailSettings(): Promise<EmailSettingsView> {
   const settings = await prisma.appSettings.findFirst({
     where: { id: 1 },
-    select: {
-      emailEnabled: true,
-      senderAddress: true,
-      smtpHost: true,
-      smtpPort: true,
-    },
+    select: settingsSelect,
   });
 
   return mapMergedSettings(settings);
@@ -90,13 +97,53 @@ export async function updateEmailSettings(
     );
   }
 
+  const existing = await prisma.appSettings.findFirst({
+    where: { id: 1 },
+    select: settingsSelect,
+  });
+
   const smtpHost = normalizeSmtpHost(parsed.data.smtpHost) || null;
-  const data: Prisma.AppSettingsUpdateInput = {
-    emailEnabled: parsed.data.emailEnabled,
-    smtpHost,
-    smtpPort: parsed.data.smtpPort ?? 587,
-    senderAddress: parsed.data.senderAddress,
-  };
+  let nextSmtpUser: string | null | undefined = undefined;
+  let nextSmtpPasswordEnc: string | null | undefined = undefined;
+
+  if (parsed.data.clearSmtpCredentials) {
+    nextSmtpUser = null;
+    nextSmtpPasswordEnc = null;
+  } else {
+    const incomingUser = parsed.data.smtpUser?.trim() ?? "";
+    const incomingPassword = parsed.data.smtpPassword ?? "";
+    if (incomingUser && incomingPassword) {
+      try {
+        nextSmtpUser = incomingUser;
+        nextSmtpPasswordEnc = encryptSmtpPassword(incomingPassword);
+      } catch (error) {
+        throw new EmailSettingsError(
+          error instanceof Error
+            ? error.message
+            : "Could not encrypt SMTP password. Check NEXTAUTH_SECRET.",
+        );
+      }
+    }
+  }
+
+  const effectiveUser =
+    nextSmtpUser !== undefined ? nextSmtpUser : (existing?.smtpUser ?? null);
+  const effectivePasswordEnc =
+    nextSmtpPasswordEnc !== undefined
+      ? nextSmtpPasswordEnc
+      : (existing?.smtpPasswordEnc ?? null);
+  const willHaveDbCredentials =
+    Boolean(effectiveUser?.trim()) && Boolean(effectivePasswordEnc?.trim());
+
+  const envHasCredentials =
+    Boolean(process.env.SMTP_USER?.trim()) &&
+    Boolean(process.env.SMTP_PASSWORD);
+
+  if (parsed.data.emailEnabled && !willHaveDbCredentials && !envHasCredentials) {
+    throw new EmailSettingsError(
+      "SMTP user and password are required when email is enabled. Enter them here or set SMTP_USER / SMTP_PASSWORD in .env.",
+    );
+  }
 
   const updated = await prisma.appSettings.upsert({
     where: { id: 1 },
@@ -106,14 +153,20 @@ export async function updateEmailSettings(
       smtpHost,
       smtpPort: parsed.data.smtpPort ?? 587,
       senderAddress: parsed.data.senderAddress,
+      smtpUser: nextSmtpUser ?? null,
+      smtpPasswordEnc: nextSmtpPasswordEnc ?? null,
     },
-    update: data,
-    select: {
-      emailEnabled: true,
-      senderAddress: true,
-      smtpHost: true,
-      smtpPort: true,
+    update: {
+      emailEnabled: parsed.data.emailEnabled,
+      smtpHost,
+      smtpPort: parsed.data.smtpPort ?? 587,
+      senderAddress: parsed.data.senderAddress,
+      ...(nextSmtpUser !== undefined ? { smtpUser: nextSmtpUser } : {}),
+      ...(nextSmtpPasswordEnc !== undefined
+        ? { smtpPasswordEnc: nextSmtpPasswordEnc }
+        : {}),
     },
+    select: settingsSelect,
   });
 
   await writeSettingsAuditLog({
@@ -125,6 +178,11 @@ export async function updateEmailSettings(
       smtpHost: updated.smtpHost,
       smtpPort: updated.smtpPort,
       senderAddress: updated.senderAddress,
+      smtpCredentialsUpdated: Boolean(
+        parsed.data.clearSmtpCredentials ||
+          (parsed.data.smtpUser?.trim() && parsed.data.smtpPassword),
+      ),
+      smtpCredentialsCleared: Boolean(parsed.data.clearSmtpCredentials),
     },
   });
 
@@ -150,13 +208,13 @@ export async function sendTestEmail(
       );
     }
     throw new EmailSettingsError(
-      "SMTP is not configured. Save SMTP host, port, and sender in Email Settings, and set SMTP_USER / SMTP_PASSWORD in .env.",
+      "SMTP is not configured. Save SMTP host, port, sender, user, and password in Email Settings.",
     );
   }
 
   if (!smtpResult.config.auth) {
     throw new EmailSettingsError(
-      "SMTP credentials are missing. Set SMTP_USER and SMTP_PASSWORD in .env, then restart the server.",
+      "SMTP credentials are missing. Enter SMTP user and password in Email Settings (or set SMTP_USER / SMTP_PASSWORD in .env).",
     );
   }
 
@@ -180,7 +238,7 @@ export async function sendTestEmail(
     }
     if (result.reason === "smtp_not_configured") {
       throw new EmailSettingsError(
-        "SMTP is not configured. Save SMTP host, port, and sender in Email Settings, and set SMTP_USER / SMTP_PASSWORD in .env.",
+        "SMTP is not configured. Save SMTP host, port, sender, user, and password in Email Settings.",
       );
     }
     throw new EmailSettingsError("Failed to send test email.");

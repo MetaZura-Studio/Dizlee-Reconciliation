@@ -18,6 +18,8 @@ export function buildContentSecurityPolicy(nonce: string): string {
     ...(isDev ? ["'unsafe-eval'"] : []),
   ].join(" ");
 
+  // Styles: nonce for <style>/stylesheet tags (clears ZAP "style-src unsafe-inline").
+  // React style={{…}} attrs need style-src-attr (CSP3); without it they fall back to style-src.
   return [
     "default-src 'self'",
     "base-uri 'self'",
@@ -26,7 +28,8 @@ export function buildContentSecurityPolicy(nonce: string): string {
     "object-src 'none'",
     "img-src 'self' data: blob:",
     "font-src 'self' data:",
-    "style-src 'self' 'unsafe-inline'",
+    `style-src 'self' 'nonce-${nonce}'`,
+    "style-src-attr 'unsafe-inline'",
     `script-src ${scriptSrc}`,
     "connect-src 'self'",
     "frame-src 'none'",

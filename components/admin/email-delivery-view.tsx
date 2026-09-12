@@ -23,9 +23,10 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { FilterActions } from "@/components/ui/filter-actions";
 import { LoadingOverlay } from "@/components/ui/loading";
-import { PageCard } from "@/components/ui/page";
+import { FilterToolbar, PageCard } from "@/components/ui/page";
 import {
   buildEmailDeliveryQuery,
+  emailDeliveryDetailText,
   emailDeliveryPurposeLabel,
   emailDeliveryStatusLabel,
   parseEmailDeliveryListFilters,
@@ -38,41 +39,6 @@ import { formatAppError } from "@/lib/errors/format";
 import { formatAppDateTime } from "@/lib/platform/format-datetime";
 import { cn, ui } from "@/lib/ui/classes";
 import { nextSortState } from "@/lib/ui/sort";
-
-type FilterSelectProps = {
-  label: string;
-  value: string;
-  options: Array<{ value: string; label: string }>;
-  onChange: (value: string) => void;
-  disabled?: boolean;
-};
-
-function FilterSelect({
-  label,
-  value,
-  options,
-  onChange,
-  disabled,
-}: FilterSelectProps) {
-  return (
-    <label className="inline-flex items-center gap-2 text-sm text-foreground-muted">
-      <span className="sr-only">{label}</span>
-      <select
-        value={value}
-        disabled={disabled}
-        onChange={(event) => onChange(event.target.value)}
-        className={cn(ui.select, "min-w-[9rem]")}
-        aria-label={label}
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
 
 function statusClass(status: string): string {
   switch (status) {
@@ -156,90 +122,107 @@ export function EmailDeliveryView({
 
   return (
     <PageCard>
-      <div className="space-y-4">
-        <div className="relative max-w-md">
-          <input
-            type="search"
-            value={searchDraft}
-            placeholder="Search to, subject, error, message id…"
-            onChange={(event) => setSearchDraft(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                submitSearch();
-              }
-            }}
-            className={cn(ui.input, "w-full")}
-            aria-label="Search email deliveries"
-          />
-        </div>
+      {error ? <p className={cn(ui.alertError, "mb-4")}>{error}</p> : null}
 
-        <div className="space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <FilterSelect
-              label="Status"
+      <FilterToolbar>
+        <div className="grid min-w-0 w-full flex-1 gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,0.75fr)_minmax(0,0.75fr)_minmax(0,1fr)_auto]">
+          <label className="block min-w-0 text-sm sm:col-span-2 xl:col-span-1">
+            <span className={ui.label}>Search</span>
+            <input
+              type="search"
+              value={searchDraft}
+              placeholder="Search to, subject, error…"
+              onChange={(event) => setSearchDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  submitSearch();
+                }
+              }}
+              className={cn(ui.input, "w-full")}
+              aria-label="Search email deliveries"
+              disabled={loading}
+            />
+          </label>
+
+          <label className="block min-w-0 text-sm">
+            <span className={ui.label}>Status</span>
+            <select
               value={filters.status}
               disabled={loading}
-              onChange={(status) =>
+              onChange={(event) =>
                 applyFilters({
-                  status: status as EmailDeliveryListFilters["status"],
+                  status: event.target.value as EmailDeliveryListFilters["status"],
                 })
               }
-              options={[
-                { value: "all", label: "All statuses" },
-                ...filterOptions.statuses.map((item) => ({
-                  value: item.code,
-                  label: item.label,
-                })),
-              ]}
-            />
+              className={ui.select}
+              aria-label="Status"
+            >
+              <option value="all">All statuses</option>
+              {filterOptions.statuses.map((item) => (
+                <option key={item.code} value={item.code}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </label>
 
-            <FilterSelect
-              label="Purpose"
+          <label className="block min-w-0 text-sm">
+            <span className={ui.label}>Purpose</span>
+            <select
               value={filters.purpose}
               disabled={loading}
-              onChange={(purpose) => applyFilters({ purpose })}
-              options={[
-                { value: "all", label: "All purposes" },
-                ...filterOptions.purposes.map((item) => ({
-                  value: item.code,
-                  label: item.label,
-                })),
-              ]}
-            />
+              onChange={(event) => applyFilters({ purpose: event.target.value })}
+              className={ui.select}
+              aria-label="Purpose"
+            >
+              <option value="all">All purposes</option>
+              {filterOptions.purposes.map((item) => (
+                <option key={item.code} value={item.code}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </label>
 
-            <DateRangePicker
-              disabled={loading}
-              value={{ dateFrom: filters.dateFrom, dateTo: filters.dateTo }}
-              onApply={(range) =>
-                applyFilters({
-                  dateFrom: range.dateFrom,
-                  dateTo: range.dateTo,
-                })
-              }
-            />
+          <div className="min-w-0 text-sm">
+            <span className={ui.label}>Date range</span>
+            <div className="[&_button]:h-11 [&_button]:w-full [&_button]:justify-start">
+              <DateRangePicker
+                disabled={loading}
+                value={{ dateFrom: filters.dateFrom, dateTo: filters.dateTo }}
+                onApply={(range) =>
+                  applyFilters({
+                    dateFrom: range.dateFrom,
+                    dateTo: range.dateTo,
+                  })
+                }
+              />
+            </div>
+            {(filters.dateFrom || filters.dateTo) && (
+              <p className="mt-1 text-xs text-foreground-subtle">
+                {formatDateRangeLabel({
+                  dateFrom: filters.dateFrom,
+                  dateTo: filters.dateTo,
+                })}
+              </p>
+            )}
           </div>
 
-          <FilterActions
-            onApply={submitSearch}
-            onClear={clearFilters}
-            loading={loading}
-            applyLabel={loading ? "Loading…" : "Apply"}
-          />
+          <div className="flex flex-col justify-end text-sm sm:col-span-2 xl:col-span-1 xl:justify-self-end">
+            <span className={ui.label} aria-hidden="true">
+              &nbsp;
+            </span>
+            <FilterActions
+              onApply={submitSearch}
+              onClear={clearFilters}
+              loading={loading}
+              applyLabel={loading ? "Loading…" : "Apply"}
+              className="sm:ml-0"
+            />
+          </div>
         </div>
-
-        {(filters.dateFrom || filters.dateTo) && (
-          <p className="text-xs text-foreground-subtle">
-            Date range:{" "}
-            {formatDateRangeLabel({
-              dateFrom: filters.dateFrom,
-              dateTo: filters.dateTo,
-            })}
-          </p>
-        )}
-
-        {error ? <p className={ui.alertError}>{error}</p> : null}
-      </div>
+      </FilterToolbar>
 
       <div className="mt-6 space-y-4">
         <LoadingOverlay active={loading} className="min-h-[12rem]">
@@ -278,7 +261,6 @@ export function EmailDeliveryView({
                       onSort={() => toggleSort("status")}
                     />
                     <DataTableTh>Detail</DataTableTh>
-                    <DataTableTh>Notification</DataTableTh>
                   </tr>
                 </DataTableHead>
                 <tbody>
@@ -309,38 +291,11 @@ export function EmailDeliveryView({
                         >
                           {emailDeliveryStatusLabel(row.status)}
                         </span>
-                        {row.skipReason ? (
-                          <div className="text-xs text-foreground-subtle">
-                            {row.skipReason}
-                          </div>
-                        ) : null}
                       </DataTableTd>
-                      <DataTableTd className="max-w-[18rem] text-sm">
-                        {row.errorCode || row.errorMessage ? (
-                          <div>
-                            {row.errorCode ? (
-                              <span className="font-mono text-xs">
-                                {row.errorCode}
-                              </span>
-                            ) : null}
-                            {row.errorMessage ? (
-                              <div className="line-clamp-2 text-xs text-foreground-muted">
-                                {row.errorMessage}
-                              </div>
-                            ) : null}
-                          </div>
-                        ) : row.providerMessageId ? (
-                          <span className="font-mono text-xs text-foreground-muted">
-                            {row.providerMessageId}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-foreground-subtle">
-                            {row.subject}
-                          </span>
-                        )}
-                      </DataTableTd>
-                      <DataTableTd className="text-sm text-foreground-muted">
-                        {row.notificationId ?? "—"}
+                      <DataTableTd className="max-w-[20rem] text-sm text-foreground-muted">
+                        <div className="line-clamp-3">
+                          {emailDeliveryDetailText(row)}
+                        </div>
                       </DataTableTd>
                     </DataTableRow>
                   ))}

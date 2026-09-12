@@ -54,6 +54,28 @@ describe("admin OpCo validation", () => {
     expect(result.success).toBe(false);
   });
 
+  it("rejects negative vatPercent", () => {
+    const result = createOpcoSchema.safeParse({
+      name: "Zain Jordan",
+      defaultCurrencyId: "1",
+      vatPercent: -1,
+      status: "ACTIVE",
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects non-numeric vatPercent", () => {
+    const result = createOpcoSchema.safeParse({
+      name: "Zain Jordan",
+      defaultCurrencyId: "1",
+      vatPercent: "abc",
+      status: "ACTIVE",
+    });
+
+    expect(result.success).toBe(false);
+  });
+
   it("accepts an update payload", () => {
     const result = updateOpcoSchema.safeParse({
       name: "Zain Kuwait",

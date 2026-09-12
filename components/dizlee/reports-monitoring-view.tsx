@@ -335,7 +335,7 @@ export function ReportsMonitoringView({
           tone="blue"
         />
         <KpiCard
-          label="OpCo reports missing"
+          label="OpCos missing report"
           value={summary.opcoMissing}
           tone="amber"
         />
