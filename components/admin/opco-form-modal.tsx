@@ -40,7 +40,7 @@ type OpcoFormModalContentProps = {
 
 /** Digits + optional decimal (max 2 places). No letters, signs, or extras. */
 function sanitizeVatPercentInput(raw: string): string {
-  let cleaned = raw.replace(/[^0-9.]/g, "");
+  const cleaned = raw.replace(/[^0-9.]/g, "");
   const firstDot = cleaned.indexOf(".");
   if (firstDot === -1) {
     return cleaned;
