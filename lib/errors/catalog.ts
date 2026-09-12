@@ -51,6 +51,11 @@ export const ERROR_CATALOG = {
     message: "ACCOUNT NOT ACTIVE",
     status: 403,
   },
+  ACCOUNT_SUSPENDED: {
+    code: 110,
+    message: "ACCOUNT SUSPENDED",
+    status: 403,
+  },
   RATE_LIMITED: {
     code: 109,
     message: "TOO MANY ATTEMPTS TRY AGAIN LATER",
@@ -579,6 +584,7 @@ const MESSAGE_ALIASES: Record<string, ErrorKey> = {
   "User not found": "USER_NOT_FOUND",
   "User account is not active": "USER_NOT_ACTIVE",
   "This account is not active": "ACCOUNT_NOT_ACTIVE",
+  "Your account has been suspended. Contact support.": "ACCOUNT_SUSPENDED",
   "This link is invalid or has expired": "PASSWORD_LINK_INVALID",
   "This link has expired. Request a new one.": "PASSWORD_LINK_EXPIRED",
   "Current password is incorrect": "CURRENT_PASSWORD_INCORRECT",
@@ -639,7 +645,13 @@ const MESSAGE_ALIASES: Record<string, ErrorKey> = {
   "Email is disabled. Enable it in Email Settings and save.": "EMAIL_DISABLED",
   "SMTP is not configured. Save SMTP host, port, and sender in Email Settings, and set SMTP_USER / SMTP_PASSWORD in .env.":
     "SMTP_NOT_CONFIGURED",
+  "SMTP is not configured. Save SMTP host, port, sender, user, and password in Email Settings.":
+    "SMTP_NOT_CONFIGURED",
   "SMTP credentials are missing. Set SMTP_USER and SMTP_PASSWORD in .env, then restart the server.":
+    "SMTP_CREDENTIALS_MISSING",
+  "SMTP credentials are missing. Enter SMTP user and password in Email Settings (or set SMTP_USER / SMTP_PASSWORD in .env).":
+    "SMTP_CREDENTIALS_MISSING",
+  "SMTP user and password are required when email is enabled. Enter them here or set SMTP_USER / SMTP_PASSWORD in .env.":
     "SMTP_CREDENTIALS_MISSING",
   "Failed to send test email.": "TEST_EMAIL_FAILED",
   "Email template not found": "EMAIL_TEMPLATE_NOT_FOUND",

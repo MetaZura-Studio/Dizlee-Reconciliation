@@ -15,11 +15,13 @@ import { ADMIN_AUTH_BASE_PATH } from "@/lib/auth/options";
 import { safeAdminCallbackUrl } from "@/lib/auth/safe-callback-url";
 import { ERROR_CATALOG } from "@/lib/errors/catalog";
 import { formatAppError } from "@/lib/errors/format";
+import { resolveCredentialsSignInError } from "@/lib/auth/login-errors";
 import { ui } from "@/lib/ui/classes";
 
 const LOGIN_ERROR_KEYS: Record<string, keyof typeof ERROR_CATALOG> = {
   AccessDenied: "UNAUTHORIZED",
   CredentialsSignin: "INVALID_CREDENTIALS",
+  AccountSuspended: "ACCOUNT_SUSPENDED",
   RATE_LIMITED: "RATE_LIMITED",
 };
 
@@ -59,11 +61,7 @@ export function AdminLoginForm() {
       });
 
       if (!result?.ok) {
-        setError(
-          formatLoginError(
-            result?.status === 429 ? "RATE_LIMITED" : "CredentialsSignin",
-          ),
-        );
+        setError(formatLoginError(resolveCredentialsSignInError(result)));
         setIsSubmitting(false);
         return;
       }

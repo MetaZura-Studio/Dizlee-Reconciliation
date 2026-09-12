@@ -7,6 +7,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 import { CreateOpcoInvoiceModal } from "@/components/dizlee/create-opco-invoice-modal";
 import { InvoiceDetailModal } from "@/components/dizlee/invoice-detail-modal";
@@ -257,10 +258,6 @@ export function InvoicesListView({
     return () => window.removeEventListener("focus", handleFocus);
   }, [loadInvoices, result.filters]);
 
-  const goToPage = (nextPage: number) => {
-    void loadInvoices({ ...result.filters, page: nextPage });
-  };
-
   const openDetail = async (invoiceId: string) => {
     setDetailOpen(true);
     setDetailLoading(true);
@@ -287,15 +284,30 @@ export function InvoicesListView({
         }));
       }
     } catch (detailError) {
+      setDetail(null);
       setError(
         detailError instanceof Error
           ? detailError.message
           : "Failed to load invoice",
       );
-      setDetailOpen(false);
     } finally {
       setDetailLoading(false);
     }
+  };
+
+  const searchParams = useSearchParams();
+  const deepLinkHandled = useRef<string | null>(null);
+  useEffect(() => {
+    const invoiceId = searchParams.get("id")?.trim();
+    if (!invoiceId || deepLinkHandled.current === invoiceId) {
+      return;
+    }
+    deepLinkHandled.current = invoiceId;
+    void openDetail(invoiceId);
+  }, [searchParams]);
+
+  const goToPage = (nextPage: number) => {
+    void loadInvoices({ ...result.filters, page: nextPage });
   };
 
   const markPayment = async (invoiceId: string) => {

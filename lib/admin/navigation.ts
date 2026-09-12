@@ -5,10 +5,12 @@
 export type AdminNavIcon =
   | "dashboard"
   | "audit"
+  | "logs"
   | "users"
   | "organization"
   | "email-settings"
   | "email-templates"
+  | "email-delivery"
   | "reminder"
   | "opcos"
   | "partners"
@@ -67,29 +69,45 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
         description: "Create and manage Partner organizations.",
         section: "main",
       },
-  {
-    label: "OpCo partners",
-    href: "/admin/opco-partners",
-    icon: "opco-partners",
-    description: "Configure OpCo and Partner relationships.",
-    section: "main",
-  },
-  {
-    label: "Service–Partner maps",
-    href: "/admin/service-partner-maps",
-    icon: "partners",
-    description:
-      "Map service/application names to Partners for OpCo reports without a Partner column.",
-    section: "main",
-  },
+      {
+        label: "OpCo partners",
+        href: "/admin/opco-partners",
+        icon: "opco-partners",
+        description: "Configure OpCo and Partner relationships.",
+        section: "main",
+      },
+      {
+        label: "Service–Partner maps",
+        href: "/admin/service-partner-maps",
+        icon: "partners",
+        description:
+          "Map service/application names to Partners for OpCo reports without a Partner column.",
+        section: "main",
+      },
     ],
   },
   {
-    label: "Audit logs",
+    label: "Logs",
     href: "/admin/audit-logs",
-    icon: "audit",
-    description: "View and export platform audit events.",
+    icon: "logs",
+    description: "Audit events and outbound email delivery history.",
     section: "main",
+    children: [
+      {
+        label: "Audit logs",
+        href: "/admin/audit-logs",
+        icon: "audit",
+        description: "View and export platform audit events.",
+        section: "main",
+      },
+      {
+        label: "Email delivery logs",
+        href: "/admin/email-delivery",
+        icon: "email-delivery",
+        description: "Inspect outbound SMTP delivery attempts and errors.",
+        section: "main",
+      },
+    ],
   },
   {
     label: "Settings",

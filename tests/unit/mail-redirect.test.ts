@@ -26,7 +26,10 @@ describe("applyEmailRedirect", () => {
       html: "<p>Body</p>",
     };
 
-    expect(applyEmailRedirect(input)).toEqual(input);
+    expect(applyEmailRedirect(input)).toEqual({
+      ...input,
+      redirected: false,
+    });
   });
 
   it("reroutes to test inbox in non-production", () => {
@@ -44,6 +47,10 @@ describe("applyEmailRedirect", () => {
     expect(result.subject).toBe("[TEST → user@example.com] Set password");
     expect(result.text).toContain("Original recipient: user@example.com");
     expect(result.html).toContain("Original recipient: user@example.com");
+    expect(result.redirected).toBe(true);
+    if (result.redirected) {
+      expect(result.originalTo).toBe("user@example.com");
+    }
   });
 
   it("ignores SMTP_REDIRECT_TO in production", () => {
@@ -58,7 +65,10 @@ describe("applyEmailRedirect", () => {
       html: "<p>Click here</p>",
     };
 
-    expect(applyEmailRedirect(input)).toEqual(input);
+    expect(applyEmailRedirect(input)).toEqual({
+      ...input,
+      redirected: false,
+    });
     expect(warn).toHaveBeenCalled();
   });
 });

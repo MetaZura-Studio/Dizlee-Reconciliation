@@ -7,6 +7,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 import { InvoiceDetailModal } from "@/components/opco/InvoiceDetailModal";
 import { Button } from "@/components/ui/button";
@@ -288,6 +289,17 @@ export function InvoicesTable({
     },
     [loadInvoices, result.filters],
   );
+
+  const searchParams = useSearchParams();
+  const deepLinkHandled = useRef<string | null>(null);
+  useEffect(() => {
+    const invoiceId = searchParams.get("id")?.trim();
+    if (!invoiceId || deepLinkHandled.current === invoiceId) {
+      return;
+    }
+    deepLinkHandled.current = invoiceId;
+    void openDetail(invoiceId);
+  }, [openDetail, searchParams]);
 
   function closeDetail() {
     setDetailOpen(false);

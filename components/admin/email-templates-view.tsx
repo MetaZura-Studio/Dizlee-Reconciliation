@@ -1,39 +1,40 @@
 /**
  * Edit notification and auth email templates stored in the database.
  * Supports preview, versioning, and creation of new template codes.
+ * UI-only redesign: two-column list + editor; APIs unchanged.
  */
 
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 
 import { Button } from "@/components/ui/button";
 import { FieldLabel } from "@/components/ui/field";
+import { IconEye, IconPlus } from "@/components/ui/icons";
 import { Modal } from "@/components/ui/modal";
-import { StatusPill } from "@/components/ui/status-pill";
 import { useToast } from "@/components/ui/toast";
 import {
-  categoryLabel,
   EMAIL_TEMPLATE_CATEGORIES,
-  formatPlaceholderTokens,
   suggestTemplateCodeFromName,
   type EmailTemplateCategory,
   type EmailTemplateDetail,
-  type EmailTemplateListItem,
   type EmailTemplateVersionItem,
   type EmailTemplatesPageData,
 } from "@/lib/admin/email-templates.shared";
-import { cn, ui } from "@/lib/ui/classes";
-import { formatAppDateTime } from "@/lib/platform/format-datetime";
 import { formatAppError } from "@/lib/errors/format";
-
-type WorkTab = "edit" | "preview" | "versions";
-type TemplateCategoryFilter = "all" | EmailTemplateCategory;
+import { formatAppDateTime } from "@/lib/platform/format-datetime";
+import { cn, ui } from "@/lib/ui/classes";
 
 type EditorFormState = {
   subject: string;
   body: string;
-  changeNote: string;
 };
 
 type CreateFormState = {
@@ -44,39 +45,58 @@ type CreateFormState = {
   body: string;
 };
 
+/** Realistic sample values for preview (not raw {{tokens}}). */
 const SAMPLE_PLACEHOLDERS: Record<string, string> = {
-  period: "July 2026",
+  period: "August 2026",
   name: "Jane",
-  link: "https://example.com/set-password?token=…",
-  expiryHours: "24",
-  opcoName: "Sample OpCo",
-  partnerName: "Sample Partner",
+  link: "https://reconciliation.example.com/set-password?token=…",
+  expiryHours: "1",
+  opcoName: "Zain KSA",
+  partnerName: "Partner ABC",
   status: "Completed",
-  matchedCount: "12",
-  unmatchedCount: "2",
-  totalVariance: "KD 15.250",
-  tolerancePercent: "5",
-  outcome: "2 mismatched / unmatched line item(s)",
+  matchedCount: "42",
+  unmatchedCount: "3",
+  totalVariance: "SAR 1,250.00",
+  tolerancePercent: "2.5",
+  outcome: "3 mismatched / unmatched line item(s)",
 };
 
-const TEMPLATE_CATEGORY_FILTERS: Array<{
-  value: TemplateCategoryFilter;
-  label: string;
-}> = [
-  { value: "all", label: "All categories" },
-  ...EMAIL_TEMPLATE_CATEGORIES.map((value) => ({
-    value,
-    label: categoryLabel(value),
-  })),
-];
+const PLACEHOLDER_LABELS: Record<string, string> = {
+  period: "Period",
+  name: "Name",
+  link: "Link",
+  expiryHours: "Expiry hours",
+  opcoName: "OpCo Name",
+  partnerName: "Partner Name",
+  status: "Status",
+  matchedCount: "Matched Count",
+  unmatchedCount: "Unmatched Count",
+  totalVariance: "Total Variance",
+  tolerancePercent: "Tolerance",
+  outcome: "Outcome",
+};
 
-const TEMPLATE_GROUP_ORDER = EMAIL_TEMPLATE_CATEGORIES;
+function displayCategoryLabel(category: EmailTemplateCategory): string {
+  switch (category) {
+    case "INTIMATION":
+      return "Notice";
+    case "REMINDER":
+      return "Reminder";
+    case "ALERT":
+      return "Alert";
+    case "OTHER":
+      return "Other";
+  }
+}
+
+function placeholderLabel(token: string): string {
+  return PLACEHOLDER_LABELS[token] ?? token;
+}
 
 function toFormState(template: EmailTemplateDetail): EditorFormState {
   return {
     subject: template.subject,
     body: template.body,
-    changeNote: "",
   };
 }
 
@@ -114,12 +134,12 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
   const [form, setForm] = useState<EditorFormState>(() =>
     initialData.selected
       ? toFormState(initialData.selected)
-      : { subject: "", body: "", changeNote: "" },
+      : { subject: "", body: "" },
   );
-  const [tab, setTab] = useState<WorkTab>("edit");
   const [templateSearch, setTemplateSearch] = useState("");
-  const [templateCategory, setTemplateCategory] =
-    useState<TemplateCategoryFilter>("all");
+  const [categoryFilter, setCategoryFilter] = useState<
+    "ALL" | EmailTemplateCategory
+  >("ALL");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -128,35 +148,31 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
   const [revertingVersion, setRevertingVersion] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const toast = useToast();
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [versionsOpen, setVersionsOpen] = useState(false);
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [saveChangeNote, setSaveChangeNote] = useState("");
   const [previewVersion, setPreviewVersion] =
     useState<EmailTemplateVersionItem | null>(null);
   const [confirmRevertVersion, setConfirmRevertVersion] = useState<number | null>(
     null,
   );
+  const [insertOpen, setInsertOpen] = useState(false);
   const [lastField, setLastField] = useState<"subject" | "body">("body");
   const lastFieldRef = useRef<"subject" | "body">("body");
   const subjectRef = useRef<HTMLInputElement>(null);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const insertRef = useRef<HTMLDivElement>(null);
 
   const isDirty = Boolean(
     detail &&
-      (form.subject !== detail.subject ||
-        form.body !== detail.body ||
-        form.changeNote.trim() !== ""),
+      (form.subject !== detail.subject || form.body !== detail.body),
   );
-
-  const clearFilters = () => {
-    setTemplateSearch("");
-    setTemplateCategory("all");
-  };
 
   const filteredTemplates = useMemo(() => {
     const query = templateSearch.trim().toLowerCase();
     return templates.filter((template) => {
-      if (
-        templateCategory !== "all" &&
-        template.category !== templateCategory
-      ) {
+      if (categoryFilter !== "ALL" && template.category !== categoryFilter) {
         return false;
       }
       if (!query) {
@@ -168,28 +184,21 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
         template.code.toLowerCase().includes(query)
       );
     });
-  }, [templates, templateSearch, templateCategory]);
+  }, [templates, templateSearch, categoryFilter]);
 
-  const groupedTemplates = useMemo(() => {
-    if (templateCategory !== "all") {
-      return filteredTemplates.length > 0
-        ? ([[templateCategory, filteredTemplates]] as Array<
-            [EmailTemplateCategory, EmailTemplateListItem[]]
-          >)
-        : [];
+  useEffect(() => {
+    if (!insertOpen) {
+      return;
     }
-
-    return TEMPLATE_GROUP_ORDER.flatMap((label) => {
-      const items = filteredTemplates.filter(
-        (template) => template.category === label,
-      );
-      return items.length > 0
-        ? ([[label, items]] as Array<
-            [EmailTemplateCategory, EmailTemplateListItem[]]
-          >)
-        : [];
-    });
-  }, [filteredTemplates, templateCategory]);
+    const onPointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (insertRef.current && !insertRef.current.contains(target)) {
+        setInsertOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    return () => document.removeEventListener("mousedown", onPointerDown);
+  }, [insertOpen]);
 
   const applyDetail = useCallback((next: EmailTemplateDetail) => {
     setDetail(next);
@@ -236,7 +245,6 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
         throw new Error(formatAppError(body, "Failed to load email template"));
       }
       applyDetail(body.data as EmailTemplateDetail);
-      setTab("edit");
     } catch (loadError) {
       setError(
         loadError instanceof Error
@@ -261,6 +269,7 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
       }
     }
     setSelectedCode(code);
+    setInsertOpen(false);
     void loadTemplate(code);
   };
 
@@ -270,7 +279,7 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
     setError(null);
   };
 
-  const createTemplate = async (event: React.FormEvent) => {
+  const createTemplate = async (event: FormEvent) => {
     event.preventDefault();
     setError(null);
     setCreating(true);
@@ -299,7 +308,6 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
       applyDetail(created);
       setCreateOpen(false);
       setCreateForm(defaultCreateForm());
-      setTab("edit");
       toast.success(`Created ${created.name}.`);
     } catch (createError) {
       setError(
@@ -322,6 +330,7 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
         ...current,
         [field]: `${current[field]}${snippet}`,
       }));
+      setInsertOpen(false);
       return;
     }
 
@@ -331,6 +340,7 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
       target.value.slice(0, start) + snippet + target.value.slice(end);
 
     setForm((current) => ({ ...current, [field]: nextValue }));
+    setInsertOpen(false);
     requestAnimationFrame(() => {
       target.focus();
       const cursor = start + snippet.length;
@@ -346,8 +356,15 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
     setError(null);
   };
 
-  const saveTemplate = async (event: React.FormEvent) => {
-    event.preventDefault();
+  const openSaveModal = () => {
+    if (!isDirty) {
+      return;
+    }
+    setSaveChangeNote("");
+    setSaveOpen(true);
+  };
+
+  const saveTemplate = async () => {
     if (!selectedCode) {
       return;
     }
@@ -364,7 +381,8 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
           body: JSON.stringify({
             subject: form.subject,
             body: form.body,
-            changeNote: form.changeNote.trim() === "" ? null : form.changeNote,
+            changeNote:
+              saveChangeNote.trim() === "" ? null : saveChangeNote.trim(),
           }),
         },
       );
@@ -374,6 +392,8 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
       }
 
       applyDetail(body.data as EmailTemplateDetail);
+      setSaveOpen(false);
+      setSaveChangeNote("");
       toast.success("Saved as a new version.");
     } catch (saveError) {
       setError(
@@ -411,7 +431,7 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
       }
 
       applyDetail(body.data as EmailTemplateDetail);
-      setTab("edit");
+      setVersionsOpen(false);
       toast.success(`Restored version ${version} as the live version.`);
     } catch (revertError) {
       setError(
@@ -424,16 +444,25 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
     }
   };
 
+  const busy = loading || saving || creating || revertingVersion !== null;
+  const previewSubject = detail
+    ? applySamplePlaceholders(form.subject, detail.placeholders)
+    : "";
+  const previewBody = detail
+    ? applySamplePlaceholders(form.body, detail.placeholders)
+    : "";
+
   if (!detail) {
     return (
       <div className="space-y-4">
+        <EmailTemplatesPageHeader
+          busy={busy}
+          onCreate={openCreateModal}
+        />
         {error ? <p className={ui.alertError}>{error}</p> : null}
         <p className={ui.alertWarning}>
           No email templates are available yet. Create one to get started.
         </p>
-        <Button type="button" onClick={openCreateModal}>
-          Create template
-        </Button>
         <CreateTemplateModal
           open={createOpen}
           creating={creating}
@@ -446,386 +475,452 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
     );
   }
 
-  const busy = loading || saving || creating || revertingVersion !== null;
-  const previewSubject = applySamplePlaceholders(form.subject, detail.placeholders);
-  const previewBody = applySamplePlaceholders(form.body, detail.placeholders);
-
   return (
-    <div className="space-y-4">
-      {error ? <p className={ui.alertError}>{error}</p> : null}
+    <div className="-mb-4 flex h-[calc(100dvh-5.5rem)] flex-col gap-2 sm:-mb-5 sm:h-[calc(100dvh-6.25rem)] sm:gap-3 lg:-mb-6 lg:h-[calc(100dvh-7rem)]">
+      <EmailTemplatesPageHeader busy={busy} onCreate={openCreateModal} />
 
-      <div className="grid min-h-[32rem] gap-4 lg:grid-cols-[18rem_minmax(0,1fr)] xl:grid-cols-[20rem_minmax(0,1fr)]">
-        <aside className={cn(ui.card, "flex min-h-0 flex-col overflow-hidden")}>
+      {error ? <p className={cn(ui.alertError, "shrink-0")}>{error}</p> : null}
+
+      {/* Mobile template picker */}
+      <div className="shrink-0 space-y-2 lg:hidden">
+        <label className="block text-sm">
+          <span className={ui.label}>Category</span>
+          <select
+            className={ui.select}
+            value={categoryFilter}
+            disabled={busy}
+            onChange={(event) =>
+              setCategoryFilter(
+                event.target.value as "ALL" | EmailTemplateCategory,
+              )
+            }
+          >
+            <option value="ALL">All categories</option>
+            {EMAIL_TEMPLATE_CATEGORIES.map((category) => (
+              <option key={category} value={category}>
+                {displayCategoryLabel(category)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="block text-sm">
+          <span className={ui.label}>Template</span>
+          <select
+            className={ui.select}
+            value={selectedCode}
+            disabled={busy}
+            onChange={(event) => handleSelect(event.target.value)}
+          >
+            {filteredTemplates.map((template) => (
+              <option key={template.code} value={template.code}>
+                {template.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[17.5rem_minmax(0,1fr)] xl:grid-cols-[18.5rem_minmax(0,1fr)]">
+        <aside
+          className={cn(
+            ui.card,
+            "hidden min-h-0 flex-col overflow-hidden pb-3 lg:flex",
+          )}
+        >
           <div className="border-b border-border p-4">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <p className="text-sm font-semibold text-foreground">Templates</p>
-                <p className="mt-0.5 text-xs text-foreground-subtle">
-                  Select a template to edit or restore
-                </p>
-              </div>
-              <Button
-                type="button"
-                variant="secondary"
-                className="shrink-0"
-                onClick={openCreateModal}
-                disabled={busy}
-              >
-                Create
-              </Button>
-            </div>
-            <div className="mt-3 space-y-2">
-              <input
-                type="search"
-                value={templateSearch}
-                onChange={(event) => setTemplateSearch(event.target.value)}
-                placeholder="Search by name"
-                className={ui.input}
-                disabled={busy}
-              />
-              <select
-                value={templateCategory}
-                onChange={(event) =>
-                  setTemplateCategory(
-                    event.target.value as TemplateCategoryFilter,
-                  )
-                }
-                className={ui.select}
-                disabled={busy}
-                aria-label="Filter by category"
-              >
-                {TEMPLATE_CATEGORY_FILTERS.map((category) => (
-                  <option key={category.value} value={category.value}>
-                    {category.label}
-                  </option>
-                ))}
-              </select>
-              <Button
-                type="button"
-                variant="secondary"
-                className="w-full"
-                onClick={clearFilters}
-                disabled={busy}
-              >
-                Clear filters
-              </Button>
-            </div>
+            <p className="text-sm font-semibold text-foreground">
+              Email templates
+            </p>
+            <input
+              type="search"
+              value={templateSearch}
+              onChange={(event) => setTemplateSearch(event.target.value)}
+              placeholder="Search templates"
+              className={cn(ui.input, "mt-3")}
+              disabled={busy}
+            />
+            <select
+              aria-label="Filter by category"
+              className={cn(ui.select, "mt-2")}
+              value={categoryFilter}
+              disabled={busy}
+              onChange={(event) =>
+                setCategoryFilter(
+                  event.target.value as "ALL" | EmailTemplateCategory,
+                )
+              }
+            >
+              <option value="ALL">All categories</option>
+              {EMAIL_TEMPLATE_CATEGORIES.map((category) => (
+                <option key={category} value={category}>
+                  {displayCategoryLabel(category)}
+                </option>
+              ))}
+            </select>
           </div>
 
-          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
-            {groupedTemplates.length === 0 ? (
-              <p className="px-2 py-6 text-center text-sm text-foreground-subtle">
+          <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto p-2">
+            {filteredTemplates.length === 0 ? (
+              <p className="px-2 py-8 text-center text-sm text-foreground-subtle">
                 No templates match your filters.
               </p>
             ) : (
-              groupedTemplates.map(([group, items]) => (
-                <div key={group} className="space-y-1">
-                  {templateCategory === "all" ? (
-                    <p className="px-2 text-[11px] font-semibold tracking-wider text-foreground-subtle uppercase">
-                      {categoryLabel(group)}
-                    </p>
-                  ) : null}
-                  {items.map((template) => {
-                    const active = template.code === selectedCode;
-                    return (
-                      <button
-                        key={template.code}
-                        type="button"
-                        onClick={() => handleSelect(template.code)}
-                        disabled={busy && !active}
-                        className={cn(
-                          "flex w-full items-center justify-between gap-2 rounded-2xl px-3 py-2.5 text-left transition-colors",
-                          active
-                            ? "bg-primary-muted text-primary"
-                            : "text-foreground-muted hover:bg-surface-muted hover:text-foreground",
-                          busy && !active && "opacity-60",
-                        )}
-                      >
-                        <span className="min-w-0 truncate text-sm font-medium">
-                          {template.name}
-                        </span>
-                        <span
-                          className={cn(
-                            "shrink-0 text-xs",
-                            active ? "text-primary/80" : "text-foreground-subtle",
-                          )}
-                        >
-                          v{template.currentVersion}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              ))
+              filteredTemplates.map((template) => {
+                const active = template.code === selectedCode;
+                return (
+                  <button
+                    key={template.code}
+                    type="button"
+                    onClick={() => handleSelect(template.code)}
+                    disabled={busy && !active}
+                    className={cn(
+                      "flex w-full flex-col gap-0.5 rounded-xl px-3 py-2.5 text-left transition-colors",
+                      active
+                        ? "bg-primary-muted text-primary"
+                        : "text-foreground hover:bg-surface-muted",
+                      busy && !active && "opacity-60",
+                    )}
+                  >
+                    <span className="truncate text-sm font-medium">
+                      {template.name}
+                    </span>
+                    <span
+                      className={cn(
+                        "text-xs",
+                        active ? "text-primary/80" : "text-foreground-subtle",
+                      )}
+                    >
+                      {displayCategoryLabel(template.category)} · v
+                      {template.currentVersion}
+                    </span>
+                  </button>
+                );
+              })
             )}
           </div>
         </aside>
 
-        <section className={cn(ui.card, "flex min-h-0 flex-col overflow-hidden")}>
+        <section
+          className={cn(ui.card, "flex min-h-0 flex-col overflow-hidden")}
+        >
           <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-5 py-4">
             <div className="min-w-0 space-y-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="truncate text-lg font-semibold text-foreground">
-                  {detail.name}
-                </h2>
-                <StatusPill tone="info">Live v{detail.currentVersion}</StatusPill>
-                {isDirty ? (
-                  <StatusPill tone="warning">Unsaved changes</StatusPill>
-                ) : null}
-              </div>
-              <p className="text-xs text-foreground-subtle">
-                {categoryLabel(detail.category)}
+              <h2 className="truncate text-lg font-semibold tracking-tight text-foreground">
+                {detail.name}
+              </h2>
+              <p className="text-xs text-foreground-muted">
+                {displayCategoryLabel(detail.category)} · Active · v
+                {detail.currentVersion}
+                {isDirty ? " · Unsaved changes" : ""}
               </p>
             </div>
 
-            <div className="flex rounded-2xl border border-border bg-surface-muted/50 p-1">
-              {(
-                [
-                  ["edit", "Edit"],
-                  ["preview", "Preview"],
-                  ["versions", "Versions"],
-                ] as const
-              ).map(([id, label]) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setTab(id)}
-                  className={cn(
-                    "rounded-xl px-3 py-1.5 text-sm font-medium transition-colors",
-                    tab === id
-                      ? "bg-surface text-foreground shadow-[var(--shadow-sm)]"
-                      : "text-foreground-muted hover:text-foreground",
-                  )}
-                >
-                  {label}
-                </button>
-              ))}
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                className="h-10 gap-2"
+                onClick={() => setPreviewOpen(true)}
+                disabled={loading}
+              >
+                <IconEye className="h-4 w-4" />
+                Preview
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                className="h-10"
+                onClick={() => setVersionsOpen(true)}
+                disabled={busy}
+              >
+                Version history
+              </Button>
             </div>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto p-5">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             {loading ? (
-              <p className="text-sm text-foreground-muted">Loading template…</p>
-            ) : null}
-
-            {!loading && tab === "edit" ? (
-              <form
-                onSubmit={(event) => void saveTemplate(event)}
-                className="space-y-4"
-              >
-                <div className="space-y-2">
-                  <p className={ui.label}>Placeholders</p>
-                  <div className="flex flex-wrap gap-2">
-                    {detail.placeholders.length === 0 ? (
-                      <span className="text-sm text-foreground-subtle">
-                        {formatPlaceholderTokens(detail.placeholders)}
-                      </span>
-                    ) : (
-                      detail.placeholders.map((token) => (
-                        <button
-                          key={token}
-                          type="button"
-                          onClick={() => insertPlaceholder(token)}
-                          className="rounded-full border border-border bg-surface px-3 py-1 font-mono text-xs font-medium text-foreground-muted transition-colors hover:border-primary hover:bg-primary-muted hover:text-primary"
-                          title={`Insert {{${token}}} into ${lastField}`}
-                        >
-                          {`{{${token}}}`}
-                        </button>
-                      ))
-                    )}
+              <p className="p-5 text-sm text-foreground-muted">
+                Loading template…
+              </p>
+            ) : (
+              <>
+                <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-5 pb-4">
+                  <div className="shrink-0 space-y-1">
+                    <FieldLabel htmlFor="templateSubject" required>
+                      Subject
+                    </FieldLabel>
+                    <input
+                      id="templateSubject"
+                      ref={subjectRef}
+                      value={form.subject}
+                      onFocus={() => {
+                        lastFieldRef.current = "subject";
+                        setLastField("subject");
+                      }}
+                      onChange={(event) =>
+                        setForm((current) => ({
+                          ...current,
+                          subject: event.target.value,
+                        }))
+                      }
+                      className={ui.input}
+                      disabled={busy}
+                    />
                   </div>
-                  <p className={ui.hint}>
-                    Click a placeholder to insert it into the subject or body
-                    (whichever you last focused).
-                  </p>
+
+                  <div className="flex min-h-0 flex-1 flex-col gap-1">
+                    <div className="flex shrink-0 flex-wrap items-end justify-between gap-2">
+                      <FieldLabel htmlFor="templateBody" required>
+                        Email body
+                      </FieldLabel>
+                      <div className="relative" ref={insertRef}>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          className="h-9 gap-1.5 px-3 text-xs"
+                          disabled={busy || detail.placeholders.length === 0}
+                          onClick={() => setInsertOpen((open) => !open)}
+                        >
+                          <IconPlus className="h-3.5 w-3.5" />
+                          Insert variable
+                        </Button>
+                        {insertOpen ? (
+                          <div
+                            className={cn(
+                              ui.dropdown,
+                              "right-0 max-h-64 w-56 overflow-y-auto py-1",
+                            )}
+                          >
+                            <p className="px-3 py-1.5 text-[11px] font-semibold tracking-wide text-foreground-subtle uppercase">
+                              Insert into {lastField}
+                            </p>
+                            {detail.placeholders.map((token) => (
+                              <button
+                                key={token}
+                                type="button"
+                                className="flex w-full flex-col px-3 py-2 text-left hover:bg-surface-muted"
+                                onClick={() => insertPlaceholder(token)}
+                              >
+                                <span className="text-sm text-foreground">
+                                  {placeholderLabel(token)}
+                                </span>
+                                <span className="font-mono text-[11px] text-foreground-subtle">
+                                  {`{{${token}}}`}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                    <div className="relative min-h-0 flex-1">
+                      <textarea
+                        id="templateBody"
+                        ref={bodyRef}
+                        value={form.body}
+                        onFocus={() => {
+                          lastFieldRef.current = "body";
+                          setLastField("body");
+                        }}
+                        onChange={(event) =>
+                          setForm((current) => ({
+                            ...current,
+                            body: event.target.value,
+                          }))
+                        }
+                        className={cn(
+                          ui.input,
+                          "absolute inset-0 h-full min-h-0 resize-none overflow-y-auto py-3",
+                        )}
+                        disabled={busy}
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                <div className="space-y-1">
-                  <FieldLabel htmlFor="templateSubject" required>
-                    Subject
-                  </FieldLabel>
-                  <input
-                    id="templateSubject"
-                    ref={subjectRef}
-                    value={form.subject}
-                    onFocus={() => {
-                      lastFieldRef.current = "subject";
-                      setLastField("subject");
-                    }}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        subject: event.target.value,
-                      }))
-                    }
-                    className={ui.input}
-                    disabled={busy}
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <FieldLabel htmlFor="templateBody" required>
-                    Body
-                  </FieldLabel>
-                  <textarea
-                    id="templateBody"
-                    ref={bodyRef}
-                    rows={12}
-                    value={form.body}
-                    onFocus={() => {
-                      lastFieldRef.current = "body";
-                      setLastField("body");
-                    }}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        body: event.target.value,
-                      }))
-                    }
-                    className={cn(ui.input, "min-h-[14rem] py-3")}
-                    disabled={busy}
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label htmlFor="changeNote" className={ui.label}>
-                    Change note (optional)
-                  </label>
-                  <input
-                    id="changeNote"
-                    value={form.changeNote}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        changeNote: event.target.value,
-                      }))
-                    }
-                    placeholder="Optional note for this version"
-                    className={ui.input}
-                    disabled={busy}
-                  />
-                </div>
-
-                <div className="flex flex-wrap gap-3 pt-1">
-                  <Button type="submit" disabled={busy || !isDirty}>
-                    {saving ? "Saving…" : "Save as new version"}
-                  </Button>
+                <div className="flex shrink-0 flex-wrap justify-end gap-3 border-t border-border px-5 py-4">
                   <Button
                     type="button"
                     variant="secondary"
                     onClick={discardChanges}
                     disabled={busy || !isDirty}
                   >
-                    Discard
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={openSaveModal}
+                    disabled={busy || !isDirty}
+                  >
+                    Save changes
                   </Button>
                 </div>
-              </form>
-            ) : null}
-
-            {!loading && tab === "preview" ? (
-              <div className="space-y-4">
-                <p className="text-sm text-foreground-muted">
-                  Preview with sample values
-                  {detail.placeholders.includes("period")
-                    ? ` ({{period}} → ${SAMPLE_PLACEHOLDERS.period})`
-                    : null}
-                  . This is what recipients will roughly see when the email is
-                  sent.
-                </p>
-                <div className="overflow-hidden rounded-[24px] border border-border bg-surface-muted/40">
-                  <div className="border-b border-border bg-surface px-5 py-3">
-                    <p className="text-xs font-semibold tracking-wide text-foreground-subtle uppercase">
-                      Subject
-                    </p>
-                    <p className="mt-1 text-sm font-medium text-foreground">
-                      {previewSubject || "(empty subject)"}
-                    </p>
-                  </div>
-                  <div className="bg-surface px-5 py-5">
-                    <p className="text-xs font-semibold tracking-wide text-foreground-subtle uppercase">
-                      Body
-                    </p>
-                    <pre className="mt-3 whitespace-pre-wrap font-sans text-sm leading-relaxed text-foreground">
-                      {previewBody || "(empty body)"}
-                    </pre>
-                  </div>
-                </div>
-                {isDirty ? (
-                  <p className={ui.alertWarning}>
-                    Showing unsaved edits. Save to publish a new live version.
-                  </p>
-                ) : null}
-              </div>
-            ) : null}
-
-            {!loading && tab === "versions" ? (
-              <div className="space-y-4">
-                <p className="text-sm text-foreground-muted">
-                  Each save creates a new version. Restoring falls back to an
-                  older version and removes newer versions from history.
-                </p>
-                <ul className="space-y-3">
-                  {detail.versions.map((version) => {
-                    const isLive = version.version === detail.currentVersion;
-                    return (
-                      <li
-                        key={version.version}
-                        className="rounded-[24px] border border-border bg-surface px-4 py-4"
-                      >
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                          <div className="min-w-0 space-y-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="text-sm font-semibold text-foreground">
-                                v{version.version}
-                              </span>
-                              {isLive ? (
-                                <StatusPill tone="success">Live</StatusPill>
-                              ) : null}
-                            </div>
-                            <p className="truncate text-sm text-foreground-muted">
-                              {version.subject}
-                            </p>
-                            <p className="text-xs text-foreground-subtle">
-                              {formatAppDateTime(version.createdAt)}
-                              {version.changeNote
-                                ? ` · ${version.changeNote}`
-                                : ""}
-                            </p>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              onClick={() => setPreviewVersion(version)}
-                              disabled={busy}
-                            >
-                              Preview
-                            </Button>
-                            {!isLive ? (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                onClick={() =>
-                                  setConfirmRevertVersion(version.version)
-                                }
-                                disabled={busy}
-                              >
-                                {revertingVersion === version.version
-                                  ? "Restoring…"
-                                  : "Restore"}
-                              </Button>
-                            ) : null}
-                          </div>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            ) : null}
+              </>
+            )}
           </div>
         </section>
       </div>
+
+      {/* Live preview */}
+      <Modal
+        open={previewOpen}
+        title="Email preview"
+        onClose={() => setPreviewOpen(false)}
+        wide
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-foreground-muted">
+            Sample data is filled in so you can see what a recipient will read.
+          </p>
+          <div className="overflow-hidden rounded-[22px] border border-border bg-canvas shadow-[var(--shadow-sm)]">
+            <div className="border-b border-border bg-surface px-5 py-4">
+              <p className="text-xs text-foreground-subtle">Subject</p>
+              <p className="mt-1 text-base font-semibold text-foreground">
+                {previewSubject || "(empty subject)"}
+              </p>
+            </div>
+            <div className="bg-surface px-5 py-6">
+              <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-foreground">
+                {previewBody || "(empty body)"}
+              </pre>
+            </div>
+          </div>
+          {isDirty ? (
+            <p className={ui.alertWarning}>
+              Showing unsaved edits. Save changes to publish a new version.
+            </p>
+          ) : null}
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setPreviewOpen(false)}
+            >
+              Close
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Save with optional change note */}
+      <Modal
+        open={saveOpen}
+        title="Save new version"
+        onClose={() => (saving ? null : setSaveOpen(false))}
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-foreground-muted">
+            Saving creates a new version of this template. You can add an
+            optional note for your team.
+          </p>
+          <div className="space-y-1">
+            <label htmlFor="save-change-note" className={ui.label}>
+              Change note (optional)
+            </label>
+            <input
+              id="save-change-note"
+              value={saveChangeNote}
+              onChange={(event) => setSaveChangeNote(event.target.value)}
+              placeholder="e.g. Updated reminder wording"
+              className={ui.input}
+              disabled={saving}
+            />
+          </div>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setSaveOpen(false)}
+              disabled={saving}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void saveTemplate()}
+              disabled={saving}
+            >
+              {saving ? "Saving…" : "Save changes"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Version history */}
+      <Modal
+        open={versionsOpen}
+        title="Version history"
+        onClose={() => setVersionsOpen(false)}
+        wide
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-foreground-muted">
+            Each save creates a new version. Restoring makes an older version
+            live and removes newer versions from history.
+          </p>
+          <ul className="max-h-[28rem] space-y-3 overflow-y-auto">
+            {detail.versions.map((version) => {
+              const isLive = version.version === detail.currentVersion;
+              return (
+                <li
+                  key={version.version}
+                  className="rounded-2xl border border-border bg-surface px-4 py-3"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0 space-y-1">
+                      <p className="text-sm font-semibold text-foreground">
+                        v{version.version}
+                        {isLive ? " · Live" : ""}
+                      </p>
+                      <p className="truncate text-sm text-foreground-muted">
+                        {version.subject}
+                      </p>
+                      <p className="text-xs text-foreground-subtle">
+                        {formatAppDateTime(version.createdAt)}
+                        {version.changeNote ? ` · ${version.changeNote}` : ""}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => setPreviewVersion(version)}
+                        disabled={busy}
+                      >
+                        Preview
+                      </Button>
+                      {!isLive ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() =>
+                            setConfirmRevertVersion(version.version)
+                          }
+                          disabled={busy}
+                        >
+                          {revertingVersion === version.version
+                            ? "Restoring…"
+                            : "Restore"}
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setVersionsOpen(false)}
+            >
+              Close
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal
         open={previewVersion !== null}
@@ -845,19 +940,24 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
                 ? ` · ${previewVersion.changeNote}`
                 : ""}
             </p>
-            <div className="rounded-2xl border border-border bg-surface-muted/40 p-4">
-              <p className="text-xs font-semibold tracking-wide text-foreground-subtle uppercase">
-                Subject
-              </p>
-              <p className="mt-1 text-sm font-medium">{previewVersion.subject}</p>
-            </div>
-            <div className="rounded-2xl border border-border bg-surface-muted/40 p-4">
-              <p className="text-xs font-semibold tracking-wide text-foreground-subtle uppercase">
-                Body
-              </p>
-              <pre className="mt-2 whitespace-pre-wrap font-sans text-sm leading-relaxed text-foreground">
-                {previewVersion.body}
-              </pre>
+            <div className="overflow-hidden rounded-[22px] border border-border bg-canvas">
+              <div className="border-b border-border bg-surface px-5 py-4">
+                <p className="text-xs text-foreground-subtle">Subject</p>
+                <p className="mt-1 text-base font-semibold">
+                  {applySamplePlaceholders(
+                    previewVersion.subject,
+                    detail.placeholders,
+                  )}
+                </p>
+              </div>
+              <div className="bg-surface px-5 py-6">
+                <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-foreground">
+                  {applySamplePlaceholders(
+                    previewVersion.body,
+                    detail.placeholders,
+                  )}
+                </pre>
+              </div>
             </div>
             <div className="flex flex-wrap justify-end gap-2">
               <Button
@@ -930,6 +1030,32 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
   );
 }
 
+function EmailTemplatesPageHeader({
+  busy,
+  onCreate,
+}: {
+  busy: boolean;
+  onCreate: () => void;
+}) {
+  return (
+    <div className="relative shrink-0 pb-14 pr-0 sm:pb-16">
+      <div className="min-w-0 max-w-3xl pr-4">
+        <h1 className={ui.pageTitle}>Email templates</h1>
+        <p className={ui.pageSubtitle}>
+          Choose a template on the left, edit the email on the right, then
+          preview and save.
+        </p>
+      </div>
+      {/* Below the floating notifications bell (top-right of the shell). */}
+      <div className="absolute right-0 top-16 z-10 sm:top-[4.25rem]">
+        <Button type="button" onClick={onCreate} disabled={busy}>
+          Create Template
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function CreateTemplateModal({
   open,
   creating,
@@ -942,7 +1068,7 @@ function CreateTemplateModal({
   creating: boolean;
   form: CreateFormState;
   onClose: () => void;
-  onSubmit: (event: React.FormEvent) => void;
+  onSubmit: (event: FormEvent) => void;
   onChange: (next: CreateFormState) => void;
 }) {
   return (
@@ -950,7 +1076,7 @@ function CreateTemplateModal({
       <form onSubmit={onSubmit} className="space-y-4">
         <div>
           <FieldLabel htmlFor="create-template-name" required>
-            Name
+            Template name
           </FieldLabel>
           <input
             id="create-template-name"
@@ -987,7 +1113,7 @@ function CreateTemplateModal({
           >
             {EMAIL_TEMPLATE_CATEGORIES.map((category) => (
               <option key={category} value={category}>
-                {categoryLabel(category)}
+                {displayCategoryLabel(category)}
               </option>
             ))}
           </select>
@@ -1011,7 +1137,7 @@ function CreateTemplateModal({
 
         <div>
           <FieldLabel htmlFor="create-template-body" required>
-            Body
+            Email body
           </FieldLabel>
           <textarea
             id="create-template-body"
@@ -1023,11 +1149,6 @@ function CreateTemplateModal({
             required
             disabled={creating}
           />
-          <p className="mt-1 text-xs text-foreground-subtle">
-            Intimation/Reminder templates typically use {"{{period}}"}. Password
-            templates under Other use {"{{name}}"}, {"{{link}}"}, and{" "}
-            {"{{expiryHours}}"}.
-          </p>
         </div>
 
         <div className="flex flex-wrap justify-end gap-2">

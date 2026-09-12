@@ -2,12 +2,15 @@
  * In-app (+ optional email) notification fan-out to portal users by USER_ROLE code.
  * Event-driven callers default to BOTH; SMTP failures are logged, not thrown.
  */
+import { randomUUID } from "crypto";
+
 import {
   type NotificationMetadata,
   serializeNotificationMetadata,
 } from "@/lib/platform/notification-metadata";
 import {
   DEFAULT_NOTIFICATION_DELIVERY_CHANNEL,
+  deliverySendsEmail,
   parseDeliveryChannel,
   type NotificationDeliveryChannel,
 } from "@/lib/platform/notification-delivery.shared";
@@ -62,11 +65,16 @@ async function notifyUsersByRoleCodes(params: {
     return;
   }
 
-  await prisma.notification.create({
+  const emailCorrelationId = deliverySendsEmail(deliveryChannel)
+    ? randomUUID()
+    : null;
+
+  const notification = await prisma.notification.create({
     data: {
       subject: params.subject,
       body: params.body,
       deliveryChannel,
+      emailCorrelationId,
       metadataJson: params.metadata
         ? serializeNotificationMetadata(params.metadata)
         : null,
@@ -81,6 +89,7 @@ async function notifyUsersByRoleCodes(params: {
         })),
       },
     },
+    select: { id: true },
   });
 
   const byEmail = new Map<string, OrgEmailRecipient>();
@@ -100,6 +109,10 @@ async function notifyUsersByRoleCodes(params: {
     recipients: [...byEmail.values()],
     subject: params.subject,
     body: params.body,
+    purpose: "EVENT",
+    notificationId: notification.id,
+    actorUserId: params.fromUserId,
+    correlationId: emailCorrelationId ?? undefined,
   });
 }
 

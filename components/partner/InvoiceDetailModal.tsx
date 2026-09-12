@@ -162,7 +162,7 @@ export function InvoiceDetailModal({
                       <thead className="bg-surface-muted text-left text-foreground-muted">
                         <tr>
                           <th className="px-3 py-2 font-medium">Description</th>
-                          <th className="px-3 py-2 font-medium">Qty</th>
+                          <th className="px-3 py-2 font-medium">Quantity</th>
                           <th className="px-3 py-2 font-medium">Unit price</th>
                           <th className="px-3 py-2 font-medium">Line total</th>
                         </tr>

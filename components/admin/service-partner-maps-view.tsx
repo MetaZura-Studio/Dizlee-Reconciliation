@@ -253,8 +253,8 @@ export function ServicePartnerMapsView({
       {error ? <p className={`mt-4 ${ui.alertError}`}>{error}</p> : null}
 
       <FilterToolbar className="mt-6">
-        <div className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <label className="text-sm lg:col-span-2">
+        <div className="grid min-w-0 w-full flex-1 gap-4 sm:grid-cols-[minmax(0,1fr)_auto]">
+          <label className="text-sm">
             <span className={ui.label}>Search</span>
             <input
               type="search"
@@ -267,15 +267,21 @@ export function ServicePartnerMapsView({
               className={ui.input}
             />
           </label>
+          <div className="flex flex-col justify-end text-sm">
+            <span className={ui.label} aria-hidden="true">
+              &nbsp;
+            </span>
+            <FilterActions
+              className="sm:ml-0"
+              onClear={() => {
+                setSearch("");
+                setSortBy("serviceName");
+                setSortDir("asc");
+                setPage(1);
+              }}
+            />
+          </div>
         </div>
-        <FilterActions
-          onClear={() => {
-            setSearch("");
-            setSortBy("serviceName");
-            setSortDir("asc");
-            setPage(1);
-          }}
-        />
       </FilterToolbar>
 
       <div className="mt-6 space-y-4">

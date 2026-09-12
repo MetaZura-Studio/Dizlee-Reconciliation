@@ -197,9 +197,18 @@ export async function listInvoiceMonitoringLanes(
 
   const summary: InvoiceMonitoringSummary = {
     linkedLanes: lanes.length,
-    opcoMissing: lanes.filter((lane) => lane.opcoInvoice.status === "Missing").length,
-    partnerMissing: lanes.filter((lane) => lane.partnerInvoice.status === "Missing")
-      .length,
+    // One Dizlee→OpCo invoice per OpCo/period (not per pair); count distinct OpCos.
+    opcoMissing: new Set(
+      lanes
+        .filter((lane) => lane.opcoInvoice.status === "Missing")
+        .map((lane) => lane.opcoId),
+    ).size,
+    // One Partner→Dizlee invoice per Partner/period; count distinct Partners.
+    partnerMissing: new Set(
+      lanes
+        .filter((lane) => lane.partnerInvoice.status === "Missing")
+        .map((lane) => lane.partnerId),
+    ).size,
     invoicesSubmitted: invoices.length,
   };
 

@@ -28,7 +28,6 @@ import { IconButton } from "@/components/ui/icon-button";
 import { IconCompare, IconEye, IconSend } from "@/components/ui/icons";
 import { FilterToolbar, PageCard, PageHeader } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
-import { useToast } from "@/components/ui/toast";
 import { LoadingOverlay } from "@/components/ui/loading";
 import { ui } from "@/lib/ui/classes";
 import { nextSortState, type SortDirection } from "@/lib/ui/sort";
@@ -194,7 +193,6 @@ export function ReportsMonitoringView({
     useState<ReportFilterOptions>(initialFilterOptions);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const toast = useToast();
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detail, setDetail] = useState<ReportDetail | null>(null);
@@ -337,7 +335,7 @@ export function ReportsMonitoringView({
           tone="blue"
         />
         <KpiCard
-          label="OpCo reports missing"
+          label="OpCos missing report"
           value={summary.opcoMissing}
           tone="amber"
         />
@@ -585,8 +583,7 @@ export function ReportsMonitoringView({
           month={remindLane.period.month}
           year={remindLane.period.year}
           onClose={() => setRemindLane(null)}
-          onSent={(sentMessage) => {
-            toast.success(sentMessage);
+          onSent={() => {
             void loadMonitoring({ ...result.filters, sortBy, sortDir });
           }}
         />

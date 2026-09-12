@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+
 import { InvoicesTable } from "@/components/opco/InvoicesTable";
 import { PageCard, PageHeader } from "@/components/ui/page";
 import { requireOpcoSession } from "@/lib/opco/auth";
@@ -47,7 +49,9 @@ export default async function OpcoInvoicesPage({
         title="Invoices"
         description="Search by invoice number, or filter by period, status, and payment. Opening an invoice acknowledges receipt automatically."
       />
-      <InvoicesTable initialResult={result} filterOptions={filterOptions} />
+      <Suspense fallback={null}>
+        <InvoicesTable initialResult={result} filterOptions={filterOptions} />
+      </Suspense>
     </PageCard>
   );
 }

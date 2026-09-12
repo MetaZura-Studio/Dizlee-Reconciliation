@@ -15,6 +15,7 @@ import {
   validateReportUploadFile,
 } from "@/lib/partner/validation/report-upload";
 import { assertExcelBufferMagic } from "@/lib/platform/excel-upload";
+import { assertPartnerPortalReportWorkbook } from "@/lib/platform/excel/report-workbook-kind";
 
 export async function POST(request: Request) {
   const session = await getPartnerSession();
@@ -57,6 +58,7 @@ export async function POST(request: Request) {
     if (magicError) {
       return jsonError(appErrorFromUnknown(magicError, 400));
     }
+    await assertPartnerPortalReportWorkbook(buffer);
     const lineItems = await parseReportWorkbook(buffer);
     const result = await createReportUpload({
       partnerId: BigInt(session.partnerId),

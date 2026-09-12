@@ -3,7 +3,14 @@
  * Import channel helpers from notification-delivery.shared for client-safe usage.
  */
 
-import { sendPlatformEmail } from "@/lib/auth/mail";
+import { randomUUID } from "crypto";
+
+import {
+  sendPlatformEmail,
+  type SendPlatformEmailAttachment,
+} from "@/lib/auth/mail";
+import type { EmailDeliveryPurpose } from "@/lib/auth/email-delivery.shared";
+import { getEmailDeliveryReadiness } from "@/lib/auth/email-delivery-readiness";
 import { resolveSmtpConfig } from "@/lib/auth/smtp-config";
 import {
   deliverySendsEmail,
@@ -61,20 +68,27 @@ export async function resolveOrgUserEmails(params: {
 
 /** Fail closed when Email/Both is selected but SMTP is off or incomplete. */
 export async function assertEmailDeliveryReady(): Promise<void> {
-  const smtp = await resolveSmtpConfig();
-  if (smtp.ok) {
+  const readiness = await getEmailDeliveryReadiness();
+  if (readiness.ready) {
     return;
   }
 
-  if (smtp.reason === "email_disabled") {
+  if (readiness.reason === "email_disabled") {
     throw new NotificationDeliveryError(
       "Email delivery is disabled. Enable email in Admin → Email settings, or choose System notification.",
       400,
     );
   }
 
+  if (readiness.reason === "smtp_credentials_missing") {
+    throw new NotificationDeliveryError(
+      "Email credentials are missing. Enter SMTP user and password in Admin → Email settings, or choose System notification.",
+      400,
+    );
+  }
+
   throw new NotificationDeliveryError(
-    "Email is not configured. Set SMTP in Admin → Email settings (and SMTP_USER/SMTP_PASSWORD in .env), or choose System notification.",
+    "Email is not configured. Set SMTP in Admin → Email settings, or choose System notification.",
     400,
   );
 }
@@ -83,8 +97,15 @@ export async function sendNotificationEmails(params: {
   recipients: OrgEmailRecipient[];
   subject: string;
   body: string;
+  purpose?: EmailDeliveryPurpose;
+  notificationId?: bigint | string | null;
+  actorUserId?: bigint | string | null;
+  correlationId?: string | null;
+  attachments?: SendPlatformEmailAttachment[];
 }): Promise<SendNotificationEmailsResult> {
   const html = notificationBodyToEmailHtml(params.body);
+  const correlationId = params.correlationId?.trim() || randomUUID();
+  const purpose = params.purpose ?? "NOTIFICATION";
   let sent = 0;
   let failed = 0;
 
@@ -95,6 +116,13 @@ export async function sendNotificationEmails(params: {
         subject: params.subject,
         text: params.body,
         html,
+        attachments: params.attachments,
+        logContext: {
+          purpose,
+          notificationId: params.notificationId,
+          actorUserId: params.actorUserId,
+          correlationId,
+        },
       });
       if (result.sent) {
         sent += 1;
@@ -177,6 +205,11 @@ export async function maybeSendEventEmails(params: {
   recipients: OrgEmailRecipient[];
   subject: string;
   body: string;
+  purpose?: EmailDeliveryPurpose;
+  notificationId?: bigint | string | null;
+  actorUserId?: bigint | string | null;
+  correlationId?: string | null;
+  attachments?: SendPlatformEmailAttachment[];
 }): Promise<SendNotificationEmailsResult | null> {
   if (!deliverySendsEmail(params.channel) || params.recipients.length === 0) {
     return null;
@@ -187,13 +220,17 @@ export async function maybeSendEventEmails(params: {
     console.warn(
       `[notification-delivery] Skipping event emails (${smtp.reason}): ${params.subject}`,
     );
-    return null;
   }
 
   return sendNotificationEmails({
     recipients: params.recipients,
     subject: params.subject,
     body: params.body,
+    purpose: params.purpose ?? "EVENT",
+    notificationId: params.notificationId,
+    actorUserId: params.actorUserId,
+    correlationId: params.correlationId,
+    attachments: params.attachments,
   });
 }
 

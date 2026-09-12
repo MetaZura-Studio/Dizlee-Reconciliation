@@ -218,12 +218,12 @@ export function InvoicesMonitoringView({
           tone="blue"
         />
         <KpiCard
-          label="OpCo invoices missing"
+          label="OpCos missing invoice"
           value={summary.opcoMissing}
           tone="amber"
         />
         <KpiCard
-          label="Partner invoices missing"
+          label="Partners missing invoice"
           value={summary.partnerMissing}
           tone="purple"
         />
@@ -231,8 +231,7 @@ export function InvoicesMonitoringView({
           label="Invoices submitted"
           value={summary.invoicesSubmitted}
           tone="teal"
-        />
-      </div>
+        />      </div>
 
       <FilterToolbar className="mt-4">
         <div className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-5">

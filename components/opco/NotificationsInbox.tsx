@@ -5,6 +5,7 @@
 
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 
@@ -12,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { IconButton } from "@/components/ui/icon-button";
 import { IconTrash } from "@/components/ui/icons";
+import { StatusPill } from "@/components/ui/status-pill";
 import { cn, ui } from "@/lib/ui/classes";
 import type {
   OpcoInboxDetail,
@@ -213,9 +215,17 @@ export function NotificationsInbox({ initialResult }: NotificationsInboxProps) {
                       {item.subject}
                     </p>
                     {item.priority ? (
-                      <span className="shrink-0 rounded-full border border-border bg-surface-muted px-2 py-0.5 text-xs font-semibold text-foreground-muted">
-                        {item.priority}
-                      </span>
+                      <StatusPill
+                        tone={
+                          item.priority.trim().toUpperCase() === "HIGH"
+                            ? "danger"
+                            : "neutral"
+                        }
+                      >
+                        {item.priority.trim().toUpperCase() === "HIGH"
+                          ? "High priority"
+                          : item.priority}
+                      </StatusPill>
                     ) : null}
                   </div>
                   <p className="mt-1 text-sm text-foreground-muted">{item.bodyPreview}</p>
@@ -293,6 +303,16 @@ export function NotificationsInbox({ initialResult }: NotificationsInboxProps) {
                 ) : null}
               </div>
               <p className="whitespace-pre-wrap text-sm text-foreground-muted">{detail.body}</p>
+              {detail.action ? (
+                <div>
+                  <Link
+                    href={detail.action.href}
+                    className={cn(ui.btnPrimary, "inline-flex items-center")}
+                  >
+                    {detail.action.label}
+                  </Link>
+                </div>
+              ) : null}
               {detail.attachments.length > 0 ? (
                 <div>
                   <h4 className="text-sm font-medium text-foreground">Attachments</h4>

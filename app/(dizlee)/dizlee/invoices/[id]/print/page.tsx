@@ -36,6 +36,9 @@ export default async function DizleeInvoicePrintPage({
       bankDetails={detail.bankDetails}
       preparedBy={detail.preparedBy}
       approvedBy={detail.approvedBy}
+      includeUsdCopy={detail.includeUsdCopy}
+      usdFxRate={detail.usdFxRate}
+      periodLabel={detail.period.label}
     />
   );
 }

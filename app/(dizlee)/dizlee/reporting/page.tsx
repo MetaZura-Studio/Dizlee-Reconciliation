@@ -10,7 +10,6 @@ type DizleeReportingPageProps = {
     month?: string;
     year?: string;
     opcoId?: string;
-    partnerId?: string;
   }>;
 };
 

@@ -241,6 +241,7 @@ model User {
   revenueShareReportsGenerated RevenueShareReport[] @relation("RevenueShareReportGenerator")
   opcoPartnerLinkRequestsRequested OpcoPartnerLinkRequest[] @relation("OpcoPartnerLinkRequester")
   opcoPartnerLinkRequestsDecided OpcoPartnerLinkRequest[] @relation("OpcoPartnerLinkDecider")
+  emailDeliveriesAsActor  EmailDelivery[] @relation("EmailDeliveryActor")
 
   @@map("users")
 }
@@ -370,6 +371,10 @@ model AppSettings {
   smtpHost                        String?  @map("smtp_host") @db.VarChar(255)
   smtpPort                        Int?     @map("smtp_port")
   senderAddress                   String?  @map("sender_address") @db.VarChar(255)
+  /** SMTP auth username (Admin Email Settings). */
+  smtpUser                        String?  @map("smtp_user") @db.VarChar(255)
+  /** AES-GCM ciphertext for SMTP password (never return plaintext to clients). */
+  smtpPasswordEnc                 String?  @map("smtp_password_enc") @db.Text
   remindersEnabled                Boolean  @default(false) @map("reminders_enabled")
   reminderValue                   Int?     @map("reminder_value")
   reminderUnit                    String?  @map("reminder_unit") @db.VarChar(16)
@@ -405,6 +410,8 @@ model Notification {
   metadataJson    String?   @map("metadata_json") @db.Text
   /// SYSTEM | EMAIL | BOTH — how this notification was delivered.
   deliveryChannel String    @default("SYSTEM") @map("delivery_channel") @db.VarChar(16)
+  /// Shared id for a multi-notification email fan-out (e.g. reminders).
+  emailCorrelationId String? @map("email_correlation_id") @db.VarChar(64)
   statusId        Int       @map("status_id")
   priority        String?   @db.VarChar(32)
   expiresAt       DateTime? @map("expires_at")
@@ -423,8 +430,39 @@ model Notification {
   recipients  NotificationRecipient[]
   reads       NotificationRead[]
   attachments NotificationAttachment[]
+  emailDeliveries EmailDelivery[]
 
+  @@index([emailCorrelationId], map: "idx_notifications_email_correlation_id")
   @@map("notifications")
+}
+
+/// Append-only SMTP handoff log (accepted / failed / skipped). Not bounce tracking.
+model EmailDelivery {
+  id                BigInt   @id @default(autoincrement())
+  toEmail           String   @map("to_email") @db.VarChar(255)
+  fromEmail         String?  @map("from_email") @db.VarChar(255)
+  subject           String   @db.VarChar(255)
+  purpose           String   @db.VarChar(64)
+  notificationId    BigInt?  @map("notification_id")
+  status            String   @db.VarChar(16)
+  skipReason        String?  @map("skip_reason") @db.VarChar(32)
+  providerMessageId String?  @map("provider_message_id") @db.VarChar(255)
+  errorCode         String?  @map("error_code") @db.VarChar(64)
+  errorMessage      String?  @map("error_message") @db.Text
+  originalToEmail   String?  @map("original_to_email") @db.VarChar(255)
+  actorUserId       BigInt?  @map("actor_user_id")
+  correlationId     String?  @map("correlation_id") @db.VarChar(64)
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  notification Notification? @relation(fields: [notificationId], references: [id])
+  actorUser    User?         @relation("EmailDeliveryActor", fields: [actorUserId], references: [id])
+
+  @@index([createdAt], map: "idx_email_deliveries_created_at")
+  @@index([status, createdAt], map: "idx_email_deliveries_status_created")
+  @@index([toEmail, createdAt], map: "idx_email_deliveries_to_created")
+  @@index([notificationId], map: "idx_email_deliveries_notification_id")
+  @@index([purpose, createdAt], map: "idx_email_deliveries_purpose_created")
+  @@map("email_deliveries")
 }
 
 model NotificationRecipient {
@@ -835,6 +873,10 @@ model Invoice {
   fileId            BigInt?   @map("file_id")
   currencyId        BigInt    @map("currency_id")
   bankDetailsJson   String?   @map("bank_details_json") @db.Text
+  /** When true, detail/print also shows a USD-equivalent page (CLIENT_TO_OPCO). */
+  includeUsdCopy    Boolean   @default(false) @map("include_usd_copy")
+  /** Local → USD rate snapshotted at create (null when includeUsdCopy is false). */
+  usdFxRate         Decimal?  @map("usd_fx_rate") @db.Decimal(18, 8)
   uploadedByUserId  BigInt?   @map("uploaded_by_user_id")
   invoiceStatusId   Int       @map("invoice_status_id")
   paymentStatusId   Int?      @map("payment_status_id")

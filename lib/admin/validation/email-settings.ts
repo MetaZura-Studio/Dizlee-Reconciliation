@@ -45,6 +45,16 @@ export const updateEmailSettingsSchema = z
         (value) => value === null || z.string().email().safeParse(value).success,
         "Enter a valid sender email address",
       ),
+    /** When provided (non-empty), replaces stored SMTP user. Omit/blank keeps existing. */
+    smtpUser: z
+      .string()
+      .max(255, "SMTP user must be at most 255 characters")
+      .optional()
+      .nullable(),
+    /** When provided (non-empty), replaces stored SMTP password. Omit/blank keeps existing. */
+    smtpPassword: z.string().max(512, "SMTP password is too long").optional().nullable(),
+    /** When true, blank smtpUser/smtpPassword clear stored credentials. */
+    clearSmtpCredentials: z.boolean().optional(),
   })
   .superRefine((value, ctx) => {
     if (value.emailEnabled && !value.smtpHost) {
@@ -68,6 +78,18 @@ export const updateEmailSettingsSchema = z
         code: z.ZodIssueCode.custom,
         path: ["senderAddress"],
         message: "Sender address is required when email is enabled",
+      });
+    }
+
+    const user = value.smtpUser?.trim() ?? "";
+    const password = value.smtpPassword ?? "";
+    const hasUser = user.length > 0;
+    const hasPassword = password.length > 0;
+    if (hasUser !== hasPassword && !value.clearSmtpCredentials) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: hasUser ? ["smtpPassword"] : ["smtpUser"],
+        message: "Enter both SMTP user and password together",
       });
     }
   });

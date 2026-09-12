@@ -11,6 +11,19 @@ export type ReuploadChangeRequestState = {
   statusCode: string;
 };
 
+const REQUESTABLE_REPORT_STATUSES = new Set([
+  "SUBMITTED",
+  "APPROVED",
+  "RESUBMITTED",
+]);
+
+export type PartnerReportReuploadFlags = {
+  hasPendingChangeRequest: boolean;
+  canRequestReupload: boolean;
+  canReupload: boolean;
+  reuploadReason: string | null;
+};
+
 export function isReportReuploadEligible(
   reportStatusCode: string,
   changeRequests: ReuploadChangeRequestState[],
@@ -44,4 +57,38 @@ export function mapReuploadEligibility(
       statusCode: request.status.code,
     })),
   );
+}
+
+/** Shared flags for list, detail, and Upload period gate. */
+export function mapPartnerReportReuploadFlags(
+  reportStatusCode: string,
+  changeRequests: Array<{
+    reason?: string | null;
+    decidedAt: Date | null;
+    completedAt: Date | null;
+    status: { code: string };
+  }>,
+): PartnerReportReuploadFlags {
+  const hasPendingChangeRequest = changeRequests.some(
+    (request) => request.decidedAt === null,
+  );
+  const canReupload = mapReuploadEligibility(reportStatusCode, changeRequests);
+  const canRequestReupload =
+    REQUESTABLE_REPORT_STATUSES.has(reportStatusCode) &&
+    !hasPendingChangeRequest &&
+    !canReupload;
+  const approvedOpen = changeRequests.find(
+    (request) =>
+      request.decidedAt !== null &&
+      request.completedAt === null &&
+      request.status.code === "APPROVED",
+  );
+  const pending = changeRequests.find((request) => request.decidedAt === null);
+
+  return {
+    hasPendingChangeRequest,
+    canRequestReupload,
+    canReupload,
+    reuploadReason: approvedOpen?.reason ?? pending?.reason ?? null,
+  };
 }

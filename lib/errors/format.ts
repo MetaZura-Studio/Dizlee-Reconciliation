@@ -18,6 +18,7 @@ const CLIENT_MESSAGES: Partial<Record<ErrorKey, string>> = {
   USER_NOT_FOUND: "Login failed. Check your email and password.",
   USER_NOT_ACTIVE: "This account is not active. Contact your administrator.",
   ACCOUNT_NOT_ACTIVE: "This account is not active. Contact your administrator.",
+  ACCOUNT_SUSPENDED: "Your account has been suspended. Contact support.",
   PASSWORD_LINK_INVALID: "This password link is invalid.",
   PASSWORD_LINK_EXPIRED: "This password link has expired.",
   CURRENT_PASSWORD_INCORRECT: "Current password is incorrect.",
@@ -34,6 +35,7 @@ const CLIENT_MESSAGES: Partial<Record<ErrorKey, string>> = {
   INVALID_EXCEL_FILE: "Please upload a valid Excel file.",
   ATTACHMENT_TYPE_NOT_ALLOWED: "This file type is not allowed.",
   REPORT_PARSE_FAILED: "Could not read the report file.",
+  REPORT_COLUMNS_UNRECOGNIZED: "Format is incorrect.",
   REPORT_NO_LINE_ITEMS: "The report has no line items.",
   OPCO_UNLINKED_PARTNERS_IN_FILE:
     "This file has partners that are not linked to your OpCo.",
@@ -141,14 +143,16 @@ export function formatAppError(
     if (apiMessage) {
       return apiMessage;
     }
-    // Auth / rate-limit: prefer specific copy over generic fallback.
+    // Prefer specific copy over generic call-site fallbacks (e.g. upload).
     if (
       key &&
       (key === "INVALID_CREDENTIALS" ||
         key === "RATE_LIMITED" ||
         key === "UNAUTHORIZED" ||
         key === "USER_NOT_ACTIVE" ||
-        key === "ACCOUNT_NOT_ACTIVE")
+        key === "ACCOUNT_NOT_ACTIVE" ||
+        key === "ACCOUNT_SUSPENDED" ||
+        key === "REPORT_COLUMNS_UNRECOGNIZED")
     ) {
       return clientMessageForKey(key);
     }

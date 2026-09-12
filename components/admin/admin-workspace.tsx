@@ -32,8 +32,8 @@ function mapIcon(icon: string): AppShellNavItem["icon"] {
   if (icon === "notifications") {
     return "bell";
   }
-  if (icon === "audit") {
-    return "home";
+  if (icon === "audit" || icon === "logs" || icon === "email-delivery") {
+    return "file";
   }
   return "file";
 }

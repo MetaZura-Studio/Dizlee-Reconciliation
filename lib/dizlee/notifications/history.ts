@@ -4,6 +4,12 @@
  */
 
 import {
+  summarizeOutboxEmailSend,
+  type OutboxEmailAttemptHint,
+  type OutboxEmailSendStatus,
+  type OutboxEmailSendSummary,
+} from "@/lib/auth/email-delivery.shared";
+import {
   formatRecipientSummary,
   summarizeRecipients,
   trimNotificationPreview,
@@ -16,6 +22,7 @@ import {
   type OutboxKindFilter,
 } from "@/lib/dizlee/notifications/outbox-filters";
 import { deliveryChannelLabel } from "@/lib/platform/notification-delivery.shared";
+import { parseNotificationMetadata } from "@/lib/platform/notification-metadata";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 
@@ -30,6 +37,11 @@ export type NotificationHistoryItem = {
   kindLabel: string;
   deliveryChannel: string;
   deliveryChannelLabel: string;
+  emailSendStatus: OutboxEmailSendStatus;
+  emailSendLabel: string;
+  emailSendPillLabel: string;
+  emailSendSummary: string | null;
+  emailReason: string | null;
   recipientSummary: string;
   opcoCount: number;
   partnerCount: number;
@@ -56,11 +68,22 @@ export type NotificationHistoryDetail = {
   kindLabel: string;
   deliveryChannel: string;
   deliveryChannelLabel: string;
+  emailSendStatus: OutboxEmailSendStatus;
+  emailSendLabel: string;
+  emailSendPillLabel: string;
+  emailSendSummary: string | null;
+  emailReason: string | null;
   recipientSummary: string;
   recipients: Array<{
     type: string;
     name: string;
   }>;
+  attachments: Array<{
+    id: string;
+    filename: string;
+  }>;
+  invoiceHref: string | null;
+  invoiceLabel: string | null;
 };
 
 const PAGE_SIZE = 10;
@@ -103,6 +126,116 @@ function kindWhere(kind: OutboxKindFilter): Prisma.NotificationWhereInput {
     };
   }
   return {};
+}
+
+function formatEmailSendSummary(summary: OutboxEmailSendSummary): string | null {
+  if (summary.status === "not_applicable") {
+    return null;
+  }
+  if (summary.attempted === 0) {
+    return null;
+  }
+  if (summary.status === "sent") {
+    return summary.accepted === 1
+      ? "Emailed 1 recipient"
+      : `Emailed ${summary.accepted} recipients`;
+  }
+  if (summary.status === "partly_sent") {
+    return `Emailed ${summary.accepted} of ${summary.accepted + summary.failed}`;
+  }
+  if (summary.status === "failed") {
+    return summary.failed === 1
+      ? "1 email failed"
+      : `${summary.failed} emails failed`;
+  }
+  if (summary.skipped > 0) {
+    return "Email was not sent";
+  }
+  return null;
+}
+
+async function loadEmailSendSummaries(
+  rows: Array<{
+    id: bigint;
+    deliveryChannel: string;
+    emailCorrelationId: string | null;
+  }>,
+): Promise<Map<string, OutboxEmailSendSummary>> {
+  const result = new Map<string, OutboxEmailSendSummary>();
+  if (rows.length === 0) {
+    return result;
+  }
+
+  const notificationIds = rows.map((row) => row.id);
+  const correlationIds = [
+    ...new Set(
+      rows
+        .map((row) => row.emailCorrelationId?.trim())
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+
+  const deliveries = await prisma.emailDelivery.findMany({
+    where: {
+      OR: [
+        { notificationId: { in: notificationIds } },
+        ...(correlationIds.length > 0
+          ? [{ correlationId: { in: correlationIds } }]
+          : []),
+      ],
+    },
+    select: {
+      notificationId: true,
+      correlationId: true,
+      status: true,
+      skipReason: true,
+      errorCode: true,
+      errorMessage: true,
+    },
+  });
+
+  const byNotificationId = new Map<string, OutboxEmailAttemptHint[]>();
+  const byCorrelationId = new Map<string, OutboxEmailAttemptHint[]>();
+
+  for (const delivery of deliveries) {
+    const hint: OutboxEmailAttemptHint = {
+      status: delivery.status,
+      skipReason: delivery.skipReason,
+      errorCode: delivery.errorCode,
+      errorMessage: delivery.errorMessage,
+    };
+    if (delivery.notificationId != null) {
+      const key = delivery.notificationId.toString();
+      const list = byNotificationId.get(key) ?? [];
+      list.push(hint);
+      byNotificationId.set(key, list);
+    }
+    if (delivery.correlationId) {
+      const list = byCorrelationId.get(delivery.correlationId) ?? [];
+      list.push(hint);
+      byCorrelationId.set(delivery.correlationId, list);
+    }
+  }
+
+  for (const row of rows) {
+    const idKey = row.id.toString();
+    const fromNotification = byNotificationId.get(idKey) ?? [];
+    const fromCorrelation = row.emailCorrelationId
+      ? (byCorrelationId.get(row.emailCorrelationId) ?? [])
+      : [];
+    // Prefer direct notification link; fall back to shared correlation batch.
+    const attempts =
+      fromNotification.length > 0 ? fromNotification : fromCorrelation;
+    result.set(
+      idKey,
+      summarizeOutboxEmailSend({
+        deliveryChannel: row.deliveryChannel,
+        attempts,
+      }),
+    );
+  }
+
+  return result;
 }
 
 async function loadRecipientNameMaps(recipients: Array<{
@@ -189,7 +322,10 @@ export async function listNotificationHistory(filters: {
   ]);
 
   const allRecipients = rows.flatMap((row) => row.recipients);
-  const nameMaps = await loadRecipientNameMaps(allRecipients);
+  const [nameMaps, emailSummaries] = await Promise.all([
+    loadRecipientNameMaps(allRecipients),
+    loadEmailSendSummaries(rows),
+  ]);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const page = Math.min(filters.page, totalPages);
@@ -199,6 +335,12 @@ export async function listNotificationHistory(filters: {
   for (const row of rows) {
     const summary = await summarizeRecipients(row.recipients, nameMaps);
     const itemKind = classifyOutboxKind(row.priority);
+    const emailSummary =
+      emailSummaries.get(row.id.toString()) ??
+      summarizeOutboxEmailSend({
+        deliveryChannel: row.deliveryChannel,
+        attempts: [],
+      });
     items.push({
       id: row.id.toString(),
       subject: row.subject,
@@ -210,6 +352,11 @@ export async function listNotificationHistory(filters: {
       kindLabel: outboxKindLabel(itemKind),
       deliveryChannel: row.deliveryChannel,
       deliveryChannelLabel: deliveryChannelLabel(row.deliveryChannel),
+      emailSendStatus: emailSummary.status,
+      emailSendLabel: emailSummary.label,
+      emailSendPillLabel: emailSummary.pillLabel,
+      emailSendSummary: formatEmailSendSummary(emailSummary),
+      emailReason: emailSummary.reason,
       recipientSummary: formatRecipientSummary(summary),
       opcoCount: summary.opcoCount,
       partnerCount: summary.partnerCount,
@@ -247,6 +394,12 @@ export async function getNotificationHistoryDetail(
         where: { isDeleted: false },
         include: { recipientType: { select: { code: true } } },
       },
+      attachments: {
+        where: { isDeleted: false },
+        include: {
+          file: { select: { filename: true } },
+        },
+      },
     },
   });
 
@@ -254,9 +407,18 @@ export async function getNotificationHistoryDetail(
     return null;
   }
 
-  const nameMaps = await loadRecipientNameMaps(row.recipients);
+  const [nameMaps, emailSummaries] = await Promise.all([
+    loadRecipientNameMaps(row.recipients),
+    loadEmailSendSummaries([row]),
+  ]);
   const summary = await summarizeRecipients(row.recipients, nameMaps);
   const kind = classifyOutboxKind(row.priority);
+  const emailSummary =
+    emailSummaries.get(row.id.toString()) ??
+    summarizeOutboxEmailSend({
+      deliveryChannel: row.deliveryChannel,
+      attempts: [],
+    });
 
   const recipients = row.recipients.map((recipient) => {
     const recipientId = recipient.recipientId.toString();
@@ -274,6 +436,18 @@ export async function getNotificationHistoryDetail(
     return { type, name };
   });
 
+  const metadata = parseNotificationMetadata(row.metadataJson);
+  const invoiceHref =
+    metadata?.type === "INVOICE_SENT" && metadata.invoiceId
+      ? `/dizlee/invoices?id=${encodeURIComponent(metadata.invoiceId)}`
+      : null;
+  const invoiceLabel =
+    metadata?.type === "INVOICE_SENT"
+      ? metadata.invoiceNumber
+        ? `Invoice ${metadata.invoiceNumber}`
+        : "Open invoice"
+      : null;
+
   return {
     id: row.id.toString(),
     subject: row.subject,
@@ -285,7 +459,18 @@ export async function getNotificationHistoryDetail(
     kindLabel: outboxKindLabel(kind),
     deliveryChannel: row.deliveryChannel,
     deliveryChannelLabel: deliveryChannelLabel(row.deliveryChannel),
+    emailSendStatus: emailSummary.status,
+    emailSendLabel: emailSummary.label,
+    emailSendPillLabel: emailSummary.pillLabel,
+    emailSendSummary: formatEmailSendSummary(emailSummary),
+    emailReason: emailSummary.reason,
     recipientSummary: formatRecipientSummary(summary),
     recipients,
+    attachments: row.attachments.map((attachment) => ({
+      id: attachment.id.toString(),
+      filename: attachment.file.filename,
+    })),
+    invoiceHref,
+    invoiceLabel,
   };
 }

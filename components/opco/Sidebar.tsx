@@ -18,7 +18,6 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/opco/reports", label: "Reports history" },
   { href: "/opco/invoices", label: "Invoices" },
   { href: "/opco/notifications", label: "Notifications" },
-  { href: "/opco/settings", label: "Settings", footer: true },
 ];
 
 function isActive(pathname: string, href: string) {

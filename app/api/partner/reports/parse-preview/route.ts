@@ -12,6 +12,7 @@ import { parseReportWorkbook } from "@/lib/partner/excel/parse-report";
 import { getPartnerSession } from "@/lib/partner/auth";
 import { validateReportUploadFile } from "@/lib/partner/validation/report-upload";
 import { assertExcelBufferMagic } from "@/lib/platform/excel-upload";
+import { assertPartnerPortalReportWorkbook } from "@/lib/platform/excel/report-workbook-kind";
 import { mapParsedLinesToPreview } from "@/lib/platform/report-preview";
 
 export async function POST(request: Request) {
@@ -39,6 +40,7 @@ export async function POST(request: Request) {
     if (magicError) {
       return jsonError(appErrorFromUnknown(magicError, 400));
     }
+    await assertPartnerPortalReportWorkbook(buffer);
     const lineItems = await parseReportWorkbook(buffer);
     const preview = mapParsedLinesToPreview(lineItems, {
       currencyCode: "USD",

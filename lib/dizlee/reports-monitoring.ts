@@ -187,7 +187,13 @@ export async function listReportMonitoringLanes(
 
   const summary: ReportMonitoringSummary = {
     linkedLanes: lanes.length,
-    opcoMissing: lanes.filter((lane) => lane.opcoReport.status === "Missing").length,
+    // OpCo uploads one monthly file that is split into partner lanes — count distinct OpCos.
+    opcoMissing: new Set(
+      lanes
+        .filter((lane) => lane.opcoReport.status === "Missing")
+        .map((lane) => lane.opcoId),
+    ).size,
+    // Partners upload per OpCo–Partner lane — keep pair-level missing count.
     partnerMissing: lanes.filter((lane) => lane.partnerReport.status === "Missing")
       .length,
     reportsSubmitted: reports.length,

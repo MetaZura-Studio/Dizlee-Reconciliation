@@ -147,7 +147,7 @@ export function DizleeOpcoInvoiceDocument({
                 Description
               </th>
               <th className="border border-zinc-900 px-3 py-2.5 font-semibold text-right">
-                Number
+                Quantity
               </th>
               <th className="border border-zinc-900 px-3 py-2.5 font-semibold text-right">
                 Amount

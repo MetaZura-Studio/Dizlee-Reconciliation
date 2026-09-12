@@ -144,7 +144,6 @@ export function OpcoWorkspace({
         icon: "bell",
         badge: unreadCount > 0 ? unreadCount : undefined,
       },
-      { href: "/opco/settings", label: "Settings", icon: "settings", footer: true },
     ],
     [unreadCount],
   );
