@@ -56,7 +56,7 @@ function warningMessage(reason: ReadinessSnapshot["reason"]): string {
     return "Email delivery is disabled. Contact an administrator to enable email in Admin → Email settings, or choose System notification.";
   }
   if (reason === "smtp_credentials_missing") {
-    return "Email credentials are missing (SMTP_USER / SMTP_PASSWORD). Contact an administrator to finish setup in Admin → Email settings, or choose System notification.";
+    return "Email credentials are missing. Contact an administrator to enter SMTP user and password in Admin → Email settings, or choose System notification.";
   }
   return "Email is not configured (SMTP). Contact an administrator to set it up in Admin → Email settings, or choose System notification.";
 }

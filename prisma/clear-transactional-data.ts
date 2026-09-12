@@ -11,6 +11,7 @@ const prisma = new PrismaClient();
 
 async function clearTransactionalData() {
   await prisma.$transaction([
+    prisma.emailDelivery.deleteMany(),
     prisma.notificationRead.deleteMany(),
     prisma.notificationAttachment.deleteMany(),
     prisma.notificationRecipient.deleteMany(),

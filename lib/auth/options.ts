@@ -14,6 +14,7 @@ import {
 } from "@/lib/auth/active-user";
 import { verifyPassword, runDummyPasswordCheck } from "@/lib/auth/password";
 import { writeUserSessionAuditLog } from "@/lib/auth/audit";
+import { ACCOUNT_SUSPENDED_SIGNIN_ERROR } from "@/lib/auth/login-errors";
 import {
   AUTH_RATE_LIMITS,
   consumeRateLimit,
@@ -109,13 +110,22 @@ function createAuthOptions(params: {
             },
           });
 
-          if (!user?.passwordHash || user.status.code !== "ACTIVE") {
+          if (!user?.passwordHash) {
             await runDummyPasswordCheck(password);
             return null;
           }
 
           const valid = await verifyPassword(password, user.passwordHash);
           if (!valid) {
+            return null;
+          }
+
+          // Only after a correct password — avoid account-status enumeration.
+          if (user.status.code === "SUSPENDED") {
+            throw new Error(ACCOUNT_SUSPENDED_SIGNIN_ERROR);
+          }
+
+          if (user.status.code !== "ACTIVE") {
             return null;
           }
 

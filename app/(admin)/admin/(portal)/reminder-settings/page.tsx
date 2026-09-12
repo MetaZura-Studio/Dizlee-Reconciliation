@@ -1,5 +1,5 @@
 import { ReminderSettingsForm } from "@/components/admin/reminder-settings-form";
-import { PageCard, PageHeader, FormLayout, HelpPanel } from "@/components/ui/page";
+import { PageCard, PageHeader, FormLayout } from "@/components/ui/page";
 import {
   getReminderSettings,
   ReminderSettingsError,
@@ -36,13 +36,8 @@ export default async function AdminReminderSettingsPage() {
       <FormLayout>
         <PageHeader
           title="Reminder Settings"
-          description="Monthly emails for report submission: due day, intimations before, and reminders after."
+          description="Control automatic monthly report emails: turn sending on or off, set the report due day, and schedule notices before and reminders after that date."
         />
-        <HelpPanel title="Example">
-          <p>
-            Due day 10 → send intimation on the 7th and reminder on the 11th.
-          </p>
-        </HelpPanel>
         <ReminderSettingsForm initialSettings={settings!} />
       </FormLayout>
     </PageCard>

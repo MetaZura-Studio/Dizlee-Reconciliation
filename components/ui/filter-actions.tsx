@@ -37,13 +37,24 @@ export function FilterActions({
   const showApply = onApply != null || applyType === "submit";
 
   return (
-    <div className={cn("flex w-full flex-wrap items-center justify-end gap-3", className)}>
+    <div
+      className={cn(
+        "flex shrink-0 flex-wrap items-end justify-end gap-3 sm:ml-auto",
+        className,
+      )}
+    >
       {showApply ? (
-        <Button type={applyType} onClick={onApply} disabled={busy}>
+        <Button type={applyType} onClick={onApply} disabled={busy} className="h-11">
           {applyLabel}
         </Button>
       ) : null}
-      <Button type="button" variant="secondary" onClick={onClear} disabled={busy}>
+      <Button
+        type="button"
+        variant="secondary"
+        onClick={onClear}
+        disabled={busy}
+        className="h-11"
+      >
         {clearLabel}
       </Button>
       {onRefresh ? (

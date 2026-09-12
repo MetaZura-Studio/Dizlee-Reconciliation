@@ -47,6 +47,8 @@ function securityHeaders(): { key: string; value: string }[] {
 }
 
 const nextConfig: NextConfig = {
+  // ZAP Low: hide framework fingerprint (X-Powered-By: Next.js).
+  poweredByHeader: false,
   experimental: {
     // Default Next proxy body buffer is 10MB; Excel uploads allow 20MB.
     proxyClientMaxBodySize: UPLOAD_BODY_LIMIT_BYTES,

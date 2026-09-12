@@ -1,18 +1,15 @@
 /**
- * Cross-lane reporting matrix: submission completeness vs invoices and reconciliation.
- * Consumed by the Dizlee reporting page; scopes rows to active OpCo–partner links.
+ * Monthly period scorecard for Dizlee Reporting: OpCo rollup for the selected period.
+ * Pair-level chase stays on Reports / Invoice monitoring and Reconciliation.
  */
 
-import {
-  currentPeriod,
-  getDashboardData,
-  type DashboardPeriod,
-} from "@/lib/dizlee/dashboard";
+import { currentPeriod, type DashboardPeriod } from "@/lib/dizlee/dashboard";
 import {
   getReportFilterOptions,
   type ReportFilterOptions,
 } from "@/lib/dizlee/reports";
 import { formatAppMonthYear } from "@/lib/platform/format-datetime";
+import { getMonthlyRatesForPeriod } from "@/lib/platform/currency-rates";
 import { ACTIVE_OPCO_PARTNER_LINK_FILTER } from "@/lib/platform/opco-partner-links";
 import { prisma } from "@/lib/prisma";
 
@@ -20,46 +17,30 @@ export type ReportingFilters = {
   month: number;
   year: number;
   opcoId?: string;
-  partnerId?: string;
 };
 
-export type ReportingLaneStatus = "Complete" | "Missing" | "Partial";
-
-export type ReportingLaneRow = {
-  laneKey: string;
-  opcoName: string;
-  partnerName: string;
-  opcoReport: boolean;
-  partnerReport: boolean;
-  opcoInvoice: boolean;
-  partnerInvoice: boolean;
-  reconciliationStatus: string | null;
-  overallStatus: ReportingLaneStatus;
-};
-
-export type ReportingConsolidationRow = {
+export type ReportingOpcoRow = {
   opcoId: string;
   opcoName: string;
-  generated: boolean;
-  generatedAt: string | null;
-  totalAmountUsd: number | null;
+  partnerCount: number;
+  opcoReport: boolean;
+  partnerReportsReceived: number;
+  partnerReportsExpected: number;
+  reconciliationsDone: number;
+  reconciliationsExpected: number;
+  reconciliationsMatched: number;
+  opcoInvoice: boolean;
+  partnerInvoicesReceived: number;
+  partnerInvoicesExpected: number;
+  rsGenerated: boolean;
+  revenueInvoicedUsd: number | null;
+  revenuePaidUsd: number | null;
 };
 
 export type ReportingOverview = {
   period: DashboardPeriod;
   filters: ReportingFilters;
-  summary: {
-    linkedLanes: number;
-    reportsComplete: number;
-    invoicesComplete: number;
-    reconciliationsRun: number;
-    consolidationsGenerated: number;
-    invoiceCount: number;
-    invoicesPaid: number;
-    totalRevenuePaidUsd: number;
-  };
-  lanes: ReportingLaneRow[];
-  consolidations: ReportingConsolidationRow[];
+  opcos: ReportingOpcoRow[];
 };
 
 function periodFromParts(month: number, year: number): DashboardPeriod {
@@ -70,26 +51,20 @@ function periodFromParts(month: number, year: number): DashboardPeriod {
   };
 }
 
-function laneOverallStatus(row: {
-  opcoReport: boolean;
-  partnerReport: boolean;
-  opcoInvoice: boolean;
-  partnerInvoice: boolean;
-}): ReportingLaneStatus {
-  const flags = [
-    row.opcoReport,
-    row.partnerReport,
-    row.opcoInvoice,
-    row.partnerInvoice,
-  ];
-  const complete = flags.filter(Boolean).length;
-  if (complete === flags.length) {
-    return "Complete";
-  }
-  if (complete === 0) {
-    return "Missing";
-  }
-  return "Partial";
+function toNumber(value: unknown): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function invoiceAmount(items: { lineTotal: unknown }[]): number {
+  return items.reduce((sum, item) => sum + toNumber(item.lineTotal), 0);
+}
+
+function isReconciliationMatched(
+  statusCode: string,
+  unmatchedCount: number | null,
+): boolean {
+  return statusCode === "COMPLETED" && (unmatchedCount ?? 0) === 0;
 }
 
 export function parseReportingFilters(
@@ -104,8 +79,7 @@ export function parseReportingFilters(
       Number.isInteger(month) && month >= 1 && month <= 12 ? month : fallback.month,
     year:
       Number.isInteger(year) && year >= 2000 && year <= 2100 ? year : fallback.year,
-    opcoId: searchParams.get("opcoId") ?? undefined,
-    partnerId: searchParams.get("partnerId") ?? undefined,
+    opcoId: searchParams.get("opcoId") || undefined,
   };
 }
 
@@ -113,23 +87,17 @@ export async function getReportingOverview(
   filters: ReportingFilters,
 ): Promise<ReportingOverview> {
   const period = periodFromParts(filters.month, filters.year);
+  const { month, year } = filters;
 
-  const linkWhere: {
-    opcoId?: bigint;
-    partnerId?: bigint;
-  } = {};
+  const linkWhere: { opcoId?: bigint } = {};
   if (filters.opcoId) {
     linkWhere.opcoId = BigInt(filters.opcoId);
   }
-  if (filters.partnerId) {
-    linkWhere.partnerId = BigInt(filters.partnerId);
-  }
 
-  const reportWhere = {
-    month: filters.month,
-    year: filters.year,
+  const periodWhere = {
+    month,
+    year,
     ...(filters.opcoId ? { opcoId: BigInt(filters.opcoId) } : {}),
-    ...(filters.partnerId ? { partnerId: BigInt(filters.partnerId) } : {}),
   };
 
   const [
@@ -137,8 +105,9 @@ export async function getReportingOverview(
     reports,
     invoices,
     reconciliations,
-    consolidations,
-    dashboard,
+    opcoSubmissions,
+    rsReports,
+    fxRates,
   ] = await Promise.all([
     prisma.opcoPartnerLink.findMany({
       where: { ...linkWhere, ...ACTIVE_OPCO_PARTNER_LINK_FILTER },
@@ -149,141 +118,177 @@ export async function getReportingOverview(
       },
     }),
     prisma.report.findMany({
-      where: reportWhere,
+      where: { ...periodWhere, isDeleted: false },
       include: {
         uploadedByUser: { select: { role: { select: { code: true } } } },
       },
     }),
     prisma.invoice.findMany({
-      where: reportWhere,
-      include: { invoiceType: { select: { code: true } } },
-    }),
-    prisma.reconciliation.findMany({
-      where: reportWhere,
-      include: { status: { select: { code: true } } },
-    }),
-    prisma.consolidation.findMany({
       where: {
-        month: filters.month,
-        year: filters.year,
+        month,
+        year,
         isDeleted: false,
-        ...(filters.opcoId ? { opcoId: BigInt(filters.opcoId) } : {}),
       },
       include: {
-        opco: { select: { id: true, name: true } },
+        items: { select: { lineTotal: true } },
+        invoiceType: { select: { code: true } },
+        paymentStatus: { select: { code: true } },
       },
     }),
-    getDashboardData(period),
+    prisma.reconciliation.findMany({
+      where: { ...periodWhere, isDeleted: false },
+      include: {
+        status: { select: { code: true } },
+      },
+    }),
+    prisma.opcoReportSubmission.findMany({
+      where: { ...periodWhere, isDeleted: false },
+      select: { opcoId: true },
+    }),
+    prisma.revenueShareReport.findMany({
+      where: { ...periodWhere, isDeleted: false },
+      select: { opcoId: true },
+    }),
+    getMonthlyRatesForPeriod(month, year),
   ]);
 
-  const opcoReports = new Set<string>();
-  const partnerReports = new Set<string>();
+  const fxByCurrency = new Map(
+    fxRates.map((rate) => [rate.currencyId, rate.rateToUsd] as const),
+  );
+
+  const linkKeys = new Set(
+    links.map((link) => `${link.opcoId.toString()}-${link.partnerId.toString()}`),
+  );
+
+  const opcosWithReport = new Set(
+    opcoSubmissions.map((row) => row.opcoId.toString()),
+  );
+  const partnerReportLanes = new Set<string>();
   for (const report of reports) {
     const laneKey = `${report.opcoId.toString()}-${report.partnerId.toString()}`;
-    const role = report.uploadedByUser?.role?.code;
-    if (role === "OPCO") {
-      opcoReports.add(laneKey);
-    } else if (role === "PARTNER") {
-      partnerReports.add(laneKey);
-    }
-  }
-
-  const opcoInvoices = new Set<string>();
-  const partnerInvoices = new Set<string>();
-  for (const invoice of invoices) {
-    if (!invoice.partnerId || !invoice.opcoId) {
+    if (!linkKeys.has(laneKey)) {
       continue;
     }
-    const laneKey = `${invoice.opcoId.toString()}-${invoice.partnerId.toString()}`;
-    if (invoice.invoiceType.code === "CLIENT_TO_OPCO") {
-      opcoInvoices.add(laneKey);
-    } else if (invoice.invoiceType.code === "PARTNER_TO_CLIENT") {
-      partnerInvoices.add(laneKey);
+    const role = report.uploadedByUser?.role?.code;
+    if (role === "OPCO") {
+      opcosWithReport.add(report.opcoId.toString());
+    } else if (role === "PARTNER") {
+      partnerReportLanes.add(laneKey);
     }
   }
 
-  const reconciliationByLane = new Map(
-    reconciliations.map((row) => [
-      `${row.opcoId.toString()}-${row.partnerId.toString()}`,
-      row.status.code.replaceAll("_", " "),
-    ]),
-  );
+  const opcosWithInvoice = new Set<string>();
+  const partnersWithInvoice = new Set<string>();
+  const invoicedUsdByOpco = new Map<string, number>();
+  const paidUsdByOpco = new Map<string, number>();
 
-  const lanes: ReportingLaneRow[] = links.map((link) => {
-    const laneKey = `${link.opcoId.toString()}-${link.partnerId.toString()}`;
-    const row = {
-      opcoReport: opcoReports.has(laneKey),
-      partnerReport: partnerReports.has(laneKey),
-      opcoInvoice: opcoInvoices.has(laneKey),
-      partnerInvoice: partnerInvoices.has(laneKey),
-    };
+  for (const invoice of invoices) {
+    const typeCode = invoice.invoiceType.code;
+    const amount = invoiceAmount(invoice.items);
+    const rate = fxByCurrency.get(invoice.currencyId.toString());
+    const usd = rate !== undefined ? amount * rate : null;
+    const isPaid = invoice.paymentStatus?.code === "PAID";
 
-    return {
-      laneKey,
-      opcoName: link.opco.name,
-      partnerName: link.partner.name,
-      ...row,
-      reconciliationStatus: reconciliationByLane.get(laneKey) ?? null,
-      overallStatus: laneOverallStatus(row),
-    };
-  });
+    if (typeCode === "CLIENT_TO_OPCO" && invoice.opcoId) {
+      const opcoId = invoice.opcoId.toString();
+      opcosWithInvoice.add(opcoId);
+      if (usd !== null) {
+        invoicedUsdByOpco.set(
+          opcoId,
+          (invoicedUsdByOpco.get(opcoId) ?? 0) + usd,
+        );
+        if (isPaid) {
+          paidUsdByOpco.set(opcoId, (paidUsdByOpco.get(opcoId) ?? 0) + usd);
+        }
+      }
+    } else if (typeCode === "PARTNER_TO_CLIENT" && invoice.partnerId) {
+      partnersWithInvoice.add(invoice.partnerId.toString());
+    }
+  }
 
-  const opcoIdsInScope = new Map<string, string>();
+  const reconByLane = new Map<
+    string,
+    { statusCode: string; unmatchedCount: number | null }
+  >();
+  for (const row of reconciliations) {
+    const laneKey = `${row.opcoId.toString()}-${row.partnerId.toString()}`;
+    if (!reconByLane.has(laneKey)) {
+      reconByLane.set(laneKey, {
+        statusCode: row.status.code,
+        unmatchedCount: row.unmatchedCount,
+      });
+    }
+  }
+
+  const rsByOpco = new Set(rsReports.map((row) => row.opcoId.toString()));
+
+  type Acc = {
+    opcoId: string;
+    opcoName: string;
+    partners: Array<{ partnerId: string; partnerName: string; laneKey: string }>;
+  };
+  const byOpco = new Map<string, Acc>();
   for (const link of links) {
-    opcoIdsInScope.set(link.opco.id.toString(), link.opco.name);
-  }
-  if (filters.opcoId && opcoIdsInScope.size === 0) {
-    const opco = await prisma.opco.findUnique({
-      where: { id: BigInt(filters.opcoId) },
-      select: { id: true, name: true },
+    const opcoId = link.opco.id.toString();
+    const existing = byOpco.get(opcoId) ?? {
+      opcoId,
+      opcoName: link.opco.name,
+      partners: [],
+    };
+    existing.partners.push({
+      partnerId: link.partner.id.toString(),
+      partnerName: link.partner.name,
+      laneKey: `${link.opcoId.toString()}-${link.partnerId.toString()}`,
     });
-    if (opco) {
-      opcoIdsInScope.set(opco.id.toString(), opco.name);
-    }
+    byOpco.set(opcoId, existing);
   }
 
-  const consolidationByOpco = new Map(
-    consolidations.map((row) => [row.opcoId.toString(), row]),
-  );
+  const opcos: ReportingOpcoRow[] = [...byOpco.values()]
+    .map((acc) => {
+      const partnerReportsReceived = acc.partners.filter((p) =>
+        partnerReportLanes.has(p.laneKey),
+      ).length;
+      const reconciliationsDone = acc.partners.filter((p) =>
+        reconByLane.has(p.laneKey),
+      ).length;
+      const reconciliationsMatched = acc.partners.filter((p) => {
+        const recon = reconByLane.get(p.laneKey);
+        return (
+          recon != null &&
+          isReconciliationMatched(recon.statusCode, recon.unmatchedCount)
+        );
+      }).length;
+      const partnerInvoicesReceived = acc.partners.filter((p) =>
+        partnersWithInvoice.has(p.partnerId),
+      ).length;
+      const expected = acc.partners.length;
+      const invoicedUsd = invoicedUsdByOpco.get(acc.opcoId);
+      const paidUsd = paidUsdByOpco.get(acc.opcoId);
 
-  const consolidationRows: ReportingConsolidationRow[] = [...opcoIdsInScope.entries()]
-    .map(([opcoId, opcoName]) => {
-      const row = consolidationByOpco.get(opcoId);
       return {
-        opcoId,
-        opcoName,
-        generated: Boolean(row),
-        generatedAt: row?.generatedAt.toISOString() ?? null,
-        totalAmountUsd:
-          row?.totalAmountUsd !== null && row?.totalAmountUsd !== undefined
-            ? Number(row.totalAmountUsd)
-            : null,
+        opcoId: acc.opcoId,
+        opcoName: acc.opcoName,
+        partnerCount: expected,
+        opcoReport: opcosWithReport.has(acc.opcoId),
+        partnerReportsReceived,
+        partnerReportsExpected: expected,
+        reconciliationsDone,
+        reconciliationsExpected: expected,
+        reconciliationsMatched,
+        opcoInvoice: opcosWithInvoice.has(acc.opcoId),
+        partnerInvoicesReceived,
+        partnerInvoicesExpected: expected,
+        rsGenerated: rsByOpco.has(acc.opcoId),
+        revenueInvoicedUsd: invoicedUsd ?? null,
+        revenuePaidUsd: paidUsd ?? null,
       };
     })
     .sort((a, b) => a.opcoName.localeCompare(b.opcoName));
 
-  const reportsComplete = lanes.filter(
-    (lane) => lane.opcoReport && lane.partnerReport,
-  ).length;
-  const invoicesComplete = lanes.filter(
-    (lane) => lane.opcoInvoice && lane.partnerInvoice,
-  ).length;
-
   return {
     period,
     filters,
-    summary: {
-      linkedLanes: lanes.length,
-      reportsComplete,
-      invoicesComplete,
-      reconciliationsRun: reconciliations.length,
-      consolidationsGenerated: consolidations.length,
-      invoiceCount: dashboard.billing.kpis.invoices,
-      invoicesPaid: dashboard.billing.kpis.invoicesPaid,
-      totalRevenuePaidUsd: dashboard.billing.kpis.totalRevenuePaidUsd,
-    },
-    lanes,
-    consolidations: consolidationRows,
+    opcos,
   };
 }
 

@@ -82,13 +82,13 @@ export async function assertEmailDeliveryReady(): Promise<void> {
 
   if (readiness.reason === "smtp_credentials_missing") {
     throw new NotificationDeliveryError(
-      "Email credentials are missing. Set SMTP_USER and SMTP_PASSWORD in .env (see Admin → Email settings), or choose System notification.",
+      "Email credentials are missing. Enter SMTP user and password in Admin → Email settings, or choose System notification.",
       400,
     );
   }
 
   throw new NotificationDeliveryError(
-    "Email is not configured. Set SMTP in Admin → Email settings (and SMTP_USER/SMTP_PASSWORD in .env), or choose System notification.",
+    "Email is not configured. Set SMTP in Admin → Email settings, or choose System notification.",
     400,
   );
 }

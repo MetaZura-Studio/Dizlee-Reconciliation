@@ -268,8 +268,8 @@ export function PartnersView({ initialPartners }: PartnersViewProps) {
       {error ? <p className={ui.alertError}>{error}</p> : null}
 
       <FilterToolbar className="mt-6">
-        <div className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <label className="text-sm lg:col-span-2">
+        <div className="grid min-w-0 w-full flex-1 gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto]">
+          <label className="text-sm sm:col-span-2 lg:col-span-1">
             <span className={ui.label}>Search</span>
             <input
               type="search"
@@ -297,8 +297,13 @@ export function PartnersView({ initialPartners }: PartnersViewProps) {
               <option value="INACTIVE">Inactive</option>
             </select>
           </label>
+          <div className="flex flex-col justify-end text-sm sm:col-span-2 lg:col-span-1 lg:justify-self-end">
+            <span className={ui.label} aria-hidden="true">
+              &nbsp;
+            </span>
+            <FilterActions onClear={clearFilters} className="sm:ml-0" />
+          </div>
         </div>
-        <FilterActions onClear={clearFilters} />
       </FilterToolbar>
 
       <div className="mt-6 space-y-4">

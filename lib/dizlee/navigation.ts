@@ -27,7 +27,11 @@ export const DIZLEE_NAV_ITEMS: DizleeNavItem[] = [
     href: "/dizlee/activity",
     description: "Monthly OpCo / Partner timeline",
   },
-  { label: "Reporting", href: "/dizlee/reporting" },
+  {
+    label: "Reporting",
+    href: "/dizlee/reporting",
+    description: "Monthly OpCo period scorecard",
+  },
 ];
 
 export function isDizleeNavActive(pathname: string, href: string): boolean {

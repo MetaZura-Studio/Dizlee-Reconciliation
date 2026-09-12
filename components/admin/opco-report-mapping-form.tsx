@@ -5,6 +5,10 @@ import { useCallback, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { FieldLegend } from "@/components/ui/field";
+import {
+  FileDropField,
+  type FileDropFieldHandle,
+} from "@/components/ui/file-drop-field";
 import { LoadingOverlay } from "@/components/ui/loading";
 import { PageCard, PageHeader } from "@/components/ui/page";
 import { useToast } from "@/components/ui/toast";
@@ -40,7 +44,8 @@ export function OpcoReportMappingForm({
   initialFilterValues = [],
 }: OpcoReportMappingFormProps) {
   const toast = useToast();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const sampleDropRef = useRef<FileDropFieldHandle>(null);
+  const [sampleFile, setSampleFile] = useState<File | null>(null);
   const [mapping, setMapping] = useState(initialMapping);
   const [serviceColumn, setServiceColumn] = useState(
     initialMapping.serviceColumn ?? "",
@@ -171,9 +176,8 @@ export function OpcoReportMappingForm({
       );
     } finally {
       setUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
+      setSampleFile(null);
+      sampleDropRef.current?.clear();
     }
   };
 
@@ -274,92 +278,79 @@ export function OpcoReportMappingForm({
       <div className="mt-6 space-y-6">
         <section className={`space-y-3 ${ui.cardPaddingLg}`}>
           <h2 className="text-sm font-semibold text-foreground">Sample Excel</h2>
-          <p className="text-sm text-foreground-muted">
-            Upload a workbook, then select which sheet supplies the columns.
-            {mapping.sampleFileName
-              ? ` Current sample: ${mapping.sampleFileName}`
-              : " No sample uploaded yet."}
-          </p>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".xlsx,.xls"
-            className="sr-only"
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (file) {
-                void uploadSample(file);
-              }
-            }}
-          />
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={busy}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            {uploading ? "Uploading…" : "Upload sample / template"}
-          </Button>
-
-          <label className="block text-sm sm:max-w-lg">
-            <FieldLegend required>Sheet</FieldLegend>
-            <select
-              className={ui.select}
-              value={mapping.sampleSheetName ?? ""}
-              disabled={busy || mapping.availableSheets.length === 0}
-              onChange={(event) => {
-                void changeSheet(event.target.value);
-              }}
-              required
-            >
-              <option value="">
-                {mapping.availableSheets.length === 0
-                  ? "Upload a sample first"
-                  : "Select sheet tab"}
-              </option>
-              {mapping.availableSheets.map((sheet) => (
-                <option key={sheet.name} value={sheet.name}>
-                  {sheet.name}
-                  {sheet.headerCount > 0
-                    ? ` (${sheet.headerCount} columns)`
-                    : " (no headers)"}
-                </option>
-              ))}
-            </select>
-            <p className="mt-1 text-xs text-foreground-subtle">
-              {selectingSheet
-                ? "Loading columns from selected sheet…"
-                : "Choose the tab that contains the report line items."}
-            </p>
-          </label>
-
-          {canMapColumns ? (
-            <div className="space-y-1 text-xs text-foreground-subtle">
-              {!hasSampleFile ? (
-                <p className="text-amber-700 dark:text-amber-400">
-                  Column names are saved from a previous sample, but the file is
-                  missing — upload the Excel again to load filter values and
-                  validate mapping.
-                </p>
-              ) : null}
-              <p>
-                Detected {headers.length} column(s)
-                {mapping.sampleSheetName
-                  ? ` from sheet “${mapping.sampleSheetName}”`
-                  : ""}
-                {mapping.sampleHeaderRowNumber
-                  ? ` (row ${mapping.sampleHeaderRowNumber})`
-                  : ""}
-                : {headers.join(", ")}
+          <div className="space-y-4">
+            <div className="text-sm">
+              <FieldLegend>Excel file</FieldLegend>
+              <FileDropField
+                ref={sampleDropRef}
+                accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                hint="Excel workbook only (.xlsx)"
+                emptyLabel="Drop .xlsx here or browse"
+                value={sampleFile}
+                disabled={busy}
+                compact
+                onChange={(file) => {
+                  setSampleFile(file);
+                  if (file) {
+                    void uploadSample(file);
+                  }
+                }}
+              />
+              <p className="mt-1 text-xs text-foreground-subtle">
+                {uploading
+                  ? "Uploading sample…"
+                  : mapping.sampleFileName
+                    ? `Current sample: ${mapping.sampleFileName}`
+                    : "No sample uploaded yet."}
               </p>
             </div>
-          ) : (
+            <label className="block max-w-xl text-sm">
+              <FieldLegend required>Sheet</FieldLegend>
+              <select
+                className={ui.select}
+                value={mapping.sampleSheetName ?? ""}
+                disabled={busy || mapping.availableSheets.length === 0}
+                onChange={(event) => {
+                  void changeSheet(event.target.value);
+                }}
+                required
+              >
+                <option value="">
+                  {mapping.availableSheets.length === 0
+                    ? "Upload a sample first"
+                    : "Select sheet tab"}
+                </option>
+                {mapping.availableSheets.map((sheet) => (
+                  <option key={sheet.name} value={sheet.name}>
+                    {sheet.name}
+                    {sheet.headerCount > 0
+                      ? ` (${sheet.headerCount} columns)`
+                      : " (no headers)"}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-foreground-subtle">
+                {selectingSheet
+                  ? "Loading columns from selected sheet…"
+                  : "Choose the tab that contains the report line items."}
+              </p>
+            </label>
+          </div>
+
+          {canMapColumns && !hasSampleFile ? (
+            <p className="text-xs text-amber-700 dark:text-amber-400">
+              Column names are saved from a previous sample, but the file is
+              missing — upload the Excel again to load filter values and
+              validate mapping.
+            </p>
+          ) : null}
+          {!canMapColumns ? (
             <p className="text-xs text-foreground-subtle">
               {mapping.availableSheets.length > 0
                 ? "Select a sheet above to load column choices."
                 : "Upload a sample to choose a sheet and map columns."}
             </p>
-          )}
+          ) : null}
         </section>
 
         <form onSubmit={(event) => void saveMapping(event)} className="space-y-6">

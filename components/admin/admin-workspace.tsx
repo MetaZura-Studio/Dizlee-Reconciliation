@@ -26,14 +26,14 @@ function mapIcon(icon: string): AppShellNavItem["icon"] {
   if (icon === "users" || icon === "partners" || icon === "opcos" || icon === "opco-partners" || icon === "organization") {
     return "users";
   }
-  if (icon === "settings" || icon === "email-settings" || icon === "email-delivery" || icon === "reminder" || icon === "tolerance" || icon === "currencies" || icon === "bank" || icon === "email-templates") {
+  if (icon === "settings" || icon === "email-settings" || icon === "reminder" || icon === "tolerance" || icon === "currencies" || icon === "bank" || icon === "email-templates") {
     return "settings";
   }
   if (icon === "notifications") {
     return "bell";
   }
-  if (icon === "audit") {
-    return "home";
+  if (icon === "audit" || icon === "logs" || icon === "email-delivery") {
+    return "file";
   }
   return "file";
 }

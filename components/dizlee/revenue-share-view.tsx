@@ -6,7 +6,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { KpiCard } from "@/components/dizlee/kpi-card";
 import { IconButton } from "@/components/ui/icon-button";
 import {
   IconAlert,
@@ -258,8 +257,6 @@ export function RevenueShareView({
     }
   }
 
-  const summary = dashboard.summary;
-
   const opcoOptions = useMemo(
     () =>
       [...dashboard.rows]
@@ -382,17 +379,6 @@ export function RevenueShareView({
             loading={loading}
           />
         </FilterToolbar>
-
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <KpiCard label="Total OpCos" value={summary.total} tone="blue" />
-          <KpiCard label="Ready" value={summary.ready} tone="teal" />
-          <KpiCard
-            label="Pending (reports missing)"
-            value={summary.pendingMissing}
-            tone="amber"
-          />
-          <KpiCard label="Generated" value={summary.generated} tone="purple" />
-        </div>
       </PageCard>
 
       <PageCard>

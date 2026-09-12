@@ -181,9 +181,10 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Auth gate + CSP nonce for app routes and APIs.
-     * Skip Next internals and common static assets.
+     * Auth gate + CSP nonce for app routes and APIs (including robots.txt —
+     * ZAP flagged CSP missing there when .txt was excluded).
+     * Skip Next internals and image/static asset extensions only.
      */
-    "/((?!_next/static|_next/image|.*\\.(?:png|jpg|jpeg|gif|webp|svg|ico|txt|xml)$).*)",
+    "/((?!_next/static|_next/image|.*\\.(?:png|jpg|jpeg|gif|webp|svg|ico)$).*)",
   ],
 };

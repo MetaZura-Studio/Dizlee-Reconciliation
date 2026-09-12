@@ -20,7 +20,6 @@ import {
   SortableDataTableTh,
 } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
-import { FilterActions } from "@/components/ui/filter-actions";
 import { IconButton } from "@/components/ui/icon-button";
 import { IconPencil, IconTrash } from "@/components/ui/icons";
 import { ListPagination } from "@/components/ui/list-pagination";
@@ -153,13 +152,6 @@ export function CurrenciesView({
     }
   };
 
-  const clearFilters = () => {
-    setSearch("");
-    setSortBy("iso");
-    setSortDir("asc");
-    setPage(1);
-  };
-
   const handleDeleted = async (message: string) => {
     try {
       await reloadCurrencies();
@@ -177,12 +169,11 @@ export function CurrenciesView({
       <PageHeader
         title="Currencies"
         description="Master list of currencies available for OpCos and monthly rates. Decimal precision is set when you add or edit a currency."
-        actions={<Button onClick={openCreate}>Add currency</Button>}
       />
 
       <div className="mt-6 space-y-4">
-        <div className="space-y-3">
-          <label className="block min-w-[12rem] max-w-md text-sm">
+        <div className="flex min-w-0 w-full flex-wrap items-end gap-4">
+          <label className="block min-w-[12rem] max-w-md flex-1 text-sm">
             <span className={ui.label}>Search</span>
             <input
               type="search"
@@ -195,7 +186,13 @@ export function CurrenciesView({
               className={ui.input}
             />
           </label>
-          <FilterActions onClear={clearFilters} />
+          <Button
+            type="button"
+            onClick={openCreate}
+            className="ml-auto h-11 shrink-0"
+          >
+            Add currency
+          </Button>
         </div>
 
         {filteredCurrencies.length === 0 ? (

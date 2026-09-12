@@ -72,7 +72,7 @@ const PURPOSE_LABELS: Record<string, string> = {
 
 const STATUS_LABELS: Record<string, string> = {
   SKIPPED: "Skipped",
-  ACCEPTED: "Accepted",
+  ACCEPTED: "Sent",
   FAILED: "Failed",
 };
 
@@ -82,6 +82,32 @@ export function emailDeliveryPurposeLabel(code: string): string {
 
 export function emailDeliveryStatusLabel(code: string): string {
   return STATUS_LABELS[code] ?? code;
+}
+
+/** Human-readable outcome for the Detail column (not raw SMTP message ids). */
+export function emailDeliveryDetailText(row: {
+  status: string;
+  skipReason: string | null;
+  errorCode: string | null;
+  errorMessage: string | null;
+  subject: string;
+}): string {
+  const status = row.status.toUpperCase();
+  if (status === "ACCEPTED") {
+    return "Email sent successfully (accepted by mail server).";
+  }
+  if (status === "FAILED") {
+    const parts = [row.errorMessage?.trim(), row.errorCode?.trim()].filter(
+      Boolean,
+    );
+    return parts.length > 0
+      ? parts.join(" — ")
+      : "Email failed to send. No error details were recorded.";
+  }
+  if (status === "SKIPPED") {
+    return row.skipReason?.trim() || "Email was skipped (not sent).";
+  }
+  return row.subject || "—";
 }
 
 export function parseEmailDeliveryListFilters(

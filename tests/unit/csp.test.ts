@@ -14,10 +14,12 @@ describe("createCspNonce", () => {
 });
 
 describe("buildContentSecurityPolicy", () => {
-  it("includes the nonce in script-src and keeps style unsafe-inline", () => {
+  it("uses nonce for style-src and style-src-attr for React inline styles", () => {
     const csp = buildContentSecurityPolicy("testNonce123");
     expect(csp).toContain("script-src 'self' 'nonce-testNonce123' 'strict-dynamic'");
-    expect(csp).toContain("style-src 'self' 'unsafe-inline'");
+    expect(csp).toContain("style-src 'self' 'nonce-testNonce123'");
+    expect(csp).toContain("style-src-attr 'unsafe-inline'");
+    expect(csp).not.toContain("style-src 'self' 'unsafe-inline'");
     expect(csp).toContain("frame-ancestors 'none'");
     expect(csp).not.toContain("script-src 'self' 'unsafe-inline'");
   });

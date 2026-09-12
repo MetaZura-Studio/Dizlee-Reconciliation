@@ -12,6 +12,7 @@ import { startNavigationProgress } from "@/components/ui/navigation-progress";
 import { useToast } from "@/components/ui/toast";
 import { ERROR_CATALOG } from "@/lib/errors/catalog";
 import { formatAppError } from "@/lib/errors/format";
+import { resolveCredentialsSignInError } from "@/lib/auth/login-errors";
 import { getMainPortalHomePath } from "@/lib/auth/roles";
 import { safeMainPortalCallbackUrl } from "@/lib/auth/safe-callback-url";
 import { isMainPortalRole } from "@/lib/auth/scopes";
@@ -22,6 +23,7 @@ const LOGIN_ERROR_KEYS: Record<string, keyof typeof ERROR_CATALOG> = {
   MissingOpcoScope: "UNAUTHORIZED",
   MissingPartnerScope: "UNAUTHORIZED",
   CredentialsSignin: "INVALID_CREDENTIALS",
+  AccountSuspended: "ACCOUNT_SUSPENDED",
   RATE_LIMITED: "RATE_LIMITED",
 };
 
@@ -60,11 +62,7 @@ export function LoginForm() {
       });
 
       if (!result?.ok) {
-        setError(
-          formatLoginError(
-            result?.status === 429 ? "RATE_LIMITED" : "CredentialsSignin",
-          ),
-        );
+        setError(formatLoginError(resolveCredentialsSignInError(result)));
         setIsSubmitting(false);
         return;
       }

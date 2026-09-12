@@ -39,10 +39,12 @@ export default async function AdminEmailDeliveryPage({
   return (
     <div className="w-full space-y-6">
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Email delivery</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          Email delivery logs
+        </h1>
         <p className="text-sm text-foreground-muted">
-          SMTP handoff log — skipped, accepted by mail server, or failed to send.
-          Does not include mailbox bounces.
+          Outbound email attempts: Sent (mail server accepted), Failed (with
+          reason), or Skipped. Does not track mailbox bounces.
         </p>
       </div>
       <EmailDeliveryView
