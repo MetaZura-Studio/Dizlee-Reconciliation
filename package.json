@@ -22,6 +22,7 @@
     "db:clear-transactional": "npx tsx prisma/clear-transactional-data.ts",
     "db:reset-orgs": "npx tsx prisma/reset-orgs-and-transactional.ts && prisma db seed",
     "seed": "prisma db seed",
+    "seed:client": "npx tsx prisma/seed-client-bootstrap.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {
