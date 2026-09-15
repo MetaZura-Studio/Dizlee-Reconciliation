@@ -35,8 +35,8 @@ export async function buildRevenueShareWorkbook(
   sheet.addRow([
     "Partner Name",
     "Service Name",
-    "Amount given by OpCo in USD",
-    "Amount given by Partner in USD",
+    "Amount as per opco in usd",
+    "Amount as per partner in usd",
     "Regulatory Fee %",
     "Net Revenue",
     "Revenue Share %",

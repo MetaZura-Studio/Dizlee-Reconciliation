@@ -14,6 +14,7 @@ import {
 import { ModalCloseButton } from "@/components/ui/modal-close-button";
 import { LoadingOverlay } from "@/components/ui/loading";
 import type { ReportPreviewLineItem } from "@/lib/platform/report-preview";
+import { displayPartnerPreviewHeader } from "@/lib/partner/preview-headers";
 import {
   formatPreviewCellValue,
   LocalizedCellText,
@@ -171,11 +172,15 @@ export function ReportUploadReviewModal({
                         </DataTableTh>
                         {Array.from({ length: columnCount }, (_, index) => {
                           const headerText = headerCells[index]?.trim() || "";
-                          const display = formatPreviewCellValue(headerText);
+                          const labeled =
+                            side === "partner"
+                              ? displayPartnerPreviewHeader(headerText)
+                              : headerText;
+                          const display = formatPreviewCellValue(labeled);
                           return (
                             <DataTableTh
                               key={index}
-                              align={previewCellAlign(headerText)}
+                              align={previewCellAlign(labeled)}
                               className="sticky top-0 z-10 whitespace-nowrap bg-surface"
                             >
                               <LocalizedCellText>{display}</LocalizedCellText>

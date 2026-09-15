@@ -234,7 +234,7 @@ async function writePartnerWorkbook(
     "Service name",
     "Application name",
     "SC",
-    "Gross amount (LC)",
+    "Gross amount (USD)",
   ]);
   sheet.getRow(1).font = { bold: true };
 
@@ -300,7 +300,7 @@ async function main() {
     `- Upload month/year: **${periodLabel}** (${month}/${year})`,
     `- OpCo currency: **${fx.currencyCode}**`,
     `- Admin ${fx.currencyCode} → USD rate: **${rateToUsd}**`,
-    "- Partner **Gross amount (LC)** is already USD (same rounding as recon)",
+    "- Partner **Gross amount (USD)** is already USD (same rounding as recon)",
     "",
     "## How to use",
     "1. If OpCo already uploaded this period, skip the OpCo file (or use Report History reupload after approval).",

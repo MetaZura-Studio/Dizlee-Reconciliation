@@ -1,7 +1,7 @@
 /**
  * OpCo monthly submission reupload after Dizlee approves a submission change request.
  * Overrides that month’s raw file and partner report data; hard-deletes all
- * reconciliations, consolidation, and revenue-share work for the OpCo period.
+ * reconciliations and revenue-share work for the OpCo period.
  */
 
 import { formatPeriodLabel } from "@/lib/opco/period";

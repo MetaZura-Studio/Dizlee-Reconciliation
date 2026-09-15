@@ -51,6 +51,11 @@ export type SendMissingReportRemindersInput = {
   throwIfNoRecipients?: boolean;
   attachmentFileIds?: string[];
   deliveryChannel?: import("@/lib/platform/notification-delivery").NotificationDeliveryChannel;
+  onEmailProgress?: (progress: {
+    sent: number;
+    failed: number;
+    total: number;
+  }) => void | Promise<void>;
 };
 
 export class ReportReminderError extends DomainError {
@@ -337,6 +342,7 @@ export async function sendMissingReportReminders(
       correlationId: emailCorrelationId,
       notificationId: createdNotificationIds[0] ?? null,
       actorUserId: fromUserId,
+      onProgress: params.onEmailProgress,
     });
   }
 

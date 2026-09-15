@@ -28,6 +28,7 @@ import {
 } from "@/lib/ui/report-preview-modal";
 
 type ReportRawFilePreviewModalProps = {
+  title?: string;
   filename: string;
   subtitle?: string;
   downloadHref?: string;
@@ -41,6 +42,7 @@ type ReportRawFilePreviewModalProps = {
 };
 
 export function ReportRawFilePreviewModal({
+  title = "Raw uploaded file",
   filename,
   subtitle,
   downloadHref,
@@ -103,7 +105,7 @@ export function ReportRawFilePreviewModal({
                 id="report-raw-file-preview-title"
                 className="text-base font-semibold tracking-tight text-foreground"
               >
-                Raw uploaded file
+                {title}
               </h2>
               <p className="mt-0.5 truncate text-sm text-foreground-muted">
                 <span className="font-medium text-foreground">{filename}</span>

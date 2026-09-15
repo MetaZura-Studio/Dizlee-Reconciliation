@@ -351,7 +351,6 @@ function BillingSectionView({
     <DashboardSection
       tone="billing"
       title="Billing & revenue"
-      description="Paid OpCo collections on platform; revenue in USD using admin exchange rates."
       action={
         <Link
           href={allInvoicesHref}

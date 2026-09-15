@@ -20,8 +20,6 @@ async function clearTransactionalData() {
     prisma.invoiceItem.deleteMany(),
     prisma.reconciliationItem.deleteMany(),
     prisma.reconciliation.deleteMany(),
-    prisma.consolidationItem.deleteMany(),
-    prisma.consolidation.deleteMany(),
     prisma.revenueShareReportItem.deleteMany(),
     prisma.revenueShareReport.deleteMany(),
     prisma.reportChangeRequest.deleteMany(),
@@ -40,7 +38,6 @@ async function clearTransactionalData() {
     prisma.opcoReportSubmission.count(),
     prisma.invoice.count(),
     prisma.reconciliation.count(),
-    prisma.consolidation.count(),
     prisma.revenueShareReport.count(),
     prisma.revenueShareReportItem.count(),
     prisma.notification.count(),
@@ -50,7 +47,7 @@ async function clearTransactionalData() {
 
   console.log("Transactional data cleared.");
   console.log(
-    `Remaining rows — reports: ${counts[0]}, submissions: ${counts[1]}, invoices: ${counts[2]}, reconciliations: ${counts[3]}, consolidations: ${counts[4]}, revenue share reports: ${counts[5]}, RS items: ${counts[6]}, notifications: ${counts[7]}, partner link requests: ${counts[8]}, audit logs: ${counts[9]}`,
+    `Remaining rows — reports: ${counts[0]}, submissions: ${counts[1]}, invoices: ${counts[2]}, reconciliations: ${counts[3]}, revenue share reports: ${counts[4]}, RS items: ${counts[5]}, notifications: ${counts[6]}, partner link requests: ${counts[7]}, audit logs: ${counts[8]}`,
   );
   console.log("Kept: users, opcos, partners, settings, currencies, email templates.");
 }

@@ -14,7 +14,7 @@ export type ErrorDefinition = {
  * Catalog keyed by stable machine id.
  * Ranges (3-digit): 100–119 auth, 120–149 common, 150–179 org, 180–199 users,
  * 200–249 settings, 250–319 reports/storage, 320–359 invoices,
- * 360–399 recon/consolidation, 400–449 notifications, 900–909 system.
+ * 360–399 recon, 400–449 notifications, 900–909 system.
  */
 export const ERROR_CATALOG = {
   // Auth 100–119
@@ -438,7 +438,7 @@ export const ERROR_CATALOG = {
     status: 400,
   },
 
-  // Reconciliation / consolidation 360–399
+  // Reconciliation 360–399
   RECONCILIATION_NOT_FOUND: {
     code: 360,
     message: "RECONCILIATION NOT FOUND",
@@ -477,26 +477,6 @@ export const ERROR_CATALOG = {
   RECONCILIATION_ALREADY_CONFIRMED: {
     code: 367,
     message: "RECONCILIATION ALREADY CONFIRMED",
-    status: 400,
-  },
-  CONSOLIDATION_NOT_FOUND: {
-    code: 368,
-    message: "CONSOLIDATION NOT FOUND",
-    status: 404,
-  },
-  INVALID_CONSOLIDATION_ID: {
-    code: 139,
-    message: "INVALID CONSOLIDATION ID",
-    status: 400,
-  },
-  CONSOLIDATION_NO_PARTNERS: {
-    code: 369,
-    message: "CONSOLIDATION NO PARTNERS",
-    status: 400,
-  },
-  CONSOLIDATION_NO_LINE_ITEMS: {
-    code: 370,
-    message: "CONSOLIDATION NO LINE ITEMS",
     status: 400,
   },
   PERIOD_OPCO_REQUIRED: {
@@ -719,12 +699,6 @@ const MESSAGE_ALIASES: Record<string, ErrorKey> = {
     "RECONCILIATION_CONFIRM_FORBIDDEN",
   "Reconciliation is already CONFIRMED and cannot be reverted to DRAFT.":
     "RECONCILIATION_ALREADY_CONFIRMED",
-  "Consolidation not found.": "CONSOLIDATION_NOT_FOUND",
-  "Invalid consolidation id.": "INVALID_CONSOLIDATION_ID",
-  "This OpCo has no linked partners to consolidate.":
-    "CONSOLIDATION_NO_PARTNERS",
-  "No line items found in OpCo reports for this period.":
-    "CONSOLIDATION_NO_LINE_ITEMS",
   "Period and OpCo are required.": "PERIOD_OPCO_REQUIRED",
   "Period, OpCo, and Partner are required.": "PERIOD_OPCO_PARTNER_REQUIRED",
   "Notification not found": "NOTIFICATION_NOT_FOUND",

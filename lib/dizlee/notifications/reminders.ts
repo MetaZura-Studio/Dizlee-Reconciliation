@@ -70,6 +70,11 @@ export async function listReminderLanes(
 export async function sendReportReminders(params: {
   input: SendReportRemindersInput;
   fromUserId: string;
+  onEmailProgress?: (progress: {
+    sent: number;
+    failed: number;
+    total: number;
+  }) => void | Promise<void>;
 }): Promise<SendReportRemindersResult> {
   const { input, fromUserId } = params;
 
@@ -86,6 +91,7 @@ export async function sendReportReminders(params: {
       attachmentFileIds: input.attachmentFileIds,
       deliveryChannel: input.deliveryChannel,
       throwIfNoRecipients: true,
+      onEmailProgress: params.onEmailProgress,
     });
   } catch (error) {
     if (error instanceof ReportReminderError) {

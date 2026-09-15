@@ -60,6 +60,17 @@ describe("detectReportWorkbookKind", () => {
     const buffer = await workbookFromHeaders([
       "Merchant",
       "Service name",
+      "Gross amount (USD)",
+      "usage_amount",
+    ]);
+
+    expect(await detectReportWorkbookKind(buffer)).toBe("partner");
+  });
+
+  it("classifies Partner template with legacy Gross amount (LC) as partner", async () => {
+    const buffer = await workbookFromHeaders([
+      "Merchant",
+      "Service name",
       "Gross amount (LC)",
       "usage_amount",
     ]);
@@ -100,7 +111,7 @@ describe("assert portal workbook kind", () => {
     const buffer = await workbookFromHeaders([
       "Merchant",
       "Service name",
-      "Gross amount (LC)",
+      "Gross amount (USD)",
     ]);
 
     await expect(assertOpcoPortalReportWorkbook(buffer)).rejects.toMatchObject({
