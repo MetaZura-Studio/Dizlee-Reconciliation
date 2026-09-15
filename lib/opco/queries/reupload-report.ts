@@ -18,10 +18,7 @@ import {
   OPCO_REPORT_RESUBMITTED_SUBJECT,
   type OpcoReportResubmittedMetadata,
 } from "@/lib/platform/notification-metadata";
-import {
-  softDeleteOpcoPeriodConsolidation,
-  softDeletePartnerReconciliations,
-} from "@/lib/platform/reconciliation/invalidate-after-reupload";
+import { softDeletePartnerReconciliations } from "@/lib/platform/reconciliation/invalidate-after-reupload";
 import {
   linesFromStoredReportItems,
   partnerLinesChanged,
@@ -199,13 +196,6 @@ export async function reuploadCorrectedReport(
     await softDeletePartnerReconciliations({
       opcoId: input.opcoId,
       partnerId: report.partnerId,
-      year: report.year,
-      month: report.month,
-      deletedByUserId: input.userId,
-      deletedAt: completedAt,
-    });
-    await softDeleteOpcoPeriodConsolidation({
-      opcoId: input.opcoId,
       year: report.year,
       month: report.month,
       deletedByUserId: input.userId,

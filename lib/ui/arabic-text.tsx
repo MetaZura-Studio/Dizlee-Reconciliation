@@ -11,7 +11,8 @@ import {
 import { cn, type TableAlign } from "@/lib/ui/classes";
 
 const ARABIC_SCRIPT = /\p{Script=Arabic}/u;
-const NUMERIC_CELL = /^-?\d+(\.\d+)?$/;
+/** Plain, comma-grouped, and percent numeric cells (e.g. 40129.29, 40,129.29, 19.5%). */
+const NUMERIC_CELL = /^-?\d{1,3}(,\d{3})*(\.\d+)?%?$|^-?\d+(\.\d+)?%?$/;
 const ISO_DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 const ISO_DATE_TIME = /^\d{4}-\d{2}-\d{2}T/;
 const APP_DATE = /^\d{2}\/\d{2}\/\d{4}(, \d{2}:\d{2})?$/;
@@ -21,7 +22,7 @@ export function containsArabicScript(text: string): boolean {
 }
 
 export function isNumericCellValue(text: string): boolean {
-  const trimmed = text.trim();
+  const trimmed = text.trim().replace(/\s+/g, "");
   if (!trimmed) {
     return false;
   }

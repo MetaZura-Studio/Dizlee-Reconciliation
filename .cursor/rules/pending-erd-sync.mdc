@@ -99,6 +99,12 @@ When the user later asks to update the ERD / [`04_DATABASE_SCHEMA_FOR_CURSOR.md`
 - Index: `idx_notifications_email_correlation_id`
 - Links Outbox rows to a shared email fan-out (reminders); Dizlee Outbox shows Sent / Not sent / Failed / Partly sent
 
+### Applied migration — drop consolidations
+- Migration: `prisma/migrations/20260915120000_drop_consolidations`
+- Drop tables: `consolidation_items`, then `consolidations`
+- Feature code/APIs removed; Reconciliation and Revenue Share unchanged
+- Orphan lookup codes may remain: `CONSOLIDATION_STATUS`, `CONSOLIDATION_GENERATED`, `AUDIT_ENTITY_TYPE.CONSOLIDATION`
+
 ## Source of truth until ERD is refreshed
 1. [`prisma/schema.prisma`](prisma/schema.prisma)
 2. Files under [`prisma/migrations/`](prisma/migrations/)

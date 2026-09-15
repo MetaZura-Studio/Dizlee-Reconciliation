@@ -6,6 +6,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { ReportRawFilePreviewModal } from "@/components/shared/report-raw-file-preview-modal";
 import { IconButton } from "@/components/ui/icon-button";
 import {
   IconAlert,
@@ -37,6 +38,7 @@ import type {
   RevenueShareDashboardRow,
   RevenueShareDashboardStatus,
 } from "@/lib/dizlee/revenue-share";
+import { readRawExcelSheetPreview } from "@/lib/platform/excel/read-raw-sheet";
 import { formatAppMonthYear } from "@/lib/platform/format-datetime";
 import {
   getCurrentPeriod,
@@ -144,6 +146,18 @@ export function RevenueShareView({
   const [detailsRow, setDetailsRow] = useState<RevenueShareDashboardRow | null>(
     null,
   );
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [previewFilename, setPreviewFilename] = useState("");
+  const [previewSubtitle, setPreviewSubtitle] = useState<string | undefined>();
+  const [previewDownloadHref, setPreviewDownloadHref] = useState<
+    string | undefined
+  >();
+  const [previewRows, setPreviewRows] = useState<string[][]>([]);
+  const [previewSheetName, setPreviewSheetName] = useState<string | null>(null);
+  const [previewTruncated, setPreviewTruncated] = useState(false);
+  const [previewTotalRows, setPreviewTotalRows] = useState<number | null>(null);
   const [sortBy, setSortBy] = useState<RsSortField>("opco");
   const [sortDir, setSortDir] = useState<SortDirection>("asc");
   const [page, setPage] = useState(1);
@@ -213,6 +227,70 @@ export function RevenueShareView({
     setSortBy(next.sortBy);
     setSortDir(next.sortDir);
     setPage(1);
+  }
+
+  function closePreview() {
+    setPreviewOpen(false);
+    setPreviewLoading(false);
+    setPreviewError(null);
+    setPreviewRows([]);
+    setPreviewSheetName(null);
+    setPreviewTruncated(false);
+    setPreviewTotalRows(null);
+    setPreviewDownloadHref(undefined);
+  }
+
+  async function openReportPreview(row: RevenueShareDashboardRow) {
+    if (row.generatedReportId == null) {
+      return;
+    }
+
+    const reportId = row.generatedReportId;
+    const downloadHref = `/api/dizlee/revenue-share/${reportId}/download`;
+    setPreviewOpen(true);
+    setPreviewLoading(true);
+    setPreviewError(null);
+    setPreviewRows([]);
+    setPreviewFilename(`${row.opcoName} — RS report`);
+    setPreviewSubtitle(formatAppMonthYear(appliedMonth, appliedYear));
+    setPreviewDownloadHref(downloadHref);
+
+    try {
+      const response = await fetch(
+        `/api/dizlee/revenue-share/${reportId}/preview`,
+      );
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(formatAppError(payload, "Failed to load RS preview"));
+      }
+
+      const disposition = response.headers.get("Content-Disposition") ?? "";
+      const match = /filename\*=UTF-8''([^;]+)|filename="([^"]+)"/i.exec(
+        disposition,
+      );
+      const encodedName = match?.[1];
+      const plainName = match?.[2];
+      if (encodedName) {
+        setPreviewFilename(decodeURIComponent(encodedName));
+      } else if (plainName) {
+        setPreviewFilename(plainName);
+      }
+
+      const buffer = await response.arrayBuffer();
+      const preview = await readRawExcelSheetPreview(buffer);
+      setPreviewRows(preview.rows);
+      setPreviewSheetName(preview.sheetName);
+      setPreviewTruncated(preview.truncated);
+      setPreviewTotalRows(preview.totalRows);
+    } catch (previewLoadError) {
+      setPreviewError(
+        previewLoadError instanceof Error
+          ? previewLoadError.message
+          : "Failed to load RS preview",
+      );
+    } finally {
+      setPreviewLoading(false);
+    }
   }
 
   async function generateReport(row: RevenueShareDashboardRow) {
@@ -486,11 +564,7 @@ export function RevenueShareView({
                                   <IconButton
                                     label="View report"
                                     onClick={() => {
-                                      window.open(
-                                        `/api/dizlee/revenue-share/${row.generatedReportId}/preview`,
-                                        "_blank",
-                                        "noopener,noreferrer",
-                                      );
+                                      void openReportPreview(row);
                                     }}
                                   >
                                     <IconEye />
@@ -613,6 +687,22 @@ export function RevenueShareView({
           </div>
         ) : null}
       </Modal>
+
+      {previewOpen ? (
+        <ReportRawFilePreviewModal
+          title="RS report preview"
+          filename={previewFilename}
+          subtitle={previewSubtitle}
+          downloadHref={previewDownloadHref}
+          loading={previewLoading}
+          error={previewError}
+          rawRows={previewRows}
+          sheetName={previewSheetName}
+          truncated={previewTruncated}
+          totalRows={previewTotalRows}
+          onClose={closePreview}
+        />
+      ) : null}
     </div>
   );
 }

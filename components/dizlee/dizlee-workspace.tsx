@@ -20,8 +20,6 @@ function iconForHref(href: string): AppShellNavItem["icon"] {
       return "invoice";
     case "/dizlee/reconciliation":
       return "compare";
-    case "/dizlee/consolidation":
-      return "layers";
     case "/dizlee/communications":
       return "layers";
     case "/dizlee/notifications":

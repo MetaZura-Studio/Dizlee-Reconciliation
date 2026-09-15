@@ -1,5 +1,5 @@
 /**
- * Dev utility: deletes all reports and dependent reconciliations/consolidations/files for a clean slate.
+ * Dev utility: deletes all reports and dependent reconciliations/files for a clean slate.
  */
 
 import { PrismaClient } from "@prisma/client";
@@ -38,8 +38,6 @@ async function main() {
     reconciliationsDeleted,
     changeRequestsDeleted,
     lineItemsDeleted,
-    consolidationItemsDeleted,
-    consolidationsDeleted,
     reportsDeleted,
     filesDeleted,
   ] = await prisma.$transaction([
@@ -55,8 +53,6 @@ async function main() {
     prisma.reportLineItem.deleteMany({
       where: { reportId: { in: reportIds } },
     }),
-    prisma.consolidationItem.deleteMany({}),
-    prisma.consolidation.deleteMany({}),
     prisma.report.deleteMany({ where: { id: { in: reportIds } } }),
     prisma.file.deleteMany({
       where: { id: { in: fileIds } },
@@ -69,8 +65,6 @@ async function main() {
   console.log(`  Change requests: ${changeRequestsDeleted.count}`);
   console.log(`  Reconciliations: ${reconciliationsDeleted.count}`);
   console.log(`  Reconciliation items: ${reconciliationItemsDeleted.count}`);
-  console.log(`  Consolidations: ${consolidationsDeleted.count}`);
-  console.log(`  Consolidation items: ${consolidationItemsDeleted.count}`);
   console.log(`  Files: ${filesDeleted.count}`);
 }
 
@@ -79,4 +73,6 @@ main()
     console.error(error);
     process.exit(1);
   })
-  .finally(() => prisma.$disconnect());
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

@@ -19,6 +19,10 @@ import {
   sendBroadcastNotification,
 } from "@/lib/dizlee/notifications/intimations";
 import { sendBroadcastBodySchema } from "@/lib/dizlee/validation/api-bodies";
+import {
+  ndjsonProgressResponse,
+  wantsNdjsonProgress,
+} from "@/lib/http/ndjson-progress";
 import { parseDeliveryChannel } from "@/lib/platform/notification-delivery.shared";
 
 export async function GET(request: NextRequest) {
@@ -61,21 +65,33 @@ export async function POST(request: Request) {
     }
 
     const body = parsed.data;
+    const input = {
+      audience: body.audience ?? "opco",
+      opcoIds: body.opcoIds ?? [],
+      partnerIds: body.partnerIds ?? [],
+      messageSource: body.messageSource ?? "custom",
+      month: body.month,
+      year: body.year,
+      subject: body.subject,
+      body: body.body ?? body.message,
+      priority: body.priority,
+      expiresAt: body.expiresAt,
+      attachmentFileIds: body.attachmentFileIds,
+      deliveryChannel: parseDeliveryChannel(body.deliveryChannel),
+    };
+
+    if (wantsNdjsonProgress(request)) {
+      return ndjsonProgressResponse(async (emitProgress) => {
+        return sendBroadcastNotification({
+          input,
+          fromUserId: user.id,
+          onEmailProgress: emitProgress,
+        });
+      });
+    }
+
     const result = await sendBroadcastNotification({
-      input: {
-        audience: body.audience ?? "opco",
-        opcoIds: body.opcoIds ?? [],
-        partnerIds: body.partnerIds ?? [],
-        messageSource: body.messageSource ?? "custom",
-        month: body.month,
-        year: body.year,
-        subject: body.subject,
-        body: body.body ?? body.message,
-        priority: body.priority,
-        expiresAt: body.expiresAt,
-        attachmentFileIds: body.attachmentFileIds,
-        deliveryChannel: parseDeliveryChannel(body.deliveryChannel),
-      },
+      input,
       fromUserId: user.id,
     });
 

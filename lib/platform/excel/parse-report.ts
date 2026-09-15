@@ -49,6 +49,7 @@ const COLUMN_ALIASES: Record<
   revenue_share: "revenueSharePercent",
   share_percent: "revenueSharePercent",
   gross_amount_lc: "amount",
+  gross_amount_usd: "amount",
   exchange_rate: "exchangeRate",
   exchangerate: "exchangeRate",
   usage_unit: "usageUnit",
