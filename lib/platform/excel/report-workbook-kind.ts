@@ -50,6 +50,7 @@ const OPCO_EXACT = new Set([
 const PARTNER_EXACT = new Set([
   "gross_amount",
   "gross_amount_lc",
+  "gross_amount_usd",
   "merchant",
   "usage_amount",
   "usage_usd",

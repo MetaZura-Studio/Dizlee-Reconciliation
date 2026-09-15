@@ -21,6 +21,10 @@ import {
 } from "@/lib/dizlee/notifications/reminders";
 import { getReportFilterOptions } from "@/lib/dizlee/reports-monitoring";
 import { sendRemindersBodySchema } from "@/lib/dizlee/validation/api-bodies";
+import {
+  ndjsonProgressResponse,
+  wantsNdjsonProgress,
+} from "@/lib/http/ndjson-progress";
 import { parseDeliveryChannel } from "@/lib/platform/notification-delivery.shared";
 
 export async function GET(request: NextRequest) {
@@ -64,18 +68,30 @@ export async function POST(request: Request) {
     }
 
     const body = parsed.data;
+    const input = {
+      month: body.month,
+      year: body.year,
+      laneKeys: body.laneKeys ?? [],
+      target: body.target ?? "both",
+      messageSource: body.messageSource ?? DEFAULT_REMINDER_MESSAGE_SOURCE,
+      subject: body.subject,
+      body: body.body,
+      attachmentFileIds: body.attachmentFileIds,
+      deliveryChannel: parseDeliveryChannel(body.deliveryChannel),
+    };
+
+    if (wantsNdjsonProgress(request)) {
+      return ndjsonProgressResponse(async (emitProgress) => {
+        return sendReportReminders({
+          input,
+          fromUserId: user.id,
+          onEmailProgress: emitProgress,
+        });
+      });
+    }
+
     const result = await sendReportReminders({
-      input: {
-        month: body.month,
-        year: body.year,
-        laneKeys: body.laneKeys ?? [],
-        target: body.target ?? "both",
-        messageSource: body.messageSource ?? DEFAULT_REMINDER_MESSAGE_SOURCE,
-        subject: body.subject,
-        body: body.body,
-        attachmentFileIds: body.attachmentFileIds,
-        deliveryChannel: parseDeliveryChannel(body.deliveryChannel),
-      },
+      input,
       fromUserId: user.id,
     });
 

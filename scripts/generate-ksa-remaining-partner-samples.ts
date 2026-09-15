@@ -62,7 +62,7 @@ async function main() {
     "",
     "Period on the uploaded OpCo report: **August 2026** (source file was Apr26).",
     `USD rate used: **${fx.rateToUsd}** (${fx.currencyCode} → USD).`,
-    "Partner **Gross amount (LC)** is USD so it matches recon (OpCo SAR × rate).",
+    "Partner **Gross amount (USD)** is USD so it matches recon (OpCo SAR × rate).",
     "Upload each file as that Partner for **Zain KSA / August 2026**.",
     "",
     "## Already done",
@@ -91,7 +91,7 @@ async function main() {
       "Service name",
       "Application name",
       "SC",
-      "Gross amount (LC)",
+      "Gross amount (USD)",
     ]);
     sheet.getRow(1).font = { bold: true };
 

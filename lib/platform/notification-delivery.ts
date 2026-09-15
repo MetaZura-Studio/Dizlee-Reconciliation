@@ -96,25 +96,36 @@ export async function assertEmailDeliveryReady(): Promise<void> {
 export async function sendNotificationEmails(params: {
   recipients: OrgEmailRecipient[];
   subject: string;
+  text?: string;
   body: string;
   purpose?: EmailDeliveryPurpose;
   notificationId?: bigint | string | null;
   actorUserId?: bigint | string | null;
   correlationId?: string | null;
   attachments?: SendPlatformEmailAttachment[];
+  onProgress?: (progress: {
+    sent: number;
+    failed: number;
+    total: number;
+  }) => void | Promise<void>;
 }): Promise<SendNotificationEmailsResult> {
   const html = notificationBodyToEmailHtml(params.body);
   const correlationId = params.correlationId?.trim() || randomUUID();
   const purpose = params.purpose ?? "NOTIFICATION";
+  const total = params.recipients.length;
   let sent = 0;
   let failed = 0;
+
+  if (total > 0) {
+    await params.onProgress?.({ sent: 0, failed: 0, total });
+  }
 
   for (const recipient of params.recipients) {
     try {
       const result = await sendPlatformEmail({
         to: recipient.email,
         subject: params.subject,
-        text: params.body,
+        text: params.text ?? params.body,
         html,
         attachments: params.attachments,
         logContext: {
@@ -132,10 +143,11 @@ export async function sendNotificationEmails(params: {
     } catch {
       failed += 1;
     }
+    await params.onProgress?.({ sent, failed, total });
   }
 
   return {
-    attempted: params.recipients.length,
+    attempted: total,
     sent,
     failed,
   };
@@ -210,6 +222,11 @@ export async function maybeSendEventEmails(params: {
   actorUserId?: bigint | string | null;
   correlationId?: string | null;
   attachments?: SendPlatformEmailAttachment[];
+  onProgress?: (progress: {
+    sent: number;
+    failed: number;
+    total: number;
+  }) => void | Promise<void>;
 }): Promise<SendNotificationEmailsResult | null> {
   if (!deliverySendsEmail(params.channel) || params.recipients.length === 0) {
     return null;
@@ -231,6 +248,7 @@ export async function maybeSendEventEmails(params: {
     actorUserId: params.actorUserId,
     correlationId: params.correlationId,
     attachments: params.attachments,
+    onProgress: params.onProgress,
   });
 }
 

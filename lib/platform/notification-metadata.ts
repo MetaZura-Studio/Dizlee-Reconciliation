@@ -144,7 +144,7 @@ export function buildOpcoReportResubmittedBody(params: {
   const partnerWord = count === 1 ? "partner" : "partners";
   return [
     `${params.opcoName} resubmitted the monthly report for ${params.periodLabel}.`,
-    `All reconciliations, consolidation, and revenue-share results for this OpCo and period were deleted and must be redone from scratch.`,
+    `All reconciliations and revenue-share results for this OpCo and period were deleted and must be redone from scratch.`,
     `${count} ${partnerWord} in the new file:`,
     "",
     ...params.partners.map((p) => `- ${p.name}`),

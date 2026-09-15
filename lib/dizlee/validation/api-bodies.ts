@@ -108,12 +108,6 @@ export const runReconciliationBodySchema = z.object({
   partnerId: z.coerce.string().min(1),
 });
 
-export const generateConsolidationBodySchema = z.object({
-  month: monthSchema,
-  year: yearSchema,
-  opcoId: z.coerce.string().min(1),
-});
-
 export const rejectReuploadBodySchema = z.object({
   decisionNote: optionalString,
 });

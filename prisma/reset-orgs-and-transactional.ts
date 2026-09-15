@@ -25,8 +25,6 @@ async function clearTransactionalData() {
     prisma.invoiceItem.deleteMany(),
     prisma.reconciliationItem.deleteMany(),
     prisma.reconciliation.deleteMany(),
-    prisma.consolidationItem.deleteMany(),
-    prisma.consolidation.deleteMany(),
     prisma.revenueShareReportItem.deleteMany(),
     prisma.revenueShareReport.deleteMany(),
     prisma.reportChangeRequest.deleteMany(),
@@ -128,7 +126,6 @@ async function main() {
     prisma.report.count(),
     prisma.invoice.count(),
     prisma.reconciliation.count(),
-    prisma.consolidation.count(),
     prisma.notification.count(),
     prisma.auditLog.count(),
     prisma.opco.count(),
@@ -139,10 +136,10 @@ async function main() {
 
   console.log("Reset complete (before seed).");
   console.log(
-    `Remaining — reports: ${counts[0]}, invoices: ${counts[1]}, reconciliations: ${counts[2]}, consolidations: ${counts[3]}, notifications: ${counts[4]}, audit logs: ${counts[5]}`,
+    `Remaining — reports: ${counts[0]}, invoices: ${counts[1]}, reconciliations: ${counts[2]}, notifications: ${counts[3]}, audit logs: ${counts[4]}`,
   );
   console.log(
-    `Remaining — opcos: ${counts[6]}, partners: ${counts[7]}, links: ${counts[8]}, users: ${counts[9]}`,
+    `Remaining — opcos: ${counts[5]}, partners: ${counts[6]}, links: ${counts[7]}, users: ${counts[8]}`,
   );
   console.log(
     `Kept master data. Platform emails will be recreated by seed: ${PLATFORM_EMAILS.join(", ")}`,

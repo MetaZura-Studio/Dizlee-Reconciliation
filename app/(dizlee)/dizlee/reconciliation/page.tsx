@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 
 import { ReconciliationView } from "@/components/dizlee/reconciliation-view";
 import {
-  getTolerancePercent,
   listCompareLanes,
   listReconciliationHistory,
   parseCompareLaneFilters,
@@ -44,13 +43,11 @@ export default async function DizleeReconciliationPage({
   const compareFilters = parseCompareLaneFilters(query);
   const historyFilters = parseHistoryFilters(new URLSearchParams());
 
-  const [initialLanes, filterOptions, tolerancePercent, initialHistory] =
-    await Promise.all([
-      listCompareLanes(compareFilters),
-      getReportFilterOptions(),
-      getTolerancePercent(),
-      listReconciliationHistory(historyFilters),
-    ]);
+  const [initialLanes, filterOptions, initialHistory] = await Promise.all([
+    listCompareLanes(compareFilters),
+    getReportFilterOptions(),
+    listReconciliationHistory(historyFilters),
+  ]);
 
   return (
     <ReconciliationView
@@ -58,7 +55,6 @@ export default async function DizleeReconciliationPage({
       initialCompareFilters={compareFilters}
       initialLanes={initialLanes}
       initialFilterOptions={filterOptions}
-      initialTolerancePercent={tolerancePercent}
       initialHistory={initialHistory}
     />
   );

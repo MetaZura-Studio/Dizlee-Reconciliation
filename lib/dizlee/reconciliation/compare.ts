@@ -1,6 +1,6 @@
 /**
  * Pure line-matching logic for OpCo vs partner report reconciliation runs.
- * Consumed by reconciliation runs and consolidation aggregation (shared service keys).
+ * Consumed by reconciliation runs (shared service keys).
  * Service identity is normalized description text, not raw line numbers alone.
  */
 

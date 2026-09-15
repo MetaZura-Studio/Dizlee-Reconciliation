@@ -6,7 +6,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   createOpcoInvoiceBodySchema,
-  generateConsolidationBodySchema,
   runReconciliationBodySchema,
   sendBroadcastBodySchema,
   sendRemindersBodySchema,
@@ -156,7 +155,7 @@ describe("createOpcoInvoiceBodySchema", () => {
   });
 });
 
-describe("run / consolidation schemas", () => {
+describe("run reconciliation schema", () => {
   it("accepts normal period + ids", () => {
     expect(
       runReconciliationBodySchema.safeParse({
@@ -164,13 +163,6 @@ describe("run / consolidation schemas", () => {
         year: 2026,
         opcoId: "1",
         partnerId: "2",
-      }).success,
-    ).toBe(true);
-    expect(
-      generateConsolidationBodySchema.safeParse({
-        month: 8,
-        year: 2026,
-        opcoId: "1",
       }).success,
     ).toBe(true);
   });

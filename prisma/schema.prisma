@@ -60,7 +60,6 @@ model Lookup {
   reportChangeRequestStatuses ReportChangeRequest[] @relation("ReportChangeRequestStatus")
   opcoReportSubmissionStatuses OpcoReportSubmission[] @relation("OpcoReportSubmissionStatus")
   opcoSubmissionChangeRequestStatuses OpcoSubmissionChangeRequest[] @relation("OpcoSubmissionChangeRequestStatus")
-  consolidationStatuses   Consolidation[]          @relation("ConsolidationStatus")
   reconciliationStatuses  Reconciliation[]         @relation("ReconciliationStatus")
   reconciliationMatchStatuses ReconciliationItem[] @relation("ReconciliationMatchStatus")
   invoiceTypes            Invoice[]                @relation("InvoiceType")
@@ -118,7 +117,6 @@ model Opco {
   partnerLinkRequests OpcoPartnerLinkRequest[]
   reports             Report[]
   reportSubmissions   OpcoReportSubmission[]
-  consolidations      Consolidation[]
   reconciliations     Reconciliation[]
   invoices            Invoice[]
   reportMapping       OpcoReportMapping?
@@ -146,7 +144,6 @@ model Partner {
   users             User[]              @relation("UserPartner")
   opcoPartnerLinks  OpcoPartnerLink[]
   reports           Report[]
-  consolidationItems ConsolidationItem[]
   reconciliations   Reconciliation[]
   invoices          Invoice[]
   servicePartnerMaps ServicePartnerMap[]
@@ -233,7 +230,6 @@ model User {
   reportChangeDecisions   ReportChangeRequest[] @relation("ReportChangeDecider")
   opcoSubmissionChangeRequests OpcoSubmissionChangeRequest[] @relation("OpcoSubmissionChangeRequester")
   opcoSubmissionChangeDecisions OpcoSubmissionChangeRequest[] @relation("OpcoSubmissionChangeDecider")
-  consolidationsRun       Consolidation[] @relation("ConsolidationRunner")
   reconciliationsRun      Reconciliation[] @relation("ReconciliationRunner")
   reconciliationsAlerted  Reconciliation[] @relation("ReconciliationAlerter")
   invoicesUploaded        Invoice[] @relation("InvoiceUploader")
@@ -690,32 +686,6 @@ model ReportChangeRequest {
   @@map("report_change_requests")
 }
 
-model Consolidation {
-  id              Int      @id @default(autoincrement())
-  opcoId          BigInt   @map("opco_id")
-  month           Int
-  year            Int
-  statusId        Int      @map("status_id")
-  totalAmountUsd  Decimal? @map("total_amount_usd") @db.Decimal(18, 4)
-  generatedAt     DateTime @map("generated_at")
-  runByUserId     BigInt   @map("run_by_user_id")
-  createdByUserId BigInt?  @map("created_by_user_id")
-  updatedByUserId BigInt?  @map("updated_by_user_id")
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
-  isDeleted       Boolean  @default(false) @map("is_deleted")
-  deletedByUserId BigInt?  @map("deleted_by_user_id")
-  deletedAt       DateTime? @map("deleted_at")
-
-  opco    Opco                @relation(fields: [opcoId], references: [id])
-  status  Lookup              @relation("ConsolidationStatus", fields: [statusId], references: [id])
-  runBy   User                @relation("ConsolidationRunner", fields: [runByUserId], references: [id])
-  items   ConsolidationItem[]
-
-  @@unique([opcoId, year, month], map: "uq_consolidations")
-  @@map("consolidations")
-}
-
 /// Generated Dizlee Revenue Share Excel for one OpCo + period (file + row snapshot).
 model RevenueShareReport {
   id                Int      @id @default(autoincrement())
@@ -764,33 +734,6 @@ model RevenueShareReportItem {
   @@index([revenueShareReportId], map: "idx_rs_report_items_report_id")
   @@index([revenueShareReportId, sortOrder], map: "idx_rs_report_items_report_sort")
   @@map("revenue_share_report_items")
-}
-
-model ConsolidationItem {
-  id               BigInt   @id @default(autoincrement())
-  consolidationId  Int      @map("consolidation_id")
-  partnerId        BigInt?  @map("partner_id")
-  partnerName      String   @map("partner_name") @db.VarChar(255)
-  serviceCode      String?  @map("service_code") @db.VarChar(128)
-  description      String   @db.VarChar(255)
-  usageAmount      Decimal  @map("usage_amount") @db.Decimal(18, 4)
-  usageUsd         Decimal? @map("usage_usd") @db.Decimal(18, 4)
-  exchangeRate     Decimal? @map("exchange_rate") @db.Decimal(18, 4)
-  usageUnit        String?  @map("usage_unit") @db.VarChar(32)
-  revenueBasis     String?  @map("revenue_basis") @db.VarChar(64)
-  createdByUserId  BigInt?  @map("created_by_user_id")
-  updatedByUserId  BigInt?  @map("updated_by_user_id")
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt @map("updated_at")
-  isDeleted        Boolean  @default(false) @map("is_deleted")
-  deletedByUserId  BigInt?  @map("deleted_by_user_id")
-  deletedAt        DateTime? @map("deleted_at")
-
-  consolidation Consolidation @relation(fields: [consolidationId], references: [id])
-  partner       Partner?      @relation(fields: [partnerId], references: [id])
-
-  @@unique([consolidationId, partnerName, serviceCode], map: "uq_consolidation_items")
-  @@map("consolidation_items")
 }
 
 // ===== HASEEB: Dizlee Portal models =====

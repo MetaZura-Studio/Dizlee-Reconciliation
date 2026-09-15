@@ -193,7 +193,7 @@ describe("buildOpcoReportResubmittedBody", () => {
       partners: [{ id: "9", name: "Digital Virgo" }],
     });
     expect(body).toContain(
-      "All reconciliations, consolidation, and revenue-share results for this OpCo and period were deleted",
+      "All reconciliations and revenue-share results for this OpCo and period were deleted",
     );
     expect(body).toContain("must be redone from scratch");
     expect(body).toContain("Digital Virgo");
