@@ -140,7 +140,6 @@ type ReconciliationViewProps = {
   initialCompareFilters: CompareLaneFilters;
   initialLanes: CompareLaneRow[];
   initialFilterOptions: ReportFilterOptions;
-  initialTolerancePercent: number;
   initialHistory: ReconciliationHistoryResult;
 };
 
@@ -149,7 +148,6 @@ export function ReconciliationView({
   initialCompareFilters,
   initialLanes,
   initialFilterOptions,
-  initialTolerancePercent,
   initialHistory,
 }: ReconciliationViewProps) {
   const router = useRouter();
@@ -194,9 +192,6 @@ export function ReconciliationView({
   const [lanePage, setLanePage] = useState(1);
   const [filterOptions, setFilterOptions] =
     useState<ReportFilterOptions>(initialFilterOptions);
-  const [tolerancePercent, setTolerancePercent] = useState(
-    initialTolerancePercent,
-  );
   const [history, setHistory] = useState(initialHistory);
   const pagedLanes = paginateItems(lanes, lanePage);
 
@@ -239,7 +234,6 @@ export function ReconciliationView({
       setLanes(payload.data as CompareLaneRow[]);
       setLanePage(1);
       setFilterOptions(payload.filterOptions as ReportFilterOptions);
-      setTolerancePercent(payload.tolerancePercent as number);
     } catch (loadError) {
       setError(
         loadError instanceof Error ? loadError.message : "Failed to load lanes",
@@ -589,10 +583,7 @@ export function ReconciliationView({
       ) : null}
 
       <PageCard>
-        <PageHeader
-          title="Reconciliation"
-          description={`Compare OpCo and Partner reports for each pair. Tolerance: ${tolerancePercent}%`}
-        />
+        <PageHeader title="Reconciliation" />
 
         <div className="border-b border-border">
           <nav className="-mb-px flex gap-6">

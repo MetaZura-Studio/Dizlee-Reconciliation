@@ -33,7 +33,12 @@ import type {
   NotificationDeliveryChannel,
 } from "@/lib/dizlee/notifications/broadcast.shared";
 import { DEFAULT_NOTIFICATION_DELIVERY_CHANNEL } from "@/lib/dizlee/notifications/broadcast.shared";
-import { formatAppError } from "@/lib/errors/format";
+import {
+  emailProgressDescription,
+  formatEmailProgressLabel,
+  postWithEmailProgress,
+  type EmailSendProgress,
+} from "@/lib/ui/post-with-email-progress";
 
 const PRIORITY_OPTIONS = [
   { value: "", label: "Normal" },
@@ -119,6 +124,9 @@ export function IntimationsView({
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
 
   const [sending, setSending] = useState(false);
+  const [emailProgress, setEmailProgress] = useState<EmailSendProgress | null>(
+    null,
+  );
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -233,12 +241,14 @@ export function IntimationsView({
 
   const sendIntimation = async () => {
     setSending(true);
+    setEmailProgress(null);
     setError(null);
     try {
-      const response = await fetch("/api/dizlee/notifications/intimations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const payload = await postWithEmailProgress<{
+        message?: string;
+      }>({
+        url: "/api/dizlee/notifications/intimations",
+        body: {
           audience,
           deliveryChannel,
           messageSource,
@@ -250,15 +260,12 @@ export function IntimationsView({
           partnerIds: showPartners ? selectedPartnerIds : [],
           priority: priority === "HIGH" ? "HIGH" : null,
           attachmentFileIds: attachmentFileIds(attachments),
-        }),
+        },
+        onProgress: setEmailProgress,
+        fallbackError: "Failed to send notification",
       });
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(formatAppError(payload, "Failed to send notification"));
-      }
 
-      const message =
-        (payload.data?.message as string | undefined) ?? "Intimation sent.";
+      const message = payload.message ?? "Intimation sent.";
       setSubject("");
       setBody("");
       setPriority("");
@@ -273,6 +280,7 @@ export function IntimationsView({
       );
     } finally {
       setSending(false);
+      setEmailProgress(null);
     }
   };
 
@@ -280,8 +288,8 @@ export function IntimationsView({
     <PageCard>
       {sending ? (
         <FullPageLoading
-          label="Sending…"
-          description="Please wait while we deliver this message."
+          label={formatEmailProgressLabel(emailProgress ?? { sent: 0, failed: 0, total: 0 })}
+          description={emailProgressDescription(emailProgress)}
         />
       ) : null}
 
@@ -293,10 +301,7 @@ export function IntimationsView({
         onAction={() => setSuccessMessage(null)}
       />
 
-      <PageHeader
-        title="Communications"
-        description="Send messages to OpCos and/or Partners via in-app, email, or both."
-      />
+      <PageHeader title="Communications" />
 
       <CommunicationsTabs active="intimations" />
 
@@ -308,10 +313,6 @@ export function IntimationsView({
             <h2 className="text-lg font-medium text-foreground">
               Compose intimation
             </h2>
-            <p className="mt-1 text-sm text-foreground-subtle">
-              Message first, then delivery and recipients. Sent items appear in
-              Outbox.
-            </p>
           </div>
           <Link
             href="/dizlee/communications?tab=outbox"

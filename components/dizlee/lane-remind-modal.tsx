@@ -27,6 +27,12 @@ import type {
 import type { CompareLaneRow } from "@/lib/dizlee/reconciliation";
 import { ui } from "@/lib/ui/classes";
 import { formatAppError } from "@/lib/errors/format";
+import {
+  emailProgressDescription,
+  formatEmailProgressLabel,
+  postWithEmailProgress,
+  type EmailSendProgress,
+} from "@/lib/ui/post-with-email-progress";
 
 type LaneRemindModalProps = {
   lane: CompareLaneRow;
@@ -104,6 +110,9 @@ export function LaneRemindModal({
 }: LaneRemindModalProps) {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [emailProgress, setEmailProgress] = useState<EmailSendProgress | null>(
+    null,
+  );
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<LaneNotificationHistoryResult | null>(
@@ -199,12 +208,14 @@ export function LaneRemindModal({
       return;
     }
     setSending(true);
+    setEmailProgress(null);
     setError(null);
     try {
-      const response = await fetch("/api/dizlee/notifications/reminders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const payload = await postWithEmailProgress<{
+        message?: string;
+      }>({
+        url: "/api/dizlee/notifications/reminders",
+        body: {
           month,
           year,
           laneKeys: [`${lane.opcoId}-${lane.partnerId}`],
@@ -214,15 +225,12 @@ export function LaneRemindModal({
           subject,
           body,
           attachmentFileIds: attachmentFileIds(attachments),
-        }),
+        },
+        onProgress: setEmailProgress,
+        fallbackError: "Failed to send reminder",
       });
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(formatAppError(payload, "Failed to send reminder"));
-      }
 
-      const message =
-        (payload.data?.message as string | undefined) ?? "Reminder sent.";
+      const message = payload.message ?? "Reminder sent.";
       onSent(message);
       setAttachments([]);
       setSuccessMessage(message);
@@ -245,6 +253,7 @@ export function LaneRemindModal({
       );
     } finally {
       setSending(false);
+      setEmailProgress(null);
     }
   }
 
@@ -483,8 +492,10 @@ export function LaneRemindModal({
     <>
       {sending ? (
         <FullPageLoading
-          label="Sending…"
-          description="Please wait while we deliver this message."
+          label={formatEmailProgressLabel(
+            emailProgress ?? { sent: 0, failed: 0, total: 0 },
+          )}
+          description={emailProgressDescription(emailProgress)}
         />
       ) : null}
 

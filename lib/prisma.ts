@@ -31,8 +31,6 @@ const SOFT_DELETE_MODELS = new Set([
   "Report",
   "ReportLineItem",
   "OpcoReportSubmission",
-  "Consolidation",
-  "ConsolidationItem",
   "Reconciliation",
   "ReconciliationItem",
   "Invoice",

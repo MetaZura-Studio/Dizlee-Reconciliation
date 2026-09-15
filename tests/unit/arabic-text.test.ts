@@ -24,10 +24,28 @@ describe("formatPreviewCellValue", () => {
   });
 });
 
+describe("isNumericCellValue", () => {
+  it("matches plain numbers", () => {
+    expect(isNumericCellValue("12")).toBe(true);
+    expect(isNumericCellValue("-1.5")).toBe(true);
+    expect(isNumericCellValue("abc")).toBe(false);
+  });
+
+  it("matches comma-grouped amounts and percents", () => {
+    expect(isNumericCellValue("40,129.29")).toBe(true);
+    expect(isNumericCellValue("1,234")).toBe(true);
+    expect(isNumericCellValue("19.5%")).toBe(true);
+    expect(isNumericCellValue("1,234.56%")).toBe(true);
+  });
+});
+
 describe("previewCellAlign", () => {
   it("right-aligns Arabic and numeric cells", () => {
     expect(previewCellAlign("خدمة الرسائل")).toBe("right");
     expect(previewCellAlign("1234.56")).toBe("right");
+    expect(previewCellAlign("40,129.29")).toBe("right");
+    expect(previewCellAlign("5.85")).toBe("right");
+    expect(previewCellAlign("19.5%")).toBe("right");
   });
 
   it("center-aligns app dates", () => {
@@ -44,14 +62,5 @@ describe("containsArabicScript", () => {
   it("detects Arabic letters", () => {
     expect(containsArabicScript("خدمة")).toBe(true);
     expect(containsArabicScript("Service")).toBe(false);
-  });
-});
-
-describe("isNumericCellValue", () => {
-  it("matches plain numbers", () => {
-    expect(isNumericCellValue("12")).toBe(true);
-    expect(isNumericCellValue("-1.5")).toBe(true);
-    expect(isNumericCellValue("1,234")).toBe(false);
-    expect(isNumericCellValue("abc")).toBe(false);
   });
 });

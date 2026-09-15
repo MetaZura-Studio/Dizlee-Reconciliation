@@ -13,6 +13,12 @@
  *   CLIENT_ADMIN_PASSWORD='ChooseAStrongPassword!' \
  *   CLIENT_ADMIN_NAME='Client Admin' \
  *   npm run seed:client
+ *
+ * After UAT testing, wipe operational data (keep Admin + orgs/links/maps):
+ *
+ *   npm run db:clear-client-scratch
+ *
+ * Do NOT use npm run seed / db:reset-orgs on client (loads demo portal users).
  */
 
 import { PrismaClient } from "@prisma/client";

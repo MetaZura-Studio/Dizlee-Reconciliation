@@ -307,6 +307,11 @@ export function validateBroadcastRecipients(input: SendBroadcastInput): {
 export async function sendBroadcastNotification(params: {
   input: SendBroadcastInput;
   fromUserId: string;
+  onEmailProgress?: (progress: {
+    sent: number;
+    failed: number;
+    total: number;
+  }) => void | Promise<void>;
 }): Promise<{
   id: string;
   message: string;
@@ -477,6 +482,7 @@ export async function sendBroadcastNotification(params: {
           notificationId: notification.id,
           actorUserId: fromUserId,
           correlationId: emailCorrelationId ?? undefined,
+          onProgress: params.onEmailProgress,
         })
       : null
     : await maybeSendEventEmails({
@@ -488,6 +494,7 @@ export async function sendBroadcastNotification(params: {
         notificationId: notification.id,
         actorUserId: fromUserId,
         correlationId: emailCorrelationId ?? undefined,
+        onProgress: params.onEmailProgress,
       });
 
   const recipientCount = recipientCreates.length;

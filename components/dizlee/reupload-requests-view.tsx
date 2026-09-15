@@ -532,7 +532,7 @@ export function ReuploadRequestsView({
               Approving lets the OpCo replace this monthly report. When they
               upload the new file,{" "}
               <span className="font-semibold">
-                all reconciliations, consolidation, and revenue-share results
+                all reconciliations and revenue-share results
                 for this OpCo and period will be permanently deleted
               </span>{" "}
               and must be redone from scratch.

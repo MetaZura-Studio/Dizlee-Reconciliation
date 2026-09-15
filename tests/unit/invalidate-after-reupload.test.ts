@@ -3,9 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mockedReconciliationFindMany = vi.fn();
 const mockedReconciliationItemDeleteMany = vi.fn();
 const mockedReconciliationDeleteMany = vi.fn();
-const mockedConsolidationFindMany = vi.fn();
-const mockedConsolidationItemDeleteMany = vi.fn();
-const mockedConsolidationDeleteMany = vi.fn();
 const mockedRsFindMany = vi.fn();
 const mockedRsItemDeleteMany = vi.fn();
 const mockedRsDeleteMany = vi.fn();
@@ -22,14 +19,6 @@ vi.mock("@/lib/prisma", () => ({
       deleteMany: (...args: unknown[]) =>
         mockedReconciliationItemDeleteMany(...args),
     },
-    consolidation: {
-      findMany: (...args: unknown[]) => mockedConsolidationFindMany(...args),
-      deleteMany: (...args: unknown[]) => mockedConsolidationDeleteMany(...args),
-    },
-    consolidationItem: {
-      deleteMany: (...args: unknown[]) =>
-        mockedConsolidationItemDeleteMany(...args),
-    },
     revenueShareReport: {
       findMany: (...args: unknown[]) => mockedRsFindMany(...args),
       deleteMany: (...args: unknown[]) => mockedRsDeleteMany(...args),
@@ -43,7 +32,6 @@ vi.mock("@/lib/prisma", () => ({
 import {
   hardDeleteAllOpcoPeriodReconciliations,
   hardDeleteAllOpcoPeriodWork,
-  hardDeleteOpcoPeriodConsolidation,
   hardDeleteOpcoPeriodRevenueShareReport,
 } from "@/lib/platform/reconciliation/invalidate-after-reupload";
 
@@ -72,21 +60,10 @@ describe("hardDeleteAllOpcoPeriodWork", () => {
     expect(mockedTransaction).toHaveBeenCalled();
   });
 
-  it("hard-deletes consolidation and revenue share for the period", async () => {
-    mockedConsolidationFindMany.mockResolvedValue([{ id: 10 }]);
-    mockedConsolidationItemDeleteMany.mockResolvedValue({ count: 3 });
-    mockedConsolidationDeleteMany.mockResolvedValue({ count: 1 });
+  it("hard-deletes revenue share for the period", async () => {
     mockedRsFindMany.mockResolvedValue([{ id: 20 }]);
     mockedRsItemDeleteMany.mockResolvedValue({ count: 5 });
     mockedRsDeleteMany.mockResolvedValue({ count: 1 });
-
-    await expect(
-      hardDeleteOpcoPeriodConsolidation({
-        opcoId: BigInt(5),
-        year: 2026,
-        month: 8,
-      }),
-    ).resolves.toBe(true);
 
     await expect(
       hardDeleteOpcoPeriodRevenueShareReport({
@@ -99,7 +76,6 @@ describe("hardDeleteAllOpcoPeriodWork", () => {
 
   it("returns zeros/false when nothing exists", async () => {
     mockedReconciliationFindMany.mockResolvedValue([]);
-    mockedConsolidationFindMany.mockResolvedValue([]);
     mockedRsFindMany.mockResolvedValue([]);
 
     await expect(
@@ -110,7 +86,6 @@ describe("hardDeleteAllOpcoPeriodWork", () => {
       }),
     ).resolves.toEqual({
       reconciliations: 0,
-      consolidation: false,
       revenueShare: false,
     });
   });

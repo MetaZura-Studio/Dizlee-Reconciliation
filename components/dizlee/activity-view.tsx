@@ -51,7 +51,6 @@ function eventTone(
     case "REPORT_RECEIVED":
     case "INVOICE_ACKNOWLEDGED":
     case "INVOICE_PAID":
-    case "CONSOLIDATION_GENERATED":
       return "success";
     case "REPORT_REMINDER_SENT":
     case "REUPLOAD_REQUESTED":
@@ -80,8 +79,6 @@ function eventTypeLabel(type: ActivityEventType): string {
       return "Reupload decision";
     case "RECONCILIATION_RUN":
       return "Reconciliation";
-    case "CONSOLIDATION_GENERATED":
-      return "Consolidation";
     case "INVOICE_SENT":
       return "Invoice";
     case "INVOICE_ACKNOWLEDGED":
