@@ -78,7 +78,7 @@ Please review the reconciliation result in Dizlee.`;
 export const NOTIFICATION_TEMPLATE_SEEDS: NotificationTemplateSeed[] = [
   {
     code: "REPORT_SUBMISSION",
-    name: "Report submission notice",
+    name: "Report intimation",
     category: "INTIMATION",
     subject: "Monthly report submission",
     body: "Please submit your monthly report for {{period}} through the portal when it is ready.",
@@ -106,7 +106,7 @@ export const NOTIFICATION_TEMPLATE_SEEDS: NotificationTemplateSeed[] = [
   },
   {
     code: "INVOICE_SUBMISSION",
-    name: "Invoice submission notice",
+    name: "Invoice intimation",
     category: "INTIMATION",
     subject: "Monthly invoice submission",
     body: "Please submit your monthly invoice for {{period}} through the portal when it is ready.",

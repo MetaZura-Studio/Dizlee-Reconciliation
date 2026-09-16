@@ -11,6 +11,7 @@ import {
 import type { ParsedReportLine } from "@/lib/opco/excel/parse-report";
 import { getOpcoReportMappingByOpcoId } from "@/lib/admin/opco-report-mappings";
 import { parseStoredSampleHeaders } from "@/lib/admin/opco-report-mapping-excel";
+import { isOpcoReportMappingConfigured } from "@/lib/admin/opco-report-mappings.shared";
 import {
   resolvePartnerColumnLinesToBuckets,
   PartnerColumnResolveError,
@@ -56,10 +57,7 @@ export async function parseOpcoMonthlyPartnerBuckets(params: {
 
   const mappingRow = await getOpcoReportMappingByOpcoId(params.opcoId);
   if (!mappingRow) {
-    throw new OpcoMonthlyParseError(
-      "OpCo report column mapping is not configured. Ask an admin to set it under OpCos → Report map.",
-      400,
-    );
+    throw new OpcoMonthlyParseError("OPCO_REPORT_MAPPING_NOT_READY", 400);
   }
 
   if (mappingRow.partnerMode === "UPLOAD_PICKER") {
@@ -72,6 +70,19 @@ export async function parseOpcoMonthlyPartnerBuckets(params: {
   const preferredSheetName = parseStoredSampleHeaders(
     mappingRow.headersJson,
   ).sheetName;
+
+  if (
+    !isOpcoReportMappingConfigured({
+      sampleSheetName: preferredSheetName,
+      serviceColumn: mappingRow.serviceColumn,
+      revenueColumn: mappingRow.revenueColumn,
+      revenueShareColumn: mappingRow.revenueShareColumn,
+      partnerMode: mappingRow.partnerMode,
+      partnerColumn: mappingRow.partnerColumn,
+    })
+  ) {
+    throw new OpcoMonthlyParseError("OPCO_REPORT_MAPPING_NOT_READY", 400);
+  }
 
   const mapping = assertOpcoMappingReady({
     serviceColumn: mappingRow.serviceColumn,

@@ -6,11 +6,16 @@
 import {
   OPCO_REPORTS_UPLOADED_SUBJECT,
   OPCO_REPORT_RESUBMITTED_SUBJECT,
+  PARTNER_REPORT_RESUBMITTED_SUBJECT,
   parseNotificationMetadata,
   resolveNotificationAction,
 } from "@/lib/platform/notification-metadata";
 import { formatAppDate } from "@/lib/platform/format-datetime";
 import { PARTNER_LINK_REQUEST_SUBJECT_PREFIX } from "@/lib/platform/partner-link-request";
+import {
+  REPORT_MAP_READY_SUBJECT,
+  REPORT_MAP_REQUEST_SUBJECT_PREFIX,
+} from "@/lib/platform/report-map-request";
 
 export type NotificationPortal = "opco" | "partner" | "dizlee" | "admin";
 
@@ -46,6 +51,9 @@ export function resolveNotificationHref(
     if (metadata?.type === "INVOICE_SENT" && metadata.invoiceId) {
       return `/dizlee/invoices?id=${encodeURIComponent(metadata.invoiceId)}`;
     }
+    if (metadata?.type === "INVOICE_ACKNOWLEDGED" && metadata.invoiceId) {
+      return `/dizlee/invoices?id=${encodeURIComponent(metadata.invoiceId)}`;
+    }
     const action = resolveNotificationAction(metadata, subject);
     // OpCo-scoped actions (e.g. invoice CTA) must not send Dizlee users to /opco.
     if (action && !action.href.startsWith("/opco/")) {
@@ -68,10 +76,25 @@ export function resolveNotificationHref(
   }
 
   if (
+    subject.startsWith(REPORT_MAP_REQUEST_SUBJECT_PREFIX) ||
+    metadata?.type === "REPORT_MAP_REQUEST"
+  ) {
+    const opcoId =
+      metadata?.type === "REPORT_MAP_REQUEST"
+        ? metadata.opcoId
+        : opcoIdFromText(bodyText);
+    if (portal === "admin" && opcoId) {
+      return `/admin/opcos/${encodeURIComponent(opcoId)}/report-mapping`;
+    }
+  }
+
+  if (
     (subject === "Partner link created" ||
       subject === "Partner link request denied" ||
+      subject === REPORT_MAP_READY_SUBJECT ||
       metadata?.type === "PARTNER_LINK_APPROVED" ||
-      metadata?.type === "PARTNER_LINK_REJECTED") &&
+      metadata?.type === "PARTNER_LINK_REJECTED" ||
+      metadata?.type === "REPORT_MAP_READY") &&
     portal === "opco"
   ) {
     return "/opco/upload";
@@ -114,7 +137,11 @@ export function resolveNotificationHref(
       return "/partner/invoices";
     }
     if (portal === "dizlee") {
-      if (metadata?.type === "INVOICE_SENT" && metadata.invoiceId) {
+      if (
+        (metadata?.type === "INVOICE_SENT" ||
+          metadata?.type === "INVOICE_ACKNOWLEDGED") &&
+        metadata.invoiceId
+      ) {
         return `/dizlee/invoices?id=${encodeURIComponent(metadata.invoiceId)}`;
       }
       return "/dizlee/invoices";
@@ -128,7 +155,8 @@ export function resolveNotificationHref(
   if (
     (subject === OPCO_REPORTS_UPLOADED_SUBJECT ||
       subject === "OpCo report uploaded" ||
-      subject === "Partner report uploaded") &&
+      subject === "Partner report uploaded" ||
+      subject === PARTNER_REPORT_RESUBMITTED_SUBJECT) &&
     portal === "dizlee"
   ) {
     return "/dizlee/reports";

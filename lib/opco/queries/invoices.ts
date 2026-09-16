@@ -15,6 +15,8 @@ import {
 import { getOpcoLookupId } from "@/lib/opco/lookups";
 import { shouldAutoAcknowledgeOpcoInvoice } from "@/lib/opco/invoices/acknowledgement";
 import { formatPeriodLabel } from "@/lib/opco/period";
+import type { InvoiceAcknowledgedMetadata } from "@/lib/platform/notification-metadata";
+import { notifyDizleeUsers } from "@/lib/platform/notify-dizlee";
 import prisma from "@/lib/prisma";
 
 export type OpcoInvoiceSortField = "uploaded" | "period";
@@ -317,6 +319,7 @@ async function maybeAcknowledgeOpcoInvoice(
     include: {
       invoiceType: { select: { code: true } },
       invoiceStatus: { select: { code: true } },
+      opco: { select: { name: true } },
     },
   });
 
@@ -360,6 +363,30 @@ async function maybeAcknowledgeOpcoInvoice(
       },
     }),
   ]);
+
+  const invoiceLabel = invoice.invoiceNumber?.trim() || `#${invoice.id.toString()}`;
+  const periodLabel = formatPeriodLabel(invoice.year, invoice.month);
+  const opcoName = invoice.opco?.name ?? "OpCo";
+  const metadata: InvoiceAcknowledgedMetadata = {
+    type: "INVOICE_ACKNOWLEDGED",
+    invoiceId: invoice.id.toString(),
+    invoiceNumber: invoice.invoiceNumber,
+    opcoId: opcoId.toString(),
+    opcoName,
+    month: invoice.month,
+    year: invoice.year,
+  };
+
+  try {
+    await notifyDizleeUsers({
+      fromUserId: actorUserId,
+      subject: "Invoice acknowledged",
+      body: `${opcoName} acknowledged invoice ${invoiceLabel} (${periodLabel}).`,
+      metadata,
+    });
+  } catch {
+    // Acknowledgment succeeded; notification failure must not roll it back.
+  }
 
   return true;
 }

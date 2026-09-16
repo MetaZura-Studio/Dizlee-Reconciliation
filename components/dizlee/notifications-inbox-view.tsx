@@ -484,16 +484,40 @@ export function NotificationsInboxView({
                 </p>
               ) : detail.metadata?.type === "OPCO_REUPLOAD_REQUEST" ||
                 detail.metadata?.type === "PARTNER_REUPLOAD_REQUEST" ? (
-                <div className="mt-5">
-                  <h3 className="text-sm font-medium text-foreground">Message</h3>
-                  <p className="mt-2 whitespace-pre-wrap rounded-md bg-surface-muted px-3 py-2 text-sm text-foreground-muted">
-                    {detail.body}
-                  </p>
+                <div className="mt-5 space-y-4">
+                  <div>
+                    <h3 className="text-sm font-medium text-foreground">Message</h3>
+                    <p className="mt-2 whitespace-pre-wrap rounded-md bg-surface-muted px-3 py-2 text-sm text-foreground-muted">
+                      {detail.body}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border pt-4">
+                    <Link
+                      href={
+                        detail.action?.href ??
+                        `/dizlee/reports/reupload?${new URLSearchParams({
+                          opcoId: detail.metadata.opcoId,
+                          partnerId: detail.metadata.partnerId,
+                          month: String(detail.metadata.month),
+                          year: String(detail.metadata.year),
+                        }).toString()}`
+                      }
+                      className={cn(
+                        ui.btnPrimary,
+                        "inline-flex items-center gap-2",
+                      )}
+                    >
+                      {detail.action?.label ?? "View Request"}
+                      <IconChevronRight className="h-4 w-4" />
+                    </Link>
+                  </div>
                 </div>
               ) : null}
 
-              {detail.action ? (
-                <div className="mt-auto flex justify-end gap-2 border-t border-border pt-4">
+              {detail.action &&
+              detail.metadata?.type !== "OPCO_REUPLOAD_REQUEST" &&
+              detail.metadata?.type !== "PARTNER_REUPLOAD_REQUEST" ? (
+                <div className="mt-6 flex justify-end gap-2 border-t border-border pt-4">
                   <Link
                     href={detail.action.href}
                     className={cn(ui.btnPrimary, "inline-flex items-center gap-2")}
