@@ -105,6 +105,13 @@ When the user later asks to update the ERD / [`04_DATABASE_SCHEMA_FOR_CURSOR.md`
 - Feature code/APIs removed; Reconciliation and Revenue Share unchanged
 - Orphan lookup codes may remain: `CONSOLIDATION_STATUS`, `CONSOLIDATION_GENERATED`, `AUDIT_ENTITY_TYPE.CONSOLIDATION`
 
+### Applied migration — OpCo report map requests
+- Migration: `prisma/migrations/20260915140000_opco_report_map_requests`
+- Table `opco_report_map_requests`: OpCo asks Admin to configure Report map (`PENDING` / `FULFILLED` / `CANCELLED`)
+- Columns: `opco_id`, `requested_by_user_id`, `message`, `status`, `fulfilled_at`, `fulfilled_by_user_id`, timestamps
+- Indexes: `idx_opco_report_map_requests_status_created`, `idx_opco_report_map_requests_opco_id`
+- Upload gated on Report map readiness; Admin save when configured fulfills PENDING + notifies OpCo (`REPORT_MAP_READY`)
+
 ## Source of truth until ERD is refreshed
 1. [`prisma/schema.prisma`](prisma/schema.prisma)
 2. Files under [`prisma/migrations/`](prisma/migrations/)

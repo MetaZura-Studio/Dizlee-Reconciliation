@@ -2,14 +2,16 @@
 
 import { formatAppDateTime } from "@/lib/platform/format-datetime";
 import { useEffect, useState } from "react";
+import { flushSync } from "react-dom";
 
 import { Button } from "@/components/ui/button";
 import { FieldLabel, FieldLegend, Input, Select } from "@/components/ui/field";
-import { FullPageLoading } from "@/components/ui/loading";
 import { Modal } from "@/components/ui/modal";
 import { FilterToolbar } from "@/components/ui/page";
 import { SuccessDialog } from "@/components/ui/success-dialog";
-import { EmailNotConfiguredNotice } from "@/components/shared/email-not-configured-notice";
+import { DeliveryChannelPicker } from "@/components/shared/delivery-channel-picker";
+import { EmailSendProgressOverlay } from "@/components/shared/email-send-progress-overlay";
+import { FullPageLoading } from "@/components/ui/loading";
 import {
   attachmentFileIds,
   NotificationAttachmentPicker,
@@ -25,12 +27,12 @@ import type {
   LaneNotificationHistoryResult,
 } from "@/lib/dizlee/lane-report-notifications";
 import type { CompareLaneRow } from "@/lib/dizlee/reconciliation";
+import { deliverySendsEmail } from "@/lib/platform/notification-delivery.shared";
 import { ui } from "@/lib/ui/classes";
 import { formatAppError } from "@/lib/errors/format";
 import {
-  emailProgressDescription,
-  formatEmailProgressLabel,
   postWithEmailProgress,
+  waitForEmailProgressDoneUi,
   type EmailSendProgress,
 } from "@/lib/ui/post-with-email-progress";
 
@@ -41,28 +43,6 @@ type LaneRemindModalProps = {
   onClose: () => void;
   onSent: (message: string) => void;
 };
-
-const DELIVERY_OPTIONS: Array<{
-  value: NotificationDeliveryChannel;
-  label: string;
-  hint: string;
-}> = [
-  {
-    value: "SYSTEM",
-    label: "System notification",
-    hint: "In-app inbox and bell only",
-  },
-  {
-    value: "EMAIL",
-    label: "Email notification",
-    hint: "Email only (still logged in Outbox)",
-  },
-  {
-    value: "BOTH",
-    label: "Both",
-    hint: "In-app inbox plus email",
-  },
-];
 
 function getTemplateContent(
   templates: BroadcastTemplateOption[],
@@ -113,6 +93,7 @@ export function LaneRemindModal({
   const [emailProgress, setEmailProgress] = useState<EmailSendProgress | null>(
     null,
   );
+  const [emailSendComplete, setEmailSendComplete] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<LaneNotificationHistoryResult | null>(
@@ -207,8 +188,10 @@ export function LaneRemindModal({
     if (sending) {
       return;
     }
+    const sendsEmail = deliverySendsEmail(deliveryChannel);
     setSending(true);
     setEmailProgress(null);
+    setEmailSendComplete(false);
     setError(null);
     try {
       const payload = await postWithEmailProgress<{
@@ -226,9 +209,21 @@ export function LaneRemindModal({
           body,
           attachmentFileIds: attachmentFileIds(attachments),
         },
-        onProgress: setEmailProgress,
+        onProgress: (progress) => {
+          if (!sendsEmail) {
+            return;
+          }
+          flushSync(() => {
+            setEmailProgress(progress);
+          });
+        },
         fallbackError: "Failed to send reminder",
       });
+
+      if (sendsEmail) {
+        setEmailSendComplete(true);
+        await waitForEmailProgressDoneUi();
+      }
 
       const message = payload.message ?? "Reminder sent.";
       onSent(message);
@@ -254,6 +249,7 @@ export function LaneRemindModal({
     } finally {
       setSending(false);
       setEmailProgress(null);
+      setEmailSendComplete(false);
     }
   }
 
@@ -281,43 +277,12 @@ export function LaneRemindModal({
           </p>
         </div>
         <FilterToolbar className="flex-col items-stretch">
-          <fieldset className="space-y-2">
-            <FieldLegend required>Delivery method</FieldLegend>
-            <div className="grid gap-3 sm:grid-cols-3">
-              {DELIVERY_OPTIONS.map((option) => {
-                const selected = deliveryChannel === option.value;
-                return (
-                  <label
-                    key={option.value}
-                    className={`flex h-full cursor-pointer items-start gap-3 rounded-xl border bg-surface p-3 text-sm shadow-[var(--shadow-sm)] transition-colors ${
-                      selected
-                        ? "border-primary ring-2 ring-[var(--ring)]"
-                        : "border-border hover:border-border-strong"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="laneRemindDeliveryChannel"
-                      value={option.value}
-                      checked={selected}
-                      onChange={() => setDeliveryChannel(option.value)}
-                      className="mt-1 shrink-0"
-                      disabled={sending}
-                    />
-                    <span>
-                      <span className="font-medium text-foreground">
-                        {option.label}
-                      </span>
-                      <span className="mt-0.5 block text-xs text-foreground-subtle">
-                        {option.hint}
-                      </span>
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
-            <EmailNotConfiguredNotice channel={deliveryChannel} />
-          </fieldset>
+          <DeliveryChannelPicker
+            name="laneRemindDeliveryChannel"
+            value={deliveryChannel}
+            onChange={setDeliveryChannel}
+            disabled={sending}
+          />
           <div>
             <FieldLabel htmlFor="lane-remind-template">Template</FieldLabel>
             <Select
@@ -490,12 +455,16 @@ export function LaneRemindModal({
 
   return (
     <>
-      {sending ? (
+      {deliverySendsEmail(deliveryChannel) ? (
+        <EmailSendProgressOverlay
+          active={sending}
+          progress={emailProgress}
+          complete={emailSendComplete}
+        />
+      ) : sending ? (
         <FullPageLoading
-          label={formatEmailProgressLabel(
-            emailProgress ?? { sent: 0, failed: 0, total: 0 },
-          )}
-          description={emailProgressDescription(emailProgress)}
+          label="Sending notifications…"
+          description="Delivering in-app messages to selected recipients."
         />
       ) : null}
 

@@ -4,6 +4,7 @@ import { parseStoredSampleHeaders } from "@/lib/admin/opco-report-mapping-excel"
 import { getOpcoReportMappingByOpcoId } from "@/lib/admin/opco-report-mappings";
 import { requireOpcoSession } from "@/lib/opco/auth";
 import { getLinkedPartnersForOpco } from "@/lib/opco/queries/partners";
+import { getOpcoUploadReadiness } from "@/lib/opco/queries/report-map-request";
 
 /** Always load current OpCo–Partner links (Admin changes must appear immediately). */
 export const dynamic = "force-dynamic";
@@ -11,9 +12,10 @@ export const dynamic = "force-dynamic";
 export default async function OpcoUploadPage() {
   const session = await requireOpcoSession();
   const opcoId = BigInt(session.opcoId);
-  const [partners, mapping] = await Promise.all([
+  const [partners, mapping, readiness] = await Promise.all([
     getLinkedPartnersForOpco(opcoId),
     getOpcoReportMappingByOpcoId(opcoId),
+    getOpcoUploadReadiness(opcoId),
   ]);
 
   const partnerMode = mapping?.partnerMode ?? "EXCEL_COLUMN";
@@ -23,14 +25,12 @@ export default async function OpcoUploadPage() {
 
   return (
     <PageCard>
-      <PageHeader
-        title="Upload Report"
-        description="Upload one monthly Excel with all partners. The system splits and stores partner data for Report History."
-      />
+      <PageHeader title="Upload Report" />
       <ReportUploadForm
         partners={partners}
         partnerFromServiceMap={partnerMode !== "UPLOAD_PICKER"}
         preferredSheetName={preferredSheetName}
+        initialReadiness={readiness}
       />
     </PageCard>
   );

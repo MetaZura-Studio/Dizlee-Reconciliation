@@ -28,13 +28,23 @@ import {
 } from "@/lib/ui/report-preview-modal";
 import { ui } from "@/lib/ui/classes";
 
+export type MappedPartnerReviewSummary = {
+  partnerId: string;
+  partnerName: string;
+  lineItemCount: number;
+  totalAmount: number;
+};
+
 type ReportUploadReviewModalProps = {
   filename: string;
   subtitle?: string;
   fileSizeLabel?: string;
   /** Parsed/mapped line items (legacy confirm flow). */
   lineItems?: ReportPreviewLineItem[];
-  currencyCode?: string;
+  /** Hard mapped OpCo partner buckets (preferred confirm summary). */
+  mappedPartners?: MappedPartnerReviewSummary[];
+  mappedLineItemCount?: number;
+  currencyCode?: string | null;
   side?: "opco" | "partner";
   /** Raw spreadsheet rows from the selected file. */
   rawRows?: string[][];
@@ -49,6 +59,18 @@ type ReportUploadReviewModalProps = {
   onConfirm: () => void;
   onClose: () => void;
 };
+
+function formatAmount(value: number, currencyCode?: string | null): string {
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: currencyCode ? "currency" : "decimal",
+      currency: currencyCode || undefined,
+      maximumFractionDigits: 2,
+    }).format(value);
+  } catch {
+    return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  }
+}
 
 function formatFileSizeLabel(bytes: number): string {
   if (bytes < 1024) {
@@ -65,6 +87,8 @@ export function ReportUploadReviewModal({
   subtitle,
   fileSizeLabel,
   lineItems,
+  mappedPartners,
+  mappedLineItemCount,
   currencyCode,
   side,
   rawRows,
@@ -79,22 +103,29 @@ export function ReportUploadReviewModal({
   onConfirm,
   onClose,
 }: ReportUploadReviewModalProps) {
-  const showRaw = Boolean(rawRows && rawRows.length > 0);
+  const showMapped = Boolean(mappedPartners && mappedPartners.length > 0);
+  const showRaw = !showMapped && Boolean(rawRows && rawRows.length > 0);
   const headerCells = showRaw ? (rawRows?.[0] ?? []) : [];
   const bodyRows = showRaw ? (rawRows ?? []).slice(1) : [];
-  const columnCount = showRaw
-    ? Math.max(
-        headerCells.length,
-        ...bodyRows.map((row) => row.length),
-        1,
-      )
-    : side === "partner"
-      ? 3
-      : 4;
+  const columnCount = showMapped
+    ? 3
+    : showRaw
+      ? Math.max(
+          headerCells.length,
+          ...bodyRows.map((row) => row.length),
+          1,
+        )
+      : side === "partner"
+        ? 3
+        : 4;
   const dataRowCount =
     typeof rawTotalRows === "number"
       ? Math.max(rawTotalRows - 1, 0)
       : bodyRows.length;
+  const mappedTotalLines =
+    mappedLineItemCount ??
+    mappedPartners?.reduce((sum, row) => sum + row.lineItemCount, 0) ??
+    0;
 
   useEffect(() => {
     const previous = document.body.style.overflow;
@@ -135,9 +166,11 @@ export function ReportUploadReviewModal({
                 Confirm report upload
               </h2>
               <p className="mt-1 text-sm text-foreground-muted">
-                {showRaw
-                  ? "Review the file you selected before uploading."
-                  : "Review the parsed data before submitting."}{" "}
+                {showMapped
+                  ? "Review mapped partners before uploading."
+                  : showRaw
+                    ? "Review the file you selected before uploading."
+                    : "Review the parsed data before submitting."}{" "}
                 <span className="font-medium text-foreground">{filename}</span>
                 {fileSizeLabel ? (
                   <span className="text-foreground-subtle"> · {fileSizeLabel}</span>
@@ -151,7 +184,37 @@ export function ReportUploadReviewModal({
           </div>
 
           <div className={reportPreviewBodyClass}>
-            {showRaw ? (
+            {showMapped ? (
+              <div className={`${reportPreviewTableScrollClass} p-1`}>
+                <p className="mb-3 shrink-0 text-sm text-foreground-muted">
+                  {mappedPartners!.length} partner
+                  {mappedPartners!.length === 1 ? "" : "s"}
+                  {` · ${mappedTotalLines} line item${mappedTotalLines === 1 ? "" : "s"}`}
+                </p>
+                <DataTable>
+                  <DataTableHead>
+                    <tr>
+                      <DataTableTh>Partner</DataTableTh>
+                      <DataTableTh align="right">Line items</DataTableTh>
+                      <DataTableTh align="right">Amount</DataTableTh>
+                    </tr>
+                  </DataTableHead>
+                  <tbody>
+                    {mappedPartners!.map((partner) => (
+                      <DataTableRow key={partner.partnerId}>
+                        <DataTableTd>{partner.partnerName}</DataTableTd>
+                        <DataTableTd align="right">
+                          {partner.lineItemCount}
+                        </DataTableTd>
+                        <DataTableTd align="right">
+                          {formatAmount(partner.totalAmount, currencyCode)}
+                        </DataTableTd>
+                      </DataTableRow>
+                    ))}
+                  </tbody>
+                </DataTable>
+              </div>
+            ) : showRaw ? (
               <>
                 <p className="mb-2 shrink-0 text-sm text-foreground-muted">
                   Sheet “{rawSheetName ?? "Sheet1"}”
@@ -227,7 +290,7 @@ export function ReportUploadReviewModal({
                 </p>
                 <ReportLineItemsTable
                   lineItems={lineItems ?? []}
-                  currencyCode={currencyCode}
+                  currencyCode={currencyCode ?? undefined}
                   side={side}
                 />
               </div>

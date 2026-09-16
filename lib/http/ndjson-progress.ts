@@ -21,21 +21,23 @@ export function ndjsonProgressResponse(
       sent: number;
       failed: number;
       total: number;
-    }) => void,
+    }) => void | Promise<void>,
   ) => Promise<unknown>,
 ): Response {
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
-      const write = (event: NdjsonProgressEvent) => {
+      const write = async (event: NdjsonProgressEvent) => {
         controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+        // Yield so the runtime can flush each progress line to the client.
+        await new Promise<void>((resolve) => setImmediate(resolve));
       };
 
       try {
-        const data = await run((progress) => {
-          write({ type: "progress", ...progress });
+        const data = await run(async (progress) => {
+          await write({ type: "progress", ...progress });
         });
-        write({ type: "done", data });
+        await write({ type: "done", data });
       } catch (error) {
         const message =
           error instanceof DomainError || error instanceof AppError
@@ -47,7 +49,7 @@ export function ndjsonProgressResponse(
           error instanceof DomainError || error instanceof AppError
             ? error.status
             : 500;
-        write({ type: "error", error: message, status });
+        await write({ type: "error", error: message, status });
       } finally {
         controller.close();
       }
@@ -58,6 +60,7 @@ export function ndjsonProgressResponse(
     headers: {
       "Content-Type": "application/x-ndjson; charset=utf-8",
       "Cache-Control": "no-cache, no-transform",
+      "X-Accel-Buffering": "no",
     },
   });
 }

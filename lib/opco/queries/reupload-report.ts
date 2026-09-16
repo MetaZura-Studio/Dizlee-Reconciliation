@@ -201,36 +201,39 @@ export async function reuploadCorrectedReport(
       deletedByUserId: input.userId,
       deletedAt: completedAt,
     });
+  }
 
-    const partners = [
-      {
-        id: report.partnerId.toString(),
-        name: report.partner.name,
-      },
-    ];
-    const metadata: OpcoReportResubmittedMetadata = {
-      type: "OPCO_REPORT_RESUBMITTED",
-      opcoId: input.opcoId.toString(),
-      opcoName: report.opco.name,
-      month: report.month,
-      year: report.year,
-      partners,
-    };
+  const partners = [
+    {
+      id: report.partnerId.toString(),
+      name: report.partner.name,
+    },
+  ];
+  const periodLabel = formatPeriodLabel(report.year, report.month);
+  const metadata: OpcoReportResubmittedMetadata = {
+    type: "OPCO_REPORT_RESUBMITTED",
+    opcoId: input.opcoId.toString(),
+    opcoName: report.opco.name,
+    month: report.month,
+    year: report.year,
+    partners,
+  };
 
-    try {
-      await notifyDizleeUsers({
-        fromUserId: input.userId,
-        subject: OPCO_REPORT_RESUBMITTED_SUBJECT,
-        body: buildOpcoReportResubmittedBody({
-          opcoName: report.opco.name,
-          periodLabel: formatPeriodLabel(report.year, report.month),
-          partners,
-        }),
-        metadata,
-      });
-    } catch {
-      // Resubmit succeeded; notification failure must not roll back file replace.
-    }
+  try {
+    await notifyDizleeUsers({
+      fromUserId: input.userId,
+      subject: OPCO_REPORT_RESUBMITTED_SUBJECT,
+      body: linesChanged
+        ? buildOpcoReportResubmittedBody({
+            opcoName: report.opco.name,
+            periodLabel,
+            partners,
+          })
+        : `${report.opco.name} resubmitted the report for ${report.partner.name} (${periodLabel}).`,
+      metadata,
+    });
+  } catch {
+    // Resubmit succeeded; notification failure must not roll back file replace.
   }
 
   return {

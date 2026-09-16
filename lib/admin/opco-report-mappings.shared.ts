@@ -44,3 +44,31 @@ export function partnerModeLabel(mode: OpcoPartnerMode): string {
       return "Select Partner at upload";
   }
 }
+
+export function isPartnerMode(value: string): value is OpcoPartnerMode {
+  return (OPCO_PARTNER_MODES as readonly string[]).includes(value);
+}
+
+/**
+ * Same readiness Admin uses for a configured Report map.
+ * Upload/parse must use this before accepting OpCo monthly files.
+ */
+export function isOpcoReportMappingConfigured(params: {
+  sampleSheetName: string | null | undefined;
+  serviceColumn: string | null | undefined;
+  revenueColumn: string | null | undefined;
+  revenueShareColumn: string | null | undefined;
+  partnerMode: string;
+  partnerColumn: string | null | undefined;
+}): boolean {
+  const partnerMode = isPartnerMode(params.partnerMode)
+    ? params.partnerMode
+    : "EXCEL_COLUMN";
+  return Boolean(
+    params.sampleSheetName?.trim() &&
+      params.serviceColumn?.trim() &&
+      params.revenueColumn?.trim() &&
+      params.revenueShareColumn?.trim() &&
+      (partnerMode !== "EXCEL_COLUMN" || params.partnerColumn?.trim()),
+  );
+}

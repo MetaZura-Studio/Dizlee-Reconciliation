@@ -4,6 +4,7 @@ import {
   categoryLabel,
   getPlaceholdersForTemplate,
   formatPlaceholderTokens,
+  isHiddenAdminEmailTemplate,
   suggestTemplateCodeFromName,
 } from "@/lib/admin/email-templates.shared";
 import {
@@ -19,6 +20,7 @@ import {
 describe("email template validation", () => {
   it("accepts valid save input", () => {
     const result = saveEmailTemplateSchema.safeParse({
+      name: "Report reminder",
       subject: "Report reminder",
       body: "Please submit for {{period}}.",
       changeNote: "Clarified wording",
@@ -29,6 +31,7 @@ describe("email template validation", () => {
   it("allows empty or null change notes", () => {
     expect(
       saveEmailTemplateSchema.safeParse({
+        name: "Name",
         subject: "Subject",
         body: "Body",
         changeNote: "",
@@ -37,6 +40,7 @@ describe("email template validation", () => {
 
     expect(
       saveEmailTemplateSchema.safeParse({
+        name: "Name",
         subject: "Subject",
         body: "Body",
         changeNote: null,
@@ -45,6 +49,7 @@ describe("email template validation", () => {
 
     expect(
       saveEmailTemplateSchema.safeParse({
+        name: "Name",
         subject: "Subject",
         body: "Body",
       }).success,
@@ -54,6 +59,7 @@ describe("email template validation", () => {
   it("rejects blank subject or body", () => {
     expect(
       saveEmailTemplateSchema.safeParse({
+        name: "Name",
         subject: "",
         body: "Body",
       }).success,
@@ -61,8 +67,19 @@ describe("email template validation", () => {
 
     expect(
       saveEmailTemplateSchema.safeParse({
+        name: "Name",
         subject: "Subject",
         body: "",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects blank name on save", () => {
+    expect(
+      saveEmailTemplateSchema.safeParse({
+        name: "",
+        subject: "Subject",
+        body: "Body",
       }).success,
     ).toBe(false);
   });
@@ -151,9 +168,15 @@ describe("email template helpers", () => {
   it("labels categories and suggests codes", () => {
     expect(categoryLabel("INTIMATION")).toBe("Intimation");
     expect(categoryLabel("REMINDER")).toBe("Reminder");
-    expect(categoryLabel("ALERT")).toBe("Alert");
-    expect(categoryLabel("OTHER")).toBe("Other");
+    expect(categoryLabel("ALERT")).toBe("Alerts");
+    expect(categoryLabel("OTHER")).toBe("Others");
     expect(suggestTemplateCodeFromName("Custom notice!")).toBe("CUSTOM_NOTICE");
+  });
+
+  it("marks password templates as hidden from Admin email templates", () => {
+    expect(isHiddenAdminEmailTemplate("PASSWORD_INVITE")).toBe(true);
+    expect(isHiddenAdminEmailTemplate("password_forgot")).toBe(true);
+    expect(isHiddenAdminEmailTemplate("REPORT_REMINDER")).toBe(false);
   });
 
   it("accepts ALERT category on create", () => {

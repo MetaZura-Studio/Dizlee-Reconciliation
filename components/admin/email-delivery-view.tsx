@@ -23,11 +23,11 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { FilterActions } from "@/components/ui/filter-actions";
 import { LoadingOverlay } from "@/components/ui/loading";
+import { Modal } from "@/components/ui/modal";
 import { FilterToolbar, PageCard } from "@/components/ui/page";
 import {
   buildEmailDeliveryQuery,
   emailDeliveryDetailText,
-  emailDeliveryPurposeLabel,
   emailDeliveryStatusLabel,
   parseEmailDeliveryListFilters,
   type EmailDeliveryFilterOptions,
@@ -51,6 +51,34 @@ function statusClass(status: string): string {
     default:
       return "text-foreground-muted";
   }
+}
+
+/** Truncated detail with optional modal for the full message. */
+function EmailDeliveryDetailCell({ text }: { text: string }) {
+  const [open, setOpen] = useState(false);
+  const showMore = text.trim().length > 120;
+
+  return (
+    <div className="max-w-[20rem]">
+      <div className="line-clamp-3 text-sm text-foreground-muted">{text}</div>
+      {showMore ? (
+        <>
+          <button
+            type="button"
+            className="mt-1 text-xs font-medium text-primary underline-offset-2 hover:underline"
+            onClick={() => setOpen(true)}
+          >
+            See more
+          </button>
+          <Modal open={open} title="Detail" onClose={() => setOpen(false)}>
+            <p className="whitespace-pre-wrap break-words text-sm text-foreground">
+              {text}
+            </p>
+          </Modal>
+        </>
+      ) : null}
+    </div>
+  );
 }
 
 type EmailDeliveryViewProps = {
@@ -125,7 +153,7 @@ export function EmailDeliveryView({
       {error ? <p className={cn(ui.alertError, "mb-4")}>{error}</p> : null}
 
       <FilterToolbar>
-        <div className="grid min-w-0 w-full flex-1 gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,0.75fr)_minmax(0,0.75fr)_minmax(0,1fr)_auto]">
+        <div className="grid min-w-0 w-full flex-1 gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,0.75fr)_minmax(0,1fr)_auto]">
           <label className="block min-w-0 text-sm sm:col-span-2 xl:col-span-1">
             <span className={ui.label}>Search</span>
             <input
@@ -160,24 +188,6 @@ export function EmailDeliveryView({
             >
               <option value="all">All statuses</option>
               {filterOptions.statuses.map((item) => (
-                <option key={item.code} value={item.code}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="block min-w-0 text-sm">
-            <span className={ui.label}>Purpose</span>
-            <select
-              value={filters.purpose}
-              disabled={loading}
-              onChange={(event) => applyFilters({ purpose: event.target.value })}
-              className={ui.select}
-              aria-label="Purpose"
-            >
-              <option value="all">All purposes</option>
-              {filterOptions.purposes.map((item) => (
                 <option key={item.code} value={item.code}>
                   {item.label}
                 </option>
@@ -249,12 +259,6 @@ export function EmailDeliveryView({
                       onSort={() => toggleSort("toEmail")}
                     />
                     <SortableDataTableTh
-                      label="Purpose"
-                      active={filters.sortBy === "purpose"}
-                      direction={filters.sortDir}
-                      onSort={() => toggleSort("purpose")}
-                    />
-                    <SortableDataTableTh
                       label="Status"
                       active={filters.sortBy === "status"}
                       direction={filters.sortDir}
@@ -279,9 +283,6 @@ export function EmailDeliveryView({
                           </div>
                         ) : null}
                       </DataTableTd>
-                      <DataTableTd className="text-sm">
-                        {emailDeliveryPurposeLabel(row.purpose)}
-                      </DataTableTd>
                       <DataTableTd>
                         <span
                           className={cn(
@@ -292,10 +293,10 @@ export function EmailDeliveryView({
                           {emailDeliveryStatusLabel(row.status)}
                         </span>
                       </DataTableTd>
-                      <DataTableTd className="max-w-[20rem] text-sm text-foreground-muted">
-                        <div className="line-clamp-3">
-                          {emailDeliveryDetailText(row)}
-                        </div>
+                      <DataTableTd>
+                        <EmailDeliveryDetailCell
+                          text={emailDeliveryDetailText(row)}
+                        />
                       </DataTableTd>
                     </DataTableRow>
                   ))}
