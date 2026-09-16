@@ -31,7 +31,7 @@ function NavLink({
   active: boolean;
   nested?: boolean;
 }) {
-  const baseClass = `flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${
+  const baseClass = `flex cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${
     active
       ? "bg-primary-muted font-medium text-primary"
       : "text-foreground-muted hover:bg-surface-muted hover:text-foreground"
@@ -101,7 +101,7 @@ function NavGroup({
           setUserOpen((value) => !value);
         }}
         aria-expanded={open}
-        className={`flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${
+        className={`flex w-full cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${
           childActive
             ? "bg-primary-muted font-medium text-primary"
             : "text-foreground-muted hover:bg-surface-muted hover:text-foreground"

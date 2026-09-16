@@ -151,12 +151,15 @@ function toNumber(value: unknown): number | null {
   return Number(value as never);
 }
 
-async function findLatestLaneReportIds(params: {
+async function findLatestLaneReports(params: {
   opcoId: bigint;
   partnerId: bigint;
   month: number;
   year: number;
-}): Promise<{ opcoReportId: bigint | null; partnerReportId: bigint | null }> {
+}): Promise<{
+  opcoReport: { id: bigint; updatedAt: Date } | null;
+  partnerReport: { id: bigint; updatedAt: Date } | null;
+}> {
   const [opcoReport, partnerReport] = await Promise.all([
     prisma.report.findFirst({
       where: {
@@ -168,7 +171,7 @@ async function findLatestLaneReportIds(params: {
         uploadedByUser: { role: { code: "OPCO" } },
       },
       orderBy: [{ version: "desc" }, { id: "desc" }],
-      select: { id: true },
+      select: { id: true, updatedAt: true },
     }),
     prisma.report.findFirst({
       where: {
@@ -180,17 +183,15 @@ async function findLatestLaneReportIds(params: {
         uploadedByUser: { role: { code: "PARTNER" } },
       },
       orderBy: [{ version: "desc" }, { id: "desc" }],
-      select: { id: true },
+      select: { id: true, updatedAt: true },
     }),
   ]);
 
-  return {
-    opcoReportId: opcoReport?.id ?? null,
-    partnerReportId: partnerReport?.id ?? null,
-  };
+  return { opcoReport, partnerReport };
 }
 
-function computeActionFlags(params: {
+/** Pure flags for Confirm / Alert / Re-run on an in-progress reconciliation. */
+export function computeActionFlags(params: {
   statusCode: string;
   unmatchedCount: number;
   alertedAt: Date | null;
@@ -198,14 +199,24 @@ function computeActionFlags(params: {
   reconciliationPartnerReportId: bigint;
   latestOpcoReportId: bigint | null;
   latestPartnerReportId: bigint | null;
+  latestOpcoReportUpdatedAt?: Date | null;
+  latestPartnerReportUpdatedAt?: Date | null;
 }): { canConfirm: boolean; canAlert: boolean; canRerun: boolean } {
   const inProgress = params.statusCode === "IN_PROGRESS";
   const hasMismatch = params.unmatchedCount > 0;
+  // Reuploads replace the file on the same report row — ID alone is not enough.
+  const reportUpdatedAfterAlert = (updatedAt: Date | null | undefined) =>
+    params.alertedAt != null &&
+    updatedAt != null &&
+    updatedAt.getTime() > params.alertedAt.getTime();
+
   const hasNewerReport =
     (params.latestOpcoReportId != null &&
       params.latestOpcoReportId !== params.reconciliationOpcoReportId) ||
     (params.latestPartnerReportId != null &&
-      params.latestPartnerReportId !== params.reconciliationPartnerReportId);
+      params.latestPartnerReportId !== params.reconciliationPartnerReportId) ||
+    reportUpdatedAfterAlert(params.latestOpcoReportUpdatedAt) ||
+    reportUpdatedAfterAlert(params.latestPartnerReportUpdatedAt);
 
   return {
     canConfirm: inProgress && !hasMismatch,
@@ -880,7 +891,7 @@ export async function getReconciliationDetail(
     return null;
   }
 
-  const latest = await findLatestLaneReportIds({
+  const latest = await findLatestLaneReports({
     opcoId: reconciliation.opcoId,
     partnerId: reconciliation.partnerId,
     month: reconciliation.month,
@@ -893,8 +904,10 @@ export async function getReconciliationDetail(
     alertedAt: reconciliation.alertedAt,
     reconciliationOpcoReportId: reconciliation.opcoReportId,
     reconciliationPartnerReportId: reconciliation.partnerReportId,
-    latestOpcoReportId: latest.opcoReportId,
-    latestPartnerReportId: latest.partnerReportId,
+    latestOpcoReportId: latest.opcoReport?.id ?? null,
+    latestPartnerReportId: latest.partnerReport?.id ?? null,
+    latestOpcoReportUpdatedAt: latest.opcoReport?.updatedAt ?? null,
+    latestPartnerReportUpdatedAt: latest.partnerReport?.updatedAt ?? null,
   });
 
   return {

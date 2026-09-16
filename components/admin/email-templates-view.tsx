@@ -22,6 +22,8 @@ import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
 import {
   EMAIL_TEMPLATE_CATEGORIES,
+  categoryLabel,
+  getPlaceholdersForTemplate,
   suggestTemplateCodeFromName,
   type EmailTemplateCategory,
   type EmailTemplateDetail,
@@ -33,6 +35,7 @@ import { formatAppDateTime } from "@/lib/platform/format-datetime";
 import { cn, ui } from "@/lib/ui/classes";
 
 type EditorFormState = {
+  name: string;
   subject: string;
   body: string;
 };
@@ -76,28 +79,20 @@ const PLACEHOLDER_LABELS: Record<string, string> = {
   outcome: "Outcome",
 };
 
-function displayCategoryLabel(category: EmailTemplateCategory): string {
-  switch (category) {
-    case "INTIMATION":
-      return "Notice";
-    case "REMINDER":
-      return "Reminder";
-    case "ALERT":
-      return "Alert";
-    case "OTHER":
-      return "Other";
-  }
-}
-
 function placeholderLabel(token: string): string {
   return PLACEHOLDER_LABELS[token] ?? token;
 }
 
 function toFormState(template: EmailTemplateDetail): EditorFormState {
   return {
+    name: template.name,
     subject: template.subject,
     body: template.body,
   };
+}
+
+function emptyEditorForm(): EditorFormState {
+  return { name: "", subject: "", body: "" };
 }
 
 function applySamplePlaceholders(text: string, placeholders: string[]): string {
@@ -134,7 +129,7 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
   const [form, setForm] = useState<EditorFormState>(() =>
     initialData.selected
       ? toFormState(initialData.selected)
-      : { subject: "", body: "" },
+      : emptyEditorForm(),
   );
   const [templateSearch, setTemplateSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<
@@ -157,6 +152,8 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
   const [confirmRevertVersion, setConfirmRevertVersion] = useState<number | null>(
     null,
   );
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [insertOpen, setInsertOpen] = useState(false);
   const [lastField, setLastField] = useState<"subject" | "body">("body");
   const lastFieldRef = useRef<"subject" | "body">("body");
@@ -166,7 +163,9 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
 
   const isDirty = Boolean(
     detail &&
-      (form.subject !== detail.subject || form.body !== detail.body),
+      (form.name !== detail.name ||
+        form.subject !== detail.subject ||
+        form.body !== detail.body),
   );
 
   const filteredTemplates = useMemo(() => {
@@ -379,6 +378,7 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            name: form.name,
             subject: form.subject,
             body: form.body,
             changeNote:
@@ -444,7 +444,52 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
     }
   };
 
-  const busy = loading || saving || creating || revertingVersion !== null;
+  const deleteTemplate = async () => {
+    if (!selectedCode || !detail) {
+      return;
+    }
+
+    setError(null);
+    setDeleting(true);
+    try {
+      const response = await fetch(
+        `/api/admin/email-templates/${encodeURIComponent(selectedCode)}`,
+        { method: "DELETE" },
+      );
+      const body = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(formatAppError(body, "Failed to delete email template"));
+      }
+
+      const remaining = templates.filter(
+        (template) => template.code !== selectedCode,
+      );
+      setTemplates(remaining);
+      setDeleteOpen(false);
+      toast.success(`Deleted template “${detail.name}”.`);
+
+      const nextCode = remaining[0]?.code ?? "";
+      setSelectedCode(nextCode);
+      if (nextCode) {
+        await loadTemplate(nextCode);
+      } else {
+        setDetail(null);
+        setForm(emptyEditorForm());
+      }
+    } catch (deleteError) {
+      setError(
+        deleteError instanceof Error
+          ? deleteError.message
+          : "Failed to delete email template",
+      );
+      setDeleteOpen(false);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const busy =
+    loading || saving || creating || deleting || revertingVersion !== null;
   const previewSubject = detail
     ? applySamplePlaceholders(form.subject, detail.placeholders)
     : "";
@@ -498,7 +543,7 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
             <option value="ALL">All categories</option>
             {EMAIL_TEMPLATE_CATEGORIES.map((category) => (
               <option key={category} value={category}>
-                {displayCategoryLabel(category)}
+                {categoryLabel(category)}
               </option>
             ))}
           </select>
@@ -553,7 +598,7 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
               <option value="ALL">All categories</option>
               {EMAIL_TEMPLATE_CATEGORIES.map((category) => (
                 <option key={category} value={category}>
-                  {displayCategoryLabel(category)}
+                  {categoryLabel(category)}
                 </option>
               ))}
             </select>
@@ -590,7 +635,7 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
                         active ? "text-primary/80" : "text-foreground-subtle",
                       )}
                     >
-                      {displayCategoryLabel(template.category)} · v
+                      {categoryLabel(template.category)} · v
                       {template.currentVersion}
                     </span>
                   </button>
@@ -603,39 +648,65 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
         <section
           className={cn(ui.card, "flex min-h-0 flex-col overflow-hidden")}
         >
-          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-5 py-4">
-            <div className="min-w-0 space-y-1">
-              <h2 className="truncate text-lg font-semibold tracking-tight text-foreground">
-                {detail.name}
-              </h2>
-              <p className="text-xs text-foreground-muted">
-                {displayCategoryLabel(detail.category)} · Active · v
-                {detail.currentVersion}
-                {isDirty ? " · Unsaved changes" : ""}
-              </p>
+          <div className="space-y-2 border-b border-border px-5 py-4">
+            <div className="max-w-xl space-y-1">
+              <FieldLabel htmlFor="templateName" required>
+                Template name
+              </FieldLabel>
             </div>
-
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="secondary"
-                className="h-10 gap-2"
-                onClick={() => setPreviewOpen(true)}
-                disabled={loading}
-              >
-                <IconEye className="h-4 w-4" />
-                Preview
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                className="h-10"
-                onClick={() => setVersionsOpen(true)}
+            <div className="flex flex-wrap items-center gap-3">
+              <input
+                id="templateName"
+                value={form.name}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    name: event.target.value,
+                  }))
+                }
+                className={cn(ui.input, "min-w-0 max-w-xl flex-1")}
                 disabled={busy}
-              >
-                Version history
-              </Button>
+                required
+              />
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="h-10 gap-2"
+                  onClick={() => setPreviewOpen(true)}
+                  disabled={loading}
+                >
+                  <IconEye className="h-4 w-4" />
+                  Preview
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="h-10"
+                  onClick={() => setVersionsOpen(true)}
+                  disabled={busy}
+                >
+                  Version history
+                </Button>
+                <Button
+                  type="button"
+                  variant="danger"
+                  className="h-10"
+                  onClick={() => {
+                    setError(null);
+                    setDeleteOpen(true);
+                  }}
+                  disabled={busy}
+                >
+                  Delete
+                </Button>
+              </div>
             </div>
+            <p className="text-xs text-foreground-muted">
+              {categoryLabel(detail.category)} · Active · v
+              {detail.currentVersion}
+              {isDirty ? " · Unsaved changes" : ""}
+            </p>
           </div>
 
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -1018,6 +1089,41 @@ export function EmailTemplatesView({ initialData }: EmailTemplatesViewProps) {
         ) : null}
       </Modal>
 
+      <Modal
+        open={deleteOpen}
+        title="Delete this template?"
+        onClose={() => (deleting ? null : setDeleteOpen(false))}
+      >
+        {detail ? (
+          <div className="space-y-4">
+            <p className="text-sm text-foreground-muted">
+              Are you sure you want to delete{" "}
+              <span className="font-medium text-foreground">{detail.name}</span>
+              ? This cannot be undone from the list (the template will be
+              removed from Communications and Reminder Settings).
+            </p>
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setDeleteOpen(false)}
+                disabled={deleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="danger"
+                onClick={() => void deleteTemplate()}
+                disabled={deleting}
+              >
+                {deleting ? "Deleting…" : "Yes, delete"}
+              </Button>
+            </div>
+          </div>
+        ) : null}
+      </Modal>
+
       <CreateTemplateModal
         open={createOpen}
         creating={creating}
@@ -1071,6 +1177,71 @@ function CreateTemplateModal({
   onSubmit: (event: FormEvent) => void;
   onChange: (next: CreateFormState) => void;
 }) {
+  const createSubjectRef = useRef<HTMLInputElement>(null);
+  const createBodyRef = useRef<HTMLTextAreaElement>(null);
+  const insertRef = useRef<HTMLDivElement>(null);
+  const lastFieldRef = useRef<"subject" | "body">("body");
+  const [lastField, setLastField] = useState<"subject" | "body">("body");
+  const [insertOpen, setInsertOpen] = useState(false);
+
+  const placeholders = useMemo(
+    () => getPlaceholdersForTemplate(form.code, form.category),
+    [form.code, form.category],
+  );
+
+  useEffect(() => {
+    if (!open) {
+      setInsertOpen(false);
+      lastFieldRef.current = "body";
+      setLastField("body");
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (!insertOpen) {
+      return;
+    }
+    function onPointerDown(event: MouseEvent) {
+      if (
+        insertRef.current &&
+        !insertRef.current.contains(event.target as Node)
+      ) {
+        setInsertOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onPointerDown);
+    return () => document.removeEventListener("mousedown", onPointerDown);
+  }, [insertOpen]);
+
+  function insertPlaceholder(token: string) {
+    const snippet = `{{${token}}}`;
+    const field = lastFieldRef.current;
+    const target =
+      field === "subject" ? createSubjectRef.current : createBodyRef.current;
+
+    if (!target) {
+      onChange({
+        ...form,
+        [field]: `${form[field]}${snippet}`,
+      });
+      setInsertOpen(false);
+      return;
+    }
+
+    const start = target.selectionStart ?? target.value.length;
+    const end = target.selectionEnd ?? target.value.length;
+    const nextValue =
+      target.value.slice(0, start) + snippet + target.value.slice(end);
+
+    onChange({ ...form, [field]: nextValue });
+    setInsertOpen(false);
+    requestAnimationFrame(() => {
+      target.focus();
+      const cursor = start + snippet.length;
+      target.setSelectionRange(cursor, cursor);
+    });
+  }
+
   return (
     <Modal open={open} title="Create template" onClose={onClose} className="max-w-xl">
       <form onSubmit={onSubmit} className="space-y-4">
@@ -1113,20 +1284,25 @@ function CreateTemplateModal({
           >
             {EMAIL_TEMPLATE_CATEGORIES.map((category) => (
               <option key={category} value={category}>
-                {displayCategoryLabel(category)}
+                {categoryLabel(category)}
               </option>
             ))}
           </select>
         </div>
 
-        <div>
+        <div className="space-y-1">
           <FieldLabel htmlFor="create-template-subject" required>
             Subject
           </FieldLabel>
           <input
             id="create-template-subject"
+            ref={createSubjectRef}
             className={ui.input}
             value={form.subject}
+            onFocus={() => {
+              lastFieldRef.current = "subject";
+              setLastField("subject");
+            }}
             onChange={(event) =>
               onChange({ ...form, subject: event.target.value })
             }
@@ -1135,20 +1311,77 @@ function CreateTemplateModal({
           />
         </div>
 
-        <div>
-          <FieldLabel htmlFor="create-template-body" required>
-            Email body
-          </FieldLabel>
+        <div className="space-y-1">
+          <div className="flex flex-wrap items-end justify-between gap-2">
+            <FieldLabel htmlFor="create-template-body" required>
+              Email body
+            </FieldLabel>
+            <div className="relative" ref={insertRef}>
+              <Button
+                type="button"
+                variant="secondary"
+                className="h-9 gap-1.5 px-3 text-xs"
+                disabled={creating || placeholders.length === 0}
+                onClick={() => setInsertOpen((open) => !open)}
+              >
+                <IconPlus className="h-3.5 w-3.5" />
+                Insert variable
+              </Button>
+              {insertOpen ? (
+                <div
+                  className={cn(
+                    ui.dropdown,
+                    "right-0 bottom-full mb-1 max-h-64 w-56 overflow-y-auto py-1",
+                  )}
+                >
+                  <p className="px-3 py-1.5 text-[11px] font-semibold tracking-wide text-foreground-subtle uppercase">
+                    Insert into {lastField}
+                  </p>
+                  {placeholders.map((token) => (
+                    <button
+                      key={token}
+                      type="button"
+                      className="flex w-full flex-col px-3 py-2 text-left hover:bg-surface-muted"
+                      onClick={() => insertPlaceholder(token)}
+                    >
+                      <span className="text-sm text-foreground">
+                        {placeholderLabel(token)}
+                      </span>
+                      <span className="font-mono text-[11px] text-foreground-subtle">
+                        {`{{${token}}}`}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          </div>
           <textarea
             id="create-template-body"
+            ref={createBodyRef}
             className={cn(ui.input, "min-h-36 py-3")}
             value={form.body}
+            onFocus={() => {
+              lastFieldRef.current = "body";
+              setLastField("body");
+            }}
             onChange={(event) =>
               onChange({ ...form, body: event.target.value })
             }
             required
             disabled={creating}
           />
+          {placeholders.length > 0 ? (
+            <p className={ui.hint}>
+              Available:{" "}
+              {placeholders.map((token) => `{{${token}}}`).join(", ")}
+            </p>
+          ) : (
+            <p className={ui.hint}>
+              Choose Intimation, Reminder, or Alerts to see variables for this
+              category. Others has no documented variables.
+            </p>
+          )}
         </div>
 
         <div className="flex flex-wrap justify-end gap-2">

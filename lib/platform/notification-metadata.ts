@@ -4,6 +4,7 @@
 
 export const OPCO_REPORTS_UPLOADED_SUBJECT = "OpCo reports uploaded";
 export const OPCO_REPORT_RESUBMITTED_SUBJECT = "OpCo monthly report resubmitted";
+export const PARTNER_REPORT_RESUBMITTED_SUBJECT = "Partner report resubmitted";
 
 export type NotificationPartnerRef = {
   id: string;
@@ -53,8 +54,30 @@ export type PartnerLinkDecisionMetadata = {
   opcoName?: string;
 };
 
+export type ReportMapRequestMetadata = {
+  type: "REPORT_MAP_REQUEST";
+  opcoId: string;
+  opcoName?: string;
+};
+
+export type ReportMapReadyMetadata = {
+  type: "REPORT_MAP_READY";
+  opcoId: string;
+  opcoName?: string;
+};
+
 export type PartnerReportUploadMetadata = {
   type: "PARTNER_REPORT_UPLOAD";
+  opcoId: string;
+  opcoName: string;
+  partnerId: string;
+  partnerName: string;
+  month: number;
+  year: number;
+};
+
+export type PartnerReportResubmittedMetadata = {
+  type: "PARTNER_REPORT_RESUBMITTED";
   opcoId: string;
   opcoName: string;
   partnerId: string;
@@ -73,14 +96,28 @@ export type InvoiceSentMetadata = {
   year: number;
 };
 
+export type InvoiceAcknowledgedMetadata = {
+  type: "INVOICE_ACKNOWLEDGED";
+  invoiceId: string;
+  invoiceNumber: string | null;
+  opcoId: string;
+  opcoName?: string;
+  month: number;
+  year: number;
+};
+
 export type NotificationMetadata =
   | OpcoReportUploadMetadata
   | OpcoReportResubmittedMetadata
   | ReuploadRequestMetadata
   | PartnerLinkRequestMetadata
   | PartnerLinkDecisionMetadata
+  | ReportMapRequestMetadata
+  | ReportMapReadyMetadata
   | PartnerReportUploadMetadata
-  | InvoiceSentMetadata;
+  | PartnerReportResubmittedMetadata
+  | InvoiceSentMetadata
+  | InvoiceAcknowledgedMetadata;
 
 export type NotificationAction = {
   label: string;
@@ -158,24 +195,27 @@ export function notificationCategory(
   if (
     metadata?.type === "OPCO_REPORT_UPLOAD" ||
     metadata?.type === "PARTNER_REPORT_UPLOAD" ||
-    metadata?.type === "OPCO_REPORT_RESUBMITTED"
+    metadata?.type === "OPCO_REPORT_RESUBMITTED" ||
+    metadata?.type === "PARTNER_REPORT_RESUBMITTED"
   ) {
     return "report";
   }
   if (
     metadata?.type === "OPCO_REUPLOAD_REQUEST" ||
     metadata?.type === "PARTNER_REUPLOAD_REQUEST" ||
-    metadata?.type === "PARTNER_LINK_REQUEST"
+    metadata?.type === "PARTNER_LINK_REQUEST" ||
+    metadata?.type === "REPORT_MAP_REQUEST"
   ) {
     return "request";
   }
   if (
     metadata?.type === "PARTNER_LINK_APPROVED" ||
-    metadata?.type === "PARTNER_LINK_REJECTED"
+    metadata?.type === "PARTNER_LINK_REJECTED" ||
+    metadata?.type === "REPORT_MAP_READY"
   ) {
     return "system";
   }
-  if (/reupload requested|link request/i.test(subject)) {
+  if (/reupload requested|link request|report map request/i.test(subject)) {
     return "request";
   }
   if (/report uploaded|reports uploaded|report resubmitted/i.test(subject)) {
@@ -225,6 +265,19 @@ export function resolveNotificationAction(
     };
   }
 
+  if (metadata?.type === "PARTNER_REPORT_RESUBMITTED") {
+    const params = new URLSearchParams({
+      opcoId: metadata.opcoId,
+      partnerId: metadata.partnerId,
+      month: String(metadata.month),
+      year: String(metadata.year),
+    });
+    return {
+      label: "View Reports",
+      href: `/dizlee/reports?${params.toString()}`,
+    };
+  }
+
   if (
     metadata?.type === "OPCO_REUPLOAD_REQUEST" ||
     metadata?.type === "PARTNER_REUPLOAD_REQUEST"
@@ -246,9 +299,14 @@ export function resolveNotificationAction(
     return null;
   }
 
+  if (metadata?.type === "REPORT_MAP_REQUEST") {
+    return null;
+  }
+
   if (
     metadata?.type === "PARTNER_LINK_APPROVED" ||
-    metadata?.type === "PARTNER_LINK_REJECTED"
+    metadata?.type === "PARTNER_LINK_REJECTED" ||
+    metadata?.type === "REPORT_MAP_READY"
   ) {
     return { label: "Upload report", href: "/opco/upload" };
   }
@@ -260,8 +318,16 @@ export function resolveNotificationAction(
     };
   }
 
+  if (metadata?.type === "INVOICE_ACKNOWLEDGED") {
+    return {
+      label: "Open invoice",
+      href: `/dizlee/invoices?id=${encodeURIComponent(metadata.invoiceId)}`,
+    };
+  }
+
   if (
     subject === "OpCo report reupload requested" ||
+    subject === "OpCo monthly report reupload requested" ||
     subject === "Partner report reupload requested"
   ) {
     return { label: "View Request", href: "/dizlee/reports/reupload" };
@@ -269,6 +335,10 @@ export function resolveNotificationAction(
 
   if (subject === OPCO_REPORT_RESUBMITTED_SUBJECT) {
     return { label: "Open Reconciliation", href: "/dizlee/reconciliation" };
+  }
+
+  if (subject === PARTNER_REPORT_RESUBMITTED_SUBJECT) {
+    return { label: "View Reports", href: "/dizlee/reports" };
   }
 
   if (

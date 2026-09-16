@@ -44,13 +44,13 @@ export const ui = {
   modalCloseButton:
     "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-danger text-white shadow-[var(--shadow-sm)] transition-colors hover:bg-danger/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] disabled:opacity-60",
   navItem:
-    "flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-foreground-muted transition-colors hover:bg-surface-muted hover:text-foreground",
+    "flex cursor-pointer items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-foreground-muted transition-colors hover:bg-surface-muted hover:text-foreground",
   navItemActive:
-    "flex items-center gap-3 rounded-2xl bg-primary-muted px-3 py-2.5 text-sm font-semibold text-primary",
+    "flex cursor-pointer items-center gap-3 rounded-2xl bg-primary-muted px-3 py-2.5 text-sm font-semibold text-primary",
   navItemSimple:
-    "block rounded-2xl px-2 py-1.5 text-sm text-foreground-muted transition-colors hover:bg-surface-muted hover:text-foreground",
+    "block cursor-pointer rounded-2xl px-2 py-1.5 text-sm text-foreground-muted transition-colors hover:bg-surface-muted hover:text-foreground",
   navItemSimpleActive:
-    "block rounded-2xl bg-primary-muted px-2 py-1.5 text-sm font-semibold text-primary",
+    "block cursor-pointer rounded-2xl bg-primary-muted px-2 py-1.5 text-sm font-semibold text-primary",
   sidebar:
     "flex shrink-0 flex-col rounded-[32px] border border-border bg-white/80 shadow-[var(--shadow-md)] backdrop-blur-md",
   header:

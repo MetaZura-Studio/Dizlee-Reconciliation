@@ -8,9 +8,10 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { flushSync } from "react-dom";
 
 import { CommunicationsTabs } from "@/components/dizlee/communications-tabs";
-import { EmailNotConfiguredNotice } from "@/components/shared/email-not-configured-notice";
+import { DeliveryChannelPicker } from "@/components/shared/delivery-channel-picker";
 import {
   attachmentFileIds,
   NotificationAttachmentPicker,
@@ -18,9 +19,10 @@ import {
 } from "@/components/shared/notification-attachment-picker";
 import { Button } from "@/components/ui/button";
 import { FieldLegend } from "@/components/ui/field";
-import { FullPageLoading } from "@/components/ui/loading";
 import { PageCard, PageHeader } from "@/components/ui/page";
 import { SuccessDialog } from "@/components/ui/success-dialog";
+import { EmailSendProgressOverlay } from "@/components/shared/email-send-progress-overlay";
+import { FullPageLoading } from "@/components/ui/loading";
 import { cn, ui } from "@/lib/ui/classes";
 import {
   getMaxMonthForYear,
@@ -34,9 +36,12 @@ import type {
 } from "@/lib/dizlee/notifications/broadcast.shared";
 import { DEFAULT_NOTIFICATION_DELIVERY_CHANNEL } from "@/lib/dizlee/notifications/broadcast.shared";
 import {
-  emailProgressDescription,
-  formatEmailProgressLabel,
+  deliveryChannelLabel,
+  deliverySendsEmail,
+} from "@/lib/platform/notification-delivery.shared";
+import {
   postWithEmailProgress,
+  waitForEmailProgressDoneUi,
   type EmailSendProgress,
 } from "@/lib/ui/post-with-email-progress";
 
@@ -49,28 +54,6 @@ const AUDIENCE_OPTIONS: Array<{ value: BroadcastAudience; label: string }> = [
   { value: "opco", label: "OpCo" },
   { value: "partner", label: "Partner" },
   { value: "both", label: "Both (OpCo + Partner)" },
-];
-
-const DELIVERY_OPTIONS: Array<{
-  value: NotificationDeliveryChannel;
-  label: string;
-  hint: string;
-}> = [
-  {
-    value: "SYSTEM",
-    label: "System notification",
-    hint: "In-app inbox and bell only",
-  },
-  {
-    value: "EMAIL",
-    label: "Email notification",
-    hint: "Email only (still logged in Outbox)",
-  },
-  {
-    value: "BOTH",
-    label: "Both",
-    hint: "In-app inbox plus email",
-  },
 ];
 
 const MESSAGE_SOURCE_OPTIONS: Array<{
@@ -127,6 +110,7 @@ export function IntimationsView({
   const [emailProgress, setEmailProgress] = useState<EmailSendProgress | null>(
     null,
   );
+  const [emailSendComplete, setEmailSendComplete] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -235,13 +219,13 @@ export function IntimationsView({
     showPartners,
   ]);
 
-  const deliveryLabel =
-    DELIVERY_OPTIONS.find((option) => option.value === deliveryChannel)?.label ??
-    deliveryChannel;
+  const deliveryLabel = deliveryChannelLabel(deliveryChannel);
+  const sendsEmail = deliverySendsEmail(deliveryChannel);
 
   const sendIntimation = async () => {
     setSending(true);
     setEmailProgress(null);
+    setEmailSendComplete(false);
     setError(null);
     try {
       const payload = await postWithEmailProgress<{
@@ -261,9 +245,21 @@ export function IntimationsView({
           priority: priority === "HIGH" ? "HIGH" : null,
           attachmentFileIds: attachmentFileIds(attachments),
         },
-        onProgress: setEmailProgress,
+        onProgress: (progress) => {
+          if (!sendsEmail) {
+            return;
+          }
+          flushSync(() => {
+            setEmailProgress(progress);
+          });
+        },
         fallbackError: "Failed to send notification",
       });
+
+      if (sendsEmail) {
+        setEmailSendComplete(true);
+        await waitForEmailProgressDoneUi();
+      }
 
       const message = payload.message ?? "Intimation sent.";
       setSubject("");
@@ -281,15 +277,22 @@ export function IntimationsView({
     } finally {
       setSending(false);
       setEmailProgress(null);
+      setEmailSendComplete(false);
     }
   };
 
   return (
     <PageCard>
-      {sending ? (
+      {sendsEmail ? (
+        <EmailSendProgressOverlay
+          active={sending}
+          progress={emailProgress}
+          complete={emailSendComplete}
+        />
+      ) : sending ? (
         <FullPageLoading
-          label={formatEmailProgressLabel(emailProgress ?? { sent: 0, failed: 0, total: 0 })}
-          description={emailProgressDescription(emailProgress)}
+          label="Sending notifications…"
+          description="Delivering in-app messages to selected recipients."
         />
       ) : null}
 
@@ -481,44 +484,12 @@ export function IntimationsView({
               </div>
             </fieldset>
 
-            <fieldset className="space-y-2">
-              <FieldLegend required>Delivery method</FieldLegend>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {DELIVERY_OPTIONS.map((option) => {
-                  const selected = deliveryChannel === option.value;
-                  return (
-                    <label
-                      key={option.value}
-                      className={cn(
-                        "flex h-full cursor-pointer items-start gap-3 rounded-xl border bg-surface p-3 text-sm shadow-[var(--shadow-sm)] transition-colors",
-                        selected
-                          ? "border-primary ring-2 ring-[var(--ring)]"
-                          : "border-border hover:border-border-strong",
-                      )}
-                    >
-                      <input
-                        type="radio"
-                        name="deliveryChannel"
-                        value={option.value}
-                        checked={selected}
-                        onChange={() => setDeliveryChannel(option.value)}
-                        className="mt-1 shrink-0"
-                        disabled={sending}
-                      />
-                      <span>
-                        <span className="font-medium text-foreground">
-                          {option.label}
-                        </span>
-                        <span className="mt-0.5 block text-xs text-foreground-subtle">
-                          {option.hint}
-                        </span>
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
-              <EmailNotConfiguredNotice channel={deliveryChannel} />
-            </fieldset>
+            <DeliveryChannelPicker
+              name="deliveryChannel"
+              value={deliveryChannel}
+              onChange={setDeliveryChannel}
+              disabled={sending}
+            />
           </div>
 
           {(showOpcos || showPartners) && (

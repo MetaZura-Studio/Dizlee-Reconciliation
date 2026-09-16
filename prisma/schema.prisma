@@ -115,6 +115,7 @@ model Opco {
   users             User[]            @relation("UserOpco")
   opcoPartnerLinks  OpcoPartnerLink[]
   partnerLinkRequests OpcoPartnerLinkRequest[]
+  reportMapRequests   OpcoReportMapRequest[]
   reports             Report[]
   reportSubmissions   OpcoReportSubmission[]
   reconciliations     Reconciliation[]
@@ -237,6 +238,8 @@ model User {
   revenueShareReportsGenerated RevenueShareReport[] @relation("RevenueShareReportGenerator")
   opcoPartnerLinkRequestsRequested OpcoPartnerLinkRequest[] @relation("OpcoPartnerLinkRequester")
   opcoPartnerLinkRequestsDecided OpcoPartnerLinkRequest[] @relation("OpcoPartnerLinkDecider")
+  opcoReportMapRequestsRequested OpcoReportMapRequest[] @relation("OpcoReportMapRequester")
+  opcoReportMapRequestsFulfilled OpcoReportMapRequest[] @relation("OpcoReportMapFulfiller")
   emailDeliveriesAsActor  EmailDelivery[] @relation("EmailDeliveryActor")
 
   @@map("users")
@@ -303,6 +306,27 @@ model OpcoPartnerLinkRequest {
   @@index([status, createdAt], map: "idx_opco_partner_link_requests_status_created")
   @@index([opcoId], map: "idx_opco_partner_link_requests_opco_id")
   @@map("opco_partner_link_requests")
+}
+
+/// OpCo asks Admin to configure Report map (column mapping) before upload.
+model OpcoReportMapRequest {
+  id                 BigInt    @id @default(autoincrement())
+  opcoId             BigInt    @map("opco_id")
+  requestedByUserId  BigInt    @map("requested_by_user_id")
+  message            String?   @db.Text
+  status             String    @default("PENDING") @db.VarChar(32)
+  fulfilledAt        DateTime? @map("fulfilled_at")
+  fulfilledByUserId  BigInt?   @map("fulfilled_by_user_id")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  opco        Opco  @relation(fields: [opcoId], references: [id])
+  requestedBy User  @relation("OpcoReportMapRequester", fields: [requestedByUserId], references: [id])
+  fulfilledBy User? @relation("OpcoReportMapFulfiller", fields: [fulfilledByUserId], references: [id])
+
+  @@index([status, createdAt], map: "idx_opco_report_map_requests_status_created")
+  @@index([opcoId], map: "idx_opco_report_map_requests_opco_id")
+  @@map("opco_report_map_requests")
 }
 
 model OpcoReportMapping {

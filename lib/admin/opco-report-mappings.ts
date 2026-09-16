@@ -15,6 +15,10 @@ import type {
   OpcoReportMappingView,
 } from "@/lib/admin/opco-report-mappings.shared";
 import {
+  isOpcoReportMappingConfigured,
+  isPartnerMode,
+} from "@/lib/admin/opco-report-mappings.shared";
+import {
   selectOpcoReportMappingSheetSchema,
   updateOpcoReportMappingSchema,
   type SelectOpcoReportMappingSheetInput,
@@ -33,14 +37,6 @@ export class OpcoReportMappingError extends DomainError {
   constructor(keyOrMessage: string, status?: number) {
     super("OpcoReportMappingError", keyOrMessage, status);
   }
-}
-
-function isPartnerMode(value: string): value is OpcoPartnerMode {
-  return (
-    value === "EXCEL_COLUMN" ||
-    value === "SERVICE_PARTNER_MAP" ||
-    value === "UPLOAD_PICKER"
-  );
 }
 
 function keepIfPresent(
@@ -71,13 +67,14 @@ function mapView(row: {
     ? row.partnerMode
     : "EXCEL_COLUMN";
   const stored = parseStoredSampleHeaders(row.headersJson);
-  const isConfigured = Boolean(
-    stored.sheetName &&
-      row.serviceColumn &&
-      row.revenueColumn &&
-      row.revenueShareColumn &&
-      (partnerMode !== "EXCEL_COLUMN" || row.partnerColumn),
-  );
+  const isConfigured = isOpcoReportMappingConfigured({
+    sampleSheetName: stored.sheetName,
+    serviceColumn: row.serviceColumn,
+    revenueColumn: row.revenueColumn,
+    revenueShareColumn: row.revenueShareColumn,
+    partnerMode,
+    partnerColumn: row.partnerColumn,
+  });
 
   return {
     opcoId: row.opcoId.toString(),
@@ -399,7 +396,18 @@ export async function updateOpcoReportMapping(
     },
   });
 
-  return mapView(updated);
+  const view = mapView(updated);
+  const { fulfillPendingReportMapRequests } = await import(
+    "@/lib/opco/queries/fulfill-report-map-request"
+  );
+  await fulfillPendingReportMapRequests({
+    opcoId,
+    actorUserId,
+    opcoName: updated.opco.name,
+    mappingConfigured: view.isConfigured,
+  });
+
+  return view;
 }
 
 export async function getOpcoReportMappingColumnValues(

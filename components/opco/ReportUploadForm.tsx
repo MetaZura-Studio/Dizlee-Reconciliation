@@ -1,6 +1,6 @@
 /**
  * Upload and validate a new report file for the selected billing period.
- * Runs parse preview before confirming submission to Dizlee.
+ * Shows a raw Excel sheet preview before confirming submission to Dizlee.
  * Blocks choose-file when a monthly submission already exists; reupload uses
  * the approved submission change-request flow on this page.
  */
@@ -36,6 +36,7 @@ import {
   parseUnlinkedPartnersDetails,
   type UnlinkedPartnersInFile,
 } from "@/lib/opco/unlinked-partners-in-file.shared";
+import type { OpcoUploadReadiness } from "@/lib/opco/upload-readiness.shared";
 import { readRawExcelSheetPreview } from "@/lib/platform/excel/read-raw-sheet";
 import {
   getMaxUploadMonthForYear,
@@ -67,6 +68,7 @@ type ReportUploadFormProps = {
   /** When true, Partner is resolved from Excel / Admin maps (no Partner picker). */
   partnerFromServiceMap?: boolean;
   preferredSheetName?: string | null;
+  initialReadiness: OpcoUploadReadiness;
 };
 
 type UploadSuccess = {
@@ -104,6 +106,7 @@ export function ReportUploadForm({
   partners,
   partnerFromServiceMap = false,
   preferredSheetName = null,
+  initialReadiness,
 }: ReportUploadFormProps) {
   const defaultPeriod = getDefaultPeriod();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -126,6 +129,11 @@ export function ReportUploadForm({
   );
   const [isNotifyingAdmin, setIsNotifyingAdmin] = useState(false);
   const [linkRequestError, setLinkRequestError] = useState<string | null>(null);
+  const [readiness, setReadiness] =
+    useState<OpcoUploadReadiness>(initialReadiness);
+  const [mapRequestMessage, setMapRequestMessage] = useState("");
+  const [isRequestingMap, setIsRequestingMap] = useState(false);
+  const [mapRequestError, setMapRequestError] = useState<string | null>(null);
   const [periodSubmission, setPeriodSubmission] =
     useState<OpcoSubmissionListItem | null>(null);
   const [periodStatusLoading, setPeriodStatusLoading] = useState(true);
@@ -329,6 +337,33 @@ export function ReportUploadForm({
     }
   }
 
+  async function handleRequestReportMap() {
+    setMapRequestError(null);
+    setIsRequestingMap(true);
+    try {
+      const response = await fetch("/api/opco/reports/request-report-map", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: mapRequestMessage.trim() || undefined,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setMapRequestError(
+          formatAppError(payload, "Failed to request Report map"),
+        );
+        return;
+      }
+      setReadiness({ mappingConfigured: false, pendingRequest: true });
+      toast.success("Request sent to Admin");
+    } catch {
+      setMapRequestError("Failed to request Report map");
+    } finally {
+      setIsRequestingMap(false);
+    }
+  }
+
   async function handleConfirmUpload() {
     if (!file || periodSubmission != null) {
       return;
@@ -451,6 +486,56 @@ export function ReportUploadForm({
     }
   }
 
+  if (!readiness.mappingConfigured) {
+    return (
+      <div className="space-y-4">
+        <div className={ui.alertWarning}>
+          <p className="font-medium text-foreground">
+            Report map is not configured yet
+          </p>
+          <p className="mt-1 text-sm text-foreground-muted">
+            Upload is blocked until Admin configures Report map for your OpCo.
+            Request Admin to set it up, then return here once you are notified.
+          </p>
+        </div>
+        {readiness.pendingRequest ? (
+          <div className={ui.alertSuccess}>
+            Request sent. Admin will configure Report map and you will be
+            notified when upload is available.
+          </div>
+        ) : (
+          <div className="max-w-xl space-y-3">
+            <div>
+              <FieldLabel htmlFor="mapRequestMessage">
+                Note to Admin (optional)
+              </FieldLabel>
+              <textarea
+                id="mapRequestMessage"
+                className={`${ui.input} h-auto min-h-[6.5rem] py-2.5`}
+                rows={3}
+                value={mapRequestMessage}
+                onChange={(event) => setMapRequestMessage(event.target.value)}
+                placeholder="Optional — add context for Admin"
+              />
+            </div>
+            {mapRequestError ? (
+              <p className={ui.alertError}>{mapRequestError}</p>
+            ) : null}
+            <Button
+              type="button"
+              onClick={() => void handleRequestReportMap()}
+              disabled={isRequestingMap}
+            >
+              {isRequestingMap
+                ? "Sending request…"
+                : "Request Admin to set Report map"}
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   if (partners.length === 0) {
     return (
       <div className={ui.alertWarning}>
@@ -545,12 +630,6 @@ export function ReportUploadForm({
               </Select>
             </div>
           </div>
-          {partnerFromServiceMap ? (
-            <p className="mt-3 text-xs text-foreground-subtle">
-              One report is created per partner found in the Excel Partner /
-              Merchant / Vendor column (or Service–Partner maps for Iraq/Sudan).
-            </p>
-          ) : null}
 
           {periodStatusError ? (
             <p className={`mt-4 ${ui.alertError}`}>{periodStatusError}</p>

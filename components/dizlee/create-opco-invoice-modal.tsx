@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 
+import { DeliveryChannelPicker } from "@/components/shared/delivery-channel-picker";
 import { DizleeOpcoInvoiceDocument } from "@/components/shared/dizlee-opco-invoice-document";
-import { EmailNotConfiguredNotice } from "@/components/shared/email-not-configured-notice";
 import { Button } from "@/components/ui/button";
-import { FieldLabel, FieldLegend, Input, Select } from "@/components/ui/field";
+import { FieldLabel, Input, Select } from "@/components/ui/field";
 import { FullPageLoading } from "@/components/ui/loading";
 import { Modal } from "@/components/ui/modal";
 import { SuccessDialog } from "@/components/ui/success-dialog";
@@ -29,28 +29,6 @@ import {
   getPeriodYearOptions,
 } from "@/lib/platform/period";
 import { formatAppError } from "@/lib/errors/format";
-
-const DELIVERY_OPTIONS: Array<{
-  value: NotificationDeliveryChannel;
-  label: string;
-  hint: string;
-}> = [
-  {
-    value: "SYSTEM",
-    label: "System notification",
-    hint: "In-app inbox and bell only",
-  },
-  {
-    value: "EMAIL",
-    label: "Email notification",
-    hint: "Email only (still logged in Outbox)",
-  },
-  {
-    value: "BOTH",
-    label: "Both",
-    hint: "In-app inbox plus email",
-  },
-];
 
 const MONTHS = [
   "January",
@@ -331,27 +309,7 @@ function CreateOpcoInvoiceModalInner({
         throw new Error(formatAppError(payload, "Failed to create invoice"));
       }
       onCreated();
-      const invoiceNumber =
-        typeof payload?.data?.invoiceNumber === "string" &&
-        payload.data.invoiceNumber.trim()
-          ? payload.data.invoiceNumber.trim()
-          : null;
-      const invoicePart = invoiceNumber
-        ? `Invoice ${invoiceNumber} was sent`
-        : "Invoice was sent";
-      if (deliveryChannel === "EMAIL") {
-        setSuccessMessage(
-          `${invoicePart} by email (PDF attached). It is logged in Outbox.`,
-        );
-      } else if (deliveryChannel === "SYSTEM") {
-        setSuccessMessage(
-          `${invoicePart} as a system notification. OpCo users can open it from their inbox.`,
-        );
-      } else {
-        setSuccessMessage(
-          `${invoicePart} in-app and by email (PDF attached).`,
-        );
-      }
+      setSuccessMessage("Invoice to OpCo was sent successfully");
     } catch (submitError) {
       setError(
         submitError instanceof Error
@@ -469,46 +427,15 @@ function CreateOpcoInvoiceModalInner({
               </>
             ) : null}
           </div>
-          <fieldset className="space-y-2 print:hidden">
-            <FieldLegend required>Delivery method</FieldLegend>
-            <p className="text-xs text-foreground-subtle">
-              Choose how the OpCo is notified when this invoice is sent.
-            </p>
-            <div className="grid gap-3 sm:grid-cols-3">
-              {DELIVERY_OPTIONS.map((option) => {
-                const selected = deliveryChannel === option.value;
-                return (
-                  <label
-                    key={option.value}
-                    className={`flex h-full cursor-pointer items-start gap-3 rounded-xl border bg-surface p-3 text-sm shadow-[var(--shadow-sm)] transition-colors ${
-                      selected
-                        ? "border-primary ring-2 ring-[var(--ring)]"
-                        : "border-border hover:border-border-strong"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="createInvoiceDeliveryChannel"
-                      value={option.value}
-                      checked={selected}
-                      onChange={() => setDeliveryChannel(option.value)}
-                      className="mt-1 shrink-0"
-                      disabled={submitting}
-                    />
-                    <span>
-                      <span className="font-medium text-foreground">
-                        {option.label}
-                      </span>
-                      <span className="mt-0.5 block text-xs text-foreground-subtle">
-                        {option.hint}
-                      </span>
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
-            <EmailNotConfiguredNotice channel={deliveryChannel} />
-          </fieldset>
+          <div className="print:hidden">
+            <DeliveryChannelPicker
+              name="createInvoiceDeliveryChannel"
+              value={deliveryChannel}
+              onChange={setDeliveryChannel}
+              disabled={submitting}
+              description="Choose how the OpCo is notified when this invoice is sent."
+            />
+          </div>
           {error ? <p className={ui.alertError}>{error}</p> : null}
           <div className="flex justify-end gap-3 print:hidden">
             <Button

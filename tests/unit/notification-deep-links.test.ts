@@ -35,6 +35,41 @@ describe("resolveNotificationHref", () => {
     ).toBe("/admin/opco-partners?tab=requests&opcoId=42");
   });
 
+  it("routes Admin report map requests to OpCo report-mapping", () => {
+    expect(
+      resolveNotificationHref(
+        "admin",
+        {
+          id: "2b",
+          subject: "Report map request: Zain Kuwait",
+          metadataJson: JSON.stringify({
+            type: "REPORT_MAP_REQUEST",
+            opcoId: "42",
+          }),
+        },
+        "/admin/notifications",
+      ),
+    ).toBe("/admin/opcos/42/report-mapping");
+  });
+
+  it("routes OpCo report-map-ready notifications to upload", () => {
+    expect(
+      resolveNotificationHref(
+        "opco",
+        {
+          id: "2c",
+          subject: "Report mapping is ready",
+          metadataJson: JSON.stringify({
+            type: "REPORT_MAP_READY",
+            opcoId: "42",
+            opcoName: "Zain Kuwait",
+          }),
+        },
+        "/opco/notifications",
+      ),
+    ).toBe("/opco/upload");
+  });
+
   it("routes OpCo reupload approval to reports history", () => {
     expect(
       resolveNotificationHref(
@@ -89,5 +124,49 @@ describe("resolveNotificationHref", () => {
         "/dizlee/notifications?tab=inbox",
       ),
     ).toBe("/dizlee/invoices?id=99");
+  });
+
+  it("routes Dizlee invoice-acknowledged notifications to the invoice", () => {
+    expect(
+      resolveNotificationHref(
+        "dizlee",
+        {
+          id: "5b",
+          subject: "Invoice acknowledged",
+          metadataJson: JSON.stringify({
+            type: "INVOICE_ACKNOWLEDGED",
+            invoiceId: "99",
+            invoiceNumber: "INV-1",
+            opcoId: "7",
+            opcoName: "Zain KSA",
+            month: 9,
+            year: 2026,
+          }),
+        },
+        "/dizlee/notifications?tab=inbox",
+      ),
+    ).toBe("/dizlee/invoices?id=99");
+  });
+
+  it("routes Dizlee partner resubmit notifications to reports", () => {
+    expect(
+      resolveNotificationHref(
+        "dizlee",
+        {
+          id: "6",
+          subject: "Partner report resubmitted",
+          metadataJson: JSON.stringify({
+            type: "PARTNER_REPORT_RESUBMITTED",
+            opcoId: "2",
+            opcoName: "Zain KSA",
+            partnerId: "27",
+            partnerName: "Timwe",
+            month: 9,
+            year: 2026,
+          }),
+        },
+        "/dizlee/notifications?tab=inbox",
+      ),
+    ).toBe("/dizlee/reports?opcoId=2&partnerId=27&month=9&year=2026");
   });
 });
