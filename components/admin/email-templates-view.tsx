@@ -1190,14 +1190,6 @@ function CreateTemplateModal({
   );
 
   useEffect(() => {
-    if (!open) {
-      setInsertOpen(false);
-      lastFieldRef.current = "body";
-      setLastField("body");
-    }
-  }, [open]);
-
-  useEffect(() => {
     if (!insertOpen) {
       return;
     }
@@ -1212,6 +1204,13 @@ function CreateTemplateModal({
     document.addEventListener("mousedown", onPointerDown);
     return () => document.removeEventListener("mousedown", onPointerDown);
   }, [insertOpen]);
+
+  function handleClose() {
+    setInsertOpen(false);
+    lastFieldRef.current = "body";
+    setLastField("body");
+    onClose();
+  }
 
   function insertPlaceholder(token: string) {
     const snippet = `{{${token}}}`;
@@ -1243,7 +1242,7 @@ function CreateTemplateModal({
   }
 
   return (
-    <Modal open={open} title="Create template" onClose={onClose} className="max-w-xl">
+    <Modal open={open} title="Create template" onClose={handleClose} className="max-w-xl">
       <form onSubmit={onSubmit} className="space-y-4">
         <div>
           <FieldLabel htmlFor="create-template-name" required>

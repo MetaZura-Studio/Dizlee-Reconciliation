@@ -11,7 +11,6 @@ import {
   type StoredSampleHeaders,
 } from "@/lib/admin/opco-report-mapping-excel";
 import type {
-  OpcoPartnerMode,
   OpcoReportMappingView,
 } from "@/lib/admin/opco-report-mappings.shared";
 import {
