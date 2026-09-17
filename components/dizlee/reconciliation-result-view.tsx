@@ -381,8 +381,10 @@ export function ReconciliationResultView({
             disabled={!detail.canConfirm || confirming || rerunning || alerting}
             title={
               detail.canConfirm
-                ? undefined
-                : "Resolve all mismatches before confirming"
+                ? detail.unmatchedCount > 0
+                  ? "Confirm even if some lines are unmatched"
+                  : undefined
+                : "Only available while reconciliation is in progress"
             }
             onClick={() => void confirmReconciliation()}
           >
