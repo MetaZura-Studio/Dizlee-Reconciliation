@@ -219,7 +219,7 @@ export function computeActionFlags(params: {
     reportUpdatedAfterAlert(params.latestPartnerReportUpdatedAt);
 
   return {
-    canConfirm: inProgress && !hasMismatch,
+    canConfirm: inProgress,
     canAlert: inProgress && hasMismatch,
     canRerun: inProgress && params.alertedAt != null && hasNewerReport,
   };
@@ -970,13 +970,7 @@ export async function confirmReconciliation(
     );
   }
 
-  if ((reconciliation.unmatchedCount ?? 0) > 0) {
-    throw new ReconciliationError(
-      "Resolve all mismatches before confirming reconciliation.",
-      400,
-    );
-  }
-
+  const unmatchedCount = reconciliation.unmatchedCount ?? 0;
   const completedStatusId = await getLookupId("RECONCILIATION_STATUS", "COMPLETED");
   const actorUserId = BigInt(userId);
 
@@ -991,7 +985,10 @@ export async function confirmReconciliation(
   await writeAuditLog({
     actorUserId,
     reconciliationId: id,
-    message: "Reconciliation confirmed.",
+    message:
+      unmatchedCount > 0
+        ? `Reconciliation confirmed with ${unmatchedCount} unmatched line(s).`
+        : "Reconciliation confirmed.",
   });
 }
 
