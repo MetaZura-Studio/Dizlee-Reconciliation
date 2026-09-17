@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { PasswordInput } from "@/components/auth/password-input";
 import { FieldLabel } from "@/components/ui/field";
 import { PASSWORD_MIN_LENGTH, validatePasswordMatch } from "@/lib/auth/password-policy";
 import { ui } from "@/lib/ui/classes";
@@ -68,10 +69,9 @@ export function SetPasswordForm({
         <FieldLabel htmlFor="password" required>
           New password
         </FieldLabel>
-        <input
+        <PasswordInput
           id="password"
           name="password"
-          type="password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           autoComplete="new-password"
@@ -88,10 +88,9 @@ export function SetPasswordForm({
         <FieldLabel htmlFor="confirmPassword" required>
           Confirm new password
         </FieldLabel>
-        <input
+        <PasswordInput
           id="confirmPassword"
           name="confirmPassword"
-          type="password"
           value={confirmPassword}
           onChange={(event) => setConfirmPassword(event.target.value)}
           autoComplete="new-password"
