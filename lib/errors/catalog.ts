@@ -245,6 +245,16 @@ export const ERROR_CATALOG = {
     message: "INVALID REMINDER TARGET",
     status: 400,
   },
+  SYSTEM_EMAIL_TEMPLATE_NOT_DELETABLE: {
+    code: 218,
+    message: "SYSTEM EMAIL TEMPLATE NOT DELETABLE",
+    status: 400,
+  },
+  EMAIL_TEMPLATE_IN_USE: {
+    code: 219,
+    message: "EMAIL TEMPLATE IN USE",
+    status: 400,
+  },
 
   // Reports / storage 250–319
   REPORT_NOT_FOUND: { code: 250, message: "REPORT NOT FOUND", status: 404 },
@@ -348,6 +358,12 @@ export const ERROR_CATALOG = {
     code: 270,
     message: "OPCO UNLINKED PARTNERS IN FILE",
     status: 409,
+  },
+  OPCO_REPORT_MAPPING_NOT_READY: {
+    code: 271,
+    message:
+      "REPORT MAPPING NOT CONFIGURED — ASK ADMIN TO SET OPCOS → REPORT MAP",
+    status: 400,
   },
 
   // Invoices 320–359
@@ -637,6 +653,10 @@ const MESSAGE_ALIASES: Record<string, ErrorKey> = {
   "Email template not found": "EMAIL_TEMPLATE_NOT_FOUND",
   "Template version not found": "TEMPLATE_VERSION_NOT_FOUND",
   "That version is already live.": "TEMPLATE_VERSION_ALREADY_LIVE",
+  "System email templates cannot be deleted. Edit them instead.":
+    "SYSTEM_EMAIL_TEMPLATE_NOT_DELETABLE",
+  "This template is used in Reminder Settings schedules. Choose a different template there first.":
+    "EMAIL_TEMPLATE_IN_USE",
   "Invalid reminder target.": "INVALID_REMINDER_TARGET",
   "Report not found": "REPORT_NOT_FOUND",
   "Invalid report id": "INVALID_REPORT_ID",

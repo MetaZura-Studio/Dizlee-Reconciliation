@@ -9,9 +9,15 @@ import { Prisma } from "@prisma/client";
 
 import type { ParsedReportLine } from "@/lib/partner/excel/parse-report";
 import { getPartnerLookupId } from "@/lib/partner/lookups";
+import { formatPeriodLabel } from "@/lib/partner/period";
 import { mapReuploadEligibility } from "@/lib/partner/reupload/eligibility";
 import { saveReportFileLocally } from "@/lib/partner/storage/save-report-file";
 import { BASE_CURRENCY_RATE } from "@/lib/platform/currency-rates";
+import {
+  PARTNER_REPORT_RESUBMITTED_SUBJECT,
+  type PartnerReportResubmittedMetadata,
+} from "@/lib/platform/notification-metadata";
+import { notifyDizleeUsers } from "@/lib/platform/notify-dizlee";
 import { snapshotFxOntoParsedLines } from "@/lib/platform/report-fx";
 import { PARTNER_REPORT_VERSION } from "@/lib/platform/reports/sides";
 import prisma from "@/lib/prisma";
@@ -45,6 +51,8 @@ export async function reuploadCorrectedReport(
     },
     include: {
       status: { select: { code: true } },
+      opco: { select: { name: true } },
+      partner: { select: { name: true } },
       changeRequests: {
         select: {
           id: true,
@@ -156,6 +164,28 @@ export async function reuploadCorrectedReport(
       updatedByUserId: input.userId,
     },
   });
+
+  const periodLabel = formatPeriodLabel(report.year, report.month);
+  const metadata: PartnerReportResubmittedMetadata = {
+    type: "PARTNER_REPORT_RESUBMITTED",
+    opcoId: report.opcoId.toString(),
+    opcoName: report.opco.name,
+    partnerId: input.partnerId.toString(),
+    partnerName: report.partner.name,
+    month: report.month,
+    year: report.year,
+  };
+
+  try {
+    await notifyDizleeUsers({
+      fromUserId: input.userId,
+      subject: PARTNER_REPORT_RESUBMITTED_SUBJECT,
+      body: `${report.partner.name} resubmitted a report for ${report.opco.name} (${periodLabel}).`,
+      metadata,
+    });
+  } catch {
+    // Resubmit succeeded; notification failure must not roll back file replace.
+  }
 
   return {
     reportId: input.reportId.toString(),

@@ -13,8 +13,10 @@ import type {
 } from "@/lib/admin/email-templates.shared";
 import {
   getPlaceholdersForTemplate,
+  isHiddenAdminEmailTemplate,
   normalizeEmailTemplateCategory,
 } from "@/lib/admin/email-templates.shared";
+import { parseNotificationScheduleJson } from "@/lib/admin/notification-schedules.shared";
 import {
   createEmailTemplateSchema,
   revertEmailTemplateSchema,
@@ -53,7 +55,15 @@ export function buildRevertChangeNote(version: number): string {
   return `Reverted to version ${version}`;
 }
 
+function assertAdminManageableEmailTemplate(code: string): void {
+  if (isHiddenAdminEmailTemplate(code)) {
+    throw new EmailTemplateError("Email template not found", 404);
+  }
+}
+
 async function getTemplateRowByCode(code: string) {
+  assertAdminManageableEmailTemplate(code);
+
   const template = await prisma.notificationTemplate.findFirst({
     where: { code, isDeleted: false },
     select: {
@@ -164,7 +174,7 @@ export async function listEmailTemplates(): Promise<EmailTemplateListItem[]> {
     }),
   );
 
-  return items;
+  return items.filter((item) => !isHiddenAdminEmailTemplate(item.code));
 }
 
 export async function getEmailTemplate(code: string): Promise<EmailTemplateDetail> {
@@ -200,6 +210,13 @@ export async function createEmailTemplate(
   }
 
   const { name, code, category, subject, body, changeNote } = parsed.data;
+
+  if (isHiddenAdminEmailTemplate(code)) {
+    throw new EmailTemplateError(
+      "This template code is reserved for system use.",
+      400,
+    );
+  }
 
   const existing = await prisma.notificationTemplate.findFirst({
     where: { code },
@@ -266,6 +283,7 @@ async function persistTemplateVersion(params: {
   notificationTemplateId: number;
   templateCode: string;
   version: number;
+  name: string;
   subject: string;
   body: string;
   changeNote: string | null;
@@ -287,6 +305,7 @@ async function persistTemplateVersion(params: {
     prisma.notificationTemplate.update({
       where: { id: params.notificationTemplateId },
       data: {
+        name: params.name,
         subject: params.subject,
         body: params.body,
         updatedByUserId: params.actorUserId,
@@ -324,6 +343,7 @@ export async function saveEmailTemplate(
     notificationTemplateId: template.id,
     templateCode: template.code,
     version: nextVersion,
+    name: parsed.data.name,
     subject: parsed.data.subject,
     body: parsed.data.body,
     changeNote: parsed.data.changeNote,
@@ -331,6 +351,7 @@ export async function saveEmailTemplate(
     auditMessage: `Email template ${template.code} updated.`,
     auditMetadata: {
       code: template.code,
+      name: parsed.data.name,
       version: nextVersion,
       changeNote: parsed.data.changeNote,
     },
@@ -405,6 +426,52 @@ export async function revertEmailTemplate(
   return getEmailTemplate(template.code);
 }
 
+export async function deleteEmailTemplate(
+  code: string,
+  actorUserId: bigint,
+): Promise<void> {
+  const template = await getTemplateRowByCode(code);
+
+  const settings = await prisma.appSettings.findFirst({
+    where: { id: 1 },
+    select: { notificationSchedulesJson: true },
+  });
+  const schedule = parseNotificationScheduleJson(
+    settings?.notificationSchedulesJson ?? null,
+  );
+  const usedInSchedule = [...schedule.intimations, ...schedule.reminders].some(
+    (step) => step.templateCode === template.code,
+  );
+  if (usedInSchedule) {
+    throw new EmailTemplateError(
+      "This template is used in Reminder Settings schedules. Choose a different template there first.",
+      400,
+    );
+  }
+
+  await prisma.notificationTemplate.update({
+    where: { id: template.id },
+    data: {
+      isDeleted: true,
+      deletedAt: new Date(),
+      deletedByUserId: actorUserId,
+      updatedByUserId: actorUserId,
+    },
+  });
+
+  await writeNotificationAuditLog({
+    actorUserId,
+    action: "EMAIL_TEMPLATE_UPDATED",
+    notificationTemplateId: BigInt(template.id),
+    message: `Email template ${template.code} deleted.`,
+    metadata: {
+      code: template.code,
+      name: template.name,
+      deleted: true,
+    },
+  });
+}
+
 export async function getEmailTemplatesPageData(
   selectedCode?: string,
 ): Promise<{
@@ -416,7 +483,13 @@ export async function getEmailTemplatesPageData(
     return { templates, selected: null };
   }
 
-  const code = selectedCode?.trim() || templates[0]?.code;
+  const requested = selectedCode?.trim();
+  const code =
+    requested &&
+    !isHiddenAdminEmailTemplate(requested) &&
+    templates.some((row) => row.code === requested)
+      ? requested
+      : templates[0]?.code;
   if (!code) {
     return { templates, selected: null };
   }

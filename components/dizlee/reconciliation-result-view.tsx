@@ -10,7 +10,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import { ReportFilenameLink } from "@/components/shared/report-filename-link";
-import { EmailNotConfiguredNotice } from "@/components/shared/email-not-configured-notice";
+import { DeliveryChannelPicker } from "@/components/shared/delivery-channel-picker";
 import {
   attachmentFileIds,
   NotificationAttachmentPicker,
@@ -46,28 +46,6 @@ import { formatAppDateTime, formatAppMonthYear } from "@/lib/platform/format-dat
 import { formatAppError } from "@/lib/errors/format";
 import { paginateItems } from "@/lib/ui/list-pagination";
 import { nextSortState, type SortDirection } from "@/lib/ui/sort";
-
-const DELIVERY_OPTIONS: Array<{
-  value: NotificationDeliveryChannel;
-  label: string;
-  hint: string;
-}> = [
-  {
-    value: "SYSTEM",
-    label: "System notification",
-    hint: "In-app inbox and bell only",
-  },
-  {
-    value: "EMAIL",
-    label: "Email notification",
-    hint: "Email only (still logged in Outbox)",
-  },
-  {
-    value: "BOTH",
-    label: "Both",
-    hint: "In-app inbox plus email",
-  },
-];
 
 type ItemSortField =
   | "service"
@@ -403,8 +381,10 @@ export function ReconciliationResultView({
             disabled={!detail.canConfirm || confirming || rerunning || alerting}
             title={
               detail.canConfirm
-                ? undefined
-                : "Resolve all mismatches before confirming"
+                ? detail.unmatchedCount > 0
+                  ? "Confirm even if some lines are unmatched"
+                  : undefined
+                : "Only available while reconciliation is in progress"
             }
             onClick={() => void confirmReconciliation()}
           >
@@ -558,43 +538,12 @@ export function ReconciliationResultView({
             </div>
 
             <div className="mt-4 space-y-5">
-              <fieldset className="space-y-2">
-                <FieldLegend required>Delivery method</FieldLegend>
-                <div className="grid gap-3 sm:grid-cols-3">
-                  {DELIVERY_OPTIONS.map((option) => {
-                    const selected = deliveryChannel === option.value;
-                    return (
-                      <label
-                        key={option.value}
-                        className={`flex h-full cursor-pointer items-start gap-3 rounded-xl border bg-surface p-3 text-sm shadow-[var(--shadow-sm)] transition-colors ${
-                          selected
-                            ? "border-primary ring-2 ring-[var(--ring)]"
-                            : "border-border hover:border-border-strong"
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="reconAlertDeliveryChannel"
-                          value={option.value}
-                          checked={selected}
-                          onChange={() => setDeliveryChannel(option.value)}
-                          className="mt-1 shrink-0"
-                          disabled={alerting}
-                        />
-                        <span>
-                          <span className="font-medium text-foreground">
-                            {option.label}
-                          </span>
-                          <span className="mt-0.5 block text-xs text-foreground-subtle">
-                            {option.hint}
-                          </span>
-                        </span>
-                      </label>
-                    );
-                  })}
-                </div>
-                <EmailNotConfiguredNotice channel={deliveryChannel} />
-              </fieldset>
+              <DeliveryChannelPicker
+                name="reconAlertDeliveryChannel"
+                value={deliveryChannel}
+                onChange={setDeliveryChannel}
+                disabled={alerting}
+              />
 
               <section className="space-y-3 rounded-2xl border border-border p-4">
                 <h3 className="text-sm font-semibold text-foreground">

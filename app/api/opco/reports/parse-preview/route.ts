@@ -1,24 +1,20 @@
 /**
  * POST — OpCo portal.
- * Parse an uploaded report file and return validation preview before submit.
+ * Hard mapped parse preview before monthly submission (no generic-parse fallback).
  */
 
 import { NextResponse } from "next/server";
 import { jsonError, unauthorized } from "@/lib/errors/respond";
 import { appErrorFromUnknown } from "@/lib/errors/app-error";
 
-import {
-  loadOpcoMappingParseConfig,
-  toParsedLines,
-} from "@/lib/opco/excel/load-opco-mapping-parse";
-import { parseOpcoReportWithMapping } from "@/lib/opco/excel/parse-mapped-opco-report";
-import { parseReportWorkbook } from "@/lib/opco/excel/parse-report";
 import { getOpcoSession } from "@/lib/opco/auth";
-import { findUnlinkedPartnersInOpcoFile } from "@/lib/opco/queries/unlinked-partners-in-file";
-import { emptyUnlinkedPartnersInFile } from "@/lib/opco/unlinked-partners-in-file.shared";
+import {
+  OpcoUnlinkedPartnersError,
+  parseOpcoMonthlyPartnerBuckets,
+} from "@/lib/opco/queries/parse-monthly-buckets";
+import { prisma } from "@/lib/prisma";
 import { validateReportUploadFile } from "@/lib/opco/validation/report-upload";
 import { assertExcelBufferMagic } from "@/lib/platform/excel-upload";
-import { mapParsedLinesToPreview } from "@/lib/platform/report-preview";
 import { getOpcoReportFx } from "@/lib/platform/report-fx";
 
 export async function POST(request: Request) {
@@ -46,6 +42,7 @@ export async function POST(request: Request) {
     if (magicError) {
       return jsonError(appErrorFromUnknown(magicError, 400));
     }
+
     const year = Number(formData.get("year"));
     const month = Number(formData.get("month"));
     const fx =
@@ -59,45 +56,59 @@ export async function POST(request: Request) {
             year,
           })
         : undefined;
-    const { config } = await loadOpcoMappingParseConfig(BigInt(session.opcoId));
 
-    if (!config) {
-      const lineItems = await parseReportWorkbook(buffer);
-      const unmatched = emptyUnlinkedPartnersInFile();
-      return NextResponse.json({
-        filename: uploadFile.name,
-        lineItemCount: lineItems.length,
-        lineItems: mapParsedLinesToPreview(lineItems, fx),
-        currencyCode: fx?.currencyCode,
-        unlinkedPartnerNames: unmatched.unlinkedPartnerNames,
-        unknownPartnerNames: unmatched.unknownPartnerNames,
-      });
-    }
-
-    const parsedMapped = await parseOpcoReportWithMapping(buffer, config);
-    const mappedLines =
-      config.partnerMode === "EXCEL_COLUMN"
-        ? parsedMapped.partnerColumnLines
-        : config.partnerMode === "SERVICE_PARTNER_MAP"
-          ? parsedMapped.serviceMapLines
-          : parsedMapped.pickerLines;
-    const lineItems = toParsedLines(mappedLines);
-    const unmatched = await findUnlinkedPartnersInOpcoFile({
+    const { buckets } = await parseOpcoMonthlyPartnerBuckets({
       opcoId: BigInt(session.opcoId),
-      partnerMode: config.partnerMode,
-      partnerColumnLines: parsedMapped.partnerColumnLines,
-      serviceMapLines: parsedMapped.serviceMapLines,
+      buffer,
     });
+
+    const partnerIds = buckets.map((bucket) => bucket.partnerId);
+    const partners = await prisma.partner.findMany({
+      where: { id: { in: partnerIds }, isDeleted: false },
+      select: { id: true, name: true },
+    });
+    const nameById = new Map(
+      partners.map((partner) => [partner.id.toString(), partner.name]),
+    );
+
+    const partnerSummaries = buckets.map((bucket) => {
+      const amount = bucket.lineItems.reduce(
+        (sum, line) => sum + (line.amount ?? 0),
+        0,
+      );
+      return {
+        partnerId: bucket.partnerId.toString(),
+        partnerName:
+          nameById.get(bucket.partnerId.toString()) ??
+          `Partner ${bucket.partnerId.toString()}`,
+        lineItemCount: bucket.lineItems.length,
+        totalAmount: amount,
+      };
+    });
+
+    const lineItemCount = partnerSummaries.reduce(
+      (sum, row) => sum + row.lineItemCount,
+      0,
+    );
 
     return NextResponse.json({
-      filename: uploadFile.name,
-      lineItemCount: lineItems.length,
-      lineItems: mapParsedLinesToPreview(lineItems, fx),
-      currencyCode: fx?.currencyCode,
-      unlinkedPartnerNames: unmatched.unlinkedPartnerNames,
-      unknownPartnerNames: unmatched.unknownPartnerNames,
+      data: {
+        filename: uploadFile.name,
+        lineItemCount,
+        currencyCode: fx?.currencyCode ?? null,
+        partners: partnerSummaries,
+      },
     });
   } catch (error) {
+    if (error instanceof OpcoUnlinkedPartnersError) {
+      return NextResponse.json(
+        {
+          error: "OPCO_UNLINKED_PARTNERS_IN_FILE",
+          details: error.unmatched,
+        },
+        { status: 409 },
+      );
+    }
     return jsonError(error);
   }
 }

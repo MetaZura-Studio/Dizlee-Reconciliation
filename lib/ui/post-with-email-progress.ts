@@ -15,23 +15,29 @@ type NdjsonLine =
   | { type: "done"; data: unknown }
   | { type: "error"; error: string; status?: number };
 
-function formatEmailProgressLabel(progress: EmailSendProgress): string {
-  const attempted = progress.sent + progress.failed;
-  if (progress.total <= 0) {
-    return "Sending…";
+export function emailAttemptedCount(progress: EmailSendProgress | null): number {
+  if (!progress) {
+    return 0;
   }
-  const noun = progress.total === 1 ? "email" : "emails";
-  return `${attempted} ${noun} sent out of ${progress.total}`;
+  return progress.sent + progress.failed;
 }
 
-export function emailProgressDescription(progress: EmailSendProgress | null): string {
+export function emailProgressPercent(progress: EmailSendProgress | null): number {
   if (!progress || progress.total <= 0) {
-    return "Please wait while we deliver this message.";
+    return 0;
   }
-  return "Emails are sent one at a time — this may take a moment.";
+  return Math.min(
+    100,
+    Math.round((emailAttemptedCount(progress) / progress.total) * 100),
+  );
 }
 
-export { formatEmailProgressLabel };
+/** Brief pause so the “All emails sent” state is visible before the success dialog. */
+export function waitForEmailProgressDoneUi(ms = 1100): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
 
 export async function postWithEmailProgress<T = unknown>(params: {
   url: string;

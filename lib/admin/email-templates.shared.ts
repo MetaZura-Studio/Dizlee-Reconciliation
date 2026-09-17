@@ -92,10 +92,42 @@ export function categoryLabel(category: EmailTemplateCategory): string {
     case "REMINDER":
       return "Reminder";
     case "ALERT":
-      return "Alert";
+      return "Alerts";
     case "OTHER":
-      return "Other";
+      return "Others";
   }
+}
+
+/** Auth templates — not listed or editable in Admin Email Templates. */
+export const HIDDEN_ADMIN_EMAIL_TEMPLATE_CODES = [
+  "PASSWORD_INVITE",
+  "PASSWORD_FORGOT",
+] as const;
+
+export function isHiddenAdminEmailTemplate(code: string): boolean {
+  const normalized = code.trim().toUpperCase();
+  return (HIDDEN_ADMIN_EMAIL_TEMPLATE_CODES as readonly string[]).includes(
+    normalized,
+  );
+}
+
+/** Seeded templates required by auth, cron, and reconciliation alerts — not deletable. */
+export const PROTECTED_SYSTEM_EMAIL_TEMPLATE_CODES = [
+  "PASSWORD_INVITE",
+  "PASSWORD_FORGOT",
+  "REPORT_SUBMISSION",
+  "REPORT_REMINDER",
+  "INVOICE_SUBMISSION",
+  "INVOICE_REMINDER",
+  "RECONCILIATION_ALERT_OPCO",
+  "RECONCILIATION_ALERT_PARTNER",
+] as const;
+
+export function isProtectedSystemEmailTemplate(code: string): boolean {
+  const normalized = code.trim().toUpperCase();
+  return (PROTECTED_SYSTEM_EMAIL_TEMPLATE_CODES as readonly string[]).includes(
+    normalized,
+  );
 }
 
 /** Map legacy domain categories / codes to communication-type categories. */

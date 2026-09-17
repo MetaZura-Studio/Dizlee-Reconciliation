@@ -39,7 +39,7 @@ const SOFT_DELETE_MODELS = new Set([
 ]);
 
 /** Bump when adding Prisma models so stale Turbopack/global clients are dropped. */
-const PRISMA_CLIENT_GENERATION = 4;
+const PRISMA_CLIENT_GENERATION = 5;
 
 type CachedPrisma = {
   generation: number;
@@ -76,11 +76,13 @@ function createPrismaClient() {
 function hasRequiredDelegates(client: PrismaClient): boolean {
   const c = client as unknown as {
     opcoReportSubmission?: { findMany?: unknown };
+    opcoReportMapRequest?: { findFirst?: unknown };
     cronJobRun?: { findMany?: unknown };
     authRateLimitBucket?: { findUnique?: unknown };
   };
   return (
     typeof c.opcoReportSubmission?.findMany === "function" &&
+    typeof c.opcoReportMapRequest?.findFirst === "function" &&
     typeof c.cronJobRun?.findMany === "function" &&
     typeof c.authRateLimitBucket?.findUnique === "function"
   );
@@ -103,7 +105,7 @@ function resolvePrismaClient(): PrismaClient {
   const client = createPrismaClient();
   if (!hasRequiredDelegates(client)) {
     throw new Error(
-      "Prisma client is missing OpcoReportSubmission. Run `npx prisma generate` and restart the Next.js dev server.",
+      "Prisma client is missing required models (e.g. OpcoReportMapRequest). Run `npx prisma generate` and restart the Next.js dev server.",
     );
   }
 
