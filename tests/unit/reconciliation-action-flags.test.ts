@@ -15,6 +15,32 @@ const base = {
 };
 
 describe("computeActionFlags", () => {
+  it("allows Confirm while in progress even with mismatches", () => {
+    const flags = computeActionFlags(base);
+    expect(flags.canConfirm).toBe(true);
+    expect(flags.canAlert).toBe(true);
+  });
+
+  it("allows Confirm when all lines match and keeps Alert off", () => {
+    const flags = computeActionFlags({
+      ...base,
+      unmatchedCount: 0,
+      alertedAt: null,
+    });
+    expect(flags.canConfirm).toBe(true);
+    expect(flags.canAlert).toBe(false);
+  });
+
+  it("disables Confirm when not in progress", () => {
+    expect(
+      computeActionFlags({
+        ...base,
+        statusCode: "COMPLETED",
+        unmatchedCount: 0,
+      }).canConfirm,
+    ).toBe(false);
+  });
+
   it("keeps Re-run disabled after alert until a report is newer", () => {
     expect(computeActionFlags(base).canRerun).toBe(false);
   });

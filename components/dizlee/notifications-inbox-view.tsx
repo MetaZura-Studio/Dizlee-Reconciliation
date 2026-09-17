@@ -170,6 +170,14 @@ export function NotificationsInboxView({
       setError(null);
       try {
         const response = await fetch(`/api/dizlee/notifications/inbox/${id}`);
+        const contentType = response.headers.get("content-type") ?? "";
+        if (!contentType.includes("application/json")) {
+          throw new Error(
+            response.status === 404
+              ? "Notification not found."
+              : "Failed to load notification",
+          );
+        }
         const payload = await response.json();
         if (!response.ok) {
           throw new Error(formatAppError(payload, "Failed to load notification"));

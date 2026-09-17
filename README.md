@@ -52,6 +52,10 @@ Admin portal on a separate port:
 npm run dev:admin
 ```
 
+### Ops / deployment (UAT, client, branches)
+
+For GitHub branch flow (`develop` → `UAT` → `main`), Contabo/PM2 update commands, databases, data-clear scripts, and production logging: see **[docs/PROJECT_OPS_HANDBOOK.md](docs/PROJECT_OPS_HANDBOOK.md)**. New Cursor chats can be pointed at that file first.
+
 ### Scripts
 
 | Command | Description |
