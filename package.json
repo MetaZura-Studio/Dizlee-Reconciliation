@@ -24,6 +24,7 @@
     "db:reset-orgs": "npx tsx prisma/reset-orgs-and-transactional.ts && prisma db seed",
     "seed": "prisma db seed",
     "seed:client": "npx tsx prisma/seed-client-bootstrap.ts",
+    "seed:sample-portal-users": "npx tsx prisma/seed-sample-portal-users.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {
