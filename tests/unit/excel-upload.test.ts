@@ -32,9 +32,9 @@ describe("validateExcelUploadFile", () => {
   it("rejects oversize files", () => {
     expect(
       validateExcelUploadFile(
-        fakeFile({ name: "big.xlsx", size: 21 * 1024 * 1024 }),
+        fakeFile({ name: "big.xlsx", size: 101 * 1024 * 1024 }),
       ),
-    ).toBe("File exceeds the 20 MB upload limit");
+    ).toBe("File exceeds the 100 MB upload limit");
   });
 
   it("rejects blocked MIME even with xlsx name", () => {
