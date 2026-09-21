@@ -8,7 +8,7 @@ import { z } from "zod";
 
 import { getCurrentPeriod, isFuturePeriod } from "@/lib/platform/period";
 
-export const MAX_INVOICE_UPLOAD_BYTES = 20 * 1024 * 1024;
+export const MAX_INVOICE_UPLOAD_BYTES = 100 * 1024 * 1024;
 
 export const ALLOWED_INVOICE_MIME_TYPES = ["application/pdf"] as const;
 

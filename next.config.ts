@@ -1,11 +1,11 @@
 import type { NextConfig } from "next";
 
 /**
- * Must stay above app Excel upload cap (`MAX_EXCEL_UPLOAD_BYTES` = 20 MiB in
+ * Must stay above app Excel upload cap (`MAX_EXCEL_UPLOAD_BYTES` = 100 MiB in
  * `lib/platform/excel-upload.ts`) plus multipart overhead. Kept as a literal so
  * `next.config` does not pull Excel/ZIP validation into the config compiler.
  */
-const UPLOAD_BODY_LIMIT_BYTES = 25 * 1024 * 1024;
+const UPLOAD_BODY_LIMIT_BYTES = 110 * 1024 * 1024;
 
 /**
  * Browser security headers for all routes.
@@ -50,7 +50,7 @@ const nextConfig: NextConfig = {
   // ZAP Low: hide framework fingerprint (X-Powered-By: Next.js).
   poweredByHeader: false,
   experimental: {
-    // Default Next proxy body buffer is 10MB; Excel uploads allow 20MB.
+    // Default Next proxy body buffer is 10MB; Excel uploads allow 100MB.
     proxyClientMaxBodySize: UPLOAD_BODY_LIMIT_BYTES,
   },
   async headers() {
