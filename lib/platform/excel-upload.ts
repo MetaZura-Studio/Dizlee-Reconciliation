@@ -5,7 +5,7 @@
 
 import { assertSafeXlsxZip } from "@/lib/platform/excel/assert-safe-xlsx-zip";
 
-export const MAX_EXCEL_UPLOAD_BYTES = 20 * 1024 * 1024;
+export const MAX_EXCEL_UPLOAD_BYTES = 100 * 1024 * 1024;
 
 export const XLSX_EXTENSIONS = [".xlsx"] as const;
 export const EXCEL_EXTENSIONS_WITH_LEGACY = [".xlsx", ".xls"] as const;
