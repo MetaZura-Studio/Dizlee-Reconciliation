@@ -94,4 +94,41 @@ describe("parse report workbook", () => {
       usageUsd: 10,
     });
   });
+
+  it("parses Local Currency (LC) / Currency column into currencyCode", async () => {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Report");
+    worksheet.addRow([
+      "Service Name",
+      "Gross Amount",
+      "Local Currency (LC)",
+    ]);
+    worksheet.addRow(["XR Academy", 18665.7, "KWD"]);
+    worksheet.addRow(["USD Service", 100, "USD"]);
+    const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
+
+    const lines = await parseReportWorkbook(buffer);
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toMatchObject({
+      description: "XR Academy",
+      amount: 18665.7,
+      currencyCode: "KWD",
+    });
+    expect(lines[1]).toMatchObject({
+      description: "USD Service",
+      amount: 100,
+      currencyCode: "USD",
+    });
+  });
+
+  it("parses Currency header alias the same way", async () => {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Report");
+    worksheet.addRow(["Service Name", "Gross Amount", "Currency"]);
+    worksheet.addRow(["SAR row", 28, "sar"]);
+    const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
+
+    const lines = await parseReportWorkbook(buffer);
+    expect(lines[0]?.currencyCode).toBe("SAR");
+  });
 });

@@ -2,6 +2,7 @@
  * Maps parsed Excel report lines to string preview DTOs for upload confirmation UI.
  */
 import type { ParsedReportLine } from "@/lib/platform/excel/parse-report";
+import { BASE_CURRENCY_ISO_CODE } from "@/lib/platform/currency-rates";
 import { formatMoney } from "@/lib/platform/format-money";
 import {
   applyReportFxToAmount,
@@ -18,6 +19,7 @@ export type ReportPreviewLineItem = {
   usageUsd: string | null;
   usageUnit: string | null;
   reconciliationBasis: string | null;
+  currencyCode?: string | null;
 };
 
 function formatAmount(
@@ -36,21 +38,36 @@ function formatAmount(
 export function mapParsedLinesToPreview(
   lines: ParsedReportLine[],
   fx?: ReportFx,
+  ratesByIso?: Map<string, number>,
 ): ReportPreviewLineItem[] {
-  const rateToUsd = fx?.rateToUsd ?? null;
-  const localIso = fx?.currencyCode ?? "USD";
+  const fallbackRate = fx?.rateToUsd ?? null;
+  const fallbackIso = fx?.currencyCode ?? BASE_CURRENCY_ISO_CODE;
+
   return lines.map((item) => {
-    const converted = applyReportFxToAmount(item.amount, rateToUsd);
+    const iso =
+      item.currencyCode?.trim().toUpperCase() ||
+      fallbackIso ||
+      BASE_CURRENCY_ISO_CODE;
+    const rateToUsd =
+      ratesByIso?.get(iso) ??
+      (iso === BASE_CURRENCY_ISO_CODE ? 1 : fallbackRate);
+    const converted = applyReportFxToAmount(item.amount, rateToUsd ?? null);
+    const usageUsdFormatted =
+      item.usageUsd !== null
+        ? formatAmount(item.usageUsd, BASE_CURRENCY_ISO_CODE)
+        : converted.amountUsd;
+
     return {
       lineNumber: item.lineNumber,
       description: item.description,
-      amount: formatAmount(item.amount, localIso),
-      amountUsd: converted.amountUsd,
+      amount: formatAmount(item.amount, iso),
+      amountUsd: usageUsdFormatted ?? converted.amountUsd,
       exchangeRate: converted.exchangeRate,
-      usageAmount: formatAmount(item.usageAmount, localIso),
-      usageUsd: formatAmount(item.usageUsd, "USD"),
+      usageAmount: formatAmount(item.usageAmount, iso),
+      usageUsd: formatAmount(item.usageUsd, BASE_CURRENCY_ISO_CODE),
       usageUnit: item.usageUnit,
       reconciliationBasis: item.reconciliationBasis,
+      currencyCode: iso,
     };
   });
 }

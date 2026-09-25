@@ -26,6 +26,7 @@ export function toParsedLines(
     exchangeRate: null,
     usageUnit: null,
     reconciliationBasis: null,
+    currencyCode: null,
     sourceColumns: line.sourceColumns,
   }));
 }
