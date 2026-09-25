@@ -40,14 +40,18 @@ export function ReportLineItemsTable({
     return (
       <table className="w-full table-fixed divide-y divide-border text-sm">
         <colgroup>
-          <col className="w-1/3" />
-          <col className="w-1/3" />
-          <col className="w-1/3" />
+          <col className="w-[10%]" />
+          <col className="w-[35%]" />
+          <col className="w-[20%]" />
+          <col className="w-[15%]" />
+          <col className="w-[20%]" />
         </colgroup>
         <thead className="bg-surface-muted text-foreground-muted">
           <tr>
             <th className="px-4 py-3 text-center font-medium">#</th>
             <th className="px-4 py-3 text-left font-medium">Service name</th>
+            <th className="px-4 py-3 text-right font-medium">Gross amount</th>
+            <th className="px-4 py-3 text-right font-medium">USD rate</th>
             <th className="px-4 py-3 text-right font-medium">Amount (USD)</th>
           </tr>
         </thead>
@@ -61,7 +65,13 @@ export function ReportLineItemsTable({
                 <LocalizedCellText>{item.description ?? "—"}</LocalizedCellText>
               </td>
               <td className="px-4 py-3 text-right tabular-nums text-foreground-muted">
-                {displayMoney(item.amountUsd ?? item.amount, "USD")}
+                {displayMoney(item.amount, item.currencyCode ?? "USD")}
+              </td>
+              <td className="px-4 py-3 text-right tabular-nums text-foreground-muted">
+                {item.exchangeRate ?? "—"}
+              </td>
+              <td className="px-4 py-3 text-right tabular-nums text-foreground-muted">
+                {displayMoney(item.amountUsd ?? item.usageUsd, "USD")}
               </td>
             </tr>
           ))}

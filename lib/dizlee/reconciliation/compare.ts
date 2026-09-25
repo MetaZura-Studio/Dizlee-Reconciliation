@@ -38,7 +38,7 @@ export function normalizeServiceName(
   return base.replace(/\s+/g, " ");
 }
 
-/** Prefer billable amount. Callers pass USD (OpCo local converted; Partner already USD). */
+/** Prefer billable amount. Callers pass USD (OpCo local converted; Partner usageUsd or amount). */
 export function lineAmountUsd(line: CompareLineInput): number {
   if (line.amount !== null && line.amount !== undefined) {
     return line.amount;

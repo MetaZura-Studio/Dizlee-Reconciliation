@@ -16,8 +16,7 @@ import {
 } from "@/lib/platform/reports/sides";
 import { writePlatformAuditLog } from "@/lib/platform/audit-log";
 import { notifyDizleeUsers } from "@/lib/platform/notify-dizlee";
-import { snapshotFxOntoParsedLines } from "@/lib/platform/report-fx";
-import { BASE_CURRENCY_RATE } from "@/lib/platform/currency-rates";
+import { applyPartnerPerRowFx } from "@/lib/platform/report-fx";
 import { formatPeriodLabel } from "@/lib/partner/period";
 import prisma from "@/lib/prisma";
 import { DomainError } from "@/lib/errors/app-error";
@@ -71,10 +70,11 @@ export async function createReportUpload(
     throw new ReportUploadError("Report status configuration is missing", 500);
   }
 
-  // Partner amounts are USD; snapshot rate 1 for historical display.
-  const lineItems = snapshotFxOntoParsedLines(
+  // Per-row FX: amount stays local; usageUsd = USD (USD/blank → rate 1).
+  const lineItems = await applyPartnerPerRowFx(
     input.lineItems,
-    BASE_CURRENCY_RATE,
+    input.month,
+    input.year,
   );
 
   const existingReport = await prisma.report.findFirst({
@@ -159,7 +159,7 @@ export async function createReportUpload(
         month: input.month,
         year: input.year,
         filename: input.filename,
-        exchangeRate: BASE_CURRENCY_RATE,
+        fxMode: "per-row-currency",
       },
     });
 

@@ -19,6 +19,8 @@ export type ParsedReportLine = {
   exchangeRate: number | null;
   usageUnit: string | null;
   reconciliationBasis: string | null;
+  /** Uppercase ISO from Currency / Local Currency (LC) cell; null if blank. */
+  currencyCode: string | null;
   sourceColumns: Record<string, string | number | null>;
 };
 
@@ -59,6 +61,14 @@ const COLUMN_ALIASES: Record<
   reconciliationbasis: "reconciliationBasis",
   basis: "reconciliationBasis",
   category: "reconciliationBasis",
+  // Partner per-row currency (header name flexible; cell value drives FX).
+  currency: "currencyCode",
+  curr: "currencyCode",
+  ccy: "currencyCode",
+  currency_code: "currencyCode",
+  local_currency: "currencyCode",
+  local_currency_lc: "currencyCode",
+  lc: "currencyCode",
 };
 
 function normalizeHeader(value: ExcelJS.CellValue): string {
@@ -96,6 +106,14 @@ function parseText(value: ExcelJS.CellValue): string | null {
 
   const text = String(value).trim();
   return text.length > 0 ? text : null;
+}
+
+function parseCurrencyCode(value: ExcelJS.CellValue): string | null {
+  const text = parseText(value);
+  if (!text) {
+    return null;
+  }
+  return text.toUpperCase().replace(/[^A-Z]/g, "") || null;
 }
 
 function rowHasValues(values: ExcelJS.CellValue[]): boolean {
@@ -185,6 +203,7 @@ export async function parseReportWorkbook(
       exchangeRate: null,
       usageUnit: null,
       reconciliationBasis: null,
+      currencyCode: null,
       sourceColumns,
     };
 
@@ -210,6 +229,11 @@ export async function parseReportWorkbook(
         field === "reconciliationBasis"
       ) {
         parsedLine[field] = parseText(cellValue);
+        return;
+      }
+
+      if (field === "currencyCode") {
+        parsedLine.currencyCode = parseCurrencyCode(cellValue);
         return;
       }
 

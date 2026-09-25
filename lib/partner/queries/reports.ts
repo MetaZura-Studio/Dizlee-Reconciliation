@@ -180,14 +180,15 @@ function mapLineItem(
   },
 ): PartnerReportLineItem {
   const amount = decimalToString(item.amount);
+  const usageUsd = decimalToString(item.usageUsd);
   return {
     lineNumber: item.lineNumber,
     description: item.description,
     usageAmount: decimalToString(item.usageAmount),
-    usageUsd: decimalToString(item.usageUsd),
+    usageUsd,
     amount,
-    amountUsd: amount,
-    exchangeRate: null,
+    amountUsd: usageUsd ?? amount,
+    exchangeRate: decimalToString(item.exchangeRate),
     usageUnit: item.usageUnit,
     reconciliationBasis: item.reconciliationBasis,
   };

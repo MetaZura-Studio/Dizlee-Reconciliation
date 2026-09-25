@@ -668,7 +668,20 @@ export async function runReconciliation(params: {
         usageAmount: null,
       };
     }),
-    partnerReport.lineItems.map(toCompareLine),
+    partnerReport.lineItems.map((line) => {
+      const local = toCompareLine(line);
+      // Prefer usageUsd (per-row FX at upload); fall back to amount for older USD-assumed uploads.
+      const usd =
+        local.usageUsd !== null && local.usageUsd !== undefined
+          ? local.usageUsd
+          : local.amount;
+      return {
+        ...local,
+        amount: usd,
+        usageUsd: null,
+        usageAmount: null,
+      };
+    }),
     tolerancePercent,
   );
 
