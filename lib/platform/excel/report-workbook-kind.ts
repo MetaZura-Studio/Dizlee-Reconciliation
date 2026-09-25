@@ -56,6 +56,10 @@ const PARTNER_EXACT = new Set([
   "usage_usd",
   "usageamount",
   "usageusd",
+  // Per-row currency column (any of these strengthens Partner fingerprint).
+  "local_currency_lc",
+  "local_currency",
+  "currency",
 ]);
 
 function normalizeHeaderKey(header: string): string {

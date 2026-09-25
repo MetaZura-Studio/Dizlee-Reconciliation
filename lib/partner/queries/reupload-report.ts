@@ -12,13 +12,12 @@ import { getPartnerLookupId } from "@/lib/partner/lookups";
 import { formatPeriodLabel } from "@/lib/partner/period";
 import { mapReuploadEligibility } from "@/lib/partner/reupload/eligibility";
 import { saveReportFileLocally } from "@/lib/partner/storage/save-report-file";
-import { BASE_CURRENCY_RATE } from "@/lib/platform/currency-rates";
 import {
   PARTNER_REPORT_RESUBMITTED_SUBJECT,
   type PartnerReportResubmittedMetadata,
 } from "@/lib/platform/notification-metadata";
 import { notifyDizleeUsers } from "@/lib/platform/notify-dizlee";
-import { snapshotFxOntoParsedLines } from "@/lib/platform/report-fx";
+import { applyPartnerPerRowFx } from "@/lib/platform/report-fx";
 import { PARTNER_REPORT_VERSION } from "@/lib/platform/reports/sides";
 import prisma from "@/lib/prisma";
 import { DomainError } from "@/lib/errors/app-error";
@@ -134,9 +133,10 @@ export async function reuploadCorrectedReport(
     },
   });
 
-  const lineItems = snapshotFxOntoParsedLines(
+  const lineItems = await applyPartnerPerRowFx(
     input.lineItems,
-    BASE_CURRENCY_RATE,
+    report.month,
+    report.year,
   );
 
   await prisma.reportLineItem.createMany({
