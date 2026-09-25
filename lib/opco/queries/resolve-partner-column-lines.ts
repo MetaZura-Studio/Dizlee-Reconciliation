@@ -30,6 +30,7 @@ function toParsedLines(lines: PartnerColumnLine[]): ParsedReportLine[] {
     exchangeRate: null,
     usageUnit: null,
     reconciliationBasis: null,
+    currencyCode: null,
     sourceColumns: line.sourceColumns,
   }));
 }

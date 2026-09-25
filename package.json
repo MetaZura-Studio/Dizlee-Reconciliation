@@ -25,6 +25,7 @@
     "seed": "prisma db seed",
     "seed:client": "npx tsx prisma/seed-client-bootstrap.ts",
     "seed:sample-portal-users": "npx tsx prisma/seed-sample-portal-users.ts",
+    "seed:all-portal-users": "npx tsx prisma/seed-all-portal-users.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {

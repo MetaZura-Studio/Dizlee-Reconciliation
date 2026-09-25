@@ -253,6 +253,7 @@ type ReportLite = {
   lineItems: Array<{
     description: string | null;
     amount: unknown;
+    usageUsd: unknown;
     revenueSharePercent: unknown;
     sourceColumns: unknown;
   }>;
@@ -280,13 +281,16 @@ type AggregatedServiceLine = {
 
 function aggregateLinesByService(
   items: ReportLite["lineItems"],
-  toUsd: (amount: number | null) => number,
+  toUsd: (line: { amount: number | null; usageUsd: number | null }) => number,
 ): Map<string, AggregatedServiceLine> {
   const map = new Map<string, AggregatedServiceLine>();
   items.forEach((item, index) => {
     const serviceName = serviceNameFromLine(item);
     const key = normalizeServiceName(serviceName, index + 1);
-    const amount = toUsd(toFiniteNumber(item.amount));
+    const amount = toUsd({
+      amount: toFiniteNumber(item.amount),
+      usageUsd: toFiniteNumber(item.usageUsd),
+    });
     const existing = map.get(key);
     if (existing) {
       existing.amount += amount;
@@ -379,6 +383,7 @@ const reportSelect = {
     select: {
       description: true,
       amount: true,
+      usageUsd: true,
       revenueSharePercent: true,
       sourceColumns: true,
     },
@@ -512,13 +517,13 @@ export async function buildRevenueShareReport(params: {
   for (const partner of readiness.partners) {
     const opcoReport = opcoReports.get(partner.partnerId);
     const partnerReport = partnerReports.get(partner.partnerId);
-    const opcoByService = aggregateLinesByService(opcoReport?.lineItems ?? [], (amount) => {
-      const converted = applyReportFxToAmount(amount, fx.rateToUsd);
+    const opcoByService = aggregateLinesByService(opcoReport?.lineItems ?? [], (line) => {
+      const converted = applyReportFxToAmount(line.amount, fx.rateToUsd);
       return converted.amountUsd === null ? 0 : Number(converted.amountUsd);
     });
     const partnerByService = aggregateLinesByService(
       partnerReport?.lineItems ?? [],
-      (amount) => amount ?? 0,
+      (line) => line.usageUsd ?? line.amount ?? 0,
     );
     const serviceKeys = new Set([
       ...opcoByService.keys(),
