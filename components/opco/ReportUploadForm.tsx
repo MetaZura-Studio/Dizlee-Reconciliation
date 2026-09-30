@@ -32,8 +32,11 @@ import type { OpcoSubmissionListItem } from "@/lib/opco/queries/submissions";
 import { getDefaultPeriod } from "@/lib/opco/period";
 import { validateReportUploadFile } from "@/lib/opco/validation/report-upload";
 import {
+  defaultLinkRequestMessage,
   notLinkedPartnerDisplayNames,
   parseUnlinkedPartnersDetails,
+  unlinkedPartnerDisplayNames,
+  unknownPartnerDisplayNames,
   type UnlinkedPartnersInFile,
 } from "@/lib/opco/unlinked-partners-in-file.shared";
 import type { OpcoUploadReadiness } from "@/lib/opco/upload-readiness.shared";
@@ -401,7 +404,10 @@ export function ReportUploadForm({
           setReview(null);
           setLinkRequest(unmatched);
           setLinkRequestMessage(
-            "Please add these OpCo–Partner links so we can upload the report.",
+            defaultLinkRequestMessage({
+              partnerFromServiceMap,
+              result: unmatched,
+            }),
           );
           setLinkRequestError(null);
           return;
@@ -906,7 +912,19 @@ export function ReportUploadForm({
 
       <Modal
         open={Boolean(linkRequest)}
-        title="Partners not linked with you"
+        title={
+          partnerFromServiceMap &&
+          linkRequest &&
+          unknownPartnerDisplayNames(linkRequest).length > 0 &&
+          unlinkedPartnerDisplayNames(linkRequest).length === 0
+            ? "Services not linked to any partner"
+            : partnerFromServiceMap &&
+                linkRequest &&
+                unknownPartnerDisplayNames(linkRequest).length > 0 &&
+                unlinkedPartnerDisplayNames(linkRequest).length > 0
+              ? "Services and partners need Admin setup"
+              : "Partners not linked with you"
+        }
         onClose={() => {
           if (!isNotifyingAdmin) {
             resetFileSelection();
@@ -919,16 +937,48 @@ export function ReportUploadForm({
           label="Notifying Admin…"
           className="min-h-[8rem]"
         >
-        <p className="text-sm text-foreground-muted">
-          These partners are not linked with you. Notify Admin to add the
-          OpCo–Partner links, then you can upload this file.
-        </p>
-        {linkRequest ? (
-          <ul className="mt-4 list-disc pl-5 text-sm text-foreground">
-            {notLinkedPartnerDisplayNames(linkRequest).map((name) => (
-              <li key={name}>{name}</li>
-            ))}
-          </ul>
+        {linkRequest &&
+        partnerFromServiceMap &&
+        unknownPartnerDisplayNames(linkRequest).length > 0 ? (
+          <div className="space-y-2">
+            <p className="text-sm text-foreground-muted">
+              These services are not linked to any partner in the system.
+              Notify Admin to add them in the Service–Partner map, then you can
+              upload this file.
+            </p>
+            <ul className="list-disc pl-5 text-sm text-foreground">
+              {unknownPartnerDisplayNames(linkRequest).map((name) => (
+                <li key={`service-${name}`}>{name}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        {linkRequest &&
+        (!partnerFromServiceMap ||
+          unlinkedPartnerDisplayNames(linkRequest).length > 0) ? (
+          <div
+            className={
+              partnerFromServiceMap &&
+              unknownPartnerDisplayNames(linkRequest).length > 0
+                ? "mt-4 space-y-2"
+                : "space-y-2"
+            }
+          >
+            <p className="text-sm text-foreground-muted">
+              {partnerFromServiceMap &&
+              unknownPartnerDisplayNames(linkRequest).length > 0
+                ? "These partners are mapped but not linked with you. Notify Admin to add the OpCo–Partner links."
+                : "These partners are not linked with you. Notify Admin to add the OpCo–Partner links, then you can upload this file."}
+            </p>
+            <ul className="list-disc pl-5 text-sm text-foreground">
+              {(partnerFromServiceMap
+                ? unlinkedPartnerDisplayNames(linkRequest)
+                : notLinkedPartnerDisplayNames(linkRequest)
+              ).map((name) => (
+                <li key={`partner-${name}`}>{name}</li>
+              ))}
+            </ul>
+          </div>
         ) : null}
         <div className="mt-4">
           <FieldLabel htmlFor="linkRequestMessage" required>

@@ -4,6 +4,9 @@
  */
 export const ACCOUNT_SUSPENDED_SIGNIN_ERROR = "AccountSuspended";
 
+/** Thrown from authorize when login email rate limit is exceeded. */
+export const RATE_LIMITED_SIGNIN_ERROR = "RATE_LIMITED";
+
 /** Map next-auth signIn() failure to a catalog-facing error code. */
 export function resolveCredentialsSignInError(result: {
   ok?: boolean;
@@ -11,6 +14,9 @@ export function resolveCredentialsSignInError(result: {
   status?: number;
 } | null | undefined): string {
   if (result?.status === 429) {
+    return "RATE_LIMITED";
+  }
+  if (result?.error === RATE_LIMITED_SIGNIN_ERROR) {
     return "RATE_LIMITED";
   }
   if (result?.error === ACCOUNT_SUSPENDED_SIGNIN_ERROR) {
