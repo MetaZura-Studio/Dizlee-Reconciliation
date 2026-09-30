@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   ACCOUNT_SUSPENDED_SIGNIN_ERROR,
+  RATE_LIMITED_SIGNIN_ERROR,
   resolveCredentialsSignInError,
 } from "@/lib/auth/login-errors";
 import { formatAppError } from "@/lib/errors/format";
@@ -23,6 +24,16 @@ describe("resolveCredentialsSignInError", () => {
     ).toBe("RATE_LIMITED");
   });
 
+  it("maps RATE_LIMITED error string from authorize", () => {
+    expect(
+      resolveCredentialsSignInError({
+        ok: false,
+        error: RATE_LIMITED_SIGNIN_ERROR,
+        status: 401,
+      }),
+    ).toBe("RATE_LIMITED");
+  });
+
   it("defaults other failures to CredentialsSignin", () => {
     expect(
       resolveCredentialsSignInError({
@@ -39,5 +50,11 @@ describe("ACCOUNT_SUSPENDED client copy", () => {
     expect(formatAppError("ACCOUNT_SUSPENDED")).toBe(
       "Your account has been suspended. Contact support.",
     );
+  });
+});
+
+describe("RATE_LIMITED client copy", () => {
+  it("says too many login attempts", () => {
+    expect(formatAppError("RATE_LIMITED")).toBe("Too many login attempts.");
   });
 });
