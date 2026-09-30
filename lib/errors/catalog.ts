@@ -58,7 +58,7 @@ export const ERROR_CATALOG = {
   },
   RATE_LIMITED: {
     code: 109,
-    message: "TOO MANY ATTEMPTS TRY AGAIN LATER",
+    message: "TOO MANY LOGIN ATTEMPTS",
     status: 429,
   },
 

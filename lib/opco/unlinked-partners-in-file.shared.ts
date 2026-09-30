@@ -18,21 +18,16 @@ export function hasUnlinkedPartnersInFile(
   return notLinkedPartnerDisplayNames(result).length > 0;
 }
 
-/** Partner names to show OpCo — never split “service” vs partner. */
-export function notLinkedPartnerDisplayNames(
-  result: UnlinkedPartnersInFile,
-): string[] {
+function uniqueDisplayNames(rawNames: string[]): string[] {
   const seen = new Set<string>();
   const names: string[] = [];
-  for (const raw of [
-    ...result.unlinkedPartnerNames,
-    ...result.unknownPartnerNames,
-  ]) {
+  for (const raw of rawNames) {
     const name = raw.trim();
     if (!name) {
       continue;
     }
-    const key = name.toLowerCase().replace(/[^a-z0-9]/g, "") || name.toLowerCase();
+    const key =
+      name.toLowerCase().replace(/[^a-z0-9]/g, "") || name.toLowerCase();
     if (seen.has(key)) {
       continue;
     }
@@ -40,6 +35,51 @@ export function notLinkedPartnerDisplayNames(
     names.push(name);
   }
   return names;
+}
+
+/** Partner names to show OpCo — never split “service” vs partner. */
+export function notLinkedPartnerDisplayNames(
+  result: UnlinkedPartnersInFile,
+): string[] {
+  return uniqueDisplayNames([
+    ...result.unlinkedPartnerNames,
+    ...result.unknownPartnerNames,
+  ]);
+}
+
+/** Names from the unlinked-partner bucket only (OpCo–Partner link missing). */
+export function unlinkedPartnerDisplayNames(
+  result: UnlinkedPartnersInFile,
+): string[] {
+  return uniqueDisplayNames(result.unlinkedPartnerNames);
+}
+
+/**
+ * Names from the unknown bucket only.
+ * In SERVICE_PARTNER_MAP mode these are service names missing from the map.
+ */
+export function unknownPartnerDisplayNames(
+  result: UnlinkedPartnersInFile,
+): string[] {
+  return uniqueDisplayNames(result.unknownPartnerNames);
+}
+
+export function defaultLinkRequestMessage(params: {
+  partnerFromServiceMap: boolean;
+  result: UnlinkedPartnersInFile;
+}): string {
+  if (!params.partnerFromServiceMap) {
+    return "Please add these OpCo–Partner links so we can upload the report.";
+  }
+  const hasUnknown = unknownPartnerDisplayNames(params.result).length > 0;
+  const hasUnlinked = unlinkedPartnerDisplayNames(params.result).length > 0;
+  if (hasUnknown && hasUnlinked) {
+    return "Please add Service–Partner map rows for the listed services and OpCo–Partner links for the listed partners so we can upload the report.";
+  }
+  if (hasUnknown) {
+    return "Please add these services to the Service–Partner map (link each service to a partner) so we can upload the report.";
+  }
+  return "Please add these OpCo–Partner links so we can upload the report.";
 }
 
 function asStringArray(value: unknown): string[] {

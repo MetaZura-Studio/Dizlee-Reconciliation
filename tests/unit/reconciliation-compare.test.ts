@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   compareReportLines,
+  normalizeServiceName,
   withinTolerance,
 } from "@/lib/dizlee/reconciliation/compare";
 
@@ -19,8 +20,15 @@ describe("withinTolerance", () => {
   });
 });
 
+describe("normalizeServiceName", () => {
+  it("strips spaces so spaced and unspaced names share a key", () => {
+    expect(normalizeServiceName("Raig Bait", 1)).toBe("raigbait");
+    expect(normalizeServiceName("RaigBait", 2)).toBe("raigbait");
+  });
+});
+
 describe("compareReportLines", () => {
-  it("matches rows within tolerance and confirms opco value on mismatch", () => {
+  it("matches rows within tolerance and confirms the lesser amount", () => {
     const rows = compareReportLines(
       [
         {
@@ -47,6 +55,68 @@ describe("compareReportLines", () => {
 
     expect(rows).toHaveLength(1);
     expect(rows[0]?.matchStatus).toBe("MATCHED");
+    expect(rows[0]?.confirmedValue).toBe(100);
+  });
+
+  it("confirms the lesser amount on mismatch when partner is lower", () => {
+    const rows = compareReportLines(
+      [
+        {
+          lineId: BigInt(1),
+          description: "Service B",
+          lineNumber: 1,
+          usageUsd: 120,
+          usageAmount: null,
+          amount: null,
+        },
+      ],
+      [
+        {
+          lineId: BigInt(2),
+          description: "Service B",
+          lineNumber: 1,
+          usageUsd: 90,
+          usageAmount: null,
+          amount: null,
+        },
+      ],
+      1,
+    );
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.matchStatus).toBe("MISMATCHED");
+    expect(rows[0]?.confirmedValue).toBe(90);
+  });
+
+  it("matches OpCo and Partner service names that differ only by spaces", () => {
+    const rows = compareReportLines(
+      [
+        {
+          lineId: BigInt(1),
+          description: "Raig Bait",
+          lineNumber: 1,
+          usageUsd: 40,
+          usageAmount: null,
+          amount: null,
+        },
+      ],
+      [
+        {
+          lineId: BigInt(2),
+          description: "RaigBait",
+          lineNumber: 1,
+          usageUsd: 35,
+          usageAmount: null,
+          amount: null,
+        },
+      ],
+      1,
+    );
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.matchStatus).toBe("MISMATCHED");
+    expect(rows[0]?.confirmedValue).toBe(35);
+    expect(rows[0]?.serviceCode).toBe("raigbait");
   });
 
   it("marks one-sided rows as missing", () => {
@@ -98,6 +168,7 @@ describe("compareReportLines", () => {
     expect(rows[0]?.matchStatus).toBe("MATCHED");
     expect(rows[0]?.opcoAmount).toBe(50);
     expect(rows[0]?.partnerAmount).toBe(50);
+    expect(rows[0]?.confirmedValue).toBe(50);
   });
 
   it("treats partner amount as USD against OpCo USD", () => {

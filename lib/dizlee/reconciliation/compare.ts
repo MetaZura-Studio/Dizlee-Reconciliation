@@ -29,13 +29,13 @@ export type ComparedRow = {
     | "MISSING_IN_OPCO";
 };
 
-/** Canonical service key for matching OpCo and partner lines (whitespace-normalized). */
+/** Canonical service key for matching OpCo and partner lines (spaces stripped). */
 export function normalizeServiceName(
   description: string | null,
   lineNumber: number,
 ): string {
   const base = (description?.trim() || `line-${lineNumber}`).toLowerCase();
-  return base.replace(/\s+/g, " ");
+  return base.replace(/\s+/g, "");
 }
 
 /** Prefer billable amount. Callers pass USD (OpCo local converted; Partner usageUsd or amount). */
@@ -130,7 +130,7 @@ export function compareReportLines(
         opcoAmount: opco.amount,
         partnerAmount: partner.amount,
         varianceAmount: variance,
-        confirmedValue: opco.amount,
+        confirmedValue: Math.min(opco.amount, partner.amount),
         matchStatus: matched ? "MATCHED" : "MISMATCHED",
       });
     } else if (opco) {

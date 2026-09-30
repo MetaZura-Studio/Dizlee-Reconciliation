@@ -5,9 +5,12 @@ import {
   classifyServiceMapPartners,
 } from "@/lib/opco/queries/unlinked-partners-in-file";
 import {
+  defaultLinkRequestMessage,
   hasUnlinkedPartnersInFile,
   notLinkedPartnerDisplayNames,
   parseUnlinkedPartnersDetails,
+  unknownPartnerDisplayNames,
+  unlinkedPartnerDisplayNames,
 } from "@/lib/opco/unlinked-partners-in-file.shared";
 
 describe("classifyExcelColumnPartnerNames", () => {
@@ -201,5 +204,40 @@ describe("notLinkedPartnerDisplayNames", () => {
         unknownPartnerNames: ["Premium Games", "PremiumGames"],
       }),
     ).toEqual(["Novustech", "Premium Games"]);
+  });
+});
+
+describe("service-map display helpers", () => {
+  it("splits unknown services from unlinked partners", () => {
+    const result = {
+      unlinkedPartnerNames: ["Novustech"],
+      unknownPartnerNames: ["Raig Bait"],
+    };
+    expect(unknownPartnerDisplayNames(result)).toEqual(["Raig Bait"]);
+    expect(unlinkedPartnerDisplayNames(result)).toEqual(["Novustech"]);
+  });
+
+  it("defaults Notify Admin message for unmapped services in map mode", () => {
+    expect(
+      defaultLinkRequestMessage({
+        partnerFromServiceMap: true,
+        result: {
+          unlinkedPartnerNames: [],
+          unknownPartnerNames: ["Raig Bait"],
+        },
+      }),
+    ).toContain("Service–Partner map");
+  });
+
+  it("keeps partner-link message for excel column mode", () => {
+    expect(
+      defaultLinkRequestMessage({
+        partnerFromServiceMap: false,
+        result: {
+          unlinkedPartnerNames: ["Novustech"],
+          unknownPartnerNames: [],
+        },
+      }),
+    ).toContain("OpCo–Partner links");
   });
 });

@@ -14,7 +14,7 @@ import {
 } from "@/lib/auth/active-user";
 import { verifyPassword, runDummyPasswordCheck } from "@/lib/auth/password";
 import { writeUserSessionAuditLog } from "@/lib/auth/audit";
-import { ACCOUNT_SUSPENDED_SIGNIN_ERROR } from "@/lib/auth/login-errors";
+import { ACCOUNT_SUSPENDED_SIGNIN_ERROR, RATE_LIMITED_SIGNIN_ERROR } from "@/lib/auth/login-errors";
 import {
   AUTH_RATE_LIMITS,
   consumeRateLimit,
@@ -91,7 +91,7 @@ function createAuthOptions(params: {
             windowMs: AUTH_RATE_LIMITS.loginEmail.windowMs,
           });
           if (!emailLimit.allowed) {
-            return null;
+            throw new Error(RATE_LIMITED_SIGNIN_ERROR);
           }
 
           let scope: AuthLoginScope = params.defaultScope;

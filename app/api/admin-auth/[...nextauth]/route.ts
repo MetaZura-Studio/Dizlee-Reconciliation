@@ -13,7 +13,6 @@ import {
   consumeRateLimit,
   getClientIp,
 } from "@/lib/auth/rate-limit";
-import { ERROR_CATALOG } from "@/lib/errors/catalog";
 
 const nextAuthHandler = NextAuth(adminAuthOptions);
 
@@ -50,15 +49,10 @@ export async function POST(request: Request, context: RouteContext) {
       windowMs: AUTH_RATE_LIMITS.loginIp.windowMs,
     });
     if (!limited.allowed) {
-      const def = ERROR_CATALOG.RATE_LIMITED;
+      const signInPage = new URL("/admin/login", request.url);
+      signInPage.searchParams.set("error", "RATE_LIMITED");
       return NextResponse.json(
-        {
-          error: {
-            code: def.code,
-            key: "RATE_LIMITED",
-            message: def.message,
-          },
-        },
+        { url: signInPage.toString() },
         {
           status: 429,
           headers: {
