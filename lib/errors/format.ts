@@ -24,7 +24,7 @@ const CLIENT_MESSAGES: Partial<Record<ErrorKey, string>> = {
   CURRENT_PASSWORD_INCORRECT: "Current password is incorrect.",
   PASSWORD_MUST_DIFFER: "New password must be different from the current one.",
   PASSWORD_NOT_SET: "Password has not been set for this account.",
-  RATE_LIMITED: "Too many attempts. Please try again later.",
+  RATE_LIMITED: "Too many login attempts.",
   UNAUTHORIZED: "Please sign in to continue.",
   VALIDATION_FAILED: "Please check your input and try again.",
   INVALID_REQUEST: "Invalid request. Please try again.",
