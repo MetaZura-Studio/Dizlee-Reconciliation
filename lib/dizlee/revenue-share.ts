@@ -167,6 +167,15 @@ export function netRevenueFromGross(grossAmount: number, regulatoryFee: number):
   return grossAmount - regulatoryFee;
 }
 
+/** OpCo USD × revenue share % — blank when either side is missing. */
+export function revenueShareAmountFromOpco(
+  opcoAmountUsd: number | null,
+  revenueSharePercent: number | null,
+): number | null {
+  if (opcoAmountUsd == null || revenueSharePercent == null) return null;
+  return (opcoAmountUsd * revenueSharePercent) / 100;
+}
+
 export function buildRevenueShareLine(input: {
   partnerId: string;
   partnerName: string;

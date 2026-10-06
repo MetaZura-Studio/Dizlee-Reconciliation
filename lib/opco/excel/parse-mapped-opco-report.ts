@@ -7,7 +7,14 @@ import {
   findWorksheetMatchingHeaders,
   normalizeHeaderKey,
 } from "@/lib/admin/opco-report-mapping-excel";
-import type { OpcoPartnerMode } from "@/lib/admin/opco-report-mappings.shared";
+import type {
+  OpcoPartnerMode,
+  OpcoRowFilter,
+} from "@/lib/admin/opco-report-mappings.shared";
+import {
+  normalizeOpcoRowFilters,
+  resolveOpcoRowFilters,
+} from "@/lib/admin/opco-report-mappings.shared";
 import { ReportParseError } from "@/lib/platform/excel/parse-report";
 import {
   aggregateLinesByDescription,
@@ -22,7 +29,10 @@ export type OpcoMappingParseConfig = {
   partnerColumn: string | null;
   revenueColumn: string;
   revenueShareColumn: string | null;
+  rowFilters?: OpcoRowFilter[];
+  /** @deprecated Use rowFilters — kept for callers that still pass a single pair. */
   rowFilterColumn?: string | null;
+  /** @deprecated Use rowFilters — kept for callers that still pass a single pair. */
   rowFilterValue?: string | null;
   aggregateDailyRows: boolean;
   preferredSheetName?: string | null;
@@ -95,6 +105,8 @@ export function assertOpcoMappingReady(config: {
   partnerColumn: string | null;
   revenueColumn: string | null;
   revenueShareColumn?: string | null;
+  rowFilters?: Array<{ column?: unknown; value?: unknown }> | null;
+  rowFiltersJson?: string | null;
   rowFilterColumn?: string | null;
   rowFilterValue?: string | null;
   aggregateDailyRows?: boolean;
@@ -118,14 +130,25 @@ export function assertOpcoMappingReady(config: {
       "OpCo report mapping requires a Partner Excel column for this OpCo.",
     );
   }
+  const fromArray = normalizeOpcoRowFilters(config.rowFilters);
+  const rowFilters =
+    fromArray.length > 0
+      ? fromArray
+      : resolveOpcoRowFilters({
+          rowFiltersJson: config.rowFiltersJson,
+          rowFilterColumn: config.rowFilterColumn,
+          rowFilterValue: config.rowFilterValue,
+        });
+  const legacy = rowFilters[0] ?? null;
   return {
     serviceColumn: config.serviceColumn.trim(),
     partnerMode,
     partnerColumn: config.partnerColumn?.trim() || null,
     revenueColumn: config.revenueColumn.trim(),
     revenueShareColumn: config.revenueShareColumn?.trim() || null,
-    rowFilterColumn: config.rowFilterColumn?.trim() || null,
-    rowFilterValue: config.rowFilterValue?.trim() || null,
+    rowFilters,
+    rowFilterColumn: legacy?.column ?? null,
+    rowFilterValue: legacy?.value ?? null,
     aggregateDailyRows: Boolean(config.aggregateDailyRows),
     preferredSheetName: config.preferredSheetName?.trim() || null,
   };
@@ -166,18 +189,30 @@ export async function parseOpcoReportWithMapping(
       ? findColumn(headerRow, config.partnerColumn)
       : 0;
   const shareCol = findColumn(headerRow, config.revenueShareColumn);
-  const filterCol = findColumn(headerRow, config.rowFilterColumn);
-  const filterValue = config.rowFilterValue?.trim().toLowerCase() ?? "";
+  const rowFilters =
+    config.rowFilters && config.rowFilters.length > 0
+      ? config.rowFilters
+      : resolveOpcoRowFilters({
+          rowFilterColumn: config.rowFilterColumn,
+          rowFilterValue: config.rowFilterValue,
+        });
+  const resolvedFilters = rowFilters.map((filter) => ({
+    column: filter.column,
+    value: filter.value.trim().toLowerCase(),
+    col: findColumn(headerRow, filter.column),
+  }));
 
   if (!serviceCol || !revenueCol) {
     throw new ReportParseError(
       `Missing mapped columns. Expected Service "${config.serviceColumn}" and Revenue "${config.revenueColumn}".`,
     );
   }
-  if (config.rowFilterColumn?.trim() && !filterCol) {
-    throw new ReportParseError(
-      `Missing row filter column "${config.rowFilterColumn}" in the Excel file.`,
-    );
+  for (const filter of resolvedFilters) {
+    if (!filter.col) {
+      throw new ReportParseError(
+        `Missing row filter column "${filter.column}" in the Excel file.`,
+      );
+    }
   }
   if (config.partnerMode === "EXCEL_COLUMN" && !partnerCol) {
     throw new ReportParseError(
@@ -200,9 +235,12 @@ export async function parseOpcoReportWithMapping(
       return;
     }
 
-    if (filterCol > 0 && filterValue) {
-      const cell = cellText(row.getCell(filterCol).value).toLowerCase();
-      if (cell !== filterValue) {
+    if (resolvedFilters.length > 0) {
+      const matchesAll = resolvedFilters.every((filter) => {
+        const cell = cellText(row.getCell(filter.col).value).toLowerCase();
+        return cell === filter.value;
+      });
+      if (!matchesAll) {
         return;
       }
     }

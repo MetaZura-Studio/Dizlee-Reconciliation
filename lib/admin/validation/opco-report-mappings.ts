@@ -3,7 +3,10 @@
  */
 import { z } from "zod";
 
-import { OPCO_PARTNER_MODES } from "@/lib/admin/opco-report-mappings.shared";
+import {
+  MAX_OPCO_ROW_FILTERS,
+  OPCO_PARTNER_MODES,
+} from "@/lib/admin/opco-report-mappings.shared";
 
 const optionalHeader = z
   .string()
@@ -18,6 +21,15 @@ const optionalHeader = z
     const trimmed = value.trim();
     return trimmed.length > 0 ? trimmed : null;
   });
+
+const rowFilterItemSchema = z.object({
+  column: z.string().trim().min(1, "Select which column to filter on").max(255),
+  value: z
+    .string()
+    .trim()
+    .min(1, "Enter the value that rows must match")
+    .max(255),
+});
 
 export const selectOpcoReportMappingSheetSchema = z.object({
   sampleSheetName: z.string().trim().min(1, "Select a sheet").max(255),
@@ -42,8 +54,14 @@ export const updateOpcoReportMappingSchema = z
       .trim()
       .min(1, "Select a Revenue share % column")
       .max(255),
-    rowFilterColumn: optionalHeader,
-    rowFilterValue: optionalHeader,
+    rowFilters: z
+      .array(rowFilterItemSchema)
+      .max(
+        MAX_OPCO_ROW_FILTERS,
+        `At most ${MAX_OPCO_ROW_FILTERS} row filters are allowed`,
+      )
+      .optional()
+      .default([]),
     aggregateDailyRows: z.boolean().optional().default(false),
   })
   .superRefine((value, ctx) => {
@@ -52,20 +70,6 @@ export const updateOpcoReportMappingSchema = z
         code: z.ZodIssueCode.custom,
         message: "Select a Partner Excel column, or choose another Partner mode",
         path: ["partnerColumn"],
-      });
-    }
-    if (value.rowFilterColumn && !value.rowFilterValue) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Enter the value that rows must match",
-        path: ["rowFilterValue"],
-      });
-    }
-    if (value.rowFilterValue && !value.rowFilterColumn) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Select which column to filter on",
-        path: ["rowFilterColumn"],
       });
     }
   });

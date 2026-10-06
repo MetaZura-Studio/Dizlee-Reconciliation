@@ -26,7 +26,9 @@ import type {
 import {
   CURRENT_MONTH_RATES_ONLY_MESSAGE,
   formatRateInput,
+  localPerUsdFromStoredRateToUsd,
   sanitizeRateInput,
+  storedRateToUsdFromLocalPerUsd,
 } from "@/lib/admin/currency-rate-input";
 import { paginateItems } from "@/lib/ui/list-pagination";
 import { cn, ui } from "@/lib/ui/classes";
@@ -44,16 +46,24 @@ type RateFormRow = {
 type RateStatusFilter = "all" | "set" | "missing";
 
 function toFormRows(rates: MonthlyRateRow[]): RateFormRow[] {
-  return rates.map((rate) => ({
-    currencyId: rate.currencyId,
-    isoCode: rate.isoCode,
-    symbol: rate.symbol,
-    rateInput:
-      rate.rateToUsd === null || rate.rateToUsd === undefined
-        ? ""
-        : formatRateInput(rate.rateToUsd),
-    isBase: rate.isBase,
-  }));
+  return rates.map((rate) => {
+    const localPerUsd =
+      rate.isBase
+        ? 1
+        : localPerUsdFromStoredRateToUsd(
+            rate.rateToUsd === undefined ? null : rate.rateToUsd,
+          );
+    return {
+      currencyId: rate.currencyId,
+      isoCode: rate.isoCode,
+      symbol: rate.symbol,
+      rateInput:
+        localPerUsd === null || localPerUsd === undefined
+          ? ""
+          : formatRateInput(localPerUsd),
+      isBase: rate.isBase,
+    };
+  });
 }
 
 function periodKey(month: number, year: number): string {
@@ -219,8 +229,13 @@ export function CurrencyRatesSection({
           return { currencyId: row.currencyId, rateToUsd: null };
         }
 
-        const rateToUsd = Number.parseFloat(trimmed);
-        if (Number.isNaN(rateToUsd)) {
+        const localPerUsd = Number.parseFloat(trimmed);
+        if (Number.isNaN(localPerUsd)) {
+          throw new Error(`Invalid rate for ${row.isoCode}`);
+        }
+
+        const rateToUsd = storedRateToUsdFromLocalPerUsd(localPerUsd);
+        if (rateToUsd === null) {
           throw new Error(`Invalid rate for ${row.isoCode}`);
         }
 
@@ -404,8 +419,8 @@ export function CurrencyRatesSection({
             <p className="text-sm text-foreground-muted">
               {canEdit ? (
                 <>
-                  Enter how many USD equal <strong>1 unit</strong> of each currency
-                  (example: 1 KWD = 3.25 USD).
+                  Enter how many units of each currency equal{" "}
+                  <strong>1 USD</strong> (example: 1 USD = 0.3077 KWD).
                 </>
               ) : (
                 <>
@@ -534,7 +549,7 @@ export function CurrencyRatesSection({
                         direction={sortDir}
                         onSort={applyCurrencySort}
                       />
-                      <DataTableTh align="right">1 unit = ? USD</DataTableTh>
+                      <DataTableTh align="right">1 USD = ?</DataTableTh>
                       <DataTableTh align="center">Status</DataTableTh>
                     </tr>
                   </DataTableHead>
@@ -562,7 +577,7 @@ export function CurrencyRatesSection({
                             ) : canEdit ? (
                               <div className="ml-auto flex max-w-xs items-center gap-2">
                                 <span className="shrink-0 text-xs text-foreground-subtle">
-                                  1 {row.isoCode} =
+                                  1 USD =
                                 </span>
                                 <input
                                   type="text"
@@ -584,16 +599,16 @@ export function CurrencyRatesSection({
                                   placeholder="Not set"
                                   className={cn(ui.input, "text-right tabular-nums")}
                                   disabled={busy}
-                                  aria-label={`USD rate for 1 ${row.isoCode}`}
+                                  aria-label={`${row.isoCode} units per 1 USD`}
                                 />
                                 <span className="shrink-0 text-xs text-foreground-subtle">
-                                  USD
+                                  {row.isoCode}
                                 </span>
                               </div>
                             ) : (
                               <span className="text-foreground-muted tabular-nums">
                                 {row.rateInput.trim()
-                                  ? `1 ${row.isoCode} = ${row.rateInput} USD`
+                                  ? `1 USD = ${row.rateInput} ${row.isoCode}`
                                   : "Not set"}
                               </span>
                             )}

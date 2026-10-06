@@ -90,6 +90,7 @@ export async function parseOpcoMonthlyPartnerBuckets(params: {
     partnerColumn: mappingRow.partnerColumn,
     revenueColumn: mappingRow.revenueColumn,
     revenueShareColumn: mappingRow.revenueShareColumn,
+    rowFiltersJson: mappingRow.rowFiltersJson,
     rowFilterColumn: mappingRow.rowFilterColumn,
     rowFilterValue: mappingRow.rowFilterValue,
     aggregateDailyRows: mappingRow.aggregateDailyRows,

@@ -5,9 +5,15 @@
 import ExcelJS from "exceljs";
 
 import {
+  localPerUsdFromStoredRateToUsd,
+  storedRateToUsdFromLocalPerUsd,
+} from "@/lib/admin/currency-rate-input";
+import {
   BASE_CURRENCY_ISO_CODE,
   BASE_CURRENCY_RATE,
 } from "@/lib/platform/currency-rates";
+
+type RateColumnKind = "storedRateToUsd" | "localPerUsd";
 
 export type ParsedCurrencyRateRow = {
   isoCode: string;
@@ -60,7 +66,9 @@ function parseRate(value: ExcelJS.CellValue): number | null {
 }
 
 /**
- * Parse currency rate Excel. Expected headers: ISO | RateToUSD (aliases accepted).
+ * Parse currency rate Excel.
+ * Preferred headers: ISO | UnitsPerUSD (local units per 1 USD).
+ * Legacy RateToUSD / Rate / RateToKWD still accepted as stored rateToUsd.
  */
 export async function parseCurrencyRatesExcel(
   buffer: ArrayBuffer | Buffer | Uint8Array,
@@ -78,6 +86,7 @@ export async function parseCurrencyRatesExcel(
   const headerRow = sheet.getRow(1);
   let isoCol = 0;
   let rateCol = 0;
+  let rateKind: RateColumnKind | null = null;
 
   headerRow.eachCell((cell, colNumber) => {
     const header = normalizeHeader(cell.value);
@@ -90,26 +99,37 @@ export async function parseCurrencyRatesExcel(
       isoCol = colNumber;
     }
     if (
-      header === "ratetousd" ||
-      header === "rate" ||
-      header === "usdrate" ||
-      header === "rateusd" ||
-      // Legacy KWD-based templates still accepted
-      header === "ratetokwd" ||
-      header === "kwdrate" ||
-      header === "ratekwd"
+      header === "unitsperusd" ||
+      header === "localperusd" ||
+      header === "ratefromusd"
     ) {
       rateCol = colNumber;
+      rateKind = "localPerUsd";
+    }
+    if (
+      rateKind === null &&
+      (header === "ratetousd" ||
+        header === "rate" ||
+        header === "usdrate" ||
+        header === "rateusd" ||
+        // Legacy KWD-based templates still accepted (stored rateToUsd)
+        header === "ratetokwd" ||
+        header === "kwdrate" ||
+        header === "ratekwd")
+    ) {
+      rateCol = colNumber;
+      rateKind = "storedRateToUsd";
     }
   });
 
-  if (!isoCol || !rateCol) {
+  if (!isoCol || !rateCol || !rateKind) {
     return {
       rows: [],
       issues: [
         {
           rowNumber: 1,
-          message: "Missing required headers. Expected ISO and RateToUSD columns.",
+          message:
+            "Missing required headers. Expected ISO and UnitsPerUSD columns.",
         },
       ],
     };
@@ -137,8 +157,8 @@ export async function parseCurrencyRatesExcel(
       return;
     }
 
-    const rate = parseRate(row.getCell(rateCol).value);
-    if (rate === null) {
+    const rawRate = parseRate(row.getCell(rateCol).value);
+    if (rawRate === null) {
       issues.push({
         rowNumber,
         message: `Missing or invalid rate for ${isoRaw}`,
@@ -146,7 +166,7 @@ export async function parseCurrencyRatesExcel(
       return;
     }
 
-    if (rate <= 0) {
+    if (rawRate <= 0) {
       issues.push({
         rowNumber,
         message: `Rate for ${isoRaw} must be positive`,
@@ -154,7 +174,23 @@ export async function parseCurrencyRatesExcel(
       return;
     }
 
-    if (isoRaw === BASE_CURRENCY_ISO_CODE && rate !== BASE_CURRENCY_RATE) {
+    const rateToUsd =
+      rateKind === "localPerUsd"
+        ? storedRateToUsdFromLocalPerUsd(rawRate)
+        : rawRate;
+
+    if (rateToUsd === null) {
+      issues.push({
+        rowNumber,
+        message: `Missing or invalid rate for ${isoRaw}`,
+      });
+      return;
+    }
+
+    if (
+      isoRaw === BASE_CURRENCY_ISO_CODE &&
+      rateToUsd !== BASE_CURRENCY_RATE
+    ) {
       issues.push({
         rowNumber,
         message: `${BASE_CURRENCY_ISO_CODE} rate must be 1 (row skipped; ${BASE_CURRENCY_ISO_CODE} stays locked)`,
@@ -174,7 +210,7 @@ export async function parseCurrencyRatesExcel(
     }
 
     seenIso.add(isoRaw);
-    rows.push({ isoCode: isoRaw, rateToUsd: rate, rowNumber });
+    rows.push({ isoCode: isoRaw, rateToUsd, rowNumber });
   });
 
   return { rows, issues };
@@ -187,16 +223,20 @@ export async function buildCurrencyRatesTemplateBuffer(
   const sheet = workbook.addWorksheet("Rates");
   sheet.columns = [
     { header: "ISO", key: "iso", width: 12 },
-    { header: "RateToUSD", key: "rate", width: 16 },
+    { header: "UnitsPerUSD", key: "rate", width: 16 },
   ];
 
   for (const currency of currencies) {
+    if (currency.isoCode === BASE_CURRENCY_ISO_CODE) {
+      sheet.addRow({ iso: currency.isoCode, rate: BASE_CURRENCY_RATE });
+      continue;
+    }
+    const localPerUsd = localPerUsdFromStoredRateToUsd(
+      currency.rateToUsd === undefined ? null : currency.rateToUsd,
+    );
     sheet.addRow({
       iso: currency.isoCode,
-      rate:
-        currency.isoCode === BASE_CURRENCY_ISO_CODE
-          ? BASE_CURRENCY_RATE
-          : (currency.rateToUsd ?? ""),
+      rate: localPerUsd ?? "",
     });
   }
 

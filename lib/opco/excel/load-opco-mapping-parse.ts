@@ -60,6 +60,7 @@ export async function loadOpcoMappingParseConfig(
       partnerColumn: mapping.partnerColumn,
       revenueColumn: mapping.revenueColumn,
       revenueShareColumn: mapping.revenueShareColumn,
+      rowFiltersJson: mapping.rowFiltersJson,
       rowFilterColumn: mapping.rowFilterColumn,
       rowFilterValue: mapping.rowFilterValue,
       aggregateDailyRows: mapping.aggregateDailyRows,
