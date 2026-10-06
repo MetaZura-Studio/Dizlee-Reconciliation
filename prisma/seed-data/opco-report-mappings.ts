@@ -3,6 +3,10 @@
  */
 
 import { serializeSampleHeaders } from "../../lib/admin/opco-report-mapping-excel";
+import {
+  resolveOpcoRowFilters,
+  serializeOpcoRowFiltersJson,
+} from "../../lib/admin/opco-report-mappings.shared";
 
 export type OpcoReportMappingSeed = {
   opcoSlug: string;
@@ -17,6 +21,17 @@ export type OpcoReportMappingSeed = {
   sheetName: string | null;
   headers: string[] | null;
 };
+
+export function seedOpcoReportMappingRowFiltersJson(
+  mapping: OpcoReportMappingSeed,
+): string | null {
+  return serializeOpcoRowFiltersJson(
+    resolveOpcoRowFilters({
+      rowFilterColumn: mapping.rowFilterColumn,
+      rowFilterValue: mapping.rowFilterValue,
+    }),
+  );
+}
 
 function headersJsonFor(
   headers: string[] | null,

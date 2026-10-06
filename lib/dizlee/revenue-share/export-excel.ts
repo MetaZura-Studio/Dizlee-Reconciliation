@@ -4,7 +4,10 @@
 
 import ExcelJS from "exceljs";
 
-import type { RevenueShareReport } from "@/lib/dizlee/revenue-share";
+import {
+  revenueShareAmountFromOpco,
+  type RevenueShareReport,
+} from "@/lib/dizlee/revenue-share";
 import {
   formatExportMoney,
   formatExportPercent,
@@ -39,6 +42,7 @@ export async function buildRevenueShareWorkbook(
     "Amount as per partner in usd",
     "Regulatory Fee %",
     "Net Revenue",
+    "Revenue share amount",
     "Revenue Share %",
   ]);
   sheet.getRow(1).font = { bold: true };
@@ -51,6 +55,10 @@ export async function buildRevenueShareWorkbook(
       formatExportMoney(line.partnerAmountUsd, moneyIso),
       formatExportPercent(report.vatPercent),
       formatExportMoney(line.netRevenue, moneyIso),
+      formatExportMoney(
+        revenueShareAmountFromOpco(line.opcoAmountUsd, line.revenueSharePercent),
+        moneyIso,
+      ),
       formatExportPercent(line.revenueSharePercent),
     ]);
   }
@@ -62,6 +70,7 @@ export async function buildRevenueShareWorkbook(
     { width: 36 },
     { width: 18 },
     { width: 16 },
+    { width: 22 },
     { width: 18 },
   ];
 

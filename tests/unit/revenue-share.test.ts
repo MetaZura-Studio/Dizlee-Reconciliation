@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import ExcelJS from "exceljs";
+
 import {
   buildRevenueShareLine,
   deriveRevenueShareDashboardStatus,
@@ -7,11 +9,16 @@ import {
   netRevenueFromGross,
   regulatoryFeeFromVatPercent,
   resolveRevenueSharePercent,
+  revenueShareAmountFromOpco,
   revenueSharePercentFromSource,
   revenueShareReadinessFromPartnerRows,
   summarizeRevenueShareDashboardRows,
+  type RevenueShareReport,
 } from "@/lib/dizlee/revenue-share";
-import { revenueShareExportFilename } from "@/lib/dizlee/revenue-share/export-excel";
+import {
+  buildRevenueShareWorkbook,
+  revenueShareExportFilename,
+} from "@/lib/dizlee/revenue-share/export-excel";
 import {
   decimalPrecisionForCurrency,
   formatExportMoney,
@@ -24,6 +31,14 @@ describe("revenue share formulas", () => {
     expect(regulatoryFeeFromVatPercent(100, 0)).toBe(0);
     expect(regulatoryFeeFromVatPercent(200, 10)).toBe(20);
     expect(netRevenueFromGross(200, 20)).toBe(180);
+  });
+
+  it("computes revenue share amount as OpCo USD × share %", () => {
+    expect(revenueShareAmountFromOpco(200, 25)).toBe(50);
+    expect(revenueShareAmountFromOpco(100, 30)).toBe(30);
+    expect(revenueShareAmountFromOpco(null, 25)).toBeNull();
+    expect(revenueShareAmountFromOpco(200, null)).toBeNull();
+    expect(revenueShareAmountFromOpco(null, null)).toBeNull();
   });
 
   it("prefers the line-item field over source_columns JSON", () => {
@@ -100,6 +115,50 @@ describe("revenue share formulas", () => {
     expect(revenueShareExportFilename("Zain Kuwait", 3, 2026)).toBe(
       "revenue_share_zain-kuwait_2026-03.xlsx",
     );
+  });
+
+  it("puts Revenue share amount before Revenue Share % in the Excel", async () => {
+    const report: RevenueShareReport = {
+      opcoId: "1",
+      opcoName: "Test OpCo",
+      vatPercent: 10,
+      period: { month: 3, year: 2026, label: "Mar 2026" },
+      lines: [
+        {
+          partnerId: "42",
+          partnerName: "ArpuPlus",
+          serviceName: "Games",
+          opcoAmountUsd: 200,
+          partnerAmountUsd: 198,
+          regulatoryFee: 20,
+          netRevenue: 180,
+          revenueSharePercent: 25,
+        },
+      ],
+    };
+    const buffer = await buildRevenueShareWorkbook(report);
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer as unknown as ExcelJS.Buffer);
+    const sheet = workbook.getWorksheet("Revenue Share");
+    expect(sheet).toBeTruthy();
+    const headers = (sheet!.getRow(1).values as unknown[])
+      .slice(1)
+      .map((cell) => String(cell ?? ""));
+    expect(headers).toEqual([
+      "Partner Name",
+      "Service Name",
+      "Amount as per opco in usd",
+      "Amount as per partner in usd",
+      "Regulatory Fee %",
+      "Net Revenue",
+      "Revenue share amount",
+      "Revenue Share %",
+    ]);
+    const row = (sheet!.getRow(2).values as unknown[]).slice(1).map((cell) =>
+      String(cell ?? ""),
+    );
+    expect(row[6]).toBe("50.00");
+    expect(row[7]).toBe("25%");
   });
 
   it("formats export money with currency decimals and thousand separators", () => {
