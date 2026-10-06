@@ -23,18 +23,23 @@ export default async function AdminOpcoReportMappingPage({ params }: PageProps) 
   const { id } = await params;
 
   let mapping;
-  let initialFilterValues: string[] = [];
+  const initialFilterValuesByColumn: Record<string, string[]> = {};
   try {
     mapping = await getOpcoReportMapping(id);
-    if (mapping.rowFilterColumn && mapping.sampleFileName) {
-      try {
-        const result = await getOpcoReportMappingColumnValues(
-          id,
-          mapping.rowFilterColumn,
-        );
-        initialFilterValues = result.values;
-      } catch {
-        initialFilterValues = [];
+    if (mapping.sampleFileName) {
+      for (const filter of mapping.rowFilters) {
+        if (initialFilterValuesByColumn[filter.column]) {
+          continue;
+        }
+        try {
+          const result = await getOpcoReportMappingColumnValues(
+            id,
+            filter.column,
+          );
+          initialFilterValuesByColumn[filter.column] = result.values;
+        } catch {
+          initialFilterValuesByColumn[filter.column] = [];
+        }
       }
     }
   } catch (error) {
@@ -52,7 +57,7 @@ export default async function AdminOpcoReportMappingPage({ params }: PageProps) 
     <div className="w-full">
       <OpcoReportMappingForm
         initialMapping={mapping}
-        initialFilterValues={initialFilterValues}
+        initialFilterValuesByColumn={initialFilterValuesByColumn}
       />
     </div>
   );

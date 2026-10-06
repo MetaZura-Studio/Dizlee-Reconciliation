@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   formatRateInput,
+  localPerUsdFromStoredRateToUsd,
   sanitizeRateInput,
+  storedRateToUsdFromLocalPerUsd,
 } from "@/lib/admin/currency-rate-input";
 import { isSameCalendarPeriod } from "@/lib/platform/currency-rates";
 
@@ -16,6 +18,29 @@ describe("formatRateInput", () => {
     expect(formatRateInput(3.25)).toBe("3.25");
     expect(formatRateInput(1)).toBe("1");
     expect(formatRateInput(1.5)).toBe("1.5");
+  });
+});
+
+describe("Admin USD-left invert helpers", () => {
+  it("converts stored rateToUsd to local-per-USD for display", () => {
+    expect(localPerUsdFromStoredRateToUsd(3.25)).toBeCloseTo(1 / 3.25, 10);
+    expect(localPerUsdFromStoredRateToUsd(1)).toBe(1);
+    expect(localPerUsdFromStoredRateToUsd(null)).toBeNull();
+    expect(localPerUsdFromStoredRateToUsd(0)).toBeNull();
+    expect(localPerUsdFromStoredRateToUsd(-2)).toBeNull();
+  });
+
+  it("converts local-per-USD input back to stored rateToUsd", () => {
+    expect(storedRateToUsdFromLocalPerUsd(1 / 3.25)).toBeCloseTo(3.25, 10);
+    expect(storedRateToUsdFromLocalPerUsd(1)).toBe(1);
+    expect(storedRateToUsdFromLocalPerUsd(null)).toBeNull();
+    expect(storedRateToUsdFromLocalPerUsd(0)).toBeNull();
+  });
+
+  it("round-trips without changing the stored rate", () => {
+    const stored = 3.25;
+    const shown = localPerUsdFromStoredRateToUsd(stored);
+    expect(storedRateToUsdFromLocalPerUsd(shown)).toBeCloseTo(stored, 10);
   });
 });
 

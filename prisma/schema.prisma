@@ -341,6 +341,7 @@ model OpcoReportMapping {
   revenueShareColumn  String?  @map("revenue_share_column") @db.VarChar(255)
   rowFilterColumn     String?  @map("row_filter_column") @db.VarChar(255)
   rowFilterValue      String?  @map("row_filter_value") @db.VarChar(255)
+  rowFiltersJson      String?  @map("row_filters_json") @db.Text
   aggregateDailyRows  Boolean  @default(false) @map("aggregate_daily_rows")
   createdByUserId     BigInt?  @map("created_by_user_id")
   updatedByUserId     BigInt?  @map("updated_by_user_id")

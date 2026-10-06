@@ -9,20 +9,36 @@ import {
   FileDropField,
   type FileDropFieldHandle,
 } from "@/components/ui/file-drop-field";
+import { IconButton } from "@/components/ui/icon-button";
+import { IconTrash } from "@/components/ui/icons";
 import { LoadingOverlay } from "@/components/ui/loading";
 import { PageCard, PageHeader } from "@/components/ui/page";
 import { useToast } from "@/components/ui/toast";
 import type {
   OpcoPartnerMode,
   OpcoReportMappingView,
+  OpcoRowFilter,
 } from "@/lib/admin/opco-report-mappings.shared";
-import { partnerModeLabel } from "@/lib/admin/opco-report-mappings.shared";
+import {
+  MAX_OPCO_ROW_FILTERS,
+  partnerModeLabel,
+} from "@/lib/admin/opco-report-mappings.shared";
 import { formatAppError } from "@/lib/errors/format";
-import { ui } from "@/lib/ui/classes";
+import { cn, ui } from "@/lib/ui/classes";
+
+type FilterFormRow = {
+  key: string;
+  column: string;
+  value: string;
+  values: string[];
+  valuesLoading: boolean;
+  valuesError: string | null;
+};
 
 type OpcoReportMappingFormProps = {
   initialMapping: OpcoReportMappingView;
-  initialFilterValues?: string[];
+  /** Distinct values keyed by filter column for SSR preload. */
+  initialFilterValuesByColumn?: Record<string, string[]>;
 };
 
 function HeaderOptions({
@@ -39,9 +55,29 @@ function HeaderOptions({
   ));
 }
 
+let filterRowKeySeq = 0;
+function nextFilterRowKey(): string {
+  filterRowKeySeq += 1;
+  return `filter-${filterRowKeySeq}`;
+}
+
+function filtersFromMapping(
+  filters: OpcoRowFilter[],
+  valuesByColumn: Record<string, string[]> = {},
+): FilterFormRow[] {
+  return filters.map((filter) => ({
+    key: nextFilterRowKey(),
+    column: filter.column,
+    value: filter.value,
+    values: valuesByColumn[filter.column] ?? [],
+    valuesLoading: false,
+    valuesError: null,
+  }));
+}
+
 export function OpcoReportMappingForm({
   initialMapping,
-  initialFilterValues = [],
+  initialFilterValuesByColumn = {},
 }: OpcoReportMappingFormProps) {
   const toast = useToast();
   const sampleDropRef = useRef<FileDropFieldHandle>(null);
@@ -62,15 +98,9 @@ export function OpcoReportMappingForm({
   const [revenueShareColumn, setRevenueShareColumn] = useState(
     initialMapping.revenueShareColumn ?? "",
   );
-  const [rowFilterColumn, setRowFilterColumn] = useState(
-    initialMapping.rowFilterColumn ?? "",
+  const [rowFilters, setRowFilters] = useState<FilterFormRow[]>(() =>
+    filtersFromMapping(initialMapping.rowFilters, initialFilterValuesByColumn),
   );
-  const [rowFilterValue, setRowFilterValue] = useState(
-    initialMapping.rowFilterValue ?? "",
-  );
-  const [filterValues, setFilterValues] = useState<string[]>(initialFilterValues);
-  const [filterValuesLoading, setFilterValuesLoading] = useState(false);
-  const [filterValuesError, setFilterValuesError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -82,14 +112,18 @@ export function OpcoReportMappingForm({
   const canMapColumns = sheetSelected && headers.length > 0;
 
   const loadFilterColumnValues = useCallback(
-    async (column: string, signal?: AbortSignal) => {
-      setFilterValuesLoading(true);
-      setFilterValuesError(null);
+    async (rowKey: string, column: string) => {
+      setRowFilters((current) =>
+        current.map((row) =>
+          row.key === rowKey
+            ? { ...row, valuesLoading: true, valuesError: null }
+            : row,
+        ),
+      );
       try {
         const params = new URLSearchParams({ column });
         const response = await fetch(
           `/api/admin/opcos/${mapping.opcoId}/report-mapping/column-values?${params}`,
-          { signal },
         );
         const body = (await response.json()) as {
           data?: { values?: string[] };
@@ -98,37 +132,57 @@ export function OpcoReportMappingForm({
         if (!response.ok) {
           throw new Error(formatAppError(body, "Failed to load filter values"));
         }
-        setFilterValues(body.data?.values ?? []);
-      } catch (loadError) {
-        if (loadError instanceof DOMException && loadError.name === "AbortError") {
-          return;
-        }
-        setFilterValues([]);
-        setFilterValuesError(
-          loadError instanceof Error
-            ? loadError.message
-            : "Failed to load filter values",
+        const values = body.data?.values ?? [];
+        setRowFilters((current) =>
+          current.map((row) =>
+            row.key === rowKey
+              ? {
+                  ...row,
+                  values,
+                  valuesLoading: false,
+                  valuesError: null,
+                }
+              : row,
+          ),
         );
-      } finally {
-        if (!signal?.aborted) {
-          setFilterValuesLoading(false);
-        }
+      } catch (loadError) {
+        setRowFilters((current) =>
+          current.map((row) =>
+            row.key === rowKey
+              ? {
+                  ...row,
+                  values: [],
+                  valuesLoading: false,
+                  valuesError:
+                    loadError instanceof Error
+                      ? loadError.message
+                      : "Failed to load filter values",
+                }
+              : row,
+          ),
+        );
       }
     },
     [mapping.opcoId],
   );
 
   const requestFilterColumnValues = useCallback(
-    (column: string, sampleFileName: string | null, sheetSelected: boolean, headers: string[]) => {
+    (
+      rowKey: string,
+      column: string,
+      sampleFileName: string | null,
+      sheetIsSelected: boolean,
+      headerList: string[],
+    ) => {
       if (
         !column.trim() ||
-        !sheetSelected ||
-        headers.length === 0 ||
+        !sheetIsSelected ||
+        headerList.length === 0 ||
         !sampleFileName
       ) {
         return;
       }
-      void loadFilterColumnValues(column);
+      void loadFilterColumnValues(rowKey, column);
     },
     [loadFilterColumnValues],
   );
@@ -140,16 +194,17 @@ export function OpcoReportMappingForm({
     setPartnerColumn(next.partnerColumn ?? "");
     setRevenueColumn(next.revenueColumn ?? "");
     setRevenueShareColumn(next.revenueShareColumn ?? "");
-    setRowFilterColumn(next.rowFilterColumn ?? "");
-    setRowFilterValue(next.rowFilterValue ?? "");
-    setFilterValues([]);
-    setFilterValuesError(null);
-    requestFilterColumnValues(
-      next.rowFilterColumn ?? "",
-      next.sampleFileName,
-      Boolean(next.sampleSheetName),
-      next.headers,
-    );
+    const nextFilters = filtersFromMapping(next.rowFilters);
+    setRowFilters(nextFilters);
+    for (const filter of nextFilters) {
+      requestFilterColumnValues(
+        filter.key,
+        filter.column,
+        next.sampleFileName,
+        Boolean(next.sampleSheetName),
+        next.headers,
+      );
+    }
   };
 
   const uploadSample = async (file: File) => {
@@ -220,6 +275,27 @@ export function OpcoReportMappingForm({
       setError("Select which Excel sheet to use before saving column mapping.");
       return;
     }
+
+    for (const filter of rowFilters) {
+      const hasColumn = Boolean(filter.column.trim());
+      const hasValue = Boolean(filter.value.trim());
+      if (hasColumn !== hasValue) {
+        setError(
+          hasColumn
+            ? "Each row filter needs an Equals value, or remove the incomplete filter."
+            : "Each row filter needs a column, or remove the incomplete filter.",
+        );
+        return;
+      }
+    }
+
+    const filtersPayload = rowFilters
+      .filter((filter) => filter.column.trim() && filter.value.trim())
+      .map((filter) => ({
+        column: filter.column.trim(),
+        value: filter.value.trim(),
+      }));
+
     setSaving(true);
     try {
       const response = await fetch(
@@ -233,8 +309,7 @@ export function OpcoReportMappingForm({
             partnerColumn: partnerColumn || null,
             revenueColumn: revenueColumn || null,
             revenueShareColumn: revenueShareColumn || null,
-            rowFilterColumn: rowFilterColumn || null,
-            rowFilterValue: rowFilterValue || null,
+            rowFilters: filtersPayload,
             aggregateDailyRows: mapping.aggregateDailyRows,
           }),
         },
@@ -252,6 +327,50 @@ export function OpcoReportMappingForm({
     } finally {
       setSaving(false);
     }
+  };
+
+  const addFilterRow = () => {
+    if (rowFilters.length >= MAX_OPCO_ROW_FILTERS) {
+      return;
+    }
+    setRowFilters((current) => [
+      ...current,
+      {
+        key: nextFilterRowKey(),
+        column: "",
+        value: "",
+        values: [],
+        valuesLoading: false,
+        valuesError: null,
+      },
+    ]);
+  };
+
+  const removeFilterRow = (key: string) => {
+    setRowFilters((current) => current.filter((row) => row.key !== key));
+  };
+
+  const updateFilterColumn = (key: string, nextColumn: string) => {
+    setRowFilters((current) =>
+      current.map((row) =>
+        row.key === key
+          ? {
+              ...row,
+              column: nextColumn,
+              value: "",
+              values: [],
+              valuesError: null,
+            }
+          : row,
+      ),
+    );
+    requestFilterColumnValues(
+      key,
+      nextColumn,
+      mapping.sampleFileName,
+      sheetSelected,
+      headers,
+    );
   };
 
   const busy = uploading || saving || selectingSheet;
@@ -473,84 +592,143 @@ export function OpcoReportMappingForm({
                 Row filters
               </h2>
               <p className="mt-1 text-sm text-foreground-muted">
-                Optional. Limit which Excel rows are imported into the report.
+                Optional. Limit which Excel rows are imported. Rows must match
+                every filter (AND). Match is case-insensitive.
               </p>
             </div>
 
-            <div className="grid w-full gap-4 sm:grid-cols-2">
-              <label className="block text-sm">
-                <FieldLegend>Only include rows where</FieldLegend>
-                <select
-                  className={ui.select}
-                  value={rowFilterColumn}
-                  onChange={(event) => {
-                    const nextColumn = event.target.value;
-                    setRowFilterColumn(nextColumn);
-                    setRowFilterValue("");
-                    setFilterValues([]);
-                    setFilterValuesError(null);
-                    requestFilterColumnValues(
-                      nextColumn,
-                      mapping.sampleFileName,
-                      sheetSelected,
-                      headers,
-                    );
-                  }}
-                  disabled={!canMapColumns || busy}
-                >
-                  <option value="">No row filter</option>
-                  <HeaderOptions prefix="filter" headers={headers} />
-                  {rowFilterColumn && !headers.includes(rowFilterColumn) ? (
-                    <option value={rowFilterColumn}>
-                      {rowFilterColumn} (saved)
-                    </option>
-                  ) : null}
-                </select>
-              </label>
+            {rowFilters.length === 0 ? (
+              <p className="text-sm text-foreground-subtle">
+                No row filters. All mapped rows are imported.
+              </p>
+            ) : null}
 
-              <label className="block text-sm">
-                <FieldLegend required={Boolean(rowFilterColumn)}>Equals</FieldLegend>
-                <select
-                  className={ui.select}
-                  value={rowFilterValue}
-                  onChange={(event) => setRowFilterValue(event.target.value)}
-                  required={Boolean(rowFilterColumn)}
-                  disabled={
-                    !canMapColumns ||
-                    busy ||
-                    !rowFilterColumn ||
-                    filterValuesLoading
-                  }
-                >
-                  <option value="">
-                    {filterValuesLoading ? "Loading values…" : "Select value"}
-                  </option>
-                  {rowFilterColumn && canMapColumns && hasSampleFile
-                    ? filterValues.map((value) => (
-                        <option key={value} value={value}>
-                          {value}
-                        </option>
-                      ))
-                    : null}
-                  {rowFilterValue && !filterValues.includes(rowFilterValue) ? (
-                    <option value={rowFilterValue}>
-                      {rowFilterValue} (saved)
-                    </option>
-                  ) : null}
-                </select>
-                <p className="mt-1 text-xs text-foreground-subtle">
-                  {filterValuesError
-                    ? filterValuesError
-                    : filterValuesLoading
-                      ? "Reading distinct values from the sample file…"
-                      : rowFilterColumn && !hasSampleFile
-                        ? "Upload a sample Excel before choosing filter values."
-                        : rowFilterColumn && filterValues.length === 0
-                          ? "No values found for this column in the sample file."
-                          : "Other rows are skipped. Match is case-insensitive."}
-                </p>
-              </label>
+            <div className="space-y-4">
+              {rowFilters.map((filter, index) => {
+                const valueHint = filter.valuesError
+                  ? filter.valuesError
+                  : filter.valuesLoading
+                    ? "Reading distinct values from the sample file…"
+                    : filter.column && !hasSampleFile
+                      ? "Upload a sample Excel before choosing filter values."
+                      : filter.column &&
+                          canMapColumns &&
+                          hasSampleFile &&
+                          filter.values.length === 0
+                        ? "No values found for this column in the sample file."
+                        : null;
+
+                return (
+                  <div
+                    key={filter.key}
+                    className="rounded-xl border border-border/70 p-4"
+                  >
+                    <div className="grid min-w-0 gap-4 sm:grid-cols-2">
+                      <label className="block text-sm">
+                        <FieldLegend>
+                          {index === 0
+                            ? "Only include rows where"
+                            : `And where (filter ${index + 1})`}
+                        </FieldLegend>
+                        <select
+                          className={ui.select}
+                          value={filter.column}
+                          onChange={(event) =>
+                            updateFilterColumn(filter.key, event.target.value)
+                          }
+                          disabled={!canMapColumns || busy}
+                        >
+                          <option value="">Select column</option>
+                          <HeaderOptions
+                            prefix={`filter-${filter.key}`}
+                            headers={headers}
+                          />
+                          {filter.column && !headers.includes(filter.column) ? (
+                            <option value={filter.column}>
+                              {filter.column} (saved)
+                            </option>
+                          ) : null}
+                        </select>
+                      </label>
+
+                      <label className="block min-w-0 text-sm">
+                        <FieldLegend required={Boolean(filter.column)}>
+                          Equals
+                        </FieldLegend>
+                        <div className="flex items-center gap-2">
+                          <select
+                            className={cn(ui.select, "min-w-0 flex-1")}
+                            value={filter.value}
+                            onChange={(event) =>
+                              setRowFilters((current) =>
+                                current.map((row) =>
+                                  row.key === filter.key
+                                    ? { ...row, value: event.target.value }
+                                    : row,
+                                ),
+                              )
+                            }
+                            required={Boolean(filter.column)}
+                            disabled={
+                              !canMapColumns ||
+                              busy ||
+                              !filter.column ||
+                              filter.valuesLoading
+                            }
+                          >
+                            <option value="">
+                              {filter.valuesLoading
+                                ? "Loading values…"
+                                : "Select value"}
+                            </option>
+                            {filter.column && canMapColumns && hasSampleFile
+                              ? filter.values.map((value) => (
+                                  <option key={value} value={value}>
+                                    {value}
+                                  </option>
+                                ))
+                              : null}
+                            {filter.value &&
+                            !filter.values.includes(filter.value) ? (
+                              <option value={filter.value}>
+                                {filter.value} (saved)
+                              </option>
+                            ) : null}
+                          </select>
+                          <IconButton
+                            label="Remove filter"
+                            variant="danger"
+                            className="shrink-0"
+                            onClick={() => removeFilterRow(filter.key)}
+                            disabled={busy}
+                          >
+                            <IconTrash />
+                          </IconButton>
+                        </div>
+                        {valueHint ? (
+                          <p className="mt-1 text-xs text-foreground-subtle">
+                            {valueHint}
+                          </p>
+                        ) : null}
+                      </label>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
+
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={addFilterRow}
+              disabled={
+                busy ||
+                !canMapColumns ||
+                rowFilters.length >= MAX_OPCO_ROW_FILTERS
+              }
+            >
+              Add filter
+            </Button>
           </section>
 
           <div className="flex flex-wrap gap-3">
