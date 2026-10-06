@@ -122,7 +122,7 @@ describe("revenue share formulas", () => {
       opcoId: "1",
       opcoName: "Test OpCo",
       vatPercent: 10,
-      period: { month: 3, year: 2026 },
+      period: { month: 3, year: 2026, label: "Mar 2026" },
       lines: [
         {
           partnerId: "42",
@@ -138,7 +138,7 @@ describe("revenue share formulas", () => {
     };
     const buffer = await buildRevenueShareWorkbook(report);
     const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(buffer);
+    await workbook.xlsx.load(buffer as unknown as ExcelJS.Buffer);
     const sheet = workbook.getWorksheet("Revenue Share");
     expect(sheet).toBeTruthy();
     const headers = (sheet!.getRow(1).values as unknown[])

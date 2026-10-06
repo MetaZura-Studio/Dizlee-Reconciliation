@@ -91,7 +91,7 @@ describe("parseCurrencyRatesExcel", () => {
       { isoCode: "KWD", rateToUsd: 3.25 },
     ]);
     const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(buffer);
+    await workbook.xlsx.load(buffer as unknown as ExcelJS.Buffer);
     const sheet = workbook.worksheets[0];
     expect(sheet).toBeTruthy();
     expect(String(sheet!.getRow(1).getCell(2).value)).toBe("UnitsPerUSD");
