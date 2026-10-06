@@ -22,6 +22,7 @@ import { OPCO_PARTNER_LINK_SEEDS } from "./seed-data/opco-partner-links";
 import {
   OPCO_REPORT_MAPPING_SEEDS,
   seedOpcoReportMappingHeadersJson,
+  seedOpcoReportMappingRowFiltersJson,
 } from "./seed-data/opco-report-mappings";
 import { OPCO_SEEDS } from "./seed-data/opcos";
 import { PARTNER_SEEDS } from "./seed-data/partners";
@@ -269,6 +270,7 @@ async function seedOpcosAndPartners(
         revenueShareColumn: mapping.revenueShareColumn,
         rowFilterColumn: mapping.rowFilterColumn,
         rowFilterValue: mapping.rowFilterValue,
+        rowFiltersJson: seedOpcoReportMappingRowFiltersJson(mapping),
         aggregateDailyRows: mapping.aggregateDailyRows,
         headersJson: seedOpcoReportMappingHeadersJson(mapping),
         isDeleted: false,
@@ -282,6 +284,7 @@ async function seedOpcosAndPartners(
         revenueShareColumn: mapping.revenueShareColumn,
         rowFilterColumn: mapping.rowFilterColumn,
         rowFilterValue: mapping.rowFilterValue,
+        rowFiltersJson: seedOpcoReportMappingRowFiltersJson(mapping),
         aggregateDailyRows: mapping.aggregateDailyRows,
         headersJson: seedOpcoReportMappingHeadersJson(mapping),
       },

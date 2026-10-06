@@ -18,8 +18,13 @@ import {
   updateOpcoReportMappingSchema,
 } from "@/lib/admin/validation/opco-report-mappings";
 import {
+  resolveOpcoRowFilters,
+  serializeOpcoRowFiltersJson,
+} from "@/lib/admin/opco-report-mappings.shared";
+import {
   OPCO_REPORT_MAPPING_SEEDS,
   seedOpcoReportMappingHeadersJson,
+  seedOpcoReportMappingRowFiltersJson,
 } from "@/prisma/seed-data/opco-report-mappings";
 import {
   assertOpcoMappingReady,
@@ -166,6 +171,36 @@ describe("sheet catalog", () => {
     );
     expect(bahrain?.rowFilterColumn).toBe("Aggregator Name");
     expect(bahrain?.rowFilterValue).toBe("Group API");
+    expect(seedOpcoReportMappingRowFiltersJson(bahrain!)).toBe(
+      serializeOpcoRowFiltersJson([
+        { column: "Aggregator Name", value: "Group API" },
+      ]),
+    );
+  });
+});
+
+describe("resolveOpcoRowFilters", () => {
+  it("prefers JSON list and falls back to scalar pair", () => {
+    expect(
+      resolveOpcoRowFilters({
+        rowFiltersJson: JSON.stringify([
+          { column: "A", value: "1" },
+          { column: "B", value: "2" },
+        ]),
+        rowFilterColumn: "Legacy",
+        rowFilterValue: "X",
+      }),
+    ).toEqual([
+      { column: "A", value: "1" },
+      { column: "B", value: "2" },
+    ]);
+    expect(
+      resolveOpcoRowFilters({
+        rowFiltersJson: null,
+        rowFilterColumn: "Aggregator Name",
+        rowFilterValue: "Group API",
+      }),
+    ).toEqual([{ column: "Aggregator Name", value: "Group API" }]);
   });
 });
 
@@ -190,6 +225,36 @@ describe("updateOpcoReportMappingSchema", () => {
       aggregateDailyRows: true,
     });
     expect(result.success).toBe(true);
+  });
+
+  it("accepts multiple complete row filters", () => {
+    const result = updateOpcoReportMappingSchema.safeParse({
+      partnerMode: "EXCEL_COLUMN",
+      serviceColumn: "Service Name",
+      revenueColumn: "Revenue",
+      revenueShareColumn: "Share %",
+      partnerColumn: "Partner",
+      rowFilters: [
+        { column: "Aggregator Name", value: "Group API" },
+        { column: "Region", value: "BH" },
+      ],
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.rowFilters).toHaveLength(2);
+    }
+  });
+
+  it("rejects incomplete row filter items", () => {
+    const result = updateOpcoReportMappingSchema.safeParse({
+      partnerMode: "EXCEL_COLUMN",
+      serviceColumn: "Service Name",
+      revenueColumn: "Revenue",
+      revenueShareColumn: "Share %",
+      partnerColumn: "Partner",
+      rowFilters: [{ column: "Aggregator Name", value: "" }],
+    });
+    expect(result.success).toBe(false);
   });
 
   it("requires service, revenue, and revenue share columns", () => {
@@ -372,6 +437,7 @@ describe("parseOpcoReportWithMapping", () => {
       partnerColumn: "Merchant Name",
       revenueColumn: "Total Gross Revenue",
       revenueShareColumn: null,
+      rowFilters: [],
       rowFilterColumn: "Aggregator Name",
       rowFilterValue: "Group API",
       aggregateDailyRows: false,
@@ -381,6 +447,37 @@ describe("parseOpcoReportWithMapping", () => {
       "BollyVOD",
       "Zee5",
     ]);
+  });
+
+  it("ANDs multiple row filters", async () => {
+    const buffer = await workbookFromRows(
+      [
+        "Aggregator Name",
+        "Region",
+        "Merchant Name",
+        "Service Name",
+        "Total Gross Revenue",
+      ],
+      [
+        ["Group API", "BH", "DIGITAL VIRGO", "BollyVOD", 1630],
+        ["Group API", "KW", "CENTILI", "Zee5", 1.877],
+        ["Boku/Apple", "BH", "APPLE DCB", "Apple iTunes", 87370],
+      ],
+    );
+    const parsed = await parseOpcoReportWithMapping(buffer, {
+      serviceColumn: "Service Name",
+      partnerMode: "EXCEL_COLUMN",
+      partnerColumn: "Merchant Name",
+      revenueColumn: "Total Gross Revenue",
+      revenueShareColumn: null,
+      rowFilters: [
+        { column: "Aggregator Name", value: "Group API" },
+        { column: "Region", value: "BH" },
+      ],
+      aggregateDailyRows: false,
+    });
+    expect(parsed.partnerColumnLines).toHaveLength(1);
+    expect(parsed.partnerColumnLines[0]?.serviceName).toBe("BollyVOD");
   });
 });
 

@@ -16,6 +16,10 @@ import type {
 import {
   isOpcoReportMappingConfigured,
   isPartnerMode,
+  legacyRowFilterPair,
+  normalizeOpcoRowFilters,
+  resolveOpcoRowFilters,
+  serializeOpcoRowFiltersJson,
 } from "@/lib/admin/opco-report-mappings.shared";
 import {
   selectOpcoReportMappingSheetSchema,
@@ -48,6 +52,25 @@ function keepIfPresent(
   return headers.includes(value) ? value : null;
 }
 
+function keepRowFiltersForHeaders(params: {
+  rowFiltersJson?: string | null;
+  rowFilterColumn?: string | null;
+  rowFilterValue?: string | null;
+  headers: string[];
+}) {
+  const kept = resolveOpcoRowFilters({
+    rowFiltersJson: params.rowFiltersJson,
+    rowFilterColumn: params.rowFilterColumn,
+    rowFilterValue: params.rowFilterValue,
+  }).filter((filter) => params.headers.includes(filter.column));
+  const legacy = legacyRowFilterPair(kept);
+  return {
+    rowFiltersJson: serializeOpcoRowFiltersJson(kept),
+    rowFilterColumn: legacy.rowFilterColumn,
+    rowFilterValue: legacy.rowFilterValue,
+  };
+}
+
 function mapView(row: {
   opcoId: bigint;
   serviceColumn: string | null;
@@ -57,6 +80,7 @@ function mapView(row: {
   revenueShareColumn: string | null;
   rowFilterColumn: string | null;
   rowFilterValue: string | null;
+  rowFiltersJson?: string | null;
   aggregateDailyRows: boolean;
   headersJson: string | null;
   sampleFile: { filename: string } | null;
@@ -74,6 +98,12 @@ function mapView(row: {
     partnerMode,
     partnerColumn: row.partnerColumn,
   });
+  const rowFilters = resolveOpcoRowFilters({
+    rowFiltersJson: row.rowFiltersJson,
+    rowFilterColumn: row.rowFilterColumn,
+    rowFilterValue: row.rowFilterValue,
+  });
+  const legacy = legacyRowFilterPair(rowFilters);
 
   return {
     opcoId: row.opcoId.toString(),
@@ -91,8 +121,9 @@ function mapView(row: {
     partnerColumn: row.partnerColumn,
     revenueColumn: row.revenueColumn,
     revenueShareColumn: row.revenueShareColumn,
-    rowFilterColumn: row.rowFilterColumn,
-    rowFilterValue: row.rowFilterValue,
+    rowFilters,
+    rowFilterColumn: legacy.rowFilterColumn,
+    rowFilterValue: legacy.rowFilterValue,
     aggregateDailyRows: row.aggregateDailyRows,
     isConfigured,
   };
@@ -211,7 +242,15 @@ export async function uploadOpcoReportMappingSample(params: {
       revenueColumn: true,
       revenueShareColumn: true,
       rowFilterColumn: true,
+      rowFilterValue: true,
+      rowFiltersJson: true,
     },
+  });
+  const keptFilters = keepRowFiltersForHeaders({
+    rowFiltersJson: existing?.rowFiltersJson,
+    rowFilterColumn: existing?.rowFilterColumn,
+    rowFilterValue: existing?.rowFilterValue,
+    headers: catalog.selected.headers,
   });
 
   const updated = await prisma.opcoReportMapping.update({
@@ -235,10 +274,9 @@ export async function uploadOpcoReportMappingSample(params: {
         existing?.revenueShareColumn,
         catalog.selected.headers,
       ),
-      rowFilterColumn: keepIfPresent(
-        existing?.rowFilterColumn,
-        catalog.selected.headers,
-      ),
+      rowFiltersJson: keptFilters.rowFiltersJson,
+      rowFilterColumn: keptFilters.rowFilterColumn,
+      rowFilterValue: keptFilters.rowFilterValue,
       updatedByUserId: params.actorUserId,
     },
     include: mappingInclude,
@@ -304,6 +342,13 @@ export async function selectOpcoReportMappingSheet(
     );
   }
 
+  const keptFilters = keepRowFiltersForHeaders({
+    rowFiltersJson: existing.rowFiltersJson,
+    rowFilterColumn: existing.rowFilterColumn,
+    rowFilterValue: existing.rowFilterValue,
+    headers: nextStored.headers,
+  });
+
   const updated = await prisma.opcoReportMapping.update({
     where: { opcoId },
     data: {
@@ -315,7 +360,9 @@ export async function selectOpcoReportMappingSheet(
         existing.revenueShareColumn,
         nextStored.headers,
       ),
-      rowFilterColumn: keepIfPresent(existing.rowFilterColumn, nextStored.headers),
+      rowFiltersJson: keptFilters.rowFiltersJson,
+      rowFilterColumn: keptFilters.rowFilterColumn,
+      rowFilterValue: keptFilters.rowFilterValue,
       updatedByUserId: actorUserId,
     },
     include: mappingInclude,
@@ -366,6 +413,9 @@ export async function updateOpcoReportMapping(
       ? parsed.data.partnerColumn
       : null;
 
+  const rowFilters = normalizeOpcoRowFilters(parsed.data.rowFilters);
+  const legacy = legacyRowFilterPair(rowFilters);
+
   const updated = await prisma.opcoReportMapping.update({
     where: { opcoId },
     data: {
@@ -374,8 +424,9 @@ export async function updateOpcoReportMapping(
       partnerColumn,
       revenueColumn: parsed.data.revenueColumn,
       revenueShareColumn: parsed.data.revenueShareColumn,
-      rowFilterColumn: parsed.data.rowFilterColumn,
-      rowFilterValue: parsed.data.rowFilterValue,
+      rowFiltersJson: serializeOpcoRowFiltersJson(rowFilters),
+      rowFilterColumn: legacy.rowFilterColumn,
+      rowFilterValue: legacy.rowFilterValue,
       aggregateDailyRows: parsed.data.aggregateDailyRows,
       updatedByUserId: actorUserId,
     },

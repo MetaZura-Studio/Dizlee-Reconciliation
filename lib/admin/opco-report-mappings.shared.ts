@@ -15,6 +15,14 @@ export type OpcoAvailableSheet = {
   headerCount: number;
 };
 
+/** One equals row filter on an OpCo Excel column. */
+export type OpcoRowFilter = {
+  column: string;
+  value: string;
+};
+
+export const MAX_OPCO_ROW_FILTERS = 10;
+
 export type OpcoReportMappingView = {
   opcoId: string;
   opcoName: string;
@@ -28,11 +36,108 @@ export type OpcoReportMappingView = {
   partnerColumn: string | null;
   revenueColumn: string | null;
   revenueShareColumn: string | null;
+  /** Source of truth for row filters (AND). */
+  rowFilters: OpcoRowFilter[];
+  /** First filter column — kept for legacy readers / display. */
   rowFilterColumn: string | null;
+  /** First filter value — kept for legacy readers / display. */
   rowFilterValue: string | null;
   aggregateDailyRows: boolean;
   isConfigured: boolean;
 };
+
+function trimFilterField(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+/** Normalize a filter list; drop incomplete items; cap at MAX_OPCO_ROW_FILTERS. */
+export function normalizeOpcoRowFilters(
+  filters: Array<{ column?: unknown; value?: unknown }> | null | undefined,
+): OpcoRowFilter[] {
+  if (!Array.isArray(filters)) {
+    return [];
+  }
+  const normalized: OpcoRowFilter[] = [];
+  for (const item of filters) {
+    if (!item || typeof item !== "object") {
+      continue;
+    }
+    const column = trimFilterField(item.column);
+    const value = trimFilterField(item.value);
+    if (!column || !value) {
+      continue;
+    }
+    normalized.push({ column, value });
+    if (normalized.length >= MAX_OPCO_ROW_FILTERS) {
+      break;
+    }
+  }
+  return normalized;
+}
+
+/** Prefer JSON list; fall back to legacy scalar pair. */
+export function resolveOpcoRowFilters(params: {
+  rowFiltersJson?: string | null;
+  rowFilterColumn?: string | null;
+  rowFilterValue?: string | null;
+}): OpcoRowFilter[] {
+  const fromJson = (() => {
+    const raw = params.rowFiltersJson?.trim();
+    if (!raw) {
+      return null;
+    }
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (!Array.isArray(parsed)) {
+        return null;
+      }
+      return normalizeOpcoRowFilters(
+        parsed as Array<{ column?: unknown; value?: unknown }>,
+      );
+    } catch {
+      return null;
+    }
+  })();
+
+  if (fromJson && fromJson.length > 0) {
+    return fromJson;
+  }
+
+  const column = trimFilterField(params.rowFilterColumn);
+  const value = trimFilterField(params.rowFilterValue);
+  if (column && value) {
+    return [{ column, value }];
+  }
+  return [];
+}
+
+export function serializeOpcoRowFiltersJson(
+  filters: OpcoRowFilter[],
+): string | null {
+  const normalized = normalizeOpcoRowFilters(filters);
+  if (normalized.length === 0) {
+    return null;
+  }
+  return JSON.stringify(normalized);
+}
+
+export function legacyRowFilterPair(filters: OpcoRowFilter[]): {
+  rowFilterColumn: string | null;
+  rowFilterValue: string | null;
+} {
+  const first = filters[0];
+  if (!first) {
+    return { rowFilterColumn: null, rowFilterValue: null };
+  }
+  return {
+    rowFilterColumn: first.column,
+    rowFilterValue: first.value,
+  };
+}
 
 export function partnerModeLabel(mode: OpcoPartnerMode): string {
   switch (mode) {

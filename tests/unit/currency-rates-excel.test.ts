@@ -2,6 +2,7 @@ import ExcelJS from "exceljs";
 import { describe, expect, it } from "vitest";
 
 import {
+  buildCurrencyRatesTemplateBuffer,
   mergeParsedRatesIntoDraft,
   parseCurrencyRatesExcel,
 } from "@/lib/admin/currency-rates-excel";
@@ -25,7 +26,25 @@ async function workbookBuffer(
 }
 
 describe("parseCurrencyRatesExcel", () => {
-  it("parses valid ISO and rate rows", async () => {
+  it("parses UnitsPerUSD as local-per-USD and stores inverted rateToUsd", async () => {
+    const buffer = await workbookBuffer(
+      [
+        ["KWD", 1 / 3.25],
+        ["SAR", 1 / 0.27],
+      ],
+      "UnitsPerUSD",
+    );
+    const result = await parseCurrencyRatesExcel(buffer);
+
+    expect(result.rows).toHaveLength(2);
+    expect(result.rows[0]?.isoCode).toBe("KWD");
+    expect(result.rows[0]?.rateToUsd).toBeCloseTo(3.25, 10);
+    expect(result.rows[1]?.isoCode).toBe("SAR");
+    expect(result.rows[1]?.rateToUsd).toBeCloseTo(0.27, 10);
+    expect(result.issues).toEqual([]);
+  });
+
+  it("parses legacy RateToUSD as stored rateToUsd without invert", async () => {
     const buffer = await workbookBuffer([
       ["KWD", 3.25],
       ["SAR", "0.27"],
@@ -64,6 +83,22 @@ describe("parseCurrencyRatesExcel", () => {
     expect(result.rows).toEqual([
       { isoCode: "SAR", rateToUsd: 0.27, rowNumber: 2 },
     ]);
+  });
+
+  it("builds a template with UnitsPerUSD inverted from stored rates", async () => {
+    const buffer = await buildCurrencyRatesTemplateBuffer([
+      { isoCode: "USD", rateToUsd: 1 },
+      { isoCode: "KWD", rateToUsd: 3.25 },
+    ]);
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer as unknown as ExcelJS.Buffer);
+    const sheet = workbook.worksheets[0];
+    expect(sheet).toBeTruthy();
+    expect(String(sheet!.getRow(1).getCell(2).value)).toBe("UnitsPerUSD");
+    expect(sheet!.getRow(2).getCell(1).value).toBe("USD");
+    expect(sheet!.getRow(2).getCell(2).value).toBe(1);
+    expect(sheet!.getRow(3).getCell(1).value).toBe("KWD");
+    expect(Number(sheet!.getRow(3).getCell(2).value)).toBeCloseTo(1 / 3.25, 10);
   });
 });
 
