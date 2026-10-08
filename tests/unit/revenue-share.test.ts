@@ -178,7 +178,7 @@ describe("revenue share formulas", () => {
 });
 
 describe("revenueShareReadinessFromPartnerRows", () => {
-  it("omits linked partners with no OpCo report and only waits on Partner uploads", () => {
+  it("omits linked partners with no OpCo report and stays ready when Partner reports are missing", () => {
     const result = revenueShareReadinessFromPartnerRows(
       [
         {
@@ -206,7 +206,7 @@ describe("revenueShareReadinessFromPartnerRows", () => {
       expect.objectContaining({ partnerId: "1", partnerName: "In File" }),
     ]);
     expect(result.missing).toEqual(["In File (Partner report)"]);
-    expect(result.ready).toBe(false);
+    expect(result.ready).toBe(true);
   });
 
   it("is ready when every OpCo-submitted partner also has a Partner report", () => {
@@ -243,8 +243,8 @@ describe("deriveRevenueShareDashboardStatus", () => {
     expect(
       deriveRevenueShareDashboardStatus({
         hasGeneratedReport: true,
-        ready: true,
         submittedPartnerCount: 2,
+        hasMissingPartnerReports: true,
       }),
     ).toBe("GENERATED");
   });
@@ -253,28 +253,27 @@ describe("deriveRevenueShareDashboardStatus", () => {
     expect(
       deriveRevenueShareDashboardStatus({
         hasGeneratedReport: false,
-        ready: false,
         submittedPartnerCount: 0,
       }),
     ).toBe("OPCO_REPORT_MISSING");
   });
 
-  it("marks partners missing when OpCo file is in but partners are not", () => {
+  it("soft-marks partners missing when OpCo is in but some Partner reports are not", () => {
     expect(
       deriveRevenueShareDashboardStatus({
         hasGeneratedReport: false,
-        ready: false,
         submittedPartnerCount: 3,
+        hasMissingPartnerReports: true,
       }),
     ).toBe("PARTNERS_REPORT_MISSING");
   });
 
-  it("is Ready when submissions are complete and nothing generated yet", () => {
+  it("is Ready when OpCo submissions are in and all Partner reports are present", () => {
     expect(
       deriveRevenueShareDashboardStatus({
         hasGeneratedReport: false,
-        ready: true,
         submittedPartnerCount: 2,
+        hasMissingPartnerReports: false,
       }),
     ).toBe("READY");
   });

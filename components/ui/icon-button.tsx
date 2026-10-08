@@ -6,12 +6,13 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 import { cn, ui } from "@/lib/ui/classes";
 
-type IconButtonVariant = "default" | "primary" | "danger";
+type IconButtonVariant = "default" | "primary" | "danger" | "warning";
 
 const variantClass: Record<IconButtonVariant, string> = {
   default: ui.iconButton,
   primary: ui.iconButtonPrimary,
   danger: ui.iconButtonDanger,
+  warning: ui.iconButtonWarning,
 };
 
 type IconButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
