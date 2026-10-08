@@ -114,6 +114,10 @@ function compareRsRows(
   return a.opcoName.localeCompare(b.opcoName) * (sortBy === "opco" ? dir : 1);
 }
 
+function rowHasMissingPartnerReports(row: RevenueShareDashboardRow): boolean {
+  return row.partners.some((partner) => !partner.hasPartnerReport);
+}
+
 function periodQuery(month: number, year: number): string {
   return new URLSearchParams({
     month: String(month),
@@ -384,7 +388,7 @@ export function RevenueShareView({
       <PageCard>
         <PageHeader
           title="RS Reports"
-          description="Review readiness across all OpCos for the selected period. Generate when OpCo and Partner reports are in."
+          description="Review readiness across all OpCos for the selected period. Generate from OpCo numbers; Partner amounts fill in when Partner reports are uploaded (regenerate to refresh)."
         />
 
         <FilterToolbar>
@@ -529,7 +533,8 @@ export function RevenueShareView({
                           <DataTableTd align="center">
                             <div className="flex flex-wrap items-center justify-center gap-2">
                               {row.status === "READY" ||
-                              row.status === "GENERATED" ? (
+                              row.status === "GENERATED" ||
+                              row.status === "PARTNERS_REPORT_MISSING" ? (
                                 <IconButton
                                   label={
                                     busy
@@ -550,9 +555,12 @@ export function RevenueShareView({
                                 </IconButton>
                               ) : null}
                               {row.status === "OPCO_REPORT_MISSING" ||
-                              row.status === "PARTNERS_REPORT_MISSING" ? (
+                              row.status === "PARTNERS_REPORT_MISSING" ||
+                              (row.status === "GENERATED" &&
+                                rowHasMissingPartnerReports(row)) ? (
                                 <IconButton
                                   label="View details"
+                                  variant="warning"
                                   onClick={() => setDetailsRow(row)}
                                 >
                                   <IconAlert />
@@ -610,7 +618,9 @@ export function RevenueShareView({
         {detailsRow ? (
           <div className="space-y-5">
             <p className="text-sm text-foreground-muted">
-              Why this report cannot be generated yet.
+              {detailsRow.status === "OPCO_REPORT_MISSING"
+                ? "Why this report cannot be generated yet."
+                : "Partner reports still missing. You can generate from OpCo numbers now; Partner amount columns stay blank until those reports are uploaded. Regenerate after uploads to fill them in."}
             </p>
 
             <div>
