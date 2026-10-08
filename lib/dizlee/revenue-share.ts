@@ -327,7 +327,10 @@ function latestByPartner(reports: ReportLite[]): Map<string, ReportLite> {
   return map;
 }
 
-/** Revenue share only lists partners the OpCo submitted for the period. */
+/**
+ * Revenue share only lists partners the OpCo submitted for the period.
+ * Ready when OpCo data exists — Partner reports are optional enrichment.
+ */
 export function revenueShareReadinessFromPartnerRows(
   partners: RevenueShareReadinessPartner[],
   linkedCount: number,
@@ -340,15 +343,16 @@ export function revenueShareReadinessFromPartnerRows(
     linkedCount,
     partners: submitted,
     missing,
-    ready: submitted.length > 0 && missing.length === 0,
+    ready: submitted.length > 0,
   };
 }
 
 /** Maps readiness + stored generation into dashboard status (Generated wins). */
 export function deriveRevenueShareDashboardStatus(input: {
   hasGeneratedReport: boolean;
-  ready: boolean;
   submittedPartnerCount: number;
+  /** Soft warning: OpCo in, but some Partner reports still missing. Generate still allowed. */
+  hasMissingPartnerReports?: boolean;
 }): RevenueShareDashboardStatus {
   if (input.hasGeneratedReport) {
     return "GENERATED";
@@ -356,7 +360,7 @@ export function deriveRevenueShareDashboardStatus(input: {
   if (input.submittedPartnerCount === 0) {
     return "OPCO_REPORT_MISSING";
   }
-  if (!input.ready) {
+  if (input.hasMissingPartnerReports) {
     return "PARTNERS_REPORT_MISSING";
   }
   return "READY";
@@ -488,9 +492,7 @@ export async function buildRevenueShareReport(params: {
     throw new RevenueShareError(
       readiness.linkedCount === 0
         ? "This OpCo has no linked Partners."
-        : readiness.partners.length === 0
-          ? "Upload the OpCo bulk report for this period first."
-          : `Upload missing reports first: ${readiness.missing.join(", ")}.`,
+        : "Upload the OpCo bulk report for this period first.",
       400,
     );
   }
@@ -602,8 +604,8 @@ export async function listRevenueShareDashboard(params: {
     const generatedReportId = generatedByOpco.get(opcoId) ?? null;
     const status = deriveRevenueShareDashboardStatus({
       hasGeneratedReport: generatedReportId != null,
-      ready: readiness.ready,
       submittedPartnerCount: readiness.partners.length,
+      hasMissingPartnerReports: readiness.missing.length > 0,
     });
 
     rows.push({
