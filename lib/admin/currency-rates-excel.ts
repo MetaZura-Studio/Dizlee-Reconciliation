@@ -5,6 +5,7 @@
 import ExcelJS from "exceljs";
 
 import {
+  formatRateInput,
   localPerUsdFromStoredRateToUsd,
   storedRateToUsdFromLocalPerUsd,
 } from "@/lib/admin/currency-rate-input";
@@ -12,6 +13,7 @@ import {
   BASE_CURRENCY_ISO_CODE,
   BASE_CURRENCY_RATE,
 } from "@/lib/platform/currency-rates";
+import { decimalPrecisionForCurrency } from "@/lib/platform/format-money";
 
 type RateColumnKind = "storedRateToUsd" | "localPerUsd";
 
@@ -216,28 +218,61 @@ export async function parseCurrencyRatesExcel(
   return { rows, issues };
 }
 
+/**
+ * Downloadable import template: ISO + UnitsPerUSD (= how many local units equal 1 USD).
+ * Values are rounded to each currency’s money decimal precision (USD/SDG 2, KWD/BHD 3).
+ */
 export async function buildCurrencyRatesTemplateBuffer(
-  currencies: Array<{ isoCode: string; rateToUsd?: number | null }>,
+  currencies: Array<{
+    isoCode: string;
+    rateToUsd?: number | null;
+    decimalPrecision?: number;
+  }>,
 ): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet("Rates");
   sheet.columns = [
     { header: "ISO", key: "iso", width: 12 },
-    { header: "UnitsPerUSD", key: "rate", width: 16 },
+    { header: "UnitsPerUSD", key: "rate", width: 18 },
   ];
 
+  // Instruction row (ignored by parser — no valid ISO in column A)
+  sheet.addRow({
+    iso: "",
+    rate: "Enter how many units of each currency equal 1 USD (e.g. KWD 0.308, SDG 2.76). USD must stay 1.",
+  });
+  sheet.getRow(2).font = { italic: true, color: { argb: "FF64748B" } };
+
   for (const currency of currencies) {
+    const precision =
+      currency.decimalPrecision ??
+      decimalPrecisionForCurrency(currency.isoCode);
+    const numFmt =
+      precision <= 0 ? "0" : `0.${"0".repeat(precision)}`;
+
     if (currency.isoCode === BASE_CURRENCY_ISO_CODE) {
-      sheet.addRow({ iso: currency.isoCode, rate: BASE_CURRENCY_RATE });
+      const row = sheet.addRow({
+        iso: currency.isoCode,
+        rate: BASE_CURRENCY_RATE,
+      });
+      row.getCell(2).numFmt = numFmt;
       continue;
     }
+
     const localPerUsd = localPerUsdFromStoredRateToUsd(
       currency.rateToUsd === undefined ? null : currency.rateToUsd,
     );
-    sheet.addRow({
+    const display =
+      localPerUsd === null
+        ? ""
+        : Number(formatRateInput(localPerUsd, precision));
+    const row = sheet.addRow({
       iso: currency.isoCode,
-      rate: localPerUsd ?? "",
+      rate: display === "" || Number.isNaN(display) ? "" : display,
     });
+    if (display !== "" && !Number.isNaN(display)) {
+      row.getCell(2).numFmt = numFmt;
+    }
   }
 
   const arrayBuffer = await workbook.xlsx.writeBuffer();

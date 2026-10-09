@@ -85,20 +85,25 @@ describe("parseCurrencyRatesExcel", () => {
     ]);
   });
 
-  it("builds a template with UnitsPerUSD inverted from stored rates", async () => {
+  it("builds a template with UnitsPerUSD rounded to currency decimals", async () => {
     const buffer = await buildCurrencyRatesTemplateBuffer([
-      { isoCode: "USD", rateToUsd: 1 },
-      { isoCode: "KWD", rateToUsd: 3.25 },
+      { isoCode: "USD", rateToUsd: 1, decimalPrecision: 2 },
+      { isoCode: "KWD", rateToUsd: 3.25, decimalPrecision: 3 },
+      { isoCode: "SDG", rateToUsd: 1 / 2.76, decimalPrecision: 2 },
     ]);
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(buffer as unknown as ExcelJS.Buffer);
     const sheet = workbook.worksheets[0];
     expect(sheet).toBeTruthy();
     expect(String(sheet!.getRow(1).getCell(2).value)).toBe("UnitsPerUSD");
-    expect(sheet!.getRow(2).getCell(1).value).toBe("USD");
-    expect(sheet!.getRow(2).getCell(2).value).toBe(1);
-    expect(sheet!.getRow(3).getCell(1).value).toBe("KWD");
-    expect(Number(sheet!.getRow(3).getCell(2).value)).toBeCloseTo(1 / 3.25, 10);
+    // Row 2 is the instruction note (skipped by import parser)
+    expect(sheet!.getRow(3).getCell(1).value).toBe("USD");
+    expect(sheet!.getRow(3).getCell(2).value).toBe(1);
+    expect(sheet!.getRow(4).getCell(1).value).toBe("KWD");
+    // 1/3.25 → 0.3076… rounded to KWD’s 3 decimals
+    expect(sheet!.getRow(4).getCell(2).value).toBe(0.308);
+    expect(sheet!.getRow(5).getCell(1).value).toBe("SDG");
+    expect(sheet!.getRow(5).getCell(2).value).toBe(2.76);
   });
 });
 
