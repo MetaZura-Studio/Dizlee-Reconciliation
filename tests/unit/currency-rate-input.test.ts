@@ -37,6 +37,11 @@ describe("Admin USD-left invert helpers", () => {
     expect(storedRateToUsdFromLocalPerUsd(0)).toBeNull();
   });
 
+  it("rounds inverted rates to 8 decimals so 1 USD = 2.76 SDG can save", () => {
+    // Raw 1/2.76 has more than 8 decimals and previously failed Zod validation.
+    expect(storedRateToUsdFromLocalPerUsd(2.76)).toBe(0.36231884);
+  });
+
   it("round-trips without changing the stored rate", () => {
     const stored = 3.25;
     const shown = localPerUsdFromStoredRateToUsd(stored);
@@ -50,8 +55,14 @@ describe("sanitizeRateInput", () => {
     expect(sanitizeRateInput("abc1.2def")).toBe("1.2");
   });
 
-  it("caps fraction length at 8 decimals", () => {
+  it("caps fraction length at 8 decimals by default", () => {
     expect(sanitizeRateInput("1.123456789")).toBe("1.12345678");
+  });
+
+  it("caps Admin local-per-USD input to the currency decimal precision", () => {
+    expect(sanitizeRateInput("2.769", 2)).toBe("2.76");
+    expect(sanitizeRateInput("0.3077", 3)).toBe("0.307");
+    expect(formatRateInput(2.7600001, 2)).toBe("2.76");
   });
 
   it("prefixes leading dot with zero", () => {

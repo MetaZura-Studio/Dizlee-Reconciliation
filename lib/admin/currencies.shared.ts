@@ -13,6 +13,8 @@ export type MonthlyRateRow = {
   currencyId: string;
   isoCode: string;
   symbol: string | null;
+  /** Money fraction digits for this currency (e.g. USD 2, KWD 3) — caps Admin rate input. */
+  decimalPrecision: number;
   /** Rate toward platform base (USD). Prisma field remains `rateToUsd`. */
   rateToUsd: number | null;
   hasRate: boolean;
