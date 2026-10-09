@@ -35,6 +35,7 @@ export async function GET(request: Request) {
       view.rates.map((rate) => ({
         isoCode: rate.isoCode,
         rateToUsd: rate.rateToUsd,
+        decimalPrecision: rate.decimalPrecision,
       })),
     );
 

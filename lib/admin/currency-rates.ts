@@ -81,6 +81,7 @@ export async function getRatesForPeriod(
       currencyId: currency.id,
       isoCode: currency.isoCode,
       symbol: currency.symbol,
+      decimalPrecision: currency.decimalPrecision,
       rateToUsd,
       hasRate: isBase || storedRate !== undefined,
       isBase,

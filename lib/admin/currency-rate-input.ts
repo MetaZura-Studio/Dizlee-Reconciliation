@@ -11,16 +11,36 @@ export const MAX_RATE_DECIMAL_PLACES = 8;
 export const CURRENT_MONTH_RATES_ONLY_MESSAGE =
   "Only the current month's rates can be edited.";
 
+function clampDecimalPlaces(maxDecimals: number): number {
+  if (!Number.isFinite(maxDecimals)) {
+    return MAX_RATE_DECIMAL_PLACES;
+  }
+  return Math.min(
+    MAX_RATE_DECIMAL_PLACES,
+    Math.max(0, Math.floor(maxDecimals)),
+  );
+}
+
 /** Format a rate for display/editing without scientific notation. */
-export function formatRateInput(value: number): string {
+export function formatRateInput(
+  value: number,
+  maxDecimals: number = MAX_RATE_DECIMAL_PLACES,
+): string {
   if (!Number.isFinite(value)) {
     return "";
   }
-  const fixed = value.toFixed(MAX_RATE_DECIMAL_PLACES);
+  const digits = clampDecimalPlaces(maxDecimals);
+  const fixed = value.toFixed(digits);
   if (!fixed.includes(".")) {
     return fixed;
   }
   return fixed.replace(/\.?0+$/, "");
+}
+
+/** Round to the same precision Zod accepts for stored `rate_to_usd` (FX needs more digits than money). */
+export function roundRateToMaxDecimals(value: number): number {
+  const factor = 10 ** MAX_RATE_DECIMAL_PLACES;
+  return Math.round(value * factor) / factor;
 }
 
 function invertPositiveRate(value: number | null): number | null {
@@ -37,18 +57,31 @@ export function localPerUsdFromStoredRateToUsd(
   return invertPositiveRate(rateToUsd);
 }
 
-/** Admin input (local per 1 USD) → stored rateToUsd (USD per 1 local). */
+/**
+ * Admin input (local per 1 USD) → stored rateToUsd (USD per 1 local).
+ * Rounds to 8 decimals so values like 1 USD = 2.76 SDG pass validation
+ * (raw 1/2.76 is a repeating decimal).
+ */
 export function storedRateToUsdFromLocalPerUsd(
   localPerUsd: number | null,
 ): number | null {
-  return invertPositiveRate(localPerUsd);
+  const inverted = invertPositiveRate(localPerUsd);
+  if (inverted === null) {
+    return null;
+  }
+  return roundRateToMaxDecimals(inverted);
 }
 
 /**
- * Allow digits and a single decimal point; cap fraction length at MAX_RATE_DECIMAL_PLACES.
+ * Allow digits and a single decimal point; cap fraction length (default 8 for FX storage,
+ * or the currency’s money decimals for Admin “1 USD = ? local” input).
  * Empty string and trailing "." are kept so the user can keep typing.
  */
-export function sanitizeRateInput(raw: string): string {
+export function sanitizeRateInput(
+  raw: string,
+  maxDecimals: number = MAX_RATE_DECIMAL_PLACES,
+): string {
+  const digits = clampDecimalPlaces(maxDecimals);
   const cleaned = raw.replace(/[^\d.]/g, "");
   const firstDot = cleaned.indexOf(".");
   let normalized =
@@ -67,6 +100,6 @@ export function sanitizeRateInput(raw: string): string {
   }
 
   const whole = normalized.slice(0, dot);
-  const fraction = normalized.slice(dot + 1).slice(0, MAX_RATE_DECIMAL_PLACES);
+  const fraction = normalized.slice(dot + 1).slice(0, digits);
   return `${whole}.${fraction}`;
 }
