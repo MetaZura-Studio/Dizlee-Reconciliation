@@ -39,6 +39,7 @@ type RateFormRow = {
   currencyId: string;
   isoCode: string;
   symbol: string | null;
+  decimalPrecision: number;
   rateInput: string;
   isBase: boolean;
 };
@@ -57,10 +58,11 @@ function toFormRows(rates: MonthlyRateRow[]): RateFormRow[] {
       currencyId: rate.currencyId,
       isoCode: rate.isoCode,
       symbol: rate.symbol,
+      decimalPrecision: rate.decimalPrecision,
       rateInput:
         localPerUsd === null || localPerUsd === undefined
           ? ""
-          : formatRateInput(localPerUsd),
+          : formatRateInput(localPerUsd, rate.decimalPrecision),
       isBase: rate.isBase,
     };
   });
@@ -420,7 +422,8 @@ export function CurrencyRatesSection({
               {canEdit ? (
                 <>
                   Enter how many units of each currency equal{" "}
-                  <strong>1 USD</strong> (example: 1 USD = 0.3077 KWD).
+                  <strong>1 USD</strong> (example: 1 USD = 0.308 KWD). Use each
+                  currency’s decimal precision (USD/SDG 2, KWD/BHD 3).
                 </>
               ) : (
                 <>
@@ -587,6 +590,7 @@ export function CurrencyRatesSection({
                                   onChange={(event) => {
                                     const next = sanitizeRateInput(
                                       event.target.value,
+                                      row.decimalPrecision,
                                     );
                                     setRows((current) =>
                                       current.map((item) =>
