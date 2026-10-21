@@ -16,7 +16,8 @@ export type StorageFolder =
   | "invoices"
   | "notifications"
   | "opco-report-samples"
-  | "revenue-share";
+  | "revenue-share"
+  | "partner-revenue-share";
 
 export type SaveStoredObjectInput = {
   folder: StorageFolder;
@@ -85,6 +86,7 @@ const STORAGE_FOLDERS = new Set<string>([
   "notifications",
   "opco-report-samples",
   "revenue-share",
+  "partner-revenue-share",
 ]);
 
 /**

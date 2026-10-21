@@ -177,7 +177,11 @@ export async function resolveNotificationAttachmentCreates(params: {
       id: { in: uniqueIds.map((id) => BigInt(id)) },
       isDeleted: false,
       uploadedByUserId: params.userId,
-      storageKey: { startsWith: "notifications/" },
+      OR: [
+        { storageKey: { startsWith: "notifications/" } },
+        // Partner RS PDFs are stored under partner-revenue-share/ then attached.
+        { storageKey: { startsWith: "partner-revenue-share/" } },
+      ],
     },
     select: { id: true },
   });

@@ -7,9 +7,10 @@ import {
   deriveRevenueShareDashboardStatus,
   mapRevenueShareLinesToItemCreates,
   netRevenueFromGross,
-  regulatoryFeeFromVatPercent,
+  regulatoryFeeFromPercent,
+  resolveRegulatoryFeePercentForService,
   resolveRevenueSharePercent,
-  revenueShareAmountFromOpco,
+  revenueShareAmountFromNet,
   revenueSharePercentFromSource,
   revenueShareReadinessFromPartnerRows,
   summarizeRevenueShareDashboardRows,
@@ -26,19 +27,44 @@ import {
 } from "@/lib/dizlee/revenue-share/export-format";
 
 describe("revenue share formulas", () => {
-  it("reads share percent and applies OpCo tax % to gross", () => {
+  it("reads share percent and applies service regulatory fee % to gross", () => {
     expect(revenueSharePercentFromSource({ revenue_share_percent: 30 })).toBe(30);
-    expect(regulatoryFeeFromVatPercent(100, 0)).toBe(0);
-    expect(regulatoryFeeFromVatPercent(200, 10)).toBe(20);
+    expect(regulatoryFeeFromPercent(100, 0)).toBe(0);
+    expect(regulatoryFeeFromPercent(200, 10)).toBe(20);
     expect(netRevenueFromGross(200, 20)).toBe(180);
   });
 
-  it("computes revenue share amount as OpCo USD × share %", () => {
-    expect(revenueShareAmountFromOpco(200, 25)).toBe(50);
-    expect(revenueShareAmountFromOpco(100, 30)).toBe(30);
-    expect(revenueShareAmountFromOpco(null, 25)).toBeNull();
-    expect(revenueShareAmountFromOpco(200, null)).toBeNull();
-    expect(revenueShareAmountFromOpco(null, null)).toBeNull();
+  it("resolves regulatory fee % from service–partner maps (0 when unmapped)", () => {
+    const maps = [
+      { serviceKey: "games", serviceName: "Games", regulatoryFeePercent: 6 },
+      { serviceKey: "sms", serviceName: "SMS", regulatoryFeePercent: 0 },
+    ];
+    expect(
+      resolveRegulatoryFeePercentForService({ serviceName: "Games", maps }),
+    ).toBe(6);
+    expect(
+      resolveRegulatoryFeePercentForService({ serviceName: "SMS", maps }),
+    ).toBe(0);
+    expect(
+      resolveRegulatoryFeePercentForService({
+        serviceName: "Unknown Service",
+        maps,
+      }),
+    ).toBe(0);
+  });
+
+  it("computes revenue share amount as Net Revenue × share %", () => {
+    expect(revenueShareAmountFromNet(180, 25)).toBe(45);
+    expect(revenueShareAmountFromNet(100, 30)).toBe(30);
+    expect(revenueShareAmountFromNet(null, 25)).toBeNull();
+    expect(revenueShareAmountFromNet(180, null)).toBeNull();
+    expect(revenueShareAmountFromNet(null, null)).toBeNull();
+    // With fee: gross 200 @ 10% → net 180 → 180 × 25% = 45
+    const net = netRevenueFromGross(200, regulatoryFeeFromPercent(200, 10));
+    expect(net).toBe(180);
+    expect(revenueShareAmountFromNet(net, 25)).toBe(45);
+    // Zero fee: net = gross → same as old gross formula
+    expect(revenueShareAmountFromNet(200, 25)).toBe(50);
   });
 
   it("prefers the line-item field over source_columns JSON", () => {
@@ -56,15 +82,16 @@ describe("revenue share formulas", () => {
     ).toBe(30);
   });
 
-  it("builds an export line from OpCo USD, Partner USD, and OpCo fee %", () => {
+  it("builds an export line from OpCo USD, Partner USD, and service fee %", () => {
     expect(
       buildRevenueShareLine({
         partnerId: "42",
         partnerName: "ArpuPlus",
         serviceName: "Games",
+        opcoAmountLocal: 1000,
         opcoAmountUsd: 200,
         partnerAmountUsd: 198,
-        vatPercent: 10,
+        regulatoryFeePercent: 10,
         revenueSharePercent: 25,
         sourceColumns: { revenue_share_percent: 99 },
       }),
@@ -72,27 +99,28 @@ describe("revenue share formulas", () => {
       partnerId: "42",
       partnerName: "ArpuPlus",
       serviceName: "Games",
+      opcoAmountLocal: 1000,
       opcoAmountUsd: 200,
       partnerAmountUsd: 198,
+      regulatoryFeePercent: 10,
       regulatoryFee: 20,
       netRevenue: 180,
       revenueSharePercent: 25,
     });
   });
 
-  it("maps lines to DB item creates with sort order and fee percent", () => {
+  it("maps lines to DB item creates with per-line fee percent", () => {
     const line = buildRevenueShareLine({
       partnerId: "7",
       partnerName: "Timwe",
       serviceName: "SMS",
       opcoAmountUsd: 100,
       partnerAmountUsd: 95,
-      vatPercent: 5,
+      regulatoryFeePercent: 5,
       revenueSharePercent: 30,
     });
     const rows = mapRevenueShareLinesToItemCreates({
       revenueShareReportId: 11,
-      regulatoryFeePercent: 5,
       lines: [line],
     });
     expect(rows).toHaveLength(1);
@@ -121,18 +149,32 @@ describe("revenue share formulas", () => {
     const report: RevenueShareReport = {
       opcoId: "1",
       opcoName: "Test OpCo",
-      vatPercent: 10,
+      opcoCurrencyCode: "KWD",
       period: { month: 3, year: 2026, label: "Mar 2026" },
       lines: [
         {
           partnerId: "42",
           partnerName: "ArpuPlus",
           serviceName: "Games",
+          opcoAmountLocal: 1000,
           opcoAmountUsd: 200,
           partnerAmountUsd: 198,
+          regulatoryFeePercent: 10,
           regulatoryFee: 20,
           netRevenue: 180,
           revenueSharePercent: 25,
+        },
+        {
+          partnerId: "7",
+          partnerName: "Timwe",
+          serviceName: "SMS",
+          opcoAmountLocal: 500,
+          opcoAmountUsd: 100,
+          partnerAmountUsd: 95,
+          regulatoryFeePercent: 0,
+          regulatoryFee: 0,
+          netRevenue: 100,
+          revenueSharePercent: 30,
         },
       ],
     };
@@ -147,6 +189,7 @@ describe("revenue share formulas", () => {
     expect(headers).toEqual([
       "Partner Name",
       "Service Name",
+      "Amount as per opco in local",
       "Amount as per opco in usd",
       "Amount as per partner in usd",
       "Regulatory Fee %",
@@ -157,8 +200,16 @@ describe("revenue share formulas", () => {
     const row = (sheet!.getRow(2).values as unknown[]).slice(1).map((cell) =>
       String(cell ?? ""),
     );
-    expect(row[6]).toBe("50.00");
-    expect(row[7]).toBe("25%");
+    expect(row[2]).toBe("1,000.000");
+    expect(row[3]).toBe("200.00");
+    expect(row[5]).toBe("10%");
+    expect(row[7]).toBe("45.00");
+    expect(row[8]).toBe("25%");
+    const row2 = (sheet!.getRow(3).values as unknown[]).slice(1).map((cell) =>
+      String(cell ?? ""),
+    );
+    expect(row2[5]).toBe("0%");
+    expect(row2[7]).toBe("30.00");
   });
 
   it("formats export money with currency decimals and thousand separators", () => {

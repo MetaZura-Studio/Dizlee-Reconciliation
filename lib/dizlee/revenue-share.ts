@@ -6,8 +6,11 @@
  * - Partner USD = Partner line amount (already USD)
  * - Revenue Share % = OpCo report_line_items.revenue_share_percent
  *   (fallback: sourceColumns.revenue_share_percent for older rows)
- * - Regulatory Fee = OpCo USD × OpCo vatPercent / 100 (fee on the OpCo record)
+ * - Regulatory Fee % = Admin Service–Partner map regulatory_fee_percent
+ *   for the OpCo + service (0% when unmapped)
+ * - Regulatory Fee = OpCo USD × Regulatory Fee % / 100
  * - Net Revenue = OpCo USD − Regulatory Fee
+ * - Revenue share amount = Net Revenue × Revenue Share %
  *
  * Gate: latest OpCo report and latest Partner report for every Partner
  * that appears in the OpCo file for the period (not every linked Partner).
@@ -19,6 +22,10 @@ import { DomainError } from "@/lib/errors/app-error";
 import { formatAppMonthYear } from "@/lib/platform/format-datetime";
 import { ACTIVE_OPCO_PARTNER_LINK_FILTER } from "@/lib/platform/opco-partner-links";
 import { applyReportFxToAmount, getOpcoReportFx } from "@/lib/platform/report-fx";
+import {
+  matchServiceMapRow,
+  normalizeServiceKey,
+} from "@/lib/platform/service-partner-map";
 import { prisma } from "@/lib/prisma";
 
 export type RevenueShareReadinessPartner = {
@@ -33,7 +40,6 @@ export type RevenueShareReadinessPartner = {
 export type RevenueShareReadiness = {
   opcoId: string;
   opcoName: string;
-  vatPercent: number;
   period: DashboardPeriod;
   linkedCount: number;
   ready: boolean;
@@ -45,8 +51,10 @@ export type RevenueShareLine = {
   partnerId: string;
   partnerName: string;
   serviceName: string;
+  opcoAmountLocal: number | null;
   opcoAmountUsd: number | null;
   partnerAmountUsd: number | null;
+  regulatoryFeePercent: number;
   regulatoryFee: number;
   netRevenue: number;
   revenueSharePercent: number | null;
@@ -55,7 +63,7 @@ export type RevenueShareLine = {
 export type RevenueShareReport = {
   opcoId: string;
   opcoName: string;
-  vatPercent: number;
+  opcoCurrencyCode: string;
   period: DashboardPeriod;
   lines: RevenueShareLine[];
 };
@@ -151,53 +159,87 @@ export function resolveRevenueSharePercent(input: {
   return revenueSharePercentFromSource(parseSourceRecord(input.sourceColumns));
 }
 
-export function vatPercentFromOpco(value: unknown): number {
-  return toFiniteNumber(value) ?? 0;
+/** Regulatory fee amount = Gross × service regulatory fee %. */
+export function regulatoryFeeFromPercent(
+  grossAmount: number,
+  regulatoryFeePercent: number,
+): number {
+  return (grossAmount * regulatoryFeePercent) / 100;
 }
 
-/** Regulatory fee = Gross × OpCo tax % (Admin vatPercent). */
+/** @deprecated Use regulatoryFeeFromPercent */
 export function regulatoryFeeFromVatPercent(
   grossAmount: number,
   vatPercent: number,
 ): number {
-  return (grossAmount * vatPercent) / 100;
+  return regulatoryFeeFromPercent(grossAmount, vatPercent);
 }
 
 export function netRevenueFromGross(grossAmount: number, regulatoryFee: number): number {
   return grossAmount - regulatoryFee;
 }
 
-/** OpCo USD × revenue share % — blank when either side is missing. */
-export function revenueShareAmountFromOpco(
-  opcoAmountUsd: number | null,
+/** Net Revenue × revenue share % — blank when either side is missing. */
+export function revenueShareAmountFromNet(
+  netRevenue: number | null,
   revenueSharePercent: number | null,
 ): number | null {
-  if (opcoAmountUsd == null || revenueSharePercent == null) return null;
-  return (opcoAmountUsd * revenueSharePercent) / 100;
+  if (netRevenue == null || revenueSharePercent == null) return null;
+  return (netRevenue * revenueSharePercent) / 100;
+}
+
+export function resolveRegulatoryFeePercentForService(params: {
+  serviceName: string;
+  maps: Array<{
+    serviceKey: string;
+    serviceName?: string | null;
+    regulatoryFeePercent: number;
+  }>;
+}): number {
+  const matched = matchServiceMapRow(
+    {
+      serviceKey: normalizeServiceKey(params.serviceName),
+      serviceName: params.serviceName,
+    },
+    params.maps,
+  );
+  return matched?.regulatoryFeePercent ?? 0;
 }
 
 export function buildRevenueShareLine(input: {
   partnerId: string;
   partnerName: string;
   serviceName: string;
+  opcoAmountLocal?: number | null;
   opcoAmountUsd: number | null;
   partnerAmountUsd?: number | null;
-  vatPercent: number;
+  regulatoryFeePercent?: number;
+  /** @deprecated Use regulatoryFeePercent */
+  vatPercent?: number;
   revenueSharePercent?: unknown;
   sourceColumns?: unknown;
 }): RevenueShareLine {
   const source = parseSourceRecord(input.sourceColumns);
+  const opcoAmountLocal =
+    input.opcoAmountLocal === undefined ? null : input.opcoAmountLocal;
   const opcoAmountUsd = input.opcoAmountUsd;
   const partnerAmountUsd =
     input.partnerAmountUsd === undefined ? null : input.partnerAmountUsd;
+  const regulatoryFeePercent =
+    input.regulatoryFeePercent ?? input.vatPercent ?? 0;
   const grossForFee = opcoAmountUsd ?? 0;
-  const regulatoryFee = regulatoryFeeFromVatPercent(grossForFee, input.vatPercent);
+  const regulatoryFee = regulatoryFeeFromPercent(
+    grossForFee,
+    regulatoryFeePercent,
+  );
   return {
     partnerId: input.partnerId,
     partnerName: input.partnerName,
     serviceName: input.serviceName,
+    opcoAmountLocal,
     opcoAmountUsd,
     partnerAmountUsd,
+    regulatoryFeePercent,
     regulatoryFee,
     netRevenue: netRevenueFromGross(grossForFee, regulatoryFee),
     revenueSharePercent: resolveRevenueSharePercent({
@@ -210,7 +252,6 @@ export function buildRevenueShareLine(input: {
 /** Maps in-memory RS lines into Prisma createMany rows (hard-replaced on regenerate). */
 export function mapRevenueShareLinesToItemCreates(params: {
   revenueShareReportId: number;
-  regulatoryFeePercent: number;
   lines: RevenueShareLine[];
 }): Array<{
   revenueShareReportId: number;
@@ -232,7 +273,7 @@ export function mapRevenueShareLinesToItemCreates(params: {
     serviceName: line.serviceName,
     opcoAmountUsd: line.opcoAmountUsd,
     partnerAmountUsd: line.partnerAmountUsd,
-    regulatoryFeePercent: params.regulatoryFeePercent,
+    regulatoryFeePercent: line.regulatoryFeePercent,
     regulatoryFeeAmount: line.regulatoryFee,
     netRevenue: line.netRevenue,
     revenueSharePercent: line.revenueSharePercent,
@@ -428,7 +469,7 @@ export async function getRevenueShareReadiness(params: {
 }): Promise<RevenueShareReadiness> {
   const opco = await prisma.opco.findUnique({
     where: { id: BigInt(params.opcoId) },
-    select: { id: true, name: true, vatPercent: true },
+    select: { id: true, name: true },
   });
   if (!opco) {
     throw new RevenueShareError("OpCo not found.", 404);
@@ -476,7 +517,6 @@ export async function getRevenueShareReadiness(params: {
   return {
     opcoId: opco.id.toString(),
     opcoName: opco.name,
-    vatPercent: vatPercentFromOpco(opco.vatPercent),
     period: periodFromParts(params.month, params.year),
     ...revenueShareReadinessFromPartnerRows(partners, links.length),
   };
@@ -497,7 +537,7 @@ export async function buildRevenueShareReport(params: {
     );
   }
 
-  const [opcoReports, partnerReports, fx] = await Promise.all([
+  const [opcoReports, partnerReports, fx, serviceMaps] = await Promise.all([
     loadPeriodReports({
       opcoId: BigInt(params.opcoId),
       month: params.month,
@@ -515,6 +555,14 @@ export async function buildRevenueShareReport(params: {
       month: params.month,
       year: params.year,
     }),
+    prisma.servicePartnerMap.findMany({
+      where: { opcoId: BigInt(params.opcoId), isDeleted: false },
+      select: {
+        serviceKey: true,
+        serviceName: true,
+        regulatoryFeePercent: true,
+      },
+    }),
   ]);
 
   if (fx.rateToUsd === null) {
@@ -524,6 +572,12 @@ export async function buildRevenueShareReport(params: {
     );
   }
 
+  const feeMaps = serviceMaps.map((row) => ({
+    serviceKey: row.serviceKey,
+    serviceName: row.serviceName,
+    regulatoryFeePercent: Number(row.regulatoryFeePercent),
+  }));
+
   const lines: RevenueShareLine[] = [];
   for (const partner of readiness.partners) {
     const opcoReport = opcoReports.get(partner.partnerId);
@@ -532,6 +586,10 @@ export async function buildRevenueShareReport(params: {
       const converted = applyReportFxToAmount(line.amount, fx.rateToUsd);
       return converted.amountUsd === null ? 0 : Number(converted.amountUsd);
     });
+    const opcoByServiceLocal = aggregateLinesByService(
+      opcoReport?.lineItems ?? [],
+      (line) => line.amount ?? 0,
+    );
     const partnerByService = aggregateLinesByService(
       partnerReport?.lineItems ?? [],
       (line) => line.usageUsd ?? line.amount ?? 0,
@@ -543,15 +601,21 @@ export async function buildRevenueShareReport(params: {
 
     for (const key of [...serviceKeys].sort()) {
       const opco = opcoByService.get(key);
+      const opcoLocal = opcoByServiceLocal.get(key);
       const partnerLine = partnerByService.get(key);
+      const serviceName = opco?.serviceName ?? partnerLine?.serviceName ?? "—";
       lines.push(
         buildRevenueShareLine({
           partnerId: partner.partnerId,
           partnerName: partner.partnerName,
-          serviceName: opco?.serviceName ?? partnerLine?.serviceName ?? "—",
+          serviceName,
+          opcoAmountLocal: opcoLocal ? opcoLocal.amount : null,
           opcoAmountUsd: opco ? opco.amount : null,
           partnerAmountUsd: partnerLine ? partnerLine.amount : null,
-          vatPercent: readiness.vatPercent,
+          regulatoryFeePercent: resolveRegulatoryFeePercentForService({
+            serviceName,
+            maps: feeMaps,
+          }),
           revenueSharePercent: opco?.revenueSharePercent,
           sourceColumns: opco?.sourceColumns,
         }),
@@ -562,7 +626,7 @@ export async function buildRevenueShareReport(params: {
   return {
     opcoId: readiness.opcoId,
     opcoName: readiness.opcoName,
-    vatPercent: readiness.vatPercent,
+    opcoCurrencyCode: fx.currencyCode,
     period: readiness.period,
     lines,
   };
@@ -755,7 +819,6 @@ export async function generateAndPersistRevenueShareReport(params: {
 
   const itemRows = mapRevenueShareLinesToItemCreates({
     revenueShareReportId: row.id,
-    regulatoryFeePercent: built.vatPercent,
     lines: built.lines,
   });
 
