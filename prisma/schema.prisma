@@ -98,7 +98,6 @@ model Opco {
   id                BigInt   @id @default(autoincrement())
   name              String   @db.VarChar(255)
   defaultCurrencyId BigInt   @map("default_currency_id")
-  vatPercent        Decimal  @default(0) @map("vat_percent") @db.Decimal(5, 2)
   statusId          Int      @map("status_id")
   createdByUserId   BigInt?  @map("created_by_user_id")
   updatedByUserId   BigInt?  @map("updated_by_user_id")
@@ -123,6 +122,7 @@ model Opco {
   reportMapping       OpcoReportMapping?
   servicePartnerMaps  ServicePartnerMap[]
   revenueShareReports RevenueShareReport[]
+  partnerRevenueShareReports PartnerRevenueShareReport[]
 
   @@map("opcos")
 }
@@ -149,23 +149,27 @@ model Partner {
   invoices          Invoice[]
   servicePartnerMaps ServicePartnerMap[]
   revenueShareReportItems RevenueShareReportItem[]
+  partnerRevenueShareReports PartnerRevenueShareReport[]
 
   @@map("partners")
 }
 
 model ServicePartnerMap {
-  id              BigInt   @id @default(autoincrement())
-  opcoId          BigInt   @map("opco_id")
-  serviceName     String   @map("service_name") @db.VarChar(255)
-  serviceKey      String   @map("service_key") @db.VarChar(255)
-  partnerId       BigInt   @map("partner_id")
-  createdByUserId BigInt?  @map("created_by_user_id")
-  updatedByUserId BigInt?  @map("updated_by_user_id")
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
-  isDeleted       Boolean  @default(false) @map("is_deleted")
-  deletedByUserId BigInt?  @map("deleted_by_user_id")
-  deletedAt       DateTime? @map("deleted_at")
+  id                     BigInt   @id @default(autoincrement())
+  opcoId                 BigInt   @map("opco_id")
+  serviceName            String   @map("service_name") @db.VarChar(255)
+  serviceKey             String   @map("service_key") @db.VarChar(255)
+  partnerId              BigInt   @map("partner_id")
+  regulatoryFeePercent   Decimal  @default(0) @map("regulatory_fee_percent") @db.Decimal(5, 2)
+  /// Partner revenue share % (0–100) for Dizlee→Partner RS Excel.
+  partnerRsPercent       Decimal  @default(0) @map("partner_rs_percent") @db.Decimal(5, 2)
+  createdByUserId        BigInt?  @map("created_by_user_id")
+  updatedByUserId        BigInt?  @map("updated_by_user_id")
+  createdAt              DateTime @default(now()) @map("created_at")
+  updatedAt              DateTime @updatedAt @map("updated_at")
+  isDeleted              Boolean  @default(false) @map("is_deleted")
+  deletedByUserId        BigInt?  @map("deleted_by_user_id")
+  deletedAt              DateTime? @map("deleted_at")
 
   opco          Opco    @relation(fields: [opcoId], references: [id])
   partner       Partner @relation(fields: [partnerId], references: [id])
@@ -236,6 +240,7 @@ model User {
   invoicesUploaded        Invoice[] @relation("InvoiceUploader")
   invoiceActivityLogs     InvoiceActivityLog[]
   revenueShareReportsGenerated RevenueShareReport[] @relation("RevenueShareReportGenerator")
+  partnerRevenueShareReportsSent PartnerRevenueShareReport[] @relation("PartnerRevenueShareReportSender")
   opcoPartnerLinkRequestsRequested OpcoPartnerLinkRequest[] @relation("OpcoPartnerLinkRequester")
   opcoPartnerLinkRequestsDecided OpcoPartnerLinkRequest[] @relation("OpcoPartnerLinkDecider")
   opcoReportMapRequestsRequested OpcoReportMapRequest[] @relation("OpcoReportMapRequester")
@@ -382,6 +387,7 @@ model File {
   invoices                 Invoice[]
   opcoReportMappings       OpcoReportMapping[]
   revenueShareReports      RevenueShareReport[]
+  partnerRevenueShareReports PartnerRevenueShareReport[]
 
   @@map("files")
 }
@@ -452,6 +458,7 @@ model Notification {
   reads       NotificationRead[]
   attachments NotificationAttachment[]
   emailDeliveries EmailDelivery[]
+  partnerRevenueShareReports PartnerRevenueShareReport[]
 
   @@index([emailCorrelationId], map: "idx_notifications_email_correlation_id")
   @@map("notifications")
@@ -761,6 +768,57 @@ model RevenueShareReportItem {
   @@map("revenue_share_report_items")
 }
 
+/// Dizlee→Partner Revenue Share Excel sent after reconciliation COMPLETED.
+model PartnerRevenueShareReport {
+  id                Int       @id @default(autoincrement())
+  opcoId            BigInt    @map("opco_id")
+  partnerId         BigInt    @map("partner_id")
+  month             Int
+  year              Int
+  fileId            BigInt    @map("file_id")
+  reconciliationId  Int?      @map("reconciliation_id")
+  sentAt            DateTime  @map("sent_at")
+  sentByUserId      BigInt    @map("sent_by_user_id")
+  notificationId    BigInt?   @map("notification_id")
+  createdByUserId   BigInt?   @map("created_by_user_id")
+  updatedByUserId   BigInt?   @map("updated_by_user_id")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  isDeleted         Boolean   @default(false) @map("is_deleted")
+  deletedByUserId   BigInt?   @map("deleted_by_user_id")
+  deletedAt         DateTime? @map("deleted_at")
+
+  opco           Opco                            @relation(fields: [opcoId], references: [id])
+  partner        Partner                         @relation(fields: [partnerId], references: [id])
+  file           File                            @relation(fields: [fileId], references: [id])
+  reconciliation Reconciliation?                 @relation(fields: [reconciliationId], references: [id])
+  sentBy         User                            @relation("PartnerRevenueShareReportSender", fields: [sentByUserId], references: [id])
+  notification   Notification?                   @relation(fields: [notificationId], references: [id])
+  items          PartnerRevenueShareReportItem[]
+
+  @@unique([opcoId, partnerId, year, month], map: "uq_partner_revenue_share_reports")
+  @@index([year, month], map: "idx_partner_rs_reports_period")
+  @@index([partnerId], map: "idx_partner_rs_reports_partner_id")
+  @@map("partner_revenue_share_reports")
+}
+
+/// Snapshot rows for a sent Partner RS report (replaced on resend; no audit columns).
+model PartnerRevenueShareReportItem {
+  id                          BigInt  @id @default(autoincrement())
+  partnerRevenueShareReportId Int     @map("partner_revenue_share_report_id")
+  serviceName                 String  @map("service_name") @db.VarChar(255)
+  grossRevenueLc              Decimal @map("gross_revenue_lc") @db.Decimal(18, 4)
+  partnerRsPercent            Decimal @map("partner_rs_percent") @db.Decimal(5, 2)
+  partnerRsAmountLc           Decimal @map("partner_rs_amount_lc") @db.Decimal(18, 4)
+  sortOrder                   Int     @map("sort_order")
+
+  report PartnerRevenueShareReport @relation(fields: [partnerRevenueShareReportId], references: [id], onDelete: Cascade)
+
+  @@index([partnerRevenueShareReportId], map: "idx_partner_rs_report_items_report_id")
+  @@index([partnerRevenueShareReportId, sortOrder], map: "idx_partner_rs_report_items_report_sort")
+  @@map("partner_revenue_share_report_items")
+}
+
 // ===== HASEEB: Dizlee Portal models =====
 
 model Reconciliation {
@@ -796,6 +854,7 @@ model Reconciliation {
   runBy         User                 @relation("ReconciliationRunner", fields: [runByUserId], references: [id])
   alertedBy     User?                @relation("ReconciliationAlerter", fields: [alertedByUserId], references: [id])
   items         ReconciliationItem[]
+  partnerRevenueShareReports PartnerRevenueShareReport[]
 
   @@unique([opcoId, partnerId, year, month, opcoReportId, partnerReportId], map: "uq_reconciliations")
   @@map("reconciliations")

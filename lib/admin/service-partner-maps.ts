@@ -26,6 +26,7 @@ import {
   normalizeServiceKey,
 } from "@/lib/platform/service-partner-map";
 import { prisma } from "@/lib/prisma";
+import type { Decimal } from "@prisma/client/runtime/library";
 
 export type {
   ServicePartnerMapImportIssue,
@@ -38,12 +39,25 @@ export class ServicePartnerMapActionError extends DomainError {
   }
 }
 
+function mapFeePercent(value: Decimal | number | string | null | undefined): number {
+  if (value === null || value === undefined) {
+    return 0;
+  }
+  const parsed =
+    typeof value === "number"
+      ? value
+      : Number.parseFloat(typeof value === "string" ? value : value.toString());
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 function mapRow(row: {
   id: bigint;
   opcoId: bigint;
   serviceName: string;
   serviceKey: string;
   partnerId: bigint;
+  regulatoryFeePercent: Decimal;
+  partnerRsPercent: Decimal;
   opco: { name: string };
   partner: { name: string };
 }): ServicePartnerMapListItem {
@@ -55,6 +69,8 @@ function mapRow(row: {
     serviceKey: row.serviceKey,
     partnerId: row.partnerId.toString(),
     partnerName: row.partner.name,
+    regulatoryFeePercent: mapFeePercent(row.regulatoryFeePercent),
+    partnerRsPercent: mapFeePercent(row.partnerRsPercent),
   };
 }
 
@@ -141,6 +157,7 @@ export async function createServicePartnerMap(
       serviceName,
       serviceKey,
       partnerId,
+      partnerRsPercent: parsed.data.partnerRsPercent ?? 0,
       createdByUserId: actorUserId,
       updatedByUserId: actorUserId,
     },
@@ -157,6 +174,7 @@ export async function createServicePartnerMap(
       serviceName: created.serviceName,
       serviceKey: created.serviceKey,
       partnerId: created.partnerId.toString(),
+      partnerRsPercent: Number(created.partnerRsPercent),
     },
   });
 
@@ -190,7 +208,14 @@ export async function updateServicePartnerMap(
 
   const existing = await prisma.servicePartnerMap.findFirst({
     where: { id: mapId, isDeleted: false },
-    select: { id: true, opcoId: true, serviceName: true, serviceKey: true, partnerId: true },
+    select: {
+      id: true,
+      opcoId: true,
+      serviceName: true,
+      serviceKey: true,
+      partnerId: true,
+      partnerRsPercent: true,
+    },
   });
   if (!existing) {
     throw new ServicePartnerMapActionError("Mapping not found", 404);
@@ -222,6 +247,7 @@ export async function updateServicePartnerMap(
       serviceName,
       serviceKey,
       partnerId,
+      partnerRsPercent: parsed.data.partnerRsPercent,
       updatedByUserId: actorUserId,
     },
     include: listInclude,
@@ -236,10 +262,12 @@ export async function updateServicePartnerMap(
       before: {
         serviceName: existing.serviceName,
         partnerId: existing.partnerId.toString(),
+        partnerRsPercent: Number(existing.partnerRsPercent),
       },
       after: {
         serviceName: updated.serviceName,
         partnerId: updated.partnerId.toString(),
+        partnerRsPercent: Number(updated.partnerRsPercent),
       },
     },
   });
@@ -417,12 +445,18 @@ async function upsertParsedRow(
     select: { id: true, partnerId: true },
   });
 
+  const partnerRsData =
+    row.partnerRsPercent === null
+      ? {}
+      : { partnerRsPercent: row.partnerRsPercent };
+
   if (active) {
     await prisma.servicePartnerMap.update({
       where: { id: active.id },
       data: {
         serviceName,
         partnerId: partner.id,
+        ...partnerRsData,
         updatedByUserId: actorUserId,
       },
     });
@@ -435,6 +469,7 @@ async function upsertParsedRow(
       serviceName,
       serviceKey,
       partnerId: partner.id,
+      partnerRsPercent: row.partnerRsPercent ?? 0,
       createdByUserId: actorUserId,
       updatedByUserId: actorUserId,
     },

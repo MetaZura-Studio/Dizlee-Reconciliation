@@ -121,6 +121,7 @@ export const PROTECTED_SYSTEM_EMAIL_TEMPLATE_CODES = [
   "INVOICE_REMINDER",
   "RECONCILIATION_ALERT_OPCO",
   "RECONCILIATION_ALERT_PARTNER",
+  "PARTNER_RS_REPORT",
 ] as const;
 
 export function isProtectedSystemEmailTemplate(code: string): boolean {

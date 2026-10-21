@@ -112,6 +112,23 @@ When the user later asks to update the ERD / [`04_DATABASE_SCHEMA_FOR_CURSOR.md`
 - Indexes: `idx_opco_report_map_requests_status_created`, `idx_opco_report_map_requests_opco_id`
 - Upload gated on Report map readiness; Admin save when configured fulfills PENDING + notifies OpCo (`REPORT_MAP_READY`)
 
+### Applied migration — per-service regulatory fee (replace OpCo VAT)
+- Migration: `prisma/migrations/20261020120000_service_regulatory_fee_percent`
+- Table `service_partner_maps`: add `regulatory_fee_percent DECIMAL(5,2) NOT NULL DEFAULT 0`
+- Backfill from `opcos.vat_percent` per OpCo, then **drop** `opcos.vat_percent`
+- Admin: OpCo Regulatory fees page (`/admin/opcos/[id]/regulatory-fees`); RS Excel uses per-service fee %
+
+### Applied migration — Partner RS% + Partner Revenue Share reports
+- Migration: `prisma/migrations/20261020140000_partner_revenue_share_reports`
+- Table `service_partner_maps`: add `partner_rs_percent DECIMAL(5,2) NOT NULL DEFAULT 0`
+- Table `partner_revenue_share_reports`: sent Dizlee→Partner RS Excel per OpCo + Partner + month + year
+  - Columns: `opco_id`, `partner_id`, `month`, `year`, `file_id`, `reconciliation_id`, `sent_at`, `sent_by_user_id`, `notification_id`, soft-delete/audit
+  - Unique: `uq_partner_revenue_share_reports` (`opco_id`, `partner_id`, `year`, `month`)
+- Table `partner_revenue_share_report_items`: snapshot service rows (hard replace on resend)
+- Seed template: `PARTNER_RS_REPORT` (INTIMATION)
+- Object storage folder: `partner-revenue-share/`
+- Retention: cron purges reports older than current month − 3 months
+
 ## Source of truth until ERD is refreshed
 1. [`prisma/schema.prisma`](prisma/schema.prisma)
 2. Files under [`prisma/migrations/`](prisma/migrations/)
