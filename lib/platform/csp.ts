@@ -32,7 +32,8 @@ export function buildContentSecurityPolicy(nonce: string): string {
     "style-src-attr 'unsafe-inline'",
     `script-src ${scriptSrc}`,
     "connect-src 'self'",
-    "frame-src 'none'",
+    // blob: for in-app PDF object URLs; 'self' for stored-file preview routes in iframes.
+    "frame-src 'self' blob:",
     "worker-src 'self' blob:",
     ...(isDev ? [] : ["upgrade-insecure-requests"]),
   ].join("; ");

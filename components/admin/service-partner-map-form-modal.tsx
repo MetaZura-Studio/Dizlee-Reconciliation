@@ -16,6 +16,7 @@ type FormValues = {
   opcoId: string;
   serviceName: string;
   partnerId: string;
+  partnerRsPercent: string;
 };
 
 type ServicePartnerMapFormModalProps = {
@@ -39,12 +40,14 @@ function getInitialValues(
       opcoId: map.opcoId,
       serviceName: map.serviceName,
       partnerId: map.partnerId,
+      partnerRsPercent: String(map.partnerRsPercent ?? 0),
     };
   }
   return {
     opcoId: opcos.find((opco) => opco.status === "ACTIVE")?.id ?? opcos[0]?.id ?? "",
     serviceName: "",
     partnerId: partners[0]?.id ?? "",
+    partnerRsPercent: "0",
   };
 }
 
@@ -77,6 +80,10 @@ function ServicePartnerMapFormBody({
     setError(null);
 
     try {
+      const partnerRsPercent = Number.parseFloat(values.partnerRsPercent);
+      if (!Number.isFinite(partnerRsPercent)) {
+        throw new Error("Partner RS% must be a number from 0 to 100");
+      }
       const response = await fetch(
         mode === "create"
           ? "/api/admin/service-partner-maps"
@@ -84,7 +91,12 @@ function ServicePartnerMapFormBody({
         {
           method: mode === "create" ? "POST" : "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(values),
+          body: JSON.stringify({
+            opcoId: values.opcoId,
+            serviceName: values.serviceName,
+            partnerId: values.partnerId,
+            partnerRsPercent,
+          }),
         },
       );
       const body = await response.json();
@@ -178,6 +190,28 @@ function ServicePartnerMapFormBody({
               </option>
             ))}
           </select>
+        </label>
+
+        <label className="block text-sm">
+          <FieldLegend required>Partner RS%</FieldLegend>
+          <input
+            type="number"
+            min={0}
+            max={100}
+            step={0.01}
+            value={values.partnerRsPercent}
+            onChange={(event) =>
+              setValues((prev) => ({
+                ...prev,
+                partnerRsPercent: event.target.value,
+              }))
+            }
+            className={ui.input}
+            required
+          />
+          <p className="mt-1 text-xs text-foreground-muted">
+            Used on Dizlee → Partner Revenue Share reports (0–100).
+          </p>
         </label>
 
         {error ? <p className={ui.alertError}>{error}</p> : null}

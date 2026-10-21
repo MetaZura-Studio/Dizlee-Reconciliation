@@ -21,6 +21,7 @@ describe("buildContentSecurityPolicy", () => {
     expect(csp).toContain("style-src-attr 'unsafe-inline'");
     expect(csp).not.toContain("style-src 'self' 'unsafe-inline'");
     expect(csp).toContain("frame-ancestors 'none'");
+    expect(csp).toContain("frame-src 'self' blob:");
     expect(csp).not.toContain("script-src 'self' 'unsafe-inline'");
   });
 });

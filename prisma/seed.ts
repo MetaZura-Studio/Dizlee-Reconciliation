@@ -206,7 +206,6 @@ async function seedOpcosAndPartners(
       update: {
         name: opco.name,
         defaultCurrencyId,
-        vatPercent: opco.vatPercent ?? 0,
         statusId: activeStatusId,
         isDeleted: false,
       },
@@ -214,7 +213,6 @@ async function seedOpcosAndPartners(
         id: BigInt(opco.id),
         name: opco.name,
         defaultCurrencyId,
-        vatPercent: opco.vatPercent ?? 0,
         statusId: activeStatusId,
       },
     });

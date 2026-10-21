@@ -114,6 +114,54 @@ describe("extractExcelHeaders", () => {
       "RS %",
     ]);
   });
+
+  it("always reads headers from row 1 even when later data rows are denser", async () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Sheet1");
+    sheet.addRow([
+      "Sr. No.",
+      "Service provider Code",
+      "Type",
+      "Service provider Name",
+      "Service name",
+      "Bill Code",
+      "Gross Revenue (LC)",
+      "RS %",
+      "Net Revenue (LC)",
+      "Dizlee Share %",
+      "Dizlee Revenue (LC)",
+      "USD Rate",
+      "Dizlee Revenue (USD)",
+      "Month",
+    ]);
+    // Data rows have two extra formula columns with no header — denser than row 1.
+    for (let i = 1; i <= 18; i += 1) {
+      sheet.addRow([
+        i,
+        "Dotconvertecs",
+        "POSTPAID",
+        "Dot Convertecs",
+        "Dotconvertecs-iTunes",
+        "UG1",
+        602.81,
+        0.37,
+        223.04,
+        0.01,
+        6.03,
+        0.3071,
+        19.63,
+        new Date("2026-09-01T00:00:00.000Z"),
+        19.64,
+        1963.55,
+      ]);
+    }
+    const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
+    const catalog = await extractExcelHeaderCatalog(buffer);
+    expect(catalog?.selected.headerRowNumber).toBe(1);
+    expect(catalog?.selected.headers[0]).toBe("Sr. No.");
+    expect(catalog?.selected.headers).toContain("Service name");
+    expect(catalog?.selected.headers).not.toContain("Dotconvertecs");
+  });
 });
 
 describe("sheet catalog", () => {

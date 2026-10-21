@@ -11,7 +11,6 @@ export type SeedEntity = {
 export type SeedOpco = SeedEntity & {
   id: number;
   defaultCurrencyIso: string;
-  vatPercent?: number;
 };
 
 export type SeedLink = {
