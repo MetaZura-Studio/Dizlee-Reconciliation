@@ -783,14 +783,14 @@ export function ReconciliationResultView({
           loading={partnerRsPreviewLoading}
           error={partnerRsPreviewError}
           pdfUrl={partnerRsPreviewPdfUrl}
-          onClose={closePartnerRsPreview}
+          onClose={() => closePartnerRsPreview()}
           footer={
             <>
               <Button
                 type="button"
                 variant="secondary"
                 disabled={partnerRsSending}
-                onClick={closePartnerRsPreview}
+                onClick={() => closePartnerRsPreview()}
               >
                 Cancel
               </Button>

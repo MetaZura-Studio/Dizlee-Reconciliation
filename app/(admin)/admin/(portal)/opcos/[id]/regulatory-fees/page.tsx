@@ -2,6 +2,7 @@ import { OpcoRegulatoryFeesView } from "@/components/admin/opco-regulatory-fees-
 import {
   getOpcoRegulatoryFeesPage,
   OpcoRegulatoryFeeError,
+  type OpcoRegulatoryFeesPage,
 } from "@/lib/admin/opco-regulatory-fees";
 
 type PageProps = {
@@ -21,21 +22,28 @@ function loadErrorMessage(error: unknown): string {
 export default async function AdminOpcoRegulatoryFeesPage({ params }: PageProps) {
   const { id } = await params;
 
+  let page: OpcoRegulatoryFeesPage | null = null;
+  let loadError: string | null = null;
   try {
-    const page = await getOpcoRegulatoryFeesPage(id);
-    return (
-      <div className="w-full">
-        <OpcoRegulatoryFeesView initialPage={page} />
-      </div>
-    );
+    page = await getOpcoRegulatoryFeesPage(id);
   } catch (error) {
+    loadError = loadErrorMessage(error);
+  }
+
+  if (loadError || !page) {
     return (
       <div className="w-full space-y-3">
         <h1 className="text-2xl font-semibold tracking-tight">Regulatory fees</h1>
         <p className="rounded-md border border-danger-border bg-danger-muted px-3 py-2 text-sm text-danger">
-          {loadErrorMessage(error)}
+          {loadError ?? "Regulatory fees could not be loaded."}
         </p>
       </div>
     );
   }
+
+  return (
+    <div className="w-full">
+      <OpcoRegulatoryFeesView initialPage={page} />
+    </div>
+  );
 }
