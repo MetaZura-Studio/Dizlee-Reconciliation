@@ -9,6 +9,8 @@ export type ServicePartnerMapListItem = {
   serviceKey: string;
   partnerId: string;
   partnerName: string;
+  regulatoryFeePercent: number;
+  partnerRsPercent: number;
 };
 
 export type ServicePartnerMapImportIssue = {

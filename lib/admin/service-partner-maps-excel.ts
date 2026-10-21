@@ -7,6 +7,7 @@ export type ParsedServicePartnerMapRow = {
   opcoName: string;
   serviceName: string;
   partnerName: string;
+  partnerRsPercent: number | null;
   rowNumber: number;
 };
 
@@ -57,6 +58,30 @@ function isPartnerHeader(header: string): boolean {
   return header === "partner" || header === "partnername";
 }
 
+function isPartnerRsHeader(header: string): boolean {
+  return (
+    header === "partnerrs" ||
+    header === "partnerrspercent" ||
+    header === "partnerrsshare" ||
+    header === "partnerrssharepercent"
+  );
+}
+
+function parsePartnerRsPercent(raw: string): number | null {
+  if (!raw.trim()) {
+    return null;
+  }
+  const value = Number.parseFloat(raw.replace(/%/g, "").trim());
+  if (!Number.isFinite(value) || value < 0 || value > 100) {
+    return null;
+  }
+  const scaled = value * 100;
+  if (Math.abs(scaled - Math.round(scaled)) >= 1e-9) {
+    return null;
+  }
+  return value;
+}
+
 export async function parseServicePartnerMapsExcel(
   buffer: ArrayBuffer | Buffer | Uint8Array,
 ): Promise<ServicePartnerMapParseResult> {
@@ -74,6 +99,7 @@ export async function parseServicePartnerMapsExcel(
   let opcoCol = 0;
   let serviceCol = 0;
   let partnerCol = 0;
+  let partnerRsCol = 0;
 
   headerRow.eachCell((cell, colNumber) => {
     const header = normalizeHeader(cell.value);
@@ -86,6 +112,9 @@ export async function parseServicePartnerMapsExcel(
     if (isPartnerHeader(header)) {
       partnerCol = colNumber;
     }
+    if (isPartnerRsHeader(header)) {
+      partnerRsCol = colNumber;
+    }
   });
 
   if (!opcoCol || !serviceCol || !partnerCol) {
@@ -94,7 +123,8 @@ export async function parseServicePartnerMapsExcel(
       issues: [
         {
           rowNumber: 1,
-          message: "Missing required headers. Expected OpCo, Partner, and Service.",
+          message:
+            "Missing required headers. Expected OpCo, Partner, and Service (optional Partner RS%).",
         },
       ],
     };
@@ -111,8 +141,11 @@ export async function parseServicePartnerMapsExcel(
     const opcoName = cellText(row.getCell(opcoCol).value);
     const serviceName = cellText(row.getCell(serviceCol).value);
     const partnerName = cellText(row.getCell(partnerCol).value);
+    const partnerRsRaw = partnerRsCol
+      ? cellText(row.getCell(partnerRsCol).value)
+      : "";
 
-    if (!opcoName && !serviceName && !partnerName) {
+    if (!opcoName && !serviceName && !partnerName && !partnerRsRaw) {
       return;
     }
 
@@ -140,7 +173,25 @@ export async function parseServicePartnerMapsExcel(
       return;
     }
 
-    rows.push({ opcoName, serviceName, partnerName, rowNumber });
+    let partnerRsPercent: number | null = null;
+    if (partnerRsRaw) {
+      partnerRsPercent = parsePartnerRsPercent(partnerRsRaw);
+      if (partnerRsPercent === null) {
+        issues.push({
+          rowNumber,
+          message: `Partner RS% must be a number from 0 to 100 (up to 2 decimals) for "${serviceName}"`,
+        });
+        return;
+      }
+    }
+
+    rows.push({
+      opcoName,
+      serviceName,
+      partnerName,
+      partnerRsPercent,
+      rowNumber,
+    });
   });
 
   return { rows, issues };
@@ -149,12 +200,13 @@ export async function parseServicePartnerMapsExcel(
 export async function buildServicePartnerMapsTemplateBuffer(): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet("ServicePartnerMaps");
-  sheet.addRow(["OpCo", "Partner", "Service"]);
+  sheet.addRow(["OpCo", "Partner", "Service", "Partner RS%"]);
   sheet.getRow(1).font = { bold: true };
   sheet.getColumn(1).width = 22;
   sheet.getColumn(2).width = 28;
   sheet.getColumn(3).width = 36;
-  sheet.addRow(["Zain KSA", "Google", "Example Service Name"]);
+  sheet.getColumn(4).width = 14;
+  sheet.addRow(["Zain KSA", "Google", "Example Service Name", "30"]);
 
   const arrayBuffer = await workbook.xlsx.writeBuffer();
   return Buffer.from(arrayBuffer);

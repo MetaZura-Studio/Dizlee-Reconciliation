@@ -36,10 +36,11 @@ const SOFT_DELETE_MODELS = new Set([
   "Invoice",
   "InvoiceItem",
   "RevenueShareReport",
+  "PartnerRevenueShareReport",
 ]);
 
 /** Bump when adding Prisma models so stale Turbopack/global clients are dropped. */
-const PRISMA_CLIENT_GENERATION = 5;
+const PRISMA_CLIENT_GENERATION = 7;
 
 type CachedPrisma = {
   generation: number;
@@ -105,7 +106,7 @@ function resolvePrismaClient(): PrismaClient {
   const client = createPrismaClient();
   if (!hasRequiredDelegates(client)) {
     throw new Error(
-      "Prisma client is missing required models (e.g. OpcoReportMapRequest). Run `npx prisma generate` and restart the Next.js dev server.",
+      "Prisma client is missing required models. Run `npx prisma generate` and restart the Next.js dev server.",
     );
   }
 

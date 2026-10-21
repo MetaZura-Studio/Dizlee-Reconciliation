@@ -4,11 +4,11 @@ import { parseServicePartnerMapsExcel } from "@/lib/admin/service-partner-maps-e
 import ExcelJS from "exceljs";
 
 async function workbookBuffer(
-  rows: Array<[string, string, string]>,
+  rows: Array<[string, string, string] | [string, string, string, string]>,
 ): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet("Maps");
-  sheet.addRow(["OpCo", "Partner", "Service"]);
+  sheet.addRow(["OpCo", "Partner", "Service", "Partner RS%"]);
   for (const row of rows) {
     sheet.addRow(row);
   }
@@ -35,5 +35,14 @@ describe("parseServicePartnerMapsExcel", () => {
     const parsed = await parseServicePartnerMapsExcel(buffer);
     expect(parsed.rows).toHaveLength(0);
     expect(parsed.issues[0]?.message).toMatch(/Missing Partner/i);
+  });
+
+  it("parses Partner RS% when present", async () => {
+    const buffer = await workbookBuffer([
+      ["Zain KSA", "Google", "Shofha Plus", "30"],
+    ]);
+    const parsed = await parseServicePartnerMapsExcel(buffer);
+    expect(parsed.issues).toHaveLength(0);
+    expect(parsed.rows[0]?.partnerRsPercent).toBe(30);
   });
 });

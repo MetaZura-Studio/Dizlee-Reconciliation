@@ -1,5 +1,6 @@
 /**
  * Extract header rows from OpCo sample Excel for Admin column mapping.
+ * Column titles are always read from row 1 on each sheet.
  * Multi-sheet workbooks are catalogued so Admin can pick the tab first.
  */
 import ExcelJS from "exceljs";
@@ -49,7 +50,8 @@ export type ExcelHeaderScanResult = {
   headerRowNumber: number;
 };
 
-const HEADER_SCAN_MAX_ROWS = 20;
+/** OpCo report samples always put column titles on row 1. */
+export const OPCO_REPORT_HEADER_ROW = 1;
 
 export function headersFromRow(row: ExcelJS.Row): string[] {
   const headers: string[] = [];
@@ -62,7 +64,38 @@ export function headersFromRow(row: ExcelJS.Row): string[] {
   return uniqueHeaders(headers);
 }
 
-/** Prefer real column grids over a single long title cell on Summary sheets. */
+/** True when a cell looks like report data, not a column title. */
+export function looksLikeDataHeaderCell(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return false;
+  }
+  if (/^-?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(trimmed)) {
+    return true;
+  }
+  // ExcelJS Date → String(date) includes weekday / GMT / timezone.
+  if (
+    /\bGMT[+-]?\d*\b/i.test(trimmed) ||
+    /\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\b/i.test(trimmed)
+  ) {
+    return true;
+  }
+  const asDate = Date.parse(trimmed);
+  if (
+    Number.isFinite(asDate) &&
+    /^\d{4}-\d{2}-\d{2}/.test(trimmed)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Prefer real column-title grids over:
+ * - a single long title cell on Summary sheets
+ * - dense data rows that beat the header only because they have more filled cells
+ *   (e.g. extra formula columns with no header label)
+ */
 export function scoreHeaderRow(headers: string[]): number {
   if (headers.length === 0) {
     return 0;
@@ -71,36 +104,37 @@ export function scoreHeaderRow(headers: string[]): number {
     return 1;
   }
   let score = headers.length * 10;
+  let dataLike = 0;
   for (const header of headers) {
+    if (looksLikeDataHeaderCell(header)) {
+      dataLike += 1;
+      score -= 12;
+      continue;
+    }
     if (header.length <= 60) {
       score += 2;
     }
   }
+  // Mostly numbers/dates → almost certainly a data row, not headers.
+  if (headers.length >= 3 && dataLike / headers.length >= 0.4) {
+    score = Math.min(score, headers.length);
+  }
   return score;
 }
 
+/** Always read column titles from row 1 (all OpCo reports use that convention). */
 export function scanSheetForHeaders(
   sheet: ExcelJS.Worksheet,
 ): ExcelHeaderScanResult | null {
-  let best: ExcelHeaderScanResult | null = null;
-  let bestScore = 0;
-  const lastRow = Math.min(
-    Math.max(sheet.actualRowCount || 1, 1),
-    HEADER_SCAN_MAX_ROWS,
-  );
-  for (let rowNumber = 1; rowNumber <= lastRow; rowNumber += 1) {
-    const headers = headersFromRow(sheet.getRow(rowNumber));
-    const score = scoreHeaderRow(headers);
-    if (score > bestScore) {
-      bestScore = score;
-      best = {
-        headers,
-        sheetName: sheet.name,
-        headerRowNumber: rowNumber,
-      };
-    }
+  const headers = headersFromRow(sheet.getRow(OPCO_REPORT_HEADER_ROW));
+  if (headers.length === 0) {
+    return null;
   }
-  return best;
+  return {
+    headers,
+    sheetName: sheet.name,
+    headerRowNumber: OPCO_REPORT_HEADER_ROW,
+  };
 }
 
 /** Best header row for every worksheet (including empty-header sheets). */
@@ -202,14 +236,11 @@ export function findWorksheetMatchingHeaders(
 
   if (needed.length > 0) {
     for (const sheet of workbook.worksheets) {
-      const lastRow = Math.min(
-        Math.max(sheet.actualRowCount || 1, 1),
-        HEADER_SCAN_MAX_ROWS,
-      );
-      for (let rowNumber = 1; rowNumber <= lastRow; rowNumber += 1) {
-        if (headerRowMatchesNeeded(sheet, rowNumber, needed)) {
-          return { worksheet: sheet, headerRowNumber: rowNumber };
-        }
+      if (headerRowMatchesNeeded(sheet, OPCO_REPORT_HEADER_ROW, needed)) {
+        return {
+          worksheet: sheet,
+          headerRowNumber: OPCO_REPORT_HEADER_ROW,
+        };
       }
     }
   }
@@ -457,29 +488,11 @@ export async function extractDistinctColumnValues(
     return [];
   }
 
-  let headerRowNumber = Math.max(1, params.headerRowNumber);
-  let columnIndex = findColumnIndex(
+  const headerRowNumber = OPCO_REPORT_HEADER_ROW;
+  const columnIndex = findColumnIndex(
     worksheet.getRow(headerRowNumber),
     params.columnHeader,
   );
-
-  if (columnIndex <= 0) {
-    const scanLimit = Math.min(
-      Math.max(worksheet.actualRowCount || 1, 1),
-      HEADER_SCAN_MAX_ROWS,
-    );
-    for (let rowNumber = 1; rowNumber <= scanLimit; rowNumber += 1) {
-      const candidate = findColumnIndex(
-        worksheet.getRow(rowNumber),
-        params.columnHeader,
-      );
-      if (candidate > 0) {
-        headerRowNumber = rowNumber;
-        columnIndex = candidate;
-        break;
-      }
-    }
-  }
 
   if (columnIndex <= 0) {
     return [];

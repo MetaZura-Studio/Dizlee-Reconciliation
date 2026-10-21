@@ -16,7 +16,9 @@ import {
   NotificationAttachmentPicker,
   type PendingAttachment,
 } from "@/components/shared/notification-attachment-picker";
+import { ReportRawFilePreviewModal } from "@/components/shared/report-raw-file-preview-modal";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/toast";
 import {
   DataTable,
   DataTableFrame,
@@ -109,14 +111,34 @@ export function ReconciliationResultView({
   initialAlertTemplates,
 }: ReconciliationResultViewProps) {
   const router = useRouter();
+  const toast = useToast();
   const [detail, setDetail] = useState(initialDetail);
   const [confirming, setConfirming] = useState(false);
   const [rerunning, setRerunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [confirmSuccessOpen, setConfirmSuccessOpen] = useState(false);
-  const [confirmSuccessMessage, setConfirmSuccessMessage] = useState(
-    "Reconciliation confirmed.",
+  const [partnerRsPreviewOpen, setPartnerRsPreviewOpen] = useState(false);
+  const [partnerRsPreviewLoading, setPartnerRsPreviewLoading] = useState(false);
+  const [partnerRsPreviewError, setPartnerRsPreviewError] = useState<
+    string | null
+  >(null);
+  const [partnerRsPreviewPdfUrl, setPartnerRsPreviewPdfUrl] = useState<
+    string | null
+  >(null);
+  const [partnerRsPreviewFilename, setPartnerRsPreviewFilename] = useState(
+    "Partner RS report",
   );
+  const [partnerRsSending, setPartnerRsSending] = useState(false);
+
+  function closePartnerRsPreview(options?: { force?: boolean }) {
+    if (partnerRsSending && !options?.force) {
+      return;
+    }
+    setPartnerRsPreviewOpen(false);
+    if (partnerRsPreviewPdfUrl) {
+      URL.revokeObjectURL(partnerRsPreviewPdfUrl);
+      setPartnerRsPreviewPdfUrl(null);
+    }
+  }
   const [alertOpen, setAlertOpen] = useState(false);
   const [alerting, setAlerting] = useState(false);
   const [alertSuccessOpen, setAlertSuccessOpen] = useState(false);
@@ -162,6 +184,83 @@ export function ReconciliationResultView({
     setItemPage(1);
   }
 
+  async function openPartnerRsPreview() {
+    setPartnerRsPreviewOpen(true);
+    setPartnerRsPreviewLoading(true);
+    setPartnerRsPreviewError(null);
+    if (partnerRsPreviewPdfUrl) {
+      URL.revokeObjectURL(partnerRsPreviewPdfUrl);
+      setPartnerRsPreviewPdfUrl(null);
+    }
+    setPartnerRsPreviewFilename(
+      `${detail.partnerName} — Partner RS report`,
+    );
+    setError(null);
+
+    try {
+      const response = await fetch(
+        `/api/dizlee/reconciliation/${detail.id}/partner-rs/preview`,
+        { method: "POST" },
+      );
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(
+          formatAppError(payload, "Failed to build Partner RS preview"),
+        );
+      }
+
+      const disposition = response.headers.get("Content-Disposition") ?? "";
+      const match = /filename\*=UTF-8''([^;]+)|filename="([^"]+)"/i.exec(
+        disposition,
+      );
+      const encodedName = match?.[1];
+      const plainName = match?.[2];
+      if (encodedName) {
+        setPartnerRsPreviewFilename(decodeURIComponent(encodedName));
+      } else if (plainName) {
+        setPartnerRsPreviewFilename(plainName);
+      }
+
+      const blob = await response.blob();
+      setPartnerRsPreviewPdfUrl(URL.createObjectURL(blob));
+    } catch (previewError) {
+      setPartnerRsPreviewError(
+        previewError instanceof Error
+          ? previewError.message
+          : "Failed to build Partner RS preview",
+      );
+    } finally {
+      setPartnerRsPreviewLoading(false);
+    }
+  }
+
+  async function confirmSendPartnerRs() {
+    setPartnerRsSending(true);
+    setPartnerRsPreviewError(null);
+    try {
+      const response = await fetch(
+        `/api/dizlee/reconciliation/${detail.id}/partner-rs/send`,
+        { method: "POST" },
+      );
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(
+          formatAppError(payload, "Failed to send Partner RS report"),
+        );
+      }
+      toast.success("Partner Revenue Share report sent successfully.");
+      closePartnerRsPreview({ force: true });
+    } catch (sendError) {
+      toast.error(
+        sendError instanceof Error
+          ? sendError.message
+          : "Failed to send Partner RS report",
+      );
+    } finally {
+      setPartnerRsSending(false);
+    }
+  }
+
   async function confirmReconciliation() {
     setConfirming(true);
     setError(null);
@@ -182,11 +281,10 @@ export function ReconciliationResultView({
         canAlert: false,
         canRerun: false,
       }));
-      setConfirmSuccessMessage(
+      toast.success(
         (payload.data?.message as string | undefined) ??
-          "Reconciliation confirmed.",
+          "Reconciliation confirmed. You can send the Partner RS report now.",
       );
-      setConfirmSuccessOpen(true);
     } catch (confirmError) {
       setError(
         confirmError instanceof Error
@@ -234,7 +332,7 @@ export function ReconciliationResultView({
   }
 
   function goToHistory() {
-    setConfirmSuccessOpen(false);
+    setAlertSuccessOpen(false);
     router.push("/dizlee/reconciliation?tab=history");
   }
 
@@ -415,6 +513,18 @@ export function ReconciliationResultView({
             onClick={openAlertModal}
           >
             Alert OpCo / Partner
+          </Button>
+        </div>
+      ) : null}
+
+      {detail.statusCode === "COMPLETED" ? (
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <Button
+            variant="primary"
+            disabled={partnerRsPreviewLoading || partnerRsSending}
+            onClick={() => void openPartnerRsPreview()}
+          >
+            {partnerRsPreviewLoading ? "Building preview…" : "Send report"}
           </Button>
         </div>
       ) : null}
@@ -658,20 +768,49 @@ export function ReconciliationResultView({
       ) : null}
 
       <SuccessDialog
-        open={confirmSuccessOpen}
-        title="Reconciliation confirmed"
-        message={confirmSuccessMessage}
-        actionLabel="Back to history"
-        onAction={goToHistory}
-      />
-
-      <SuccessDialog
         open={alertSuccessOpen}
         title="Alert sent"
         message={alertSuccessMessage}
         actionLabel="Back to history"
         onAction={goToHistory}
       />
+
+      {partnerRsPreviewOpen ? (
+        <ReportRawFilePreviewModal
+          title="Partner RS report preview"
+          filename={partnerRsPreviewFilename}
+          subtitle={`${detail.partnerName} · ${detail.opcoName} · ${formatAppMonthYear(detail.period.month, detail.period.year)}`}
+          loading={partnerRsPreviewLoading}
+          error={partnerRsPreviewError}
+          pdfUrl={partnerRsPreviewPdfUrl}
+          onClose={closePartnerRsPreview}
+          footer={
+            <>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={partnerRsSending}
+                onClick={closePartnerRsPreview}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                disabled={
+                  partnerRsSending ||
+                  partnerRsPreviewLoading ||
+                  Boolean(partnerRsPreviewError) ||
+                  !partnerRsPreviewPdfUrl
+                }
+                onClick={() => void confirmSendPartnerRs()}
+              >
+                {partnerRsSending ? "Sending…" : "Confirm send"}
+              </Button>
+            </>
+          }
+        />
+      ) : null}
     </div>
   );
 }

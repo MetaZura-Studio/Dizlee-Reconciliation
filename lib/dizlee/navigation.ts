@@ -16,6 +16,11 @@ export const DIZLEE_NAV_ITEMS: DizleeNavItem[] = [
   { label: "Reconciliation", href: "/dizlee/reconciliation" },
   { label: "RS Reports", href: "/dizlee/revenue-share" },
   {
+    label: "Partner RS",
+    href: "/dizlee/partner-revenue-share",
+    description: "Partner Revenue Share reports sent after reconciliation",
+  },
+  {
     label: "Communications",
     href: "/dizlee/communications",
     description: "Intimations and report reminders",

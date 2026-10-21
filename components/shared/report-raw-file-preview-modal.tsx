@@ -4,7 +4,7 @@
 
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 
 import {
   DataTable,
@@ -34,10 +34,15 @@ type ReportRawFilePreviewModalProps = {
   downloadHref?: string;
   loading: boolean;
   error?: string | null;
-  rawRows: string[][];
+  /** Excel grid preview (omit when `pdfUrl` is set). */
+  rawRows?: string[][];
   sheetName?: string | null;
   truncated?: boolean;
   totalRows?: number | null;
+  /** PDF blob/object URL — shown in an iframe instead of the sheet grid. */
+  pdfUrl?: string | null;
+  /** Optional actions below the sheet (e.g. Confirm send). */
+  footer?: ReactNode;
   onClose: () => void;
 };
 
@@ -48,12 +53,20 @@ export function ReportRawFilePreviewModal({
   downloadHref,
   loading,
   error,
-  rawRows,
+  rawRows = [],
   sheetName,
   truncated,
   totalRows,
+  pdfUrl,
+  footer,
   onClose,
 }: ReportRawFilePreviewModalProps) {
+  const isPdf = Boolean(pdfUrl);
+  /** Hide viewer chrome; page-width zoom so the report fills the wide modal. */
+  const embedPdfUrl =
+    pdfUrl && !pdfUrl.includes("#")
+      ? `${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0&zoom=page-width`
+      : pdfUrl;
   const headerCells = rawRows[0] ?? [];
   const bodyRows = rawRows.slice(1);
   const columnCount = Math.max(
@@ -87,11 +100,15 @@ export function ReportRawFilePreviewModal({
     <div className={reportPreviewBackdropClass}>
       <LoadingOverlay
         active={loading}
-        label="Loading raw file…"
-        className={reportPreviewShellClasses(
-          loading || rawRows.length === 0 ? null : columnCount,
-          "overflow-hidden",
-        )}
+        label={isPdf ? "Loading PDF…" : "Loading raw file…"}
+        className={
+          isPdf
+            ? "flex h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-[28px] border border-border bg-white shadow-[var(--shadow-md)] sm:h-[90vh]"
+            : reportPreviewShellClasses(
+                loading || rawRows.length === 0 ? null : columnCount,
+                "overflow-hidden",
+              )
+        }
       >
         <div
           className="flex h-full w-full flex-col overflow-hidden"
@@ -99,45 +116,71 @@ export function ReportRawFilePreviewModal({
           aria-modal="true"
           aria-labelledby="report-raw-file-preview-title"
         >
-          <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border px-5 py-3">
-            <div className="min-w-0">
-              <h2
-                id="report-raw-file-preview-title"
-                className="text-base font-semibold tracking-tight text-foreground"
-              >
+          {isPdf ? (
+            <div className="flex shrink-0 items-center justify-end bg-white px-4 py-2">
+              <h2 id="report-raw-file-preview-title" className="sr-only">
                 {title}
               </h2>
-              <p className="mt-0.5 truncate text-sm text-foreground-muted">
-                <span className="font-medium text-foreground">{filename}</span>
-                {subtitle ? (
-                  <span className="text-foreground-subtle"> · {subtitle}</span>
-                ) : null}
-                {downloadHref ? (
-                  <>
-                    {" · "}
-                    <a
-                      href={downloadHref}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary underline underline-offset-2"
-                    >
-                      Download
-                    </a>
-                  </>
-                ) : null}
-              </p>
+              <ModalCloseButton onClick={onClose} />
             </div>
-            <ModalCloseButton onClick={onClose} />
-          </div>
+          ) : (
+            <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border px-5 py-3">
+              <div className="min-w-0">
+                <h2
+                  id="report-raw-file-preview-title"
+                  className="text-base font-semibold tracking-tight text-foreground"
+                >
+                  {title}
+                </h2>
+                <p className="mt-0.5 truncate text-sm text-foreground-muted">
+                  <span className="font-medium text-foreground">{filename}</span>
+                  {subtitle ? (
+                    <span className="text-foreground-subtle"> · {subtitle}</span>
+                  ) : null}
+                  {downloadHref ? (
+                    <>
+                      {" · "}
+                      <a
+                        href={downloadHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary underline underline-offset-2"
+                      >
+                        Download
+                      </a>
+                    </>
+                  ) : null}
+                </p>
+              </div>
+              <ModalCloseButton onClick={onClose} />
+            </div>
+          )}
 
-          <div className={reportPreviewBodyClass}>
+          <div
+            className={
+              isPdf
+                ? "min-h-0 flex-1 overflow-y-auto bg-white p-0"
+                : reportPreviewBodyClass
+            }
+          >
             {error ? (
-              <p className="text-sm text-danger">{error}</p>
-            ) : !loading && rawRows.length === 0 ? (
+              <p className="shrink-0 px-5 py-3 text-sm text-danger">{error}</p>
+            ) : null}
+            {!loading && isPdf && embedPdfUrl ? (
+              // Tall A4-ratio frame at modal width → native viewer scales page large.
+              <iframe
+                title={filename}
+                src={embedPdfUrl}
+                className="block w-full border-0 bg-white"
+                style={{ height: "calc(min(100vw, 64rem) * 297 / 210)" }}
+              />
+            ) : null}
+            {!error && !loading && !isPdf && rawRows.length === 0 ? (
               <p className="text-sm text-foreground-muted">
                 No sheet data to display.
               </p>
-            ) : !loading ? (
+            ) : null}
+            {!error && !loading && !isPdf && rawRows.length > 0 ? (
               <>
                 <p className="mb-2 shrink-0 text-sm text-foreground-muted">
                   Sheet “{sheetName ?? "Sheet1"}”
@@ -203,6 +246,12 @@ export function ReportRawFilePreviewModal({
               </>
             ) : null}
           </div>
+
+          {footer ? (
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-border px-5 py-3">
+              {footer}
+            </div>
+          ) : null}
         </div>
       </LoadingOverlay>
     </div>

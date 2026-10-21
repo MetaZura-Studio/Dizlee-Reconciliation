@@ -133,6 +133,20 @@ export const NOTIFICATION_TEMPLATE_SEEDS: NotificationTemplateSeed[] = [
     ],
   },
   {
+    code: "PARTNER_RS_REPORT",
+    name: "Partner revenue share report",
+    category: "INTIMATION",
+    subject: "Partner Revenue Share Report — {{period}}",
+    body: "Your Partner Revenue Share PDF report for {{period}} is attached. Please download it from this notification.",
+    versions: [
+      {
+        version: 1,
+        subject: "Partner Revenue Share Report — {{period}}",
+        body: "Your Partner Revenue Share PDF report for {{period}} is attached. Please download it from this notification.",
+      },
+    ],
+  },
+  {
     code: "RECONCILIATION_ALERT_OPCO",
     name: "Reconciliation alert (OpCo)",
     category: "ALERT",

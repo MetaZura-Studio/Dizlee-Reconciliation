@@ -283,3 +283,24 @@ export function IconPlus(props: IconProps) {
     </svg>
   );
 }
+
+export function IconPercent(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M19 5 5 19" />
+      <circle cx="7.5" cy="7.5" r="2.5" />
+      <circle cx="16.5" cy="16.5" r="2.5" />
+    </svg>
+  );
+}
+
+/** Folded map — Report map actions. */
+export function IconMap(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M9 18 3.5 20V6.5L9 4.5" />
+      <path d="M9 4.5 15 6.5v13.5L9 18V4.5Z" />
+      <path d="M15 6.5 20.5 4.5V18L15 20V6.5Z" />
+    </svg>
+  );
+}

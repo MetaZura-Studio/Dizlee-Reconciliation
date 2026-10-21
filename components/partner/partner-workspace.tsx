@@ -130,6 +130,11 @@ export function PartnerWorkspace({
       { href: "/partner", label: "Dashboard", icon: "home" },
       { href: "/partner/upload", label: "Upload Report", icon: "file" },
       { href: "/partner/reports", label: "Reports history", icon: "file" },
+      {
+        href: "/partner/revenue-share",
+        label: "RS Reports",
+        icon: "chart",
+      },
       { href: "/partner/invoices", label: "Invoices", icon: "invoice" },
       {
         href: "/partner/notifications",

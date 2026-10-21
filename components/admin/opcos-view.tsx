@@ -23,7 +23,12 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { FilterActions } from "@/components/ui/filter-actions";
 import { IconButton } from "@/components/ui/icon-button";
-import { IconPencil, IconTrash } from "@/components/ui/icons";
+import {
+  IconMap,
+  IconPencil,
+  IconPercent,
+  IconTrash,
+} from "@/components/ui/icons";
 import { ListPagination } from "@/components/ui/list-pagination";
 import { PageCard, PageHeader, FilterToolbar } from "@/components/ui/page";
 import { StatusPill } from "@/components/ui/status-pill";
@@ -36,7 +41,7 @@ import { ui } from "@/lib/ui/classes";
 import { nextSortState, type SortDirection } from "@/lib/ui/sort";
 import { formatAppError } from "@/lib/errors/format";
 
-type OpcoSortField = "name" | "currency" | "vat" | "status" | "users";
+type OpcoSortField = "name" | "currency" | "status" | "users";
 type OpcoStatusFilter = AdminEntityStatus | "all";
 
 function entityStatusTone(status: AdminEntityStatus): "success" | "neutral" {
@@ -53,12 +58,6 @@ function compareOpcos(
   switch (sortBy) {
     case "currency":
       return a.defaultCurrencyIso.localeCompare(b.defaultCurrencyIso) * dir;
-    case "vat":
-      return (
-        ((Number.isFinite(a.vatPercent) ? a.vatPercent : 0) -
-          (Number.isFinite(b.vatPercent) ? b.vatPercent : 0)) *
-        dir
-      );
     case "status":
       return a.status.localeCompare(b.status) * dir;
     case "users":
@@ -280,13 +279,6 @@ export function OpcosView({ initialOpcos, currencies }: OpcosViewProps) {
                       onSort={() => applySort("currency")}
                     />
                     <SortableDataTableTh
-                      label="VAT %"
-                      active={sortBy === "vat"}
-                      direction={sortDir}
-                      onSort={() => applySort("vat")}
-                      align="right"
-                    />
-                    <SortableDataTableTh
                       label="Status"
                       active={sortBy === "status"}
                       direction={sortDir}
@@ -300,7 +292,11 @@ export function OpcosView({ initialOpcos, currencies }: OpcosViewProps) {
                       onSort={() => applySort("users")}
                       align="right"
                     />
-                    <DataTableTh align="right">Actions</DataTableTh>
+                    <DataTableTh align="right">
+                      <span className="mr-2 inline-flex w-[11.5rem] justify-center">
+                        Actions
+                      </span>
+                    </DataTableTh>
                   </tr>
                 </DataTableHead>
                 <tbody>
@@ -312,9 +308,6 @@ export function OpcosView({ initialOpcos, currencies }: OpcosViewProps) {
                       <DataTableTd className="text-foreground-muted">
                         {opco.defaultCurrencyIso}
                       </DataTableTd>
-                      <DataTableTd className="text-foreground-muted" align="right">
-                        {Number.isFinite(opco.vatPercent) ? opco.vatPercent : 0}
-                      </DataTableTd>
                       <DataTableTd align="center">
                         <StatusPill tone={entityStatusTone(opco.status)}>
                           {formatEntityStatusLabel(opco.status)}
@@ -324,12 +317,22 @@ export function OpcosView({ initialOpcos, currencies }: OpcosViewProps) {
                         {opco.userCount}
                       </DataTableTd>
                       <DataTableTd align="right">
-                        <div className="flex justify-end gap-2">
+                        <div className="mr-2 inline-flex w-[11.5rem] justify-center gap-2">
                           <Link
                             href={`/admin/opcos/${opco.id}/report-mapping`}
-                            className={ui.btnSecondary}
+                            className={ui.iconButton}
+                            aria-label={`Report map for ${opco.name}`}
+                            title="Report map"
                           >
-                            Report map
+                            <IconMap />
+                          </Link>
+                          <Link
+                            href={`/admin/opcos/${opco.id}/regulatory-fees`}
+                            className={ui.iconButton}
+                            aria-label={`Regulatory fees for ${opco.name}`}
+                            title="Regulatory fees"
+                          >
+                            <IconPercent />
                           </Link>
                           <IconButton label="Edit OpCo" onClick={() => openEdit(opco)}>
                             <IconPencil />

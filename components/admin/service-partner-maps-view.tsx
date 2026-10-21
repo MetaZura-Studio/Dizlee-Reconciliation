@@ -290,7 +290,7 @@ export function ServicePartnerMapsView({
             title={maps.length === 0 ? "No mappings yet" : "No mappings found"}
             description={
               maps.length === 0
-                ? "Create a row or upload an Excel list of OpCo, Partner, and Service."
+                ? "Create a row or upload an Excel list of OpCo, Partner, Service, and Partner RS%."
                 : "No mappings match your search."
             }
           />
@@ -318,6 +318,7 @@ export function ServicePartnerMapsView({
                       direction={sortDir}
                       onSort={() => applySort("partnerName")}
                     />
+                    <DataTableTh>Partner RS%</DataTableTh>
                     <DataTableTh align="center">Actions</DataTableTh>
                   </tr>
                 </DataTableHead>
@@ -332,6 +333,9 @@ export function ServicePartnerMapsView({
                       </DataTableTd>
                       <DataTableTd className="text-foreground-muted">
                         {row.partnerName}
+                      </DataTableTd>
+                      <DataTableTd className="text-foreground-muted">
+                        {`${row.partnerRsPercent}%`}
                       </DataTableTd>
                       <DataTableTd align="center">
                         <div className="flex justify-center gap-2">
