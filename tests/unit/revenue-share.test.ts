@@ -77,13 +77,13 @@ describe("revenue share formulas", () => {
     expect(isJordanRevenueShareOpco("Zain KSA")).toBe(false);
   });
 
-  it("computes Jordan RS as (gross × RS %) − fee, default as net × RS %", () => {
+  it("computes Jordan RS as gross − (gross × RS %) − fee, default as net × RS %", () => {
     const fee = regulatoryFeeFromPercent(200, 10);
     expect(fee).toBe(20);
     // Default: net 180 × 25% = 45
     expect(revenueShareAmountFromNet(180, 25)).toBe(45);
-    // Jordan: (200 × 25%) − 20 = 30
-    expect(revenueShareAmountJordan(200, 25, fee)).toBe(30);
+    // Jordan: 200 − 50 − 20 = 130
+    expect(revenueShareAmountJordan(200, 25, fee)).toBe(130);
     expect(
       resolveRevenueShareAmount({
         opcoName: "Zain Kuwait",
@@ -101,14 +101,22 @@ describe("revenue share formulas", () => {
         revenueSharePercent: 25,
         regulatoryFee: fee,
       }),
-    ).toBe(30);
-    // Zero fee → both paths equal gross × RS %
-    expect(revenueShareAmountJordan(200, 25, 0)).toBe(50);
+    ).toBe(130);
+    // Zero fee → gross − (gross × RS %)
+    expect(revenueShareAmountJordan(200, 25, 0)).toBe(150);
     expect(revenueShareAmountFromNet(200, 25)).toBe(50);
     expect(revenueShareAmountJordan(null, 25, 10)).toBeNull();
     expect(revenueShareAmountJordan(200, null, 10)).toBeNull();
-    // Fee larger than share → clamp to 0
-    expect(revenueShareAmountJordan(100, 5, 20)).toBe(0);
+    // ShofhaPlus-style: 8266.76 − 3% − 10% fee → 7192.0812
+    expect(
+      revenueShareAmountJordan(
+        8266.76,
+        3,
+        regulatoryFeeFromPercent(8266.76, 10),
+      ),
+    ).toBeCloseTo(7192.0812, 4);
+    // Deduction larger than gross → clamp to 0
+    expect(revenueShareAmountJordan(100, 90, 20)).toBe(0);
   });
 
   it("prefers the line-item field over source_columns JSON", () => {
@@ -257,7 +265,7 @@ describe("revenue share formulas", () => {
     expect(dataRow2.getCell(8).value).toBe(30);
   });
 
-  it("applies share-first-then-fee for Zain Jordan Excel revenue share amount", async () => {
+  it("applies gross − RS − fee for Zain Jordan Excel revenue share amount", async () => {
     const report: RevenueShareReport = {
       opcoId: "2",
       opcoName: "Zain Jordan",
@@ -283,8 +291,8 @@ describe("revenue share formulas", () => {
     await workbook.xlsx.load(buffer as unknown as ExcelJS.Buffer);
     const sheet = workbook.getWorksheet("Revenue Share");
     expect(sheet).toBeTruthy();
-    // (200 × 25%) − 20 = 30 (not net×RS% = 45)
-    expect(sheet!.getRow(2).getCell(8).value).toBe(30);
+    // 200 − 50 − 20 = 130 (not net×RS% = 45)
+    expect(sheet!.getRow(2).getCell(8).value).toBe(130);
   });
 
   it("formats export money with currency decimals and thousand separators", () => {
