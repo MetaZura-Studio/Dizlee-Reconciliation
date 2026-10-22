@@ -11,10 +11,14 @@
  * - Regulatory Fee = OpCo USD × Regulatory Fee % / 100
  * - Net Revenue = OpCo USD − Regulatory Fee
  * - Revenue share amount = Net Revenue × Revenue Share %
+ *   Exception (Zain Jordan): (OpCo USD × RS %) − Regulatory Fee
  *
  * Gate: latest OpCo report and latest Partner report for every Partner
  * that appears in the OpCo file for the period (not every linked Partner).
  */
+
+/** OpCo whose Dizlee RS Excel applies share % before deducting regulatory fee. */
+export const JORDAN_REVENUE_SHARE_OPCO_NAME = "Zain Jordan";
 
 import { currentPeriod, type DashboardPeriod } from "@/lib/dizlee/dashboard";
 import { normalizeServiceName } from "@/lib/dizlee/reconciliation/compare";
@@ -186,6 +190,49 @@ export function revenueShareAmountFromNet(
 ): number | null {
   if (netRevenue == null || revenueSharePercent == null) return null;
   return (netRevenue * revenueSharePercent) / 100;
+}
+
+/** True when Dizlee OpCo RS uses share-first-then-fee (Zain Jordan). */
+export function isJordanRevenueShareOpco(opcoName: string): boolean {
+  return (
+    opcoName.trim().toLowerCase() ===
+    JORDAN_REVENUE_SHARE_OPCO_NAME.toLowerCase()
+  );
+}
+
+/**
+ * Zain Jordan: (Gross × RS %) − regulatory fee amount.
+ * Blank when gross or share % is missing; clamps negatives to 0.
+ */
+export function revenueShareAmountJordan(
+  grossAmount: number | null,
+  revenueSharePercent: number | null,
+  regulatoryFeeAmount: number,
+): number | null {
+  if (grossAmount == null || revenueSharePercent == null) return null;
+  const shareOnGross = (grossAmount * revenueSharePercent) / 100;
+  return Math.max(0, shareOnGross - regulatoryFeeAmount);
+}
+
+/** Resolve Excel / display RS amount (Jordan vs default fee-then-share). */
+export function resolveRevenueShareAmount(params: {
+  opcoName: string;
+  opcoAmountUsd: number | null;
+  netRevenue: number;
+  revenueSharePercent: number | null;
+  regulatoryFee: number;
+}): number | null {
+  if (isJordanRevenueShareOpco(params.opcoName)) {
+    return revenueShareAmountJordan(
+      params.opcoAmountUsd,
+      params.revenueSharePercent,
+      params.regulatoryFee,
+    );
+  }
+  return revenueShareAmountFromNet(
+    params.opcoAmountUsd == null ? null : params.netRevenue,
+    params.revenueSharePercent,
+  );
 }
 
 export function resolveRegulatoryFeePercentForService(params: {

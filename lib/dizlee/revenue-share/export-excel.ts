@@ -5,12 +5,14 @@
 import ExcelJS from "exceljs";
 
 import {
-  revenueShareAmountFromNet,
+  resolveRevenueShareAmount,
   type RevenueShareReport,
 } from "@/lib/dizlee/revenue-share";
 import {
-  formatExportMoney,
-  formatExportPercent,
+  EXCEL_PERCENT_NUM_FMT,
+  excelMoneyNumFmt,
+  exportMoneyNumber,
+  exportPercentNumber,
 } from "@/lib/dizlee/revenue-share/export-format";
 import { BASE_CURRENCY_ISO_CODE } from "@/lib/platform/currency-rates";
 
@@ -28,12 +30,27 @@ export function revenueShareExportFilename(
   return `revenue_share_${slug || "opco"}_${period}.xlsx`;
 }
 
+function setNumericCell(
+  cell: ExcelJS.Cell,
+  value: number | null,
+  numFmt: string,
+) {
+  if (value === null) {
+    cell.value = null;
+    return;
+  }
+  cell.value = value;
+  cell.numFmt = numFmt;
+}
+
 export async function buildRevenueShareWorkbook(
   report: RevenueShareReport,
 ): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet("Revenue Share");
   const moneyIso = BASE_CURRENCY_ISO_CODE;
+  const localFmt = excelMoneyNumFmt(report.opcoCurrencyCode);
+  const usdFmt = excelMoneyNumFmt(moneyIso);
 
   sheet.addRow([
     "Partner Name",
@@ -49,23 +66,62 @@ export async function buildRevenueShareWorkbook(
   sheet.getRow(1).font = { bold: true };
 
   for (const line of report.lines) {
-    sheet.addRow([
+    const row = sheet.addRow([
       line.partnerName,
       line.serviceName,
-      formatExportMoney(line.opcoAmountLocal, report.opcoCurrencyCode),
-      formatExportMoney(line.opcoAmountUsd, moneyIso),
-      formatExportMoney(line.partnerAmountUsd, moneyIso),
-      formatExportPercent(line.regulatoryFeePercent),
-      formatExportMoney(line.netRevenue, moneyIso),
-      formatExportMoney(
-        revenueShareAmountFromNet(
-          line.opcoAmountUsd == null ? null : line.netRevenue,
-          line.revenueSharePercent,
-        ),
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+    ]);
+
+    setNumericCell(
+      row.getCell(3),
+      exportMoneyNumber(line.opcoAmountLocal, report.opcoCurrencyCode),
+      localFmt,
+    );
+    setNumericCell(
+      row.getCell(4),
+      exportMoneyNumber(line.opcoAmountUsd, moneyIso),
+      usdFmt,
+    );
+    setNumericCell(
+      row.getCell(5),
+      exportMoneyNumber(line.partnerAmountUsd, moneyIso),
+      usdFmt,
+    );
+    setNumericCell(
+      row.getCell(6),
+      exportPercentNumber(line.regulatoryFeePercent),
+      EXCEL_PERCENT_NUM_FMT,
+    );
+    setNumericCell(
+      row.getCell(7),
+      exportMoneyNumber(line.netRevenue, moneyIso),
+      usdFmt,
+    );
+    setNumericCell(
+      row.getCell(8),
+      exportMoneyNumber(
+        resolveRevenueShareAmount({
+          opcoName: report.opcoName,
+          opcoAmountUsd: line.opcoAmountUsd,
+          netRevenue: line.netRevenue,
+          revenueSharePercent: line.revenueSharePercent,
+          regulatoryFee: line.regulatoryFee,
+        }),
         moneyIso,
       ),
-      formatExportPercent(line.revenueSharePercent),
-    ]);
+      usdFmt,
+    );
+    setNumericCell(
+      row.getCell(9),
+      exportPercentNumber(line.revenueSharePercent),
+      EXCEL_PERCENT_NUM_FMT,
+    );
   }
 
   sheet.columns = [
