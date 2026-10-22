@@ -19,14 +19,32 @@ import {
 import { prisma } from "@/lib/prisma";
 import type { Decimal } from "@prisma/client/runtime/library";
 
+import {
+  DEFAULT_PARTNER_RS_RETENTION_OPTIONS,
+  PARTNER_RS_RETENTION_5_PERCENT,
+  PARTNER_RS_RETENTION_10_PERCENT,
+  type PartnerRsRetentionOptions,
+} from "@/lib/dizlee/partner-revenue-share.shared";
+
+export {
+  DEFAULT_PARTNER_RS_RETENTION_OPTIONS,
+  parsePartnerRsRetentionOptions,
+  PARTNER_RS_RETENTION_5_PERCENT,
+  PARTNER_RS_RETENTION_10_PERCENT,
+  type PartnerRsRetentionOptions,
+} from "@/lib/dizlee/partner-revenue-share.shared";
+
 export const PARTNER_RS_REPORT_TEMPLATE_CODE = "PARTNER_RS_REPORT";
 export const PARTNER_RS_RETENTION_MONTHS = 3;
-export const PARTNER_RS_RETENTION_5_PERCENT = 5;
-export const PARTNER_RS_RETENTION_10_PERCENT = 10;
+/** Fixed regulatory fee on Partner RS PDF for Zain Iraq only. */
+export const IRAQ_PARTNER_RS_REGULATORY_FEE_PERCENT = 19.5;
+export const IRAQ_PARTNER_RS_OPCO_NAME = "Zain Iraq";
 
 export type PartnerRsLine = {
   serviceName: string;
   grossRevenueLc: number;
+  regulatoryFeePercent: number;
+  regulatoryFeeAmountLc: number;
   partnerRsPercent: number;
   partnerRsAmountLc: number;
 };
@@ -47,6 +65,10 @@ export type PartnerRsReport = {
   totalRsUsd: number;
   retention5Usd: number;
   retention10Usd: number;
+  includeRetention5: boolean;
+  includeRetention10: boolean;
+  /** When true, PDF shows Regulatory Fee % column (Iraq). */
+  showRegulatoryFeeColumn: boolean;
   netAmountUsd: number;
   generatedOnLabel: string;
 };
@@ -129,6 +151,21 @@ export function partnerRsAmountFromGross(
   return (grossLc * partnerRsPercent) / 100;
 }
 
+export function partnerRsRegulatoryFeeAmount(
+  grossLc: number,
+  regulatoryFeePercent: number,
+): number {
+  if (!Number.isFinite(regulatoryFeePercent) || regulatoryFeePercent <= 0) {
+    return 0;
+  }
+  return (grossLc * regulatoryFeePercent) / 100;
+}
+
+/** True when Partner RS PDF should apply Iraq's fixed regulatory fee. */
+export function isIraqPartnerRsOpco(opcoName: string): boolean {
+  return opcoName.trim().toLowerCase() === IRAQ_PARTNER_RS_OPCO_NAME.toLowerCase();
+}
+
 /** USD = LC / (local units per 1 USD). */
 export function partnerRsUsdFromLc(
   totalRsLc: number,
@@ -147,12 +184,24 @@ export function partnerRsRetentionAmount(
   return (totalRsUsd * retentionPercent) / 100;
 }
 
-export function partnerRsNetAmountUsd(totalRsUsd: number): number {
-  return (
-    totalRsUsd -
-    partnerRsRetentionAmount(totalRsUsd, PARTNER_RS_RETENTION_5_PERCENT) -
-    partnerRsRetentionAmount(totalRsUsd, PARTNER_RS_RETENTION_10_PERCENT)
-  );
+export function partnerRsNetAmountUsd(
+  totalRsUsd: number,
+  options: PartnerRsRetentionOptions = DEFAULT_PARTNER_RS_RETENTION_OPTIONS,
+): number {
+  let net = totalRsUsd;
+  if (options.includeRetention5) {
+    net -= partnerRsRetentionAmount(
+      totalRsUsd,
+      PARTNER_RS_RETENTION_5_PERCENT,
+    );
+  }
+  if (options.includeRetention10) {
+    net -= partnerRsRetentionAmount(
+      totalRsUsd,
+      PARTNER_RS_RETENTION_10_PERCENT,
+    );
+  }
+  return net;
 }
 
 /** Send / preview only when reconciliation is COMPLETED. */
@@ -222,7 +271,15 @@ export function buildPartnerRsLines(params: {
     partnerId: bigint;
     partnerRsPercent: number;
   }>;
+  /** 0 = no fee (default); 19.5 for Zain Iraq Partner RS PDF. */
+  regulatoryFeePercent?: number;
 }): PartnerRsLine[] {
+  const regulatoryFeePercent =
+    params.regulatoryFeePercent != null &&
+    Number.isFinite(params.regulatoryFeePercent) &&
+    params.regulatoryFeePercent > 0
+      ? params.regulatoryFeePercent
+      : 0;
   const byService = new Map<string, { serviceName: string; grossLc: number }>();
 
   params.lineItems.forEach((item, index) => {
@@ -245,17 +302,25 @@ export function buildPartnerRsLines(params: {
         partnerId: params.partnerId,
         maps: params.maps,
       });
+      const regulatoryFeeAmountLc = partnerRsRegulatoryFeeAmount(
+        row.grossLc,
+        regulatoryFeePercent,
+      );
+      const netLc = row.grossLc - regulatoryFeeAmountLc;
       return {
         serviceName: row.serviceName,
         grossRevenueLc: row.grossLc,
+        regulatoryFeePercent,
+        regulatoryFeeAmountLc,
         partnerRsPercent,
-        partnerRsAmountLc: partnerRsAmountFromGross(row.grossLc, partnerRsPercent),
+        partnerRsAmountLc: partnerRsAmountFromGross(netLc, partnerRsPercent),
       };
     });
 }
 
 export async function buildPartnerRsReportForReconciliation(
   reconciliationId: number,
+  retentionOptions: PartnerRsRetentionOptions = DEFAULT_PARTNER_RS_RETENTION_OPTIONS,
 ): Promise<PartnerRsReport> {
   const reconciliation = await prisma.reconciliation.findFirst({
     where: { id: reconciliationId, isDeleted: false },
@@ -322,10 +387,14 @@ export async function buildPartnerRsReportForReconciliation(
     partnerRsPercent: decimalToNumber(row.partnerRsPercent),
   }));
 
+  const showRegulatoryFeeColumn = isIraqPartnerRsOpco(reconciliation.opco.name);
   const lines = buildPartnerRsLines({
     lineItems: reconciliation.opcoReport.lineItems,
     partnerId: reconciliation.partnerId,
     maps: mapRows,
+    regulatoryFeePercent: showRegulatoryFeeColumn
+      ? IRAQ_PARTNER_RS_REGULATORY_FEE_PERCENT
+      : 0,
   });
 
   if (lines.length === 0) {
@@ -338,14 +407,12 @@ export async function buildPartnerRsReportForReconciliation(
   const totalGrossLc = lines.reduce((sum, line) => sum + line.grossRevenueLc, 0);
   const totalRsLc = lines.reduce((sum, line) => sum + line.partnerRsAmountLc, 0);
   const totalRsUsd = partnerRsUsdFromLc(totalRsLc, localPerUsd);
-  const retention5Usd = partnerRsRetentionAmount(
-    totalRsUsd,
-    PARTNER_RS_RETENTION_5_PERCENT,
-  );
-  const retention10Usd = partnerRsRetentionAmount(
-    totalRsUsd,
-    PARTNER_RS_RETENTION_10_PERCENT,
-  );
+  const retention5Usd = retentionOptions.includeRetention5
+    ? partnerRsRetentionAmount(totalRsUsd, PARTNER_RS_RETENTION_5_PERCENT)
+    : 0;
+  const retention10Usd = retentionOptions.includeRetention10
+    ? partnerRsRetentionAmount(totalRsUsd, PARTNER_RS_RETENTION_10_PERCENT)
+    : 0;
 
   return {
     reconciliationId: reconciliation.id,
@@ -362,18 +429,27 @@ export async function buildPartnerRsReportForReconciliation(
     totalRsUsd,
     retention5Usd,
     retention10Usd,
-    netAmountUsd: partnerRsNetAmountUsd(totalRsUsd),
+    includeRetention5: retentionOptions.includeRetention5,
+    includeRetention10: retentionOptions.includeRetention10,
+    showRegulatoryFeeColumn,
+    netAmountUsd: partnerRsNetAmountUsd(totalRsUsd, retentionOptions),
     generatedOnLabel: formatAppDate(new Date()),
   };
 }
 
-export async function previewPartnerRsReport(reconciliationId: number): Promise<{
+export async function previewPartnerRsReport(
+  reconciliationId: number,
+  retentionOptions: PartnerRsRetentionOptions = DEFAULT_PARTNER_RS_RETENTION_OPTIONS,
+): Promise<{
   report: PartnerRsReport;
   buffer: Buffer;
   filename: string;
   mimeType: string;
 }> {
-  const report = await buildPartnerRsReportForReconciliation(reconciliationId);
+  const report = await buildPartnerRsReportForReconciliation(
+    reconciliationId,
+    retentionOptions,
+  );
   const { buildPartnerRevenueSharePdf, partnerRevenueShareExportFilename } =
     await import("@/lib/dizlee/partner-revenue-share/export-pdf");
   const buffer = await buildPartnerRevenueSharePdf(report);
@@ -393,13 +469,17 @@ export async function previewPartnerRsReport(reconciliationId: number): Promise<
 export async function sendPartnerRsReport(params: {
   reconciliationId: number;
   actorUserId: string;
+  retentionOptions?: PartnerRsRetentionOptions;
 }): Promise<{
   reportId: number;
   notificationId: string;
   message: string;
   filename: string;
 }> {
-  const preview = await previewPartnerRsReport(params.reconciliationId);
+  const preview = await previewPartnerRsReport(
+    params.reconciliationId,
+    params.retentionOptions ?? DEFAULT_PARTNER_RS_RETENTION_OPTIONS,
+  );
   const { report, buffer, filename, mimeType } = preview;
   const actorUserId = BigInt(params.actorUserId);
   const opcoId = BigInt(report.opcoId);

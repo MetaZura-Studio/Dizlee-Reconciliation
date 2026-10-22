@@ -497,7 +497,7 @@ describe("parseOpcoReportWithMapping", () => {
     ]);
   });
 
-  it("ANDs multiple row filters", async () => {
+  it("ANDs multiple row filters on different columns", async () => {
     const buffer = await workbookFromRows(
       [
         "Aggregator Name",
@@ -526,6 +526,39 @@ describe("parseOpcoReportWithMapping", () => {
     });
     expect(parsed.partnerColumnLines).toHaveLength(1);
     expect(parsed.partnerColumnLines[0]?.serviceName).toBe("BollyVOD");
+  });
+
+  it("ORs multiple values on the same filter column", async () => {
+    const buffer = await workbookFromRows(
+      [
+        "integration_via",
+        "provider",
+        "service_name",
+        "GROSS_REVENUE",
+      ],
+      [
+        ["Group API", "DIGITAL VIRGO", "BollyVOD", 1630],
+        ["Boku/Apple", "APPLE DCB", "Apple iTunes", 87370],
+        ["Other", "SKIP", "Ignored", 99],
+      ],
+    );
+    const parsed = await parseOpcoReportWithMapping(buffer, {
+      serviceColumn: "service_name",
+      partnerMode: "EXCEL_COLUMN",
+      partnerColumn: "provider",
+      revenueColumn: "GROSS_REVENUE",
+      revenueShareColumn: null,
+      rowFilters: [
+        { column: "integration_via", value: "Group API" },
+        { column: "integration_via", value: "Boku/Apple" },
+      ],
+      aggregateDailyRows: false,
+    });
+    expect(parsed.partnerColumnLines).toHaveLength(2);
+    expect(parsed.partnerColumnLines.map((line) => line.serviceName)).toEqual([
+      "BollyVOD",
+      "Apple iTunes",
+    ]);
   });
 });
 
