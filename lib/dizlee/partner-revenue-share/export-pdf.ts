@@ -142,50 +142,93 @@ export async function buildPartnerRevenueSharePdf(
   doc.text(`Generated on: ${report.generatedOnLabel}`);
   doc.moveDown(0.9);
 
-  const cols: Col[] = [
-    { x: left, width: 42, align: "center" },
-    { x: left + 42, width: 170, align: "left" },
-    { x: left + 212, width: 110, align: "right" },
-    { x: left + 322, width: 70, align: "right" },
-    { x: left + 392, width: 110, align: "right" },
-  ];
+  const showFee = report.showRegulatoryFeeColumn;
+  // Iraq: 6 cols (add Regulatory Fee %); other OpCos: 5 cols.
+  const cols: Col[] = showFee
+    ? [
+        { x: left, width: 36, align: "center" },
+        { x: left + 36, width: 130, align: "left" },
+        { x: left + 166, width: 95, align: "right" },
+        { x: left + 261, width: 72, align: "right" },
+        { x: left + 333, width: 62, align: "right" },
+        { x: left + 395, width: 107, align: "right" },
+      ]
+    : [
+        { x: left, width: 42, align: "center" },
+        { x: left + 42, width: 170, align: "left" },
+        { x: left + 212, width: 110, align: "right" },
+        { x: left + 322, width: 70, align: "right" },
+        { x: left + 392, width: 110, align: "right" },
+      ];
 
   let y = doc.y;
   y = drawRow(
     doc,
     y,
     cols,
-    [
-      "Sr. No",
-      "Service Names",
-      "Gross Revenue (LC)",
-      "Partner RS%",
-      "Partner RS Amount",
-    ],
+    showFee
+      ? [
+          "Sr. No",
+          "Service Names",
+          "Gross Revenue (LC)",
+          "Regulatory Fee %",
+          "Partner RS%",
+          "Partner RS Amount",
+        ]
+      : [
+          "Sr. No",
+          "Service Names",
+          "Gross Revenue (LC)",
+          "Partner RS%",
+          "Partner RS Amount",
+        ],
     { bold: true, fill: "#F3F4F6" },
   );
 
   report.lines.forEach((line, index) => {
-    y = drawRow(doc, y, cols, [
-      String(index + 1),
-      line.serviceName,
-      formatExportMoney(line.grossRevenueLc, moneyLc),
-      formatExportPercent(line.partnerRsPercent),
-      formatExportMoney(line.partnerRsAmountLc, moneyLc),
-    ]);
+    y = drawRow(
+      doc,
+      y,
+      cols,
+      showFee
+        ? [
+            String(index + 1),
+            line.serviceName,
+            formatExportMoney(line.grossRevenueLc, moneyLc),
+            formatExportPercent(line.regulatoryFeePercent),
+            formatExportPercent(line.partnerRsPercent),
+            formatExportMoney(line.partnerRsAmountLc, moneyLc),
+          ]
+        : [
+            String(index + 1),
+            line.serviceName,
+            formatExportMoney(line.grossRevenueLc, moneyLc),
+            formatExportPercent(line.partnerRsPercent),
+            formatExportMoney(line.partnerRsAmountLc, moneyLc),
+          ],
+    );
   });
 
   y = drawRow(
     doc,
     y,
     cols,
-    [
-      "",
-      "Total",
-      formatExportMoney(report.totalGrossLc, moneyLc),
-      "",
-      formatExportMoney(report.totalRsLc, moneyLc),
-    ],
+    showFee
+      ? [
+          "",
+          "Total",
+          formatExportMoney(report.totalGrossLc, moneyLc),
+          "",
+          "",
+          formatExportMoney(report.totalRsLc, moneyLc),
+        ]
+      : [
+          "",
+          "Total",
+          formatExportMoney(report.totalGrossLc, moneyLc),
+          "",
+          formatExportMoney(report.totalRsLc, moneyLc),
+        ],
     { bold: true, fill: "#F9FAFB" },
   );
 
@@ -211,16 +254,23 @@ export async function buildPartnerRevenueSharePdf(
       "Exchange rate (1 USD = local)",
       Number(report.exchangeRateLocalPerUsd).toFixed(2),
     ],
-    [
+  ];
+  if (report.includeRetention5) {
+    summaryRows.push([
       `Retention ${PARTNER_RS_RETENTION_5_PERCENT}% (USD)`,
       formatUsd2(report.retention5Usd),
-    ],
-    [
+    ]);
+  }
+  if (report.includeRetention10) {
+    summaryRows.push([
       `Retention ${PARTNER_RS_RETENTION_10_PERCENT}% (USD)`,
       formatUsd2(report.retention10Usd),
-    ],
-    ["Net amount to Partner (USD)", formatUsd2(report.netAmountUsd)],
-  ];
+    ]);
+  }
+  summaryRows.push([
+    "Net amount to Partner (USD)",
+    formatUsd2(report.netAmountUsd),
+  ]);
 
   summaryRows.forEach(([label, value], index) => {
     const bold = index === summaryRows.length - 1;
