@@ -30,6 +30,7 @@ import {
 import { FieldLegend } from "@/components/ui/field";
 import { ListPagination } from "@/components/ui/list-pagination";
 import { FullPageLoading } from "@/components/ui/loading";
+import { Modal } from "@/components/ui/modal";
 import { ModalCloseButton } from "@/components/ui/modal-close-button";
 import { StatCard } from "@/components/ui/stat-card";
 import { SuccessDialog } from "@/components/ui/success-dialog";
@@ -38,6 +39,10 @@ import {
   type NotificationDeliveryChannel,
 } from "@/lib/dizlee/notifications/broadcast.shared";
 import type { ReconciliationAlertTemplates } from "@/lib/dizlee/notifications/reconciliation-alerts";
+import {
+  DEFAULT_PARTNER_RS_RETENTION_OPTIONS,
+  type PartnerRsRetentionOptions,
+} from "@/lib/dizlee/partner-revenue-share.shared";
 import type {
   ReconciliationDetail,
   ReconciliationItemView,
@@ -116,6 +121,11 @@ export function ReconciliationResultView({
   const [confirming, setConfirming] = useState(false);
   const [rerunning, setRerunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [partnerRsRetentionOpen, setPartnerRsRetentionOpen] = useState(false);
+  const [partnerRsRetentionOptions, setPartnerRsRetentionOptions] =
+    useState<PartnerRsRetentionOptions>({
+      ...DEFAULT_PARTNER_RS_RETENTION_OPTIONS,
+    });
   const [partnerRsPreviewOpen, setPartnerRsPreviewOpen] = useState(false);
   const [partnerRsPreviewLoading, setPartnerRsPreviewLoading] = useState(false);
   const [partnerRsPreviewError, setPartnerRsPreviewError] = useState<
@@ -138,6 +148,12 @@ export function ReconciliationResultView({
       URL.revokeObjectURL(partnerRsPreviewPdfUrl);
       setPartnerRsPreviewPdfUrl(null);
     }
+  }
+
+  function openPartnerRsRetentionDialog() {
+    setPartnerRsRetentionOptions({ ...DEFAULT_PARTNER_RS_RETENTION_OPTIONS });
+    setPartnerRsRetentionOpen(true);
+    setError(null);
   }
   const [alertOpen, setAlertOpen] = useState(false);
   const [alerting, setAlerting] = useState(false);
@@ -184,7 +200,11 @@ export function ReconciliationResultView({
     setItemPage(1);
   }
 
-  async function openPartnerRsPreview() {
+  async function openPartnerRsPreview(
+    retentionOptions: PartnerRsRetentionOptions,
+  ) {
+    setPartnerRsRetentionOpen(false);
+    setPartnerRsRetentionOptions(retentionOptions);
     setPartnerRsPreviewOpen(true);
     setPartnerRsPreviewLoading(true);
     setPartnerRsPreviewError(null);
@@ -200,7 +220,11 @@ export function ReconciliationResultView({
     try {
       const response = await fetch(
         `/api/dizlee/reconciliation/${detail.id}/partner-rs/preview`,
-        { method: "POST" },
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(retentionOptions),
+        },
       );
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
@@ -240,7 +264,11 @@ export function ReconciliationResultView({
     try {
       const response = await fetch(
         `/api/dizlee/reconciliation/${detail.id}/partner-rs/send`,
-        { method: "POST" },
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(partnerRsRetentionOptions),
+        },
       );
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
@@ -521,8 +549,12 @@ export function ReconciliationResultView({
         <div className="flex flex-wrap items-center justify-end gap-2">
           <Button
             variant="primary"
-            disabled={partnerRsPreviewLoading || partnerRsSending}
-            onClick={() => void openPartnerRsPreview()}
+            disabled={
+              partnerRsPreviewLoading ||
+              partnerRsSending ||
+              partnerRsRetentionOpen
+            }
+            onClick={openPartnerRsRetentionDialog}
           >
             {partnerRsPreviewLoading ? "Building preview…" : "Send report"}
           </Button>
@@ -774,6 +806,68 @@ export function ReconciliationResultView({
         actionLabel="Back to history"
         onAction={goToHistory}
       />
+
+      <Modal
+        open={partnerRsRetentionOpen}
+        title="Retention on Partner RS report"
+        onClose={() => setPartnerRsRetentionOpen(false)}
+        className="max-w-md"
+      >
+        <p className="text-sm text-foreground-muted">
+          Choose which retention lines to include on the Partner report. Net
+          amount to Partner will subtract only the selected retentions.
+        </p>
+        <div className="mt-4 space-y-3">
+          <label className="flex items-center gap-3 text-sm">
+            <input
+              type="checkbox"
+              checked={partnerRsRetentionOptions.includeRetention5}
+              onChange={(event) =>
+                setPartnerRsRetentionOptions((current) => ({
+                  ...current,
+                  includeRetention5: event.target.checked,
+                }))
+              }
+              className="h-4 w-4 rounded border-border-strong"
+            />
+            <span className="font-medium text-foreground">
+              Include 5% retention
+            </span>
+          </label>
+          <label className="flex items-center gap-3 text-sm">
+            <input
+              type="checkbox"
+              checked={partnerRsRetentionOptions.includeRetention10}
+              onChange={(event) =>
+                setPartnerRsRetentionOptions((current) => ({
+                  ...current,
+                  includeRetention10: event.target.checked,
+                }))
+              }
+              className="h-4 w-4 rounded border-border-strong"
+            />
+            <span className="font-medium text-foreground">
+              Include 10% retention
+            </span>
+          </label>
+        </div>
+        <div className="mt-6 flex flex-wrap justify-end gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => setPartnerRsRetentionOpen(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            variant="primary"
+            onClick={() => void openPartnerRsPreview(partnerRsRetentionOptions)}
+          >
+            Continue to preview
+          </Button>
+        </div>
+      </Modal>
 
       {partnerRsPreviewOpen ? (
         <ReportRawFilePreviewModal

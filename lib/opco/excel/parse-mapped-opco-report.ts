@@ -99,6 +99,40 @@ function findColumn(
   return exact || prefix;
 }
 
+type ResolvedRowFilter = {
+  column: string;
+  value: string;
+  col: number;
+};
+
+/**
+ * Match row filters: values on the **same column** are OR’d; different columns
+ * are AND’d. Example: integration_via=Group API OR Boku/Apple, AND region=BH.
+ */
+export function rowMatchesOpcoFilters(
+  row: ExcelJS.Row,
+  resolvedFilters: ResolvedRowFilter[],
+): boolean {
+  if (resolvedFilters.length === 0) {
+    return true;
+  }
+
+  const byColumn = new Map<number, string[]>();
+  for (const filter of resolvedFilters) {
+    const values = byColumn.get(filter.col) ?? [];
+    values.push(filter.value);
+    byColumn.set(filter.col, values);
+  }
+
+  for (const [col, values] of byColumn) {
+    const cell = cellText(row.getCell(col).value).toLowerCase();
+    if (!values.some((value) => cell === value)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 export function assertOpcoMappingReady(config: {
   serviceColumn: string | null;
   partnerMode: string;
@@ -235,14 +269,8 @@ export async function parseOpcoReportWithMapping(
       return;
     }
 
-    if (resolvedFilters.length > 0) {
-      const matchesAll = resolvedFilters.every((filter) => {
-        const cell = cellText(row.getCell(filter.col).value).toLowerCase();
-        return cell === filter.value;
-      });
-      if (!matchesAll) {
-        return;
-      }
+    if (!rowMatchesOpcoFilters(row, resolvedFilters)) {
+      return;
     }
 
     const serviceName = cellText(row.getCell(serviceCol).value);

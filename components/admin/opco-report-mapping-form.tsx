@@ -592,8 +592,9 @@ export function OpcoReportMappingForm({
                 Row filters
               </h2>
               <p className="mt-1 text-sm text-foreground-muted">
-                Optional. Limit which Excel rows are imported. Rows must match
-                every filter (AND). Match is case-insensitive.
+                Optional. Limit which Excel rows are imported. Different columns
+                are AND’d; multiple values on the same column are OR’d
+                (case-insensitive).
               </p>
             </div>
 
@@ -628,7 +629,7 @@ export function OpcoReportMappingForm({
                         <FieldLegend>
                           {index === 0
                             ? "Only include rows where"
-                            : `And where (filter ${index + 1})`}
+                            : `Also where (filter ${index + 1})`}
                         </FieldLegend>
                         <select
                           className={ui.select}

@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildPartnerRsLines,
   canSendPartnerRsReport,
+  IRAQ_PARTNER_RS_REGULATORY_FEE_PERCENT,
+  isIraqPartnerRsOpco,
   isPartnerRsPeriodExpired,
   partnerRsAmountFromGross,
   partnerRsNetAmountUsd,
+  partnerRsRegulatoryFeeAmount,
   partnerRsRetentionAmount,
   partnerRsRetentionCutoff,
   partnerRsUsdFromLc,
@@ -22,12 +26,63 @@ describe("partner revenue share formulas", () => {
     expect(partnerRsAmountFromGross(250.5, 0)).toBe(0);
   });
 
+  it("applies Iraq 19.5% fee then Partner RS% on net", () => {
+    expect(isIraqPartnerRsOpco("Zain Iraq")).toBe(true);
+    expect(isIraqPartnerRsOpco("Zain KSA")).toBe(false);
+    const fee = partnerRsRegulatoryFeeAmount(
+      1000,
+      IRAQ_PARTNER_RS_REGULATORY_FEE_PERCENT,
+    );
+    expect(fee).toBe(195);
+    expect(partnerRsAmountFromGross(1000 - fee, 30)).toBe(241.5);
+
+    const maps = [
+      {
+        serviceKey: "shofha plus",
+        serviceName: "Shofha Plus",
+        partnerId: BigInt(2),
+        partnerRsPercent: 30,
+      },
+    ];
+    const iraqLines = buildPartnerRsLines({
+      lineItems: [
+        {
+          description: "Shofha Plus",
+          amount: 1000,
+          sourceColumns: {},
+        },
+      ],
+      partnerId: BigInt(2),
+      maps,
+      regulatoryFeePercent: IRAQ_PARTNER_RS_REGULATORY_FEE_PERCENT,
+    });
+    expect(iraqLines).toHaveLength(1);
+    expect(iraqLines[0]?.regulatoryFeePercent).toBe(19.5);
+    expect(iraqLines[0]?.regulatoryFeeAmountLc).toBe(195);
+    expect(iraqLines[0]?.partnerRsAmountLc).toBe(241.5);
+
+    const otherLines = buildPartnerRsLines({
+      lineItems: [
+        {
+          description: "Shofha Plus",
+          amount: 1000,
+          sourceColumns: {},
+        },
+      ],
+      partnerId: BigInt(2),
+      maps,
+      regulatoryFeePercent: 0,
+    });
+    expect(otherLines[0]?.regulatoryFeePercent).toBe(0);
+    expect(otherLines[0]?.partnerRsAmountLc).toBe(300);
+  });
+
   it("converts TOTAL RS LC to USD using local-per-USD rate", () => {
     expect(partnerRsUsdFromLc(326, 3.26)).toBeCloseTo(100, 8);
     expect(partnerRsUsdFromLc(100, 0)).toBe(0);
   });
 
-  it("applies fixed 5% and 10% retentions then net", () => {
+  it("applies selected retentions then net", () => {
     const usd = 100;
     expect(
       partnerRsRetentionAmount(usd, PARTNER_RS_RETENTION_5_PERCENT),
@@ -36,6 +91,24 @@ describe("partner revenue share formulas", () => {
       partnerRsRetentionAmount(usd, PARTNER_RS_RETENTION_10_PERCENT),
     ).toBe(10);
     expect(partnerRsNetAmountUsd(usd)).toBe(85);
+    expect(
+      partnerRsNetAmountUsd(usd, {
+        includeRetention5: true,
+        includeRetention10: false,
+      }),
+    ).toBe(95);
+    expect(
+      partnerRsNetAmountUsd(usd, {
+        includeRetention5: false,
+        includeRetention10: true,
+      }),
+    ).toBe(90);
+    expect(
+      partnerRsNetAmountUsd(usd, {
+        includeRetention5: false,
+        includeRetention10: false,
+      }),
+    ).toBe(100);
   });
 
   it("resolves Partner RS% from matching map for the Partner", () => {
@@ -104,6 +177,8 @@ describe("partner RS PDF export", () => {
         {
           serviceName: "Shofha Plus",
           grossRevenueLc: 1000,
+          regulatoryFeePercent: 0,
+          regulatoryFeeAmountLc: 0,
           partnerRsPercent: 30,
           partnerRsAmountLc: 300,
         },
@@ -113,12 +188,96 @@ describe("partner RS PDF export", () => {
       totalRsUsd: 80,
       retention5Usd: 4,
       retention10Usd: 8,
+      includeRetention5: true,
+      includeRetention10: true,
+      showRegulatoryFeeColumn: false,
       netAmountUsd: 68,
       generatedOnLabel: "20/10/2026",
     };
     const buffer = await buildPartnerRevenueSharePdf(report);
     expect(buffer.subarray(0, 4).toString("utf8")).toBe("%PDF");
     expect(Number(report.exchangeRateLocalPerUsd).toFixed(2)).toBe("3.76");
+  });
+
+  it("builds Iraq Partner RS PDF with regulatory fee column", async () => {
+    const report: PartnerRsReport = {
+      reconciliationId: 1,
+      opcoId: "3",
+      opcoName: "Zain Iraq",
+      partnerId: "2",
+      partnerName: "Google",
+      period: { month: 10, year: 2026, label: "10/2026" },
+      currencyCode: "IQD",
+      exchangeRateLocalPerUsd: 1310,
+      lines: [
+        {
+          serviceName: "Shofha Plus",
+          grossRevenueLc: 1000,
+          regulatoryFeePercent: 19.5,
+          regulatoryFeeAmountLc: 195,
+          partnerRsPercent: 30,
+          partnerRsAmountLc: 241.5,
+        },
+      ],
+      totalGrossLc: 1000,
+      totalRsLc: 241.5,
+      totalRsUsd: 0.18,
+      retention5Usd: 0,
+      retention10Usd: 0,
+      includeRetention5: false,
+      includeRetention10: false,
+      showRegulatoryFeeColumn: true,
+      netAmountUsd: 0.18,
+      generatedOnLabel: "20/10/2026",
+    };
+    const buffer = await buildPartnerRevenueSharePdf(report);
+    expect(buffer.subarray(0, 4).toString("utf8")).toBe("%PDF");
+  });
+
+  it("omits retention lines from PDF when not included", async () => {
+    const base: PartnerRsReport = {
+      reconciliationId: 1,
+      opcoId: "1",
+      opcoName: "Zain KSA",
+      partnerId: "2",
+      partnerName: "Google",
+      period: { month: 10, year: 2026, label: "10/2026" },
+      currencyCode: "SAR",
+      exchangeRateLocalPerUsd: 3.76,
+      lines: [
+        {
+          serviceName: "Shofha Plus",
+          grossRevenueLc: 1000,
+          regulatoryFeePercent: 0,
+          regulatoryFeeAmountLc: 0,
+          partnerRsPercent: 30,
+          partnerRsAmountLc: 300,
+        },
+      ],
+      totalGrossLc: 1000,
+      totalRsLc: 300,
+      totalRsUsd: 80,
+      retention5Usd: 0,
+      retention10Usd: 0,
+      includeRetention5: false,
+      includeRetention10: false,
+      showRegulatoryFeeColumn: false,
+      netAmountUsd: 80,
+      generatedOnLabel: "20/10/2026",
+    };
+    const without = await buildPartnerRevenueSharePdf(base);
+    const withBoth = await buildPartnerRevenueSharePdf({
+      ...base,
+      retention5Usd: 4,
+      retention10Usd: 8,
+      includeRetention5: true,
+      includeRetention10: true,
+      netAmountUsd: 68,
+    });
+    expect(without.subarray(0, 4).toString("utf8")).toBe("%PDF");
+    expect(withBoth.subarray(0, 4).toString("utf8")).toBe("%PDF");
+    // With both retentions the PDF payload is larger (extra summary lines).
+    expect(withBoth.byteLength).toBeGreaterThan(without.byteLength);
   });
 });
 
