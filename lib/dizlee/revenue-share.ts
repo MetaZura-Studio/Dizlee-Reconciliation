@@ -11,7 +11,7 @@
  * - Regulatory Fee = OpCo USD × Regulatory Fee % / 100
  * - Net Revenue = OpCo USD − Regulatory Fee
  * - Revenue share amount = Net Revenue × Revenue Share %
- *   Exception (Zain Jordan): (OpCo USD × RS %) − Regulatory Fee
+ *   Exception (Zain Jordan): OpCo USD − (OpCo USD × RS %) − Regulatory Fee
  *
  * Gate: latest OpCo report and latest Partner report for every Partner
  * that appears in the OpCo file for the period (not every linked Partner).
@@ -192,7 +192,7 @@ export function revenueShareAmountFromNet(
   return (netRevenue * revenueSharePercent) / 100;
 }
 
-/** True when Dizlee OpCo RS uses share-first-then-fee (Zain Jordan). */
+/** True when Dizlee OpCo RS uses gross − RS − fee (Zain Jordan). */
 export function isJordanRevenueShareOpco(opcoName: string): boolean {
   return (
     opcoName.trim().toLowerCase() ===
@@ -201,7 +201,7 @@ export function isJordanRevenueShareOpco(opcoName: string): boolean {
 }
 
 /**
- * Zain Jordan: (Gross × RS %) − regulatory fee amount.
+ * Zain Jordan: Gross − (Gross × RS %) − regulatory fee amount.
  * Blank when gross or share % is missing; clamps negatives to 0.
  */
 export function revenueShareAmountJordan(
@@ -211,7 +211,7 @@ export function revenueShareAmountJordan(
 ): number | null {
   if (grossAmount == null || revenueSharePercent == null) return null;
   const shareOnGross = (grossAmount * revenueSharePercent) / 100;
-  return Math.max(0, shareOnGross - regulatoryFeeAmount);
+  return Math.max(0, grossAmount - shareOnGross - regulatoryFeeAmount);
 }
 
 /** Resolve Excel / display RS amount (Jordan vs default fee-then-share). */
