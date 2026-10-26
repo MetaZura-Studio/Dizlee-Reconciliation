@@ -112,6 +112,7 @@ export async function buildRevenueShareWorkbook(
           netRevenue: line.netRevenue,
           revenueSharePercent: line.revenueSharePercent,
           regulatoryFee: line.regulatoryFee,
+          regulatoryFeePercent: line.regulatoryFeePercent,
         }),
         moneyIso,
       ),

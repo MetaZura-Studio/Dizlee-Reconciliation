@@ -124,7 +124,8 @@ export function ReconciliationResultView({
   const [partnerRsRetentionOpen, setPartnerRsRetentionOpen] = useState(false);
   const [partnerRsRetentionOptions, setPartnerRsRetentionOptions] =
     useState<PartnerRsRetentionOptions>({
-      ...DEFAULT_PARTNER_RS_RETENTION_OPTIONS,
+      line1: { ...DEFAULT_PARTNER_RS_RETENTION_OPTIONS.line1 },
+      line2: { ...DEFAULT_PARTNER_RS_RETENTION_OPTIONS.line2 },
     });
   const [partnerRsPreviewOpen, setPartnerRsPreviewOpen] = useState(false);
   const [partnerRsPreviewLoading, setPartnerRsPreviewLoading] = useState(false);
@@ -151,7 +152,10 @@ export function ReconciliationResultView({
   }
 
   function openPartnerRsRetentionDialog() {
-    setPartnerRsRetentionOptions({ ...DEFAULT_PARTNER_RS_RETENTION_OPTIONS });
+    setPartnerRsRetentionOptions({
+      line1: { ...DEFAULT_PARTNER_RS_RETENTION_OPTIONS.line1 },
+      line2: { ...DEFAULT_PARTNER_RS_RETENTION_OPTIONS.line2 },
+    });
     setPartnerRsRetentionOpen(true);
     setError(null);
   }
@@ -814,42 +818,64 @@ export function ReconciliationResultView({
         className="max-w-md"
       >
         <p className="text-sm text-foreground-muted">
-          Choose which retention lines to include on the Partner report. Net
-          amount to Partner will subtract only the selected retentions.
+          Choose up to two retention lines and edit each percent. Net amount to
+          Partner subtracts only the enabled lines.
         </p>
-        <div className="mt-4 space-y-3">
-          <label className="flex items-center gap-3 text-sm">
-            <input
-              type="checkbox"
-              checked={partnerRsRetentionOptions.includeRetention5}
-              onChange={(event) =>
-                setPartnerRsRetentionOptions((current) => ({
-                  ...current,
-                  includeRetention5: event.target.checked,
-                }))
-              }
-              className="h-4 w-4 rounded border-border-strong"
-            />
-            <span className="font-medium text-foreground">
-              Include 5% retention
-            </span>
-          </label>
-          <label className="flex items-center gap-3 text-sm">
-            <input
-              type="checkbox"
-              checked={partnerRsRetentionOptions.includeRetention10}
-              onChange={(event) =>
-                setPartnerRsRetentionOptions((current) => ({
-                  ...current,
-                  includeRetention10: event.target.checked,
-                }))
-              }
-              className="h-4 w-4 rounded border-border-strong"
-            />
-            <span className="font-medium text-foreground">
-              Include 10% retention
-            </span>
-          </label>
+        <div className="mt-4 space-y-4">
+          {(
+            [
+              ["line1", "Retention line 1"],
+              ["line2", "Retention line 2"],
+            ] as const
+          ).map(([key, label]) => {
+            const line = partnerRsRetentionOptions[key];
+            return (
+              <div
+                key={key}
+                className="flex flex-wrap items-center gap-3 text-sm"
+              >
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={line.enabled}
+                    onChange={(event) =>
+                      setPartnerRsRetentionOptions((current) => ({
+                        ...current,
+                        [key]: {
+                          ...current[key],
+                          enabled: event.target.checked,
+                        },
+                      }))
+                    }
+                    className="h-4 w-4 rounded border-border-strong"
+                  />
+                  <span className="font-medium text-foreground">{label}</span>
+                </label>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={0.01}
+                    disabled={!line.enabled}
+                    value={line.percent}
+                    onChange={(event) => {
+                      const next = Number.parseFloat(event.target.value);
+                      setPartnerRsRetentionOptions((current) => ({
+                        ...current,
+                        [key]: {
+                          ...current[key],
+                          percent: Number.isFinite(next) ? next : 0,
+                        },
+                      }));
+                    }}
+                    className="h-9 w-24 rounded-md border border-border-strong bg-background px-2 text-sm disabled:opacity-50"
+                  />
+                  <span className="text-foreground-muted">%</span>
+                </div>
+              </div>
+            );
+          })}
         </div>
         <div className="mt-6 flex flex-wrap justify-end gap-2">
           <Button
