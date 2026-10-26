@@ -21,16 +21,23 @@ import type { Decimal } from "@prisma/client/runtime/library";
 
 import {
   DEFAULT_PARTNER_RS_RETENTION_OPTIONS,
-  PARTNER_RS_RETENTION_5_PERCENT,
-  PARTNER_RS_RETENTION_10_PERCENT,
+  enabledPartnerRsRetentionPercents,
+  formatPartnerRsRetentionLabel,
+  parsePartnerRsRetentionPercentsJson,
+  serializePartnerRsRetentionPercentsJson,
   type PartnerRsRetentionOptions,
 } from "@/lib/dizlee/partner-revenue-share.shared";
+import { writePlatformAuditLog } from "@/lib/platform/audit-log";
 
 export {
   DEFAULT_PARTNER_RS_RETENTION_OPTIONS,
+  enabledPartnerRsRetentionPercents,
+  formatPartnerRsRetentionLabel,
   parsePartnerRsRetentionOptions,
+  parsePartnerRsRetentionPercentsJson,
   PARTNER_RS_RETENTION_5_PERCENT,
   PARTNER_RS_RETENTION_10_PERCENT,
+  serializePartnerRsRetentionPercentsJson,
   type PartnerRsRetentionOptions,
 } from "@/lib/dizlee/partner-revenue-share.shared";
 
@@ -63,10 +70,8 @@ export type PartnerRsReport = {
   totalGrossLc: number;
   totalRsLc: number;
   totalRsUsd: number;
-  retention5Usd: number;
-  retention10Usd: number;
-  includeRetention5: boolean;
-  includeRetention10: boolean;
+  /** Enabled retention lines with computed USD amounts. */
+  retentionLines: Array<{ percent: number; amountUsd: number }>;
   /** When true, PDF shows Regulatory Fee % column (Iraq). */
   showRegulatoryFeeColumn: boolean;
   netAmountUsd: number;
@@ -86,6 +91,8 @@ export type PartnerRsListItem = {
   sentAtLabel: string;
   filename: string;
   reconciliationId: number | null;
+  retentionPercents: number[];
+  retentionLabel: string;
 };
 
 export class PartnerRevenueShareError extends DomainError {
@@ -184,24 +191,39 @@ export function partnerRsRetentionAmount(
   return (totalRsUsd * retentionPercent) / 100;
 }
 
+export function partnerRsRetentionLines(
+  totalRsUsd: number,
+  options: PartnerRsRetentionOptions = DEFAULT_PARTNER_RS_RETENTION_OPTIONS,
+): Array<{ percent: number; amountUsd: number }> {
+  return enabledPartnerRsRetentionPercents(options).map((percent) => ({
+    percent,
+    amountUsd: partnerRsRetentionAmount(totalRsUsd, percent),
+  }));
+}
+
 export function partnerRsNetAmountUsd(
   totalRsUsd: number,
   options: PartnerRsRetentionOptions = DEFAULT_PARTNER_RS_RETENTION_OPTIONS,
 ): number {
-  let net = totalRsUsd;
-  if (options.includeRetention5) {
-    net -= partnerRsRetentionAmount(
-      totalRsUsd,
-      PARTNER_RS_RETENTION_5_PERCENT,
-    );
-  }
-  if (options.includeRetention10) {
-    net -= partnerRsRetentionAmount(
-      totalRsUsd,
-      PARTNER_RS_RETENTION_10_PERCENT,
-    );
-  }
-  return net;
+  const retentionTotal = partnerRsRetentionLines(totalRsUsd, options).reduce(
+    (sum, line) => sum + line.amountUsd,
+    0,
+  );
+  return totalRsUsd - retentionTotal;
+}
+
+export function partnerRsAuditMessage(params: {
+  partnerName: string;
+  opcoName: string;
+  month: number;
+  year: number;
+  retentionPercents: number[];
+}): string {
+  const period = formatAppMonthYear(params.month, params.year);
+  const retention = formatPartnerRsRetentionLabel(params.retentionPercents);
+  const retentionText =
+    retention === "none" ? "with no retention" : `with retention ${retention}`;
+  return `Partner RS report sent to ${params.partnerName} (${params.opcoName}, ${period}) ${retentionText}`;
 }
 
 /** Send / preview only when reconciliation is COMPLETED. */
@@ -407,12 +429,7 @@ export async function buildPartnerRsReportForReconciliation(
   const totalGrossLc = lines.reduce((sum, line) => sum + line.grossRevenueLc, 0);
   const totalRsLc = lines.reduce((sum, line) => sum + line.partnerRsAmountLc, 0);
   const totalRsUsd = partnerRsUsdFromLc(totalRsLc, localPerUsd);
-  const retention5Usd = retentionOptions.includeRetention5
-    ? partnerRsRetentionAmount(totalRsUsd, PARTNER_RS_RETENTION_5_PERCENT)
-    : 0;
-  const retention10Usd = retentionOptions.includeRetention10
-    ? partnerRsRetentionAmount(totalRsUsd, PARTNER_RS_RETENTION_10_PERCENT)
-    : 0;
+  const retentionLines = partnerRsRetentionLines(totalRsUsd, retentionOptions);
 
   return {
     reconciliationId: reconciliation.id,
@@ -427,10 +444,7 @@ export async function buildPartnerRsReportForReconciliation(
     totalGrossLc,
     totalRsLc,
     totalRsUsd,
-    retention5Usd,
-    retention10Usd,
-    includeRetention5: retentionOptions.includeRetention5,
-    includeRetention10: retentionOptions.includeRetention10,
+    retentionLines,
     showRegulatoryFeeColumn,
     netAmountUsd: partnerRsNetAmountUsd(totalRsUsd, retentionOptions),
     generatedOnLabel: formatAppDate(new Date()),
@@ -481,6 +495,11 @@ export async function sendPartnerRsReport(params: {
     params.retentionOptions ?? DEFAULT_PARTNER_RS_RETENTION_OPTIONS,
   );
   const { report, buffer, filename, mimeType } = preview;
+  const retentionOptions =
+    params.retentionOptions ?? DEFAULT_PARTNER_RS_RETENTION_OPTIONS;
+  const retentionPercents = enabledPartnerRsRetentionPercents(retentionOptions);
+  const retentionPercentsJson =
+    serializePartnerRsRetentionPercentsJson(retentionOptions);
   const actorUserId = BigInt(params.actorUserId);
   const opcoId = BigInt(report.opcoId);
   const partnerId = BigInt(report.partnerId);
@@ -532,6 +551,7 @@ export async function sendPartnerRsReport(params: {
           sentAt,
           sentByUserId: actorUserId,
           notificationId: BigInt(notify.id),
+          retentionPercentsJson,
           updatedByUserId: actorUserId,
           isDeleted: false,
           deletedAt: null,
@@ -549,6 +569,7 @@ export async function sendPartnerRsReport(params: {
           sentAt,
           sentByUserId: actorUserId,
           notificationId: BigInt(notify.id),
+          retentionPercentsJson,
           createdByUserId: actorUserId,
           updatedByUserId: actorUserId,
         },
@@ -569,6 +590,28 @@ export async function sendPartnerRsReport(params: {
       })),
     });
   }
+
+  await writePlatformAuditLog({
+    actorUserId,
+    action: "PARTNER_RS_REPORT_SENT",
+    entityType: "PARTNER_REVENUE_SHARE_REPORT",
+    entityId: BigInt(row.id),
+    message: partnerRsAuditMessage({
+      partnerName: report.partnerName,
+      opcoName: report.opcoName,
+      month: report.period.month,
+      year: report.period.year,
+      retentionPercents,
+    }),
+    metadata: {
+      partnerId: report.partnerId,
+      opcoId: report.opcoId,
+      month: report.period.month,
+      year: report.period.year,
+      retentionPercents,
+      reconciliationId: report.reconciliationId,
+    },
+  });
 
   return {
     reportId: row.id,
@@ -600,10 +643,14 @@ function mapPartnerRsListRow(row: {
   year: number;
   sentAt: Date;
   reconciliationId: number | null;
+  retentionPercentsJson: string | null;
   opco: { id: bigint; name: string };
   partner: { id: bigint; name: string };
   file: { filename: string };
 }): PartnerRsListItem {
+  const retentionPercents = parsePartnerRsRetentionPercentsJson(
+    row.retentionPercentsJson,
+  );
   return {
     id: row.id,
     opcoId: row.opco.id.toString(),
@@ -617,6 +664,8 @@ function mapPartnerRsListRow(row: {
     sentAtLabel: formatAppDate(row.sentAt),
     filename: row.file.filename,
     reconciliationId: row.reconciliationId,
+    retentionPercents,
+    retentionLabel: formatPartnerRsRetentionLabel(retentionPercents),
   };
 }
 

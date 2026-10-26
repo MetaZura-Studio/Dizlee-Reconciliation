@@ -7,16 +7,23 @@ import {
   isIraqPartnerRsOpco,
   isPartnerRsPeriodExpired,
   partnerRsAmountFromGross,
+  partnerRsAuditMessage,
   partnerRsNetAmountUsd,
   partnerRsRegulatoryFeeAmount,
   partnerRsRetentionAmount,
   partnerRsRetentionCutoff,
+  partnerRsRetentionLines,
   partnerRsUsdFromLc,
   PARTNER_RS_RETENTION_10_PERCENT,
   PARTNER_RS_RETENTION_5_PERCENT,
   resolvePartnerRsPercentForService,
   type PartnerRsReport,
 } from "@/lib/dizlee/partner-revenue-share";
+import {
+  formatPartnerRsRetentionLabel,
+  parsePartnerRsRetentionOptions,
+  serializePartnerRsRetentionPercentsJson,
+} from "@/lib/dizlee/partner-revenue-share.shared";
 import { buildPartnerRevenueSharePdf } from "@/lib/dizlee/partner-revenue-share/export-pdf";
 import { partnerRsPercentSchema } from "@/lib/admin/validation/service-partner-maps";
 
@@ -93,22 +100,86 @@ describe("partner revenue share formulas", () => {
     expect(partnerRsNetAmountUsd(usd)).toBe(85);
     expect(
       partnerRsNetAmountUsd(usd, {
-        includeRetention5: true,
-        includeRetention10: false,
+        line1: { enabled: true, percent: 5 },
+        line2: { enabled: false, percent: 10 },
       }),
     ).toBe(95);
     expect(
       partnerRsNetAmountUsd(usd, {
-        includeRetention5: false,
-        includeRetention10: true,
+        line1: { enabled: false, percent: 5 },
+        line2: { enabled: true, percent: 10 },
       }),
     ).toBe(90);
     expect(
       partnerRsNetAmountUsd(usd, {
-        includeRetention5: false,
-        includeRetention10: false,
+        line1: { enabled: false, percent: 5 },
+        line2: { enabled: false, percent: 10 },
       }),
     ).toBe(100);
+    expect(
+      partnerRsNetAmountUsd(usd, {
+        line1: { enabled: true, percent: 3 },
+        line2: { enabled: false, percent: 10 },
+      }),
+    ).toBe(97);
+    expect(
+      partnerRsRetentionLines(usd, {
+        line1: { enabled: true, percent: 3 },
+        line2: { enabled: true, percent: 7.5 },
+      }),
+    ).toEqual([
+      { percent: 3, amountUsd: 3 },
+      { percent: 7.5, amountUsd: 7.5 },
+    ]);
+  });
+
+  it("parses retention options and formats labels for audit/list", () => {
+    expect(
+      parsePartnerRsRetentionOptions({
+        line1: { enabled: true, percent: 3 },
+        line2: { enabled: false, percent: 10 },
+      }),
+    ).toEqual({
+      line1: { enabled: true, percent: 3 },
+      line2: { enabled: false, percent: 10 },
+    });
+    // Legacy body still accepted
+    expect(
+      parsePartnerRsRetentionOptions({
+        includeRetention5: true,
+        includeRetention10: false,
+      }),
+    ).toEqual({
+      line1: { enabled: true, percent: 5 },
+      line2: { enabled: false, percent: 10 },
+    });
+    expect(formatPartnerRsRetentionLabel([5, 10])).toBe("5% + 10%");
+    expect(formatPartnerRsRetentionLabel([3])).toBe("3%");
+    expect(formatPartnerRsRetentionLabel([])).toBe("none");
+    expect(
+      serializePartnerRsRetentionPercentsJson({
+        line1: { enabled: true, percent: 3 },
+        line2: { enabled: true, percent: 10 },
+      }),
+    ).toBe("[3,10]");
+    expect(
+      partnerRsAuditMessage({
+        partnerName: "Google",
+        opcoName: "Zain Bahrain",
+        month: 10,
+        year: 2026,
+        retentionPercents: [3],
+      }),
+    ).toContain("with retention 3%");
+    expect(
+      partnerRsAuditMessage({
+        partnerName: "Google",
+        opcoName: "Zain Bahrain",
+        month: 10,
+        year: 2026,
+        retentionPercents: [],
+      }),
+    ).toContain("with no retention");
   });
 
   it("resolves Partner RS% from matching map for the Partner", () => {
@@ -186,10 +257,10 @@ describe("partner RS PDF export", () => {
       totalGrossLc: 1000,
       totalRsLc: 300,
       totalRsUsd: 80,
-      retention5Usd: 4,
-      retention10Usd: 8,
-      includeRetention5: true,
-      includeRetention10: true,
+      retentionLines: [
+        { percent: 5, amountUsd: 4 },
+        { percent: 10, amountUsd: 8 },
+      ],
       showRegulatoryFeeColumn: false,
       netAmountUsd: 68,
       generatedOnLabel: "20/10/2026",
@@ -222,10 +293,7 @@ describe("partner RS PDF export", () => {
       totalGrossLc: 1000,
       totalRsLc: 241.5,
       totalRsUsd: 0.18,
-      retention5Usd: 0,
-      retention10Usd: 0,
-      includeRetention5: false,
-      includeRetention10: false,
+      retentionLines: [],
       showRegulatoryFeeColumn: true,
       netAmountUsd: 0.18,
       generatedOnLabel: "20/10/2026",
@@ -257,27 +325,24 @@ describe("partner RS PDF export", () => {
       totalGrossLc: 1000,
       totalRsLc: 300,
       totalRsUsd: 80,
-      retention5Usd: 0,
-      retention10Usd: 0,
-      includeRetention5: false,
-      includeRetention10: false,
+      retentionLines: [],
       showRegulatoryFeeColumn: false,
       netAmountUsd: 80,
       generatedOnLabel: "20/10/2026",
     };
     const without = await buildPartnerRevenueSharePdf(base);
-    const withBoth = await buildPartnerRevenueSharePdf({
+    const withCustom = await buildPartnerRevenueSharePdf({
       ...base,
-      retention5Usd: 4,
-      retention10Usd: 8,
-      includeRetention5: true,
-      includeRetention10: true,
-      netAmountUsd: 68,
+      retentionLines: [
+        { percent: 3, amountUsd: 2.4 },
+        { percent: 10, amountUsd: 8 },
+      ],
+      netAmountUsd: 69.6,
     });
     expect(without.subarray(0, 4).toString("utf8")).toBe("%PDF");
-    expect(withBoth.subarray(0, 4).toString("utf8")).toBe("%PDF");
-    // With both retentions the PDF payload is larger (extra summary lines).
-    expect(withBoth.byteLength).toBeGreaterThan(without.byteLength);
+    expect(withCustom.subarray(0, 4).toString("utf8")).toBe("%PDF");
+    // With retentions the PDF payload is larger (extra summary lines).
+    expect(withCustom.byteLength).toBeGreaterThan(without.byteLength);
   });
 });
 

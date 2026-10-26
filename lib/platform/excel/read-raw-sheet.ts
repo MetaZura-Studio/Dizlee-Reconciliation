@@ -21,11 +21,157 @@ function formatExcelDate(value: Date): string {
   return hasTime ? formatAppDateTime(value) : formatAppDate(value);
 }
 
-function cellToDisplay(value: ExcelJS.CellValue): string {
+function numericFromCellValue(value: ExcelJS.CellValue): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (value && typeof value === "object" && "result" in value) {
+    const result = (value as ExcelJS.CellFormulaValue).result;
+    if (typeof result === "number" && Number.isFinite(result)) {
+      return result;
+    }
+  }
+  return null;
+}
+
+/** Format a displayed percent number with a % sign (63 → "63%"). */
+function formatWholePercentDisplay(displayed: number): string {
+  const rounded = Math.round(displayed * 1e10) / 1e10;
+  const text =
+    Number.isInteger(rounded) ||
+    Math.abs(rounded - Math.round(rounded)) < 1e-9
+      ? String(Math.round(rounded))
+      : String(rounded);
+  return `${text}%`;
+}
+
+/** Format Excel percent fractions as humans see them (0.03 → "3%"). */
+function formatPercentDisplay(fraction: number): string {
+  return formatWholePercentDisplay(fraction * 100);
+}
+
+/**
+ * True when the column itself is a percent value (e.g. "Dizlee Share %", "RS %").
+ * False for amount columns that only mention a rate (e.g. "TRC GOV Share (6%)").
+ */
+function headerLooksLikePercent(header: string): boolean {
+  const lower = header.trim().toLowerCase();
+  if (/%\s*$/.test(lower)) {
+    return true;
+  }
+  if (/\b(rs|revenue\s*share|dizlee\s*share)\s*%/.test(lower)) {
+    return true;
+  }
+  if (/\b(percent|pct)\b/.test(lower) && !/\([^)]*%[^)]*\)/.test(lower)) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * True for Excel native percent formats (`0%`, `0.00%`) where the stored
+ * value is a fraction (0.63 → 63%). False for formats that only append a
+ * literal `%` in quotes (e.g. our RS export `0.00"%"` with value already 63).
+ */
+function isExcelFractionalPercentFmt(numFmt: string): boolean {
+  const withoutLiterals = numFmt.replace(/"[^"]*"/g, "");
+  return withoutLiterals.includes("%");
+}
+
+/** True when numFmt appends a literal % (e.g. `0.00"%"`). */
+function hasLiteralPercentSuffix(numFmt: string): boolean {
+  return /"%"|'%/.test(numFmt);
+}
+
+/** Decimal places from Excel number formats like `0.0`, `#,##0.00`. */
+function decimalPlacesFromNumFmt(numFmt: string): number | null {
+  if (!numFmt.trim()) {
+    return null;
+  }
+  const main = numFmt.split(";")[0]?.replace(/\[[^\]]*\]/g, "") ?? "";
+  if (!main || isExcelFractionalPercentFmt(main) || hasLiteralPercentSuffix(main)) {
+    return null;
+  }
+  const match = main.match(/\.([0#]+)/);
+  if (match) {
+    return match[1].length;
+  }
+  if (/[0#]/.test(main)) {
+    return 0;
+  }
+  return null;
+}
+
+function usesThousandSeparators(numFmt: string): boolean {
+  return /#,\s*#|#,#/.test(numFmt);
+}
+
+/**
+ * Display numbers like Excel: honor numFmt decimals, else strip float noise
+ * (18.368999999999996 → 18.4 when fmt is 0.0).
+ */
+function formatNumberForPreview(value: number, numFmt: string): string {
+  if (!Number.isFinite(value)) {
+    return String(value);
+  }
+
+  const decimals = decimalPlacesFromNumFmt(numFmt);
+  if (decimals !== null) {
+    const fixed = value.toFixed(decimals);
+    if (usesThousandSeparators(numFmt)) {
+      const asNumber = Number(fixed);
+      return asNumber.toLocaleString("en-US", {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
+      });
+    }
+    return fixed;
+  }
+
+  if (Number.isInteger(value)) {
+    return String(value);
+  }
+  // Clean IEEE float noise; keep meaningful decimals, drop trailing zeros.
+  const cleaned = parseFloat(value.toFixed(10));
+  return String(cleaned);
+}
+
+function cellToDisplay(
+  cell: ExcelJS.Cell,
+  options?: { treatAsPercentColumn?: boolean },
+): string {
+  const value = cell.value;
   if (value === null || value === undefined) {
     return "";
   }
-  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+
+  const numFmt = String(cell.numFmt ?? "");
+  const isPercentFmt = isExcelFractionalPercentFmt(numFmt);
+  const numeric = numericFromCellValue(value);
+  // Header fallback uses (0, 1) only — not 1 — so whole percents like 1 (1%)
+  // from RS Excel are not mistaken for Excel's fraction form of 100%.
+  if (
+    numeric !== null &&
+    (isPercentFmt ||
+      (options?.treatAsPercentColumn && numeric > 0 && numeric < 1))
+  ) {
+    return formatPercentDisplay(numeric);
+  }
+
+  // RS Excel stores whole percents (63) with a quoted "%" suffix in numFmt.
+  if (
+    numeric !== null &&
+    (hasLiteralPercentSuffix(numFmt) ||
+      (options?.treatAsPercentColumn && numeric >= 1))
+  ) {
+    return formatWholePercentDisplay(numeric);
+  }
+
+  if (numeric !== null) {
+    return formatNumberForPreview(numeric, numFmt);
+  }
+
+  if (typeof value === "string" || typeof value === "boolean") {
     return String(value);
   }
   if (value instanceof Date) {
@@ -34,9 +180,6 @@ function cellToDisplay(value: ExcelJS.CellValue): string {
   if (typeof value === "object") {
     if ("text" in value && typeof value.text === "string") {
       return value.text;
-    }
-    if ("result" in value && value.result !== undefined && value.result !== null) {
-      return String(value.result);
     }
     if ("richText" in value && Array.isArray(value.richText)) {
       return value.richText.map((part) => part.text ?? "").join("");
@@ -116,6 +259,22 @@ export async function readRawExcelSheetPreview(
   const limit = Math.min(sheetRowCount, MAX_PREVIEW_ROWS);
   const dataRows: string[][] = [];
 
+  const headerRow = sheet.getRow(1);
+  const headerColCount = Math.min(
+    Math.max(
+      headerRow.cellCount || 0,
+      sheet.actualColumnCount || sheet.columnCount || 0,
+    ),
+    MAX_PREVIEW_COLS,
+  );
+  const percentColumns = new Set<number>();
+  for (let col = 1; col <= headerColCount; col += 1) {
+    const headerText = cellToDisplay(headerRow.getCell(col));
+    if (headerLooksLikePercent(headerText)) {
+      percentColumns.add(col);
+    }
+  }
+
   for (let rowNumber = 1; rowNumber <= limit; rowNumber += 1) {
     const row = sheet.getRow(rowNumber);
     const cells: string[] = [];
@@ -124,7 +283,12 @@ export async function readRawExcelSheetPreview(
       MAX_PREVIEW_COLS,
     );
     for (let col = 1; col <= colCount; col += 1) {
-      cells.push(cellToDisplay(row.getCell(col).value));
+      cells.push(
+        cellToDisplay(row.getCell(col), {
+          treatAsPercentColumn:
+            rowNumber > 1 && percentColumns.has(col),
+        }),
+      );
     }
     if (rowHasData(cells)) {
       dataRows.push(cells);
