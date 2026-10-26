@@ -66,6 +66,66 @@ function parseDecimal(value: ExcelJS.CellValue): number | null {
   return Number.isNaN(parsed) ? null : parsed;
 }
 
+function numericCellValue(value: ExcelJS.CellValue): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (value && typeof value === "object" && "result" in value) {
+    const result = (value as ExcelJS.CellFormulaValue).result;
+    if (typeof result === "number" && Number.isFinite(result)) {
+      return result;
+    }
+  }
+  return null;
+}
+
+/** Kill float noise from Excel percent × 100 (e.g. 2.999999999 → 3). */
+function roundDisplayedPercent(value: number): number {
+  return Math.round(value * 1e10) / 1e10;
+}
+
+/**
+ * Map Excel revenue-share cells to the percent humans see in the file.
+ * Excel stores 3% as 0.03 — this returns 3. True 0.3% (stored 0.003) returns 0.3.
+ */
+export function parsePercentAsDisplayed(cell: ExcelJS.Cell): number | null {
+  const value = cell.value;
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  const isPercentFmt = String(cell.numFmt ?? "").includes("%");
+  const numeric = numericCellValue(value);
+
+  if (numeric !== null) {
+    if (isPercentFmt || (numeric > 0 && numeric <= 1)) {
+      return roundDisplayedPercent(numeric * 100);
+    }
+    return roundDisplayedPercent(numeric);
+  }
+
+  const text = cellText(value);
+  if (!text || text === "-") {
+    return null;
+  }
+  if (text.includes("%")) {
+    const parsed = Number.parseFloat(
+      text.replace(/,/g, "").replace(/%/g, "").trim(),
+    );
+    return Number.isNaN(parsed) ? null : roundDisplayedPercent(parsed);
+  }
+  const parsed = Number.parseFloat(
+    text.replace(/,/g, "").replace(/\$/g, "").trim(),
+  );
+  if (Number.isNaN(parsed)) {
+    return null;
+  }
+  if (parsed > 0 && parsed <= 1) {
+    return roundDisplayedPercent(parsed * 100);
+  }
+  return roundDisplayedPercent(parsed);
+}
+
 function rowHasValues(values: ExcelJS.CellValue[]): boolean {
   return values.some((value) => cellText(value).length > 0);
 }
@@ -283,7 +343,7 @@ export async function parseOpcoReportWithMapping(
       return;
     }
     const share =
-      shareCol > 0 ? parseDecimal(row.getCell(shareCol).value) : null;
+      shareCol > 0 ? parsePercentAsDisplayed(row.getCell(shareCol)) : null;
 
     const sourceColumns: Record<string, string | number | null> = {
       service: serviceName,
@@ -296,6 +356,10 @@ export async function parseOpcoReportWithMapping(
     headerRow.eachCell({ includeEmpty: false }, (headerCell, columnNumber) => {
       const header =
         normalizeHeaderKey(cellText(headerCell.value)) || `col_${columnNumber}`;
+      if (shareCol > 0 && columnNumber === shareCol) {
+        sourceColumns[header] = share;
+        return;
+      }
       const cellValue = row.getCell(columnNumber).value;
       sourceColumns[header] =
         cellValue === null || cellValue === undefined

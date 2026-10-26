@@ -29,6 +29,7 @@ import {
 import {
   assertOpcoMappingReady,
   parseOpcoReportWithMapping,
+  parsePercentAsDisplayed,
 } from "@/lib/opco/excel/parse-mapped-opco-report";
 import { ReportParseError } from "@/lib/platform/excel/parse-report";
 
@@ -463,6 +464,58 @@ describe("parseOpcoReportWithMapping", () => {
     });
     expect(parsed.pickerLines[0]?.revenueSharePercent).toBe(30);
     expect(parsed.pickerLines[0]?.sourceColumns.revenue_share_percent).toBe(30);
+  });
+
+  it("normalizes Excel percent fractions to displayed percents on share column", async () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Sheet1");
+    sheet.addRow(["Service", "Revenue", "Dizlee Share %"]);
+    const row3 = sheet.addRow(["App", 100, 0.03]);
+    row3.getCell(3).numFmt = "0%";
+    const row03 = sheet.addRow(["App2", 50, 0.003]);
+    row03.getCell(3).numFmt = "0.0%";
+    sheet.addRow(["App3", 40, "3%"]);
+    sheet.addRow(["App4", 20, 0.01]); // no numFmt — treat (0,1] as Excel fraction
+    const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
+
+    const parsed = await parseOpcoReportWithMapping(buffer, {
+      serviceColumn: "Service",
+      partnerMode: "UPLOAD_PICKER",
+      partnerColumn: null,
+      revenueColumn: "Revenue",
+      revenueShareColumn: "Dizlee Share %",
+      aggregateDailyRows: false,
+    });
+
+    expect(parsed.pickerLines).toHaveLength(4);
+    expect(parsed.pickerLines[0]?.revenueSharePercent).toBe(3);
+    expect(parsed.pickerLines[0]?.sourceColumns.revenue_share_percent).toBe(3);
+    expect(parsed.pickerLines[0]?.sourceColumns["dizlee_share_%"]).toBe(3);
+    expect(parsed.pickerLines[1]?.revenueSharePercent).toBe(0.3);
+    expect(parsed.pickerLines[2]?.revenueSharePercent).toBe(3);
+    expect(parsed.pickerLines[3]?.revenueSharePercent).toBe(1);
+  });
+
+  it("parsePercentAsDisplayed maps Excel fractions and text percents", () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("t");
+    const pct = sheet.getCell("A1");
+    pct.value = 0.03;
+    pct.numFmt = "0%";
+    expect(parsePercentAsDisplayed(pct)).toBe(3);
+
+    const tenth = sheet.getCell("A2");
+    tenth.value = 0.003;
+    tenth.numFmt = "0.0%";
+    expect(parsePercentAsDisplayed(tenth)).toBe(0.3);
+
+    const whole = sheet.getCell("A3");
+    whole.value = 30;
+    expect(parsePercentAsDisplayed(whole)).toBe(30);
+
+    const text = sheet.getCell("A4");
+    text.value = "3%";
+    expect(parsePercentAsDisplayed(text)).toBe(3);
   });
 
   it("keeps only rows matching the Aggregator Name filter", async () => {

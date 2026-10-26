@@ -11,7 +11,8 @@
  * - Regulatory Fee = OpCo USD × Regulatory Fee % / 100
  * - Net Revenue = OpCo USD − Regulatory Fee
  * - Revenue share amount = Net Revenue × Revenue Share %
- *   Exception (Zain Jordan): OpCo USD − (OpCo USD × RS %) − Regulatory Fee
+ *   Exception (Zain Jordan): (OpCo USD × RS %) then deduct fee % from that share
+ *     → (OpCo USD × RS % / 100) × (1 − Fee % / 100)
  *
  * Gate: latest OpCo report and latest Partner report for every Partner
  * that appears in the OpCo file for the period (not every linked Partner).
@@ -201,17 +202,22 @@ export function isJordanRevenueShareOpco(opcoName: string): boolean {
 }
 
 /**
- * Zain Jordan: Gross − (Gross × RS %) − regulatory fee amount.
+ * Zain Jordan: (Gross × RS %) then deduct regulatory fee % from that share.
+ * Example: 8266.76 × 3% = 248.00; 248.00 − 10% = 223.20.
  * Blank when gross or share % is missing; clamps negatives to 0.
  */
 export function revenueShareAmountJordan(
   grossAmount: number | null,
   revenueSharePercent: number | null,
-  regulatoryFeeAmount: number,
+  regulatoryFeePercent: number,
 ): number | null {
   if (grossAmount == null || revenueSharePercent == null) return null;
   const shareOnGross = (grossAmount * revenueSharePercent) / 100;
-  return Math.max(0, grossAmount - shareOnGross - regulatoryFeeAmount);
+  const feePercent = Number.isFinite(regulatoryFeePercent)
+    ? Math.max(0, regulatoryFeePercent)
+    : 0;
+  const feeOnShare = (shareOnGross * feePercent) / 100;
+  return Math.max(0, shareOnGross - feeOnShare);
 }
 
 /** Resolve Excel / display RS amount (Jordan vs default fee-then-share). */
@@ -221,12 +227,13 @@ export function resolveRevenueShareAmount(params: {
   netRevenue: number;
   revenueSharePercent: number | null;
   regulatoryFee: number;
+  regulatoryFeePercent?: number;
 }): number | null {
   if (isJordanRevenueShareOpco(params.opcoName)) {
     return revenueShareAmountJordan(
       params.opcoAmountUsd,
       params.revenueSharePercent,
-      params.regulatoryFee,
+      params.regulatoryFeePercent ?? 0,
     );
   }
   return revenueShareAmountFromNet(
