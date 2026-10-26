@@ -60,6 +60,7 @@ export const LOOKUP_SEEDS: Record<string, string[]> = {
     "SERVICE_PARTNER_MAP_UPDATED",
     "SERVICE_PARTNER_MAP_DELETED",
     "SERVICE_PARTNER_MAP_IMPORTED",
+    "PARTNER_RS_REPORT_SENT",
   ],
   AUDIT_ENTITY_TYPE: [
     "USER",
@@ -73,5 +74,6 @@ export const LOOKUP_SEEDS: Record<string, string[]> = {
     "OPCO",
     "PARTNER",
     "SERVICE_PARTNER_MAP",
+    "PARTNER_REVENUE_SHARE_REPORT",
   ],
 };

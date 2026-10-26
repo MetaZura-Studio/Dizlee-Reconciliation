@@ -6,10 +6,6 @@ import PDFDocument from "pdfkit";
 
 import type { PartnerRsReport } from "@/lib/dizlee/partner-revenue-share";
 import {
-  PARTNER_RS_RETENTION_10_PERCENT,
-  PARTNER_RS_RETENTION_5_PERCENT,
-} from "@/lib/dizlee/partner-revenue-share";
-import {
   formatExportMoney,
   formatExportPercent,
 } from "@/lib/dizlee/revenue-share/export-format";
@@ -255,16 +251,10 @@ export async function buildPartnerRevenueSharePdf(
       Number(report.exchangeRateLocalPerUsd).toFixed(2),
     ],
   ];
-  if (report.includeRetention5) {
+  for (const line of report.retentionLines) {
     summaryRows.push([
-      `Retention ${PARTNER_RS_RETENTION_5_PERCENT}% (USD)`,
-      formatUsd2(report.retention5Usd),
-    ]);
-  }
-  if (report.includeRetention10) {
-    summaryRows.push([
-      `Retention ${PARTNER_RS_RETENTION_10_PERCENT}% (USD)`,
-      formatUsd2(report.retention10Usd),
+      `Retention ${line.percent}% (USD)`,
+      formatUsd2(line.amountUsd),
     ]);
   }
   summaryRows.push([

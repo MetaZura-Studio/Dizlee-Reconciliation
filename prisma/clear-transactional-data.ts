@@ -1,9 +1,18 @@
 /**
- * Clears operational data for local testing (reports, invoices, reconciliations, etc.)
- * Keeps: users, opcos, partners, links, lookups, currencies, app settings, email templates.
- * Also clears OpCo report maps + map requests so upload readiness can be retested from scratch.
+ * Clears operational / transactional data only.
  *
- * Usage: npm run db:clear-transactional
+ * Deletes: reports, submissions, invoices, reconciliations, Dizlee RS + Partner RS,
+ * notifications, email deliveries, change/link/map requests, files, audit logs.
+ *
+ * Keeps: users (all roles), OpCos, Partners, links, OpCo report mappings,
+ * service–partner maps (regulatory fee % + Partner RS %), lookups, currencies,
+ * rates, app settings, email templates.
+ *
+ * Usage (local or production DATABASE_URL):
+ *
+ *   npm run db:clear-transactional
+ *
+ * Prefer this over db:clear-client-scratch when you must keep portal users.
  */
 
 import { PrismaClient } from "@prisma/client";
@@ -33,7 +42,6 @@ async function clearTransactionalData() {
     prisma.report.deleteMany(),
     prisma.opcoReportSubmission.deleteMany(),
     prisma.invoice.deleteMany(),
-    prisma.opcoReportMapping.deleteMany(),
     prisma.file.deleteMany(),
     prisma.auditLog.deleteMany(),
   ]);
@@ -44,23 +52,25 @@ async function clearTransactionalData() {
     prisma.invoice.count(),
     prisma.reconciliation.count(),
     prisma.revenueShareReport.count(),
-    prisma.revenueShareReportItem.count(),
+    prisma.partnerRevenueShareReport.count(),
     prisma.notification.count(),
     prisma.opcoPartnerLinkRequest.count(),
     prisma.opcoReportMapRequest.count(),
     prisma.opcoReportMapping.count(),
+    prisma.servicePartnerMap.count({ where: { isDeleted: false } }),
+    prisma.user.count({ where: { isDeleted: false } }),
     prisma.auditLog.count(),
   ]);
 
   console.log("Transactional data cleared.");
   console.log(
-    `Remaining rows — reports: ${counts[0]}, submissions: ${counts[1]}, invoices: ${counts[2]}, reconciliations: ${counts[3]}, revenue share reports: ${counts[4]}, RS items: ${counts[5]}, notifications: ${counts[6]}, partner link requests: ${counts[7]}, report map requests: ${counts[8]}, report mappings: ${counts[9]}, audit logs: ${counts[10]}`,
+    `Remaining tx — reports: ${counts[0]}, submissions: ${counts[1]}, invoices: ${counts[2]}, reconciliations: ${counts[3]}, Dizlee RS: ${counts[4]}, Partner RS: ${counts[5]}, notifications: ${counts[6]}, partner link requests: ${counts[7]}, report map requests: ${counts[8]}, audit logs: ${counts[12]}`,
   );
   console.log(
-    "Kept: users, opcos, partners, links, settings, currencies, email templates.",
+    `Kept — report mappings: ${counts[9]}, service maps: ${counts[10]}, users: ${counts[11]}`,
   );
   console.log(
-    "Cleared OpCo report maps — Admin must reconfigure Report map before OpCo upload.",
+    "Kept: users, OpCos, Partners, links, report maps, fee/Partner RS %, settings, currencies, templates.",
   );
 }
 

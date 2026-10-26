@@ -1,7 +1,7 @@
 /**
  * POST — Dizlee portal.
  * Persist Partner RS PDF, notify Partner, upsert period row (resend replaces).
- * Body: { includeRetention5?: boolean, includeRetention10?: boolean }
+ * Body: { line1?: { enabled, percent }, line2?: { enabled, percent } }
  */
 
 import { NextResponse } from "next/server";
