@@ -20,15 +20,19 @@ describe("readRawExcelSheetPreview", () => {
     expect(preview.rows[2]?.[1]).toBe("1%");
   });
 
-  it("formats share-column fractions even when numFmt is missing", async () => {
+  it("treats bare share-column numbers as display percents (WYSIWYG)", async () => {
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("Sheet1");
     sheet.addRow(["Service", "RS %", "Amount"]);
     sheet.addRow(["Games", 0.03, 100]);
+    sheet.addRow(["SMS", 0.5, 50]);
+    sheet.addRow(["App", 3, 20]);
     const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
 
     const preview = await readRawExcelSheetPreview(buffer);
-    expect(preview.rows[1]?.[1]).toBe("3%");
+    expect(preview.rows[1]?.[1]).toBe("0.03%");
+    expect(preview.rows[2]?.[1]).toBe("0.5%");
+    expect(preview.rows[3]?.[1]).toBe("3%");
   });
 
   it("does not rescale RS export cells that already store whole percents", async () => {

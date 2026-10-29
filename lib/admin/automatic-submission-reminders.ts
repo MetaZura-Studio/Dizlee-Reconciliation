@@ -17,6 +17,7 @@ import {
 } from "@/lib/admin/cron-job-ledger";
 import { getReminderSettings } from "@/lib/admin/reminder-settings";
 import { sendBroadcastNotification } from "@/lib/dizlee/notifications/intimations";
+import { filterPartnerIdsWithInvoiceUploadEnabled } from "@/lib/platform/partner-invoice-upload-access";
 import {
   listReportMonitoringLanes,
   type ReportMonitoringLane,
@@ -157,11 +158,17 @@ async function fireScheduleStep(params: {
   fromUserId: bigint;
 }): Promise<{ opcoNotifications: number; partnerNotifications: number }> {
   const { step, period, fromUserId } = params;
-  const { opcoIds, partnerIds } = await listMissingOrgIdsForPeriod({
+  const missing = await listMissingOrgIdsForPeriod({
     month: period.month,
     year: period.year,
     audience: step.audience,
   });
+
+  const opcoIds = missing.opcoIds;
+  // Invoice intimations/reminders must not nag partners Dizlee has locked out.
+  const partnerIds = step.templateCode.toUpperCase().includes("INVOICE")
+    ? await filterPartnerIdsWithInvoiceUploadEnabled(missing.partnerIds)
+    : missing.partnerIds;
 
   if (opcoIds.length === 0 && partnerIds.length === 0) {
     return { opcoNotifications: 0, partnerNotifications: 0 };

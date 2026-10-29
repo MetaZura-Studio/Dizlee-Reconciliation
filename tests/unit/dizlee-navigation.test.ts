@@ -6,6 +6,26 @@ import {
 } from "@/lib/dizlee/navigation";
 
 describe("dizlee navigation", () => {
+  it("nests report pages under Reports", () => {
+    const reports = DIZLEE_NAV_ITEMS.find((item) => item.label === "Reports");
+    expect(reports).toMatchObject({ href: "/dizlee/reports" });
+    expect(reports?.children?.map((child) => child.label)).toEqual([
+      "Reports",
+      "RS Reports",
+      "Partner RS Reports",
+      "OpCo–Partner revenue",
+    ]);
+    expect(DIZLEE_NAV_ITEMS.some((item) => item.label === "RS Reports")).toBe(
+      false,
+    );
+    expect(
+      DIZLEE_NAV_ITEMS.some((item) => item.label === "Partner RS Reports"),
+    ).toBe(false);
+    expect(
+      DIZLEE_NAV_ITEMS.some((item) => item.label === "OpCo–Partner revenue"),
+    ).toBe(false);
+  });
+
   it("includes Communications before Notifications", () => {
     const labels = DIZLEE_NAV_ITEMS.map((item) => item.label);
     const communicationsIndex = labels.indexOf("Communications");

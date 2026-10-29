@@ -20,17 +20,36 @@ function iconForHref(href: string): AppShellNavItem["icon"] {
       return "invoice";
     case "/dizlee/reconciliation":
       return "compare";
+    case "/dizlee/revenue-share":
+    case "/dizlee/partner-revenue-share":
+    case "/dizlee/period-revenue":
+    case "/dizlee/reporting":
+      return "chart";
     case "/dizlee/communications":
       return "layers";
     case "/dizlee/notifications":
       return "bell";
     case "/dizlee/activity":
       return "layers";
-    case "/dizlee/reporting":
-      return "chart";
     default:
       return "file";
   }
+}
+
+function mapNavItem(item: {
+  label: string;
+  href: string;
+  children?: Array<{ label: string; href: string; children?: unknown[] }>;
+}): AppShellNavItem {
+  return {
+    label: item.label,
+    href:
+      item.href === "/dizlee/notifications"
+        ? "/dizlee/notifications?tab=inbox"
+        : item.href,
+    icon: iconForHref(item.href),
+    children: item.children?.map(mapNavItem),
+  };
 }
 
 type DizleeWorkspaceProps = {
@@ -178,12 +197,7 @@ export function DizleeWorkspace({
   const navItems = useMemo<AppShellNavItem[]>(
     () =>
       DIZLEE_NAV_ITEMS.map((item) => ({
-        ...item,
-        href:
-          item.href === "/dizlee/notifications"
-            ? "/dizlee/notifications?tab=inbox"
-            : item.href,
-        icon: iconForHref(item.href),
+        ...mapNavItem(item),
         badge:
           item.href === "/dizlee/notifications" && unreadCount > 0
             ? unreadCount

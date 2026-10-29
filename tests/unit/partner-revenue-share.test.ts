@@ -84,12 +84,59 @@ describe("partner revenue share formulas", () => {
     expect(otherLines[0]?.partnerRsAmountLc).toBe(300);
   });
 
+  it("keeps hyphen channel suffixes as separate Partner RS rows", () => {
+    const maps = [
+      {
+        serviceKey: "fifa tutorials - gbonline",
+        serviceName: "FIFA Tutorials - GBOnline",
+        partnerId: BigInt(2),
+        partnerRsPercent: 70,
+      },
+      {
+        serviceKey: "fifa tutorials - sonline",
+        serviceName: "FIFA Tutorials - SOnline",
+        partnerId: BigInt(2),
+        partnerRsPercent: 70,
+      },
+    ];
+    const lines = buildPartnerRsLines({
+      lineItems: [
+        {
+          description: "FIFA Tutorials - GBOnline",
+          amount: 273300,
+          sourceColumns: {},
+        },
+        {
+          description: "FIFA Tutorials - SOnline",
+          amount: 22800,
+          sourceColumns: {},
+        },
+      ],
+      partnerId: BigInt(2),
+      maps,
+    });
+
+    expect(lines).toHaveLength(2);
+    expect(lines.map((l) => l.serviceName).sort()).toEqual([
+      "FIFA Tutorials - GBOnline",
+      "FIFA Tutorials - SOnline",
+    ]);
+    expect(
+      lines.find((l) => l.serviceName === "FIFA Tutorials - GBOnline")
+        ?.grossRevenueLc,
+    ).toBe(273300);
+    expect(
+      lines.find((l) => l.serviceName === "FIFA Tutorials - SOnline")
+        ?.grossRevenueLc,
+    ).toBe(22800);
+  });
+
   it("converts TOTAL RS LC to USD using local-per-USD rate", () => {
     expect(partnerRsUsdFromLc(326, 3.26)).toBeCloseTo(100, 8);
     expect(partnerRsUsdFromLc(100, 0)).toBe(0);
   });
 
-  it("applies selected retentions then net", () => {
+  it("cascades selected retentions off remaining then net", () => {
     const usd = 100;
     expect(
       partnerRsRetentionAmount(usd, PARTNER_RS_RETENTION_5_PERCENT),
@@ -97,7 +144,30 @@ describe("partner revenue share formulas", () => {
     expect(
       partnerRsRetentionAmount(usd, PARTNER_RS_RETENTION_10_PERCENT),
     ).toBe(10);
-    expect(partnerRsNetAmountUsd(usd)).toBe(85);
+    // Defaults: 10% then 5% cascading → 100 * 0.9 * 0.95 = 85.5
+    expect(partnerRsNetAmountUsd(usd)).toBe(85.5);
+    expect(
+      partnerRsRetentionLines(usd),
+    ).toEqual([
+      { percent: 10, amountUsd: 10 },
+      { percent: 5, amountUsd: 4.5 },
+    ]);
+    // Client example: 2000 → 10% → 1800 → 5% → 1710
+    expect(
+      partnerRsRetentionLines(2000, {
+        line1: { enabled: true, percent: 10 },
+        line2: { enabled: true, percent: 5 },
+      }),
+    ).toEqual([
+      { percent: 10, amountUsd: 200 },
+      { percent: 5, amountUsd: 90 },
+    ]);
+    expect(
+      partnerRsNetAmountUsd(2000, {
+        line1: { enabled: true, percent: 10 },
+        line2: { enabled: true, percent: 5 },
+      }),
+    ).toBe(1710);
     expect(
       partnerRsNetAmountUsd(usd, {
         line1: { enabled: true, percent: 5 },
@@ -122,6 +192,7 @@ describe("partner revenue share formulas", () => {
         line2: { enabled: false, percent: 10 },
       }),
     ).toBe(97);
+    // Second line is 7.5% of remaining after 3% (97), not of 100
     expect(
       partnerRsRetentionLines(usd, {
         line1: { enabled: true, percent: 3 },
@@ -129,7 +200,7 @@ describe("partner revenue share formulas", () => {
       }),
     ).toEqual([
       { percent: 3, amountUsd: 3 },
-      { percent: 7.5, amountUsd: 7.5 },
+      { percent: 7.5, amountUsd: 7.275 },
     ]);
   });
 
@@ -143,16 +214,17 @@ describe("partner revenue share formulas", () => {
       line1: { enabled: true, percent: 3 },
       line2: { enabled: false, percent: 10 },
     });
-    // Legacy body still accepted
+    // Legacy body still accepted → mapped to 10% line then 5% line
     expect(
       parsePartnerRsRetentionOptions({
         includeRetention5: true,
         includeRetention10: false,
       }),
     ).toEqual({
-      line1: { enabled: true, percent: 5 },
-      line2: { enabled: false, percent: 10 },
+      line1: { enabled: false, percent: 10 },
+      line2: { enabled: true, percent: 5 },
     });
+    expect(formatPartnerRsRetentionLabel([10, 5])).toBe("10% + 5%");
     expect(formatPartnerRsRetentionLabel([5, 10])).toBe("5% + 10%");
     expect(formatPartnerRsRetentionLabel([3])).toBe("3%");
     expect(formatPartnerRsRetentionLabel([])).toBe("none");
@@ -244,6 +316,7 @@ describe("partner RS PDF export", () => {
       period: { month: 10, year: 2026, label: "10/2026" },
       currencyCode: "SAR",
       exchangeRateLocalPerUsd: 3.75999995,
+      conversionRate: 0.27,
       lines: [
         {
           serviceName: "Shofha Plus",
@@ -258,16 +331,16 @@ describe("partner RS PDF export", () => {
       totalRsLc: 300,
       totalRsUsd: 80,
       retentionLines: [
-        { percent: 5, amountUsd: 4 },
         { percent: 10, amountUsd: 8 },
+        { percent: 5, amountUsd: 3.6 },
       ],
       showRegulatoryFeeColumn: false,
-      netAmountUsd: 68,
+      netAmountUsd: 68.4,
       generatedOnLabel: "20/10/2026",
     };
     const buffer = await buildPartnerRevenueSharePdf(report);
     expect(buffer.subarray(0, 4).toString("utf8")).toBe("%PDF");
-    expect(Number(report.exchangeRateLocalPerUsd).toFixed(2)).toBe("3.76");
+    expect(Number(report.conversionRate).toFixed(2)).toBe("0.27");
   });
 
   it("builds Iraq Partner RS PDF with regulatory fee column", async () => {
@@ -280,6 +353,7 @@ describe("partner RS PDF export", () => {
       period: { month: 10, year: 2026, label: "10/2026" },
       currencyCode: "IQD",
       exchangeRateLocalPerUsd: 1310,
+      conversionRate: 1310,
       lines: [
         {
           serviceName: "Shofha Plus",
@@ -312,6 +386,7 @@ describe("partner RS PDF export", () => {
       period: { month: 10, year: 2026, label: "10/2026" },
       currencyCode: "SAR",
       exchangeRateLocalPerUsd: 3.76,
+      conversionRate: 0.27,
       lines: [
         {
           serviceName: "Shofha Plus",

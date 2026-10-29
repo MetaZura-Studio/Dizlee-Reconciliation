@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import ExcelJS from "exceljs";
 
+import { normalizeServiceName } from "@/lib/dizlee/reconciliation/compare";
 import {
   buildRevenueShareLine,
   deriveRevenueShareDashboardStatus,
@@ -14,6 +15,7 @@ import {
   resolveRevenueSharePercent,
   revenueShareAmountFromNet,
   revenueShareAmountJordan,
+  revenueShareAmountUsdFromLc,
   revenueSharePercentFromSource,
   revenueShareReadinessFromPartnerRows,
   summarizeRevenueShareDashboardRows,
@@ -24,10 +26,23 @@ import {
   revenueShareExportFilename,
 } from "@/lib/dizlee/revenue-share/export-excel";
 import {
+  EXCEL_PERCENT_NUM_FMT,
   decimalPrecisionForCurrency,
+  excelMoneyNumFmt,
   formatExportMoney,
   formatExportPercent,
 } from "@/lib/dizlee/revenue-share/export-format";
+
+describe("revenue share service identity", () => {
+  it("does not collapse hyphen channel suffixes into one key", () => {
+    const gb = normalizeServiceName("FIFA Tutorials - GBOnline", 1);
+    const sa = normalizeServiceName("FIFA Tutorials - SAOnline", 2);
+    const s = normalizeServiceName("FIFA Tutorials - SOnline", 3);
+    expect(gb).not.toBe(sa);
+    expect(gb).not.toBe(s);
+    expect(sa).not.toBe(s);
+  });
+});
 
 describe("revenue share formulas", () => {
   it("reads share percent and applies service regulatory fee % to gross", () => {
@@ -56,7 +71,7 @@ describe("revenue share formulas", () => {
     ).toBe(0);
   });
 
-  it("computes revenue share amount as Net Revenue × share %", () => {
+  it("computes revenue share amount as Net Sales × share %", () => {
     expect(revenueShareAmountFromNet(180, 25)).toBe(45);
     expect(revenueShareAmountFromNet(100, 30)).toBe(30);
     expect(revenueShareAmountFromNet(null, 25)).toBeNull();
@@ -87,7 +102,7 @@ describe("revenue share formulas", () => {
     expect(
       resolveRevenueShareAmount({
         opcoName: "Zain Kuwait",
-        opcoAmountUsd: 200,
+        opcoAmountLocal: 200,
         netRevenue: 180,
         revenueSharePercent: 25,
         regulatoryFee: fee,
@@ -97,7 +112,7 @@ describe("revenue share formulas", () => {
     expect(
       resolveRevenueShareAmount({
         opcoName: "Zain Jordan",
-        opcoAmountUsd: 200,
+        opcoAmountLocal: 200,
         netRevenue: 180,
         revenueSharePercent: 25,
         regulatoryFee: fee,
@@ -111,6 +126,12 @@ describe("revenue share formulas", () => {
     expect(revenueShareAmountJordan(200, null, 10)).toBeNull();
     // First Jordan row: 8266.76 × 3% = 248.0028; minus 10% → 223.20252
     expect(revenueShareAmountJordan(8266.76, 3, 10)).toBeCloseTo(223.20252, 4);
+  });
+
+  it("converts RS LC to USD with rateToUsd", () => {
+    expect(revenueShareAmountUsdFromLc(97.875, 2.65)).toBeCloseTo(259.36875, 5);
+    expect(revenueShareAmountUsdFromLc(null, 2.65)).toBeNull();
+    expect(revenueShareAmountUsdFromLc(100, 0)).toBeNull();
   });
 
   it("prefers the line-item field over source_columns JSON", () => {
@@ -128,12 +149,13 @@ describe("revenue share formulas", () => {
     ).toBe(30);
   });
 
-  it("builds an export line from OpCo USD, Partner USD, and service fee %", () => {
+  it("builds an export line with fee/net/share from OpCo LC (LC-first)", () => {
     expect(
       buildRevenueShareLine({
         partnerId: "42",
         partnerName: "ArpuPlus",
         serviceName: "Games",
+        opcoName: "Zain Kuwait",
         opcoAmountLocal: 1000,
         opcoAmountUsd: 200,
         partnerAmountUsd: 198,
@@ -149,18 +171,21 @@ describe("revenue share formulas", () => {
       opcoAmountUsd: 200,
       partnerAmountUsd: 198,
       regulatoryFeePercent: 10,
-      regulatoryFee: 20,
-      netRevenue: 180,
+      regulatoryFee: 100,
+      netRevenue: 900,
       revenueSharePercent: 25,
+      revenueShareAmountLc: 225,
     });
   });
 
-  it("maps lines to DB item creates with per-line fee percent", () => {
+  it("maps lines to DB item creates with LC share and USD share", () => {
     const line = buildRevenueShareLine({
       partnerId: "7",
       partnerName: "Timwe",
       serviceName: "SMS",
-      opcoAmountUsd: 100,
+      opcoName: "Zain Kuwait",
+      opcoAmountLocal: 100,
+      opcoAmountUsd: 20,
       partnerAmountUsd: 95,
       regulatoryFeePercent: 5,
       revenueSharePercent: 30,
@@ -168,6 +193,7 @@ describe("revenue share formulas", () => {
     const rows = mapRevenueShareLinesToItemCreates({
       revenueShareReportId: 11,
       lines: [line],
+      rateToUsd: 0.2,
     });
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
@@ -175,12 +201,14 @@ describe("revenue share formulas", () => {
       partnerId: BigInt(7),
       partnerName: "Timwe",
       serviceName: "SMS",
-      opcoAmountUsd: 100,
+      opcoAmountUsd: 20,
       partnerAmountUsd: 95,
       regulatoryFeePercent: 5,
       regulatoryFeeAmount: 5,
       netRevenue: 95,
       revenueSharePercent: 30,
+      revenueShareAmountLc: 28.5,
+      revenueShareAmountUsd: 5.7,
       sortOrder: 0,
     });
   });
@@ -191,11 +219,12 @@ describe("revenue share formulas", () => {
     );
   });
 
-  it("puts Revenue share amount before Revenue Share % in the Excel", async () => {
+  it("exports LC net + LC share and FX share to USD columns", async () => {
     const report: RevenueShareReport = {
       opcoId: "1",
       opcoName: "Test OpCo",
       opcoCurrencyCode: "KWD",
+      rateToUsd: 0.2,
       period: { month: 3, year: 2026, label: "Mar 2026" },
       lines: [
         {
@@ -206,9 +235,10 @@ describe("revenue share formulas", () => {
           opcoAmountUsd: 200,
           partnerAmountUsd: 198,
           regulatoryFeePercent: 10,
-          regulatoryFee: 20,
-          netRevenue: 180,
+          regulatoryFee: 100,
+          netRevenue: 900,
           revenueSharePercent: 25,
+          revenueShareAmountLc: 225,
         },
         {
           partnerId: "7",
@@ -219,8 +249,9 @@ describe("revenue share formulas", () => {
           partnerAmountUsd: 95,
           regulatoryFeePercent: 0,
           regulatoryFee: 0,
-          netRevenue: 100,
+          netRevenue: 500,
           revenueSharePercent: 30,
+          revenueShareAmountLc: 150,
         },
       ],
     };
@@ -239,31 +270,32 @@ describe("revenue share formulas", () => {
       "Amount as per opco in usd",
       "Amount as per partner in usd",
       "Regulatory Fee %",
-      "Net Revenue",
-      "Revenue share amount",
+      "Net Sales (LC)",
+      "Revenue share amount (LC)",
+      "Revenue share amount (USD)",
       "Revenue Share %",
     ]);
     const dataRow = sheet!.getRow(2);
     expect(dataRow.getCell(3).value).toBe(1000);
-    expect(typeof dataRow.getCell(3).value).toBe("number");
     expect(dataRow.getCell(4).value).toBe(200);
-    expect(typeof dataRow.getCell(4).value).toBe("number");
     expect(dataRow.getCell(6).value).toBe(10);
-    expect(typeof dataRow.getCell(6).value).toBe("number");
-    expect(dataRow.getCell(8).value).toBe(45);
-    expect(typeof dataRow.getCell(8).value).toBe("number");
-    expect(dataRow.getCell(9).value).toBe(25);
-    expect(typeof dataRow.getCell(9).value).toBe("number");
+    expect(dataRow.getCell(7).value).toBe(900); // Net LC
+    expect(dataRow.getCell(8).value).toBe(225); // Share LC
+    expect(dataRow.getCell(9).value).toBe(45); // Share USD = 225 × 0.2
+    expect(dataRow.getCell(10).value).toBe(25);
     const dataRow2 = sheet!.getRow(3);
     expect(dataRow2.getCell(6).value).toBe(0);
-    expect(dataRow2.getCell(8).value).toBe(30);
+    expect(dataRow2.getCell(8).value).toBe(150);
+    expect(dataRow2.getCell(9).value).toBe(30);
   });
 
-  it("applies (gross × RS %) then fee % off share for Zain Jordan Excel", async () => {
+  it("applies Jordan share-then-fee on LC then FX to USD in Excel", async () => {
+    // LC 1000 × 3% = 30; −10% = 27 LC; × 8.26676 ≈ 223.20 USD
     const report: RevenueShareReport = {
       opcoId: "2",
       opcoName: "Zain Jordan",
       opcoCurrencyCode: "JOD",
+      rateToUsd: 8.26676,
       period: { month: 3, year: 2026, label: "Mar 2026" },
       lines: [
         {
@@ -274,9 +306,10 @@ describe("revenue share formulas", () => {
           opcoAmountUsd: 8266.76,
           partnerAmountUsd: 198,
           regulatoryFeePercent: 10,
-          regulatoryFee: 826.676,
-          netRevenue: 7440.084,
+          regulatoryFee: 100,
+          netRevenue: 900,
           revenueSharePercent: 3,
+          revenueShareAmountLc: 27,
         },
       ],
     };
@@ -285,15 +318,19 @@ describe("revenue share formulas", () => {
     await workbook.xlsx.load(buffer as unknown as ExcelJS.Buffer);
     const sheet = workbook.getWorksheet("Revenue Share");
     expect(sheet).toBeTruthy();
-    // 8266.76 × 3% then − 10% of that share → ~223.20 (USD export rounds to 2 dp)
-    expect(sheet!.getRow(2).getCell(8).value).toBe(223.2);
+    expect(sheet!.getRow(2).getCell(8).value).toBe(27);
+    expect(sheet!.getRow(2).getCell(9).value).toBe(223.2);
   });
 
   it("formats export money with currency decimals and thousand separators", () => {
     expect(decimalPrecisionForCurrency("USD")).toBe(2);
     expect(decimalPrecisionForCurrency("KWD")).toBe(3);
     expect(decimalPrecisionForCurrency("BHD")).toBe(3);
-    expect(formatExportMoney(367567.8, "USD")).toBe("367,567.80");
+    expect(excelMoneyNumFmt("USD")).toBe("#,##0.##");
+    expect(excelMoneyNumFmt("IQD")).toBe("#,##0.###");
+    expect(EXCEL_PERCENT_NUM_FMT).toBe('0.##"%"');
+    expect(formatExportMoney(367567.8, "USD")).toBe("367,567.8");
+    expect(formatExportMoney(890400, "IQD")).toBe("890,400");
     expect(formatExportMoney(1234.5678, "KWD")).toBe("1,234.568");
     expect(formatExportMoney(null, "USD")).toBe("");
   });

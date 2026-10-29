@@ -1,11 +1,10 @@
 /**
  * Partner report Excel parsing entry point.
  *
- * Portal: Partner. Uses platform parser then merges hyphen-prefix service
- * variants (e.g. GameZilla-GBOnline + GameZilla-GOnline → GameZilla).
+ * Portal: Partner. Thin wrapper over the platform parser — each service
+ * name stays its own line (no hyphen-prefix consolidation).
  */
 
-import { mergePartnerLinesByServicePrefix } from "@/lib/partner/excel/merge-lines-by-service-prefix";
 import {
   ReportParseError,
   parseReportWorkbook as parsePlatformReportWorkbook,
@@ -17,6 +16,5 @@ export { ReportParseError, type ParsedReportLine };
 export async function parseReportWorkbook(
   ...args: Parameters<typeof parsePlatformReportWorkbook>
 ): Promise<ParsedReportLine[]> {
-  const lines = await parsePlatformReportWorkbook(...args);
-  return mergePartnerLinesByServicePrefix(lines);
+  return parsePlatformReportWorkbook(...args);
 }

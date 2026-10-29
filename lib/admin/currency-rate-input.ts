@@ -2,9 +2,13 @@
  * Client/server helpers for FX rate text fields (avoid type=number / scientific notation).
  * Aligns with rateValueSchema: positive number, at most 8 decimal places.
  *
- * Admin UI shows local units per 1 USD; DB still stores `rate_to_usd` (USD per 1 local).
- * Invert only at Admin boundaries — FX consumers keep using stored rateToUsd.
+ * Admin enters a conversion rate (client Closing Rate sheet).
+ * - Multiply currencies: rate is USD per 1 local → store as rate_to_usd as-is.
+ * - Divide currencies (IQD/SDG/SSP): rate is the divisor → store rate_to_usd = 1/rate.
+ * FX consumers keep using stored rateToUsd (USD per 1 local).
  */
+
+import { currencyUsesDivideFx } from "@/lib/platform/currency-fx-factor";
 
 export const MAX_RATE_DECIMAL_PLACES = 8;
 
@@ -50,7 +54,7 @@ function invertPositiveRate(value: number | null): number | null {
   return 1 / value;
 }
 
-/** Stored rateToUsd (USD per 1 local) → Admin display (local per 1 USD). */
+/** @deprecated Prefer adminConversionRateFromStored — kept for legacy Excel UnitsPerUSD. */
 export function localPerUsdFromStoredRateToUsd(
   rateToUsd: number | null,
 ): number | null {
@@ -58,9 +62,7 @@ export function localPerUsdFromStoredRateToUsd(
 }
 
 /**
- * Admin input (local per 1 USD) → stored rateToUsd (USD per 1 local).
- * Rounds to 8 decimals so values like 1 USD = 2.76 SDG pass validation
- * (raw 1/2.76 is a repeating decimal).
+ * @deprecated Prefer storedRateToUsdFromAdminConversion — kept for legacy Excel UnitsPerUSD.
  */
 export function storedRateToUsdFromLocalPerUsd(
   localPerUsd: number | null,
@@ -73,8 +75,73 @@ export function storedRateToUsdFromLocalPerUsd(
 }
 
 /**
+ * Recover the Admin divide conversion rate after 8-dp storage.
+ * 1/1520 stores as 0.00065789; naive invert is ~1520.011 — pick the
+ * shortest value that round-trips to the same stored rate (prefer 1520).
+ */
+function recoverDivideConversionRate(rateToUsd: number): number {
+  const raw = 1 / rateToUsd;
+  const stored = roundRateToMaxDecimals(rateToUsd);
+  for (let digits = 0; digits <= MAX_RATE_DECIMAL_PLACES; digits += 1) {
+    const candidate = Number(raw.toFixed(digits));
+    if (candidate <= 0) {
+      continue;
+    }
+    if (roundRateToMaxDecimals(1 / candidate) === stored) {
+      return candidate;
+    }
+  }
+  return roundRateToMaxDecimals(raw);
+}
+
+/**
+ * Stored rateToUsd (USD per 1 local) → Admin conversion-rate field.
+ * Multiply: show rate as-is. Divide: show divisor (1 / rateToUsd),
+ * recovered so 1520 does not reappear as 1520.011 after save.
+ */
+export function adminConversionRateFromStored(
+  rateToUsd: number | null,
+  isoCode: string,
+): number | null {
+  if (rateToUsd === null || !Number.isFinite(rateToUsd) || rateToUsd <= 0) {
+    return null;
+  }
+  if (currencyUsesDivideFx(isoCode)) {
+    return recoverDivideConversionRate(rateToUsd);
+  }
+  return rateToUsd;
+}
+
+/**
+ * Admin conversion-rate field → stored rateToUsd (USD per 1 local).
+ * Multiply: store as-is. Divide: store 1 / entered rate.
+ */
+export function storedRateToUsdFromAdminConversion(
+  conversionRate: number | null,
+  isoCode: string,
+): number | null {
+  if (
+    conversionRate === null ||
+    !Number.isFinite(conversionRate) ||
+    conversionRate <= 0
+  ) {
+    return null;
+  }
+  if (currencyUsesDivideFx(isoCode)) {
+    return roundRateToMaxDecimals(1 / conversionRate);
+  }
+  return roundRateToMaxDecimals(conversionRate);
+}
+
+export {
+  currencyFxFactor,
+  currencyFxFactorLabel,
+  currencyUsesDivideFx,
+} from "@/lib/platform/currency-fx-factor";
+
+/**
  * Allow digits and a single decimal point; cap fraction length (default 8 for FX storage,
- * or the currency’s money decimals for Admin “1 USD = ? local” input).
+ * or the currency’s money decimals for Admin conversion-rate input).
  * Empty string and trailing "." are kept so the user can keep typing.
  */
 export function sanitizeRateInput(

@@ -8,6 +8,10 @@ import {
   formatAppDateTime,
 } from "@/lib/platform/format-datetime";
 import { assertSafeXlsxZip } from "@/lib/platform/excel/assert-safe-xlsx-zip";
+import {
+  hasLiteralPercentSuffix,
+  isExcelFractionalPercentFmt,
+} from "@/lib/platform/excel/percent-format";
 
 const MAX_PREVIEW_ROWS = 1000;
 const MAX_PREVIEW_COLS = 80;
@@ -66,21 +70,6 @@ function headerLooksLikePercent(header: string): boolean {
     return true;
   }
   return false;
-}
-
-/**
- * True for Excel native percent formats (`0%`, `0.00%`) where the stored
- * value is a fraction (0.63 → 63%). False for formats that only append a
- * literal `%` in quotes (e.g. our RS export `0.00"%"` with value already 63).
- */
-function isExcelFractionalPercentFmt(numFmt: string): boolean {
-  const withoutLiterals = numFmt.replace(/"[^"]*"/g, "");
-  return withoutLiterals.includes("%");
-}
-
-/** True when numFmt appends a literal % (e.g. `0.00"%"`). */
-function hasLiteralPercentSuffix(numFmt: string): boolean {
-  return /"%"|'%/.test(numFmt);
 }
 
 /** Decimal places from Excel number formats like `0.0`, `#,##0.00`. */
@@ -148,21 +137,17 @@ function cellToDisplay(
   const numFmt = String(cell.numFmt ?? "");
   const isPercentFmt = isExcelFractionalPercentFmt(numFmt);
   const numeric = numericFromCellValue(value);
-  // Header fallback uses (0, 1) only — not 1 — so whole percents like 1 (1%)
-  // from RS Excel are not mistaken for Excel's fraction form of 100%.
-  if (
-    numeric !== null &&
-    (isPercentFmt ||
-      (options?.treatAsPercentColumn && numeric > 0 && numeric < 1))
-  ) {
+  // Only Excel fractional % formats store 0.03 for "3%". Bare numbers in a
+  // percent-named column are already display percents (0.50 → 0.50%).
+  if (numeric !== null && isPercentFmt) {
     return formatPercentDisplay(numeric);
   }
 
   // RS Excel stores whole percents (63) with a quoted "%" suffix in numFmt.
+  // Same for bare values in a percent-named OpCo column.
   if (
     numeric !== null &&
-    (hasLiteralPercentSuffix(numFmt) ||
-      (options?.treatAsPercentColumn && numeric >= 1))
+    (hasLiteralPercentSuffix(numFmt) || options?.treatAsPercentColumn)
   ) {
     return formatWholePercentDisplay(numeric);
   }

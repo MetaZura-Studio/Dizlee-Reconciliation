@@ -14,7 +14,12 @@ import {
 } from "@/lib/auth/active-user";
 import { verifyPassword, runDummyPasswordCheck } from "@/lib/auth/password";
 import { writeUserSessionAuditLog } from "@/lib/auth/audit";
-import { ACCOUNT_SUSPENDED_SIGNIN_ERROR, RATE_LIMITED_SIGNIN_ERROR } from "@/lib/auth/login-errors";
+import {
+  ACCOUNT_INACTIVE_SIGNIN_ERROR,
+  ACCOUNT_SUSPENDED_SIGNIN_ERROR,
+  RATE_LIMITED_SIGNIN_ERROR,
+} from "@/lib/auth/login-errors";
+import { isPortalOrgActiveForLogin } from "@/lib/auth/portal-org-active";
 import {
   AUTH_RATE_LIMITS,
   consumeRateLimit,
@@ -120,13 +125,14 @@ function createAuthOptions(params: {
             return null;
           }
 
-          // Only after a correct password — avoid account-status enumeration.
+          // Only after a correct password — wrong password still looks like
+          // CredentialsSignin; inactive/suspended get a clear status message.
           if (user.status.code === "SUSPENDED") {
             throw new Error(ACCOUNT_SUSPENDED_SIGNIN_ERROR);
           }
 
           if (user.status.code !== "ACTIVE") {
-            return null;
+            throw new Error(ACCOUNT_INACTIVE_SIGNIN_ERROR);
           }
 
           const role = normalizeRoleCode(user.role.code);
@@ -141,6 +147,15 @@ function createAuthOptions(params: {
 
           if (role === "partner" && !user.partnerId) {
             return null;
+          }
+
+          const orgActive = await isPortalOrgActiveForLogin({
+            role,
+            opcoId: user.opcoId,
+            partnerId: user.partnerId,
+          });
+          if (!orgActive) {
+            throw new Error(ACCOUNT_INACTIVE_SIGNIN_ERROR);
           }
 
           await prisma.user.update({

@@ -147,6 +147,20 @@ export const NOTIFICATION_TEMPLATE_SEEDS: NotificationTemplateSeed[] = [
     ],
   },
   {
+    code: "PARTNER_INVOICE_UPLOAD_OPEN",
+    name: "Partner invoice upload open",
+    category: "INTIMATION",
+    subject: "Invoice upload is open",
+    body: "Dizlee has enabled invoice upload for your account. You can upload your Partner → Dizlee invoice now through the portal.",
+    versions: [
+      {
+        version: 1,
+        subject: "Invoice upload is open",
+        body: "Dizlee has enabled invoice upload for your account. You can upload your Partner → Dizlee invoice now through the portal.",
+      },
+    ],
+  },
+  {
     code: "RECONCILIATION_ALERT_OPCO",
     name: "Reconciliation alert (OpCo)",
     category: "ALERT",

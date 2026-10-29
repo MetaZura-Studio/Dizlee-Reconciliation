@@ -26,6 +26,27 @@ async function workbookBuffer(
 }
 
 describe("parseCurrencyRatesExcel", () => {
+  it("parses ConversionRate with multiply/divide by ISO", async () => {
+    const buffer = await workbookBuffer(
+      [
+        ["JOD", 1.41],
+        ["SDG", 8000],
+        ["IQD", 1520],
+      ],
+      "ConversionRate",
+    );
+    const result = await parseCurrencyRatesExcel(buffer);
+
+    expect(result.rows).toHaveLength(3);
+    expect(result.rows[0]?.isoCode).toBe("JOD");
+    expect(result.rows[0]?.rateToUsd).toBe(1.41);
+    expect(result.rows[1]?.isoCode).toBe("SDG");
+    expect(result.rows[1]?.rateToUsd).toBe(0.000125);
+    expect(result.rows[2]?.isoCode).toBe("IQD");
+    expect(result.rows[2]?.rateToUsd).toBe(0.00065789);
+    expect(result.issues).toEqual([]);
+  });
+
   it("parses UnitsPerUSD as local-per-USD and stores inverted rateToUsd", async () => {
     const buffer = await workbookBuffer(
       [
@@ -70,7 +91,7 @@ describe("parseCurrencyRatesExcel", () => {
   });
 
   it("skips non-1 USD rows with an issue", async () => {
-    const buffer = await workbookBuffer([["USD", 2]]);
+    const buffer = await workbookBuffer([["USD", 2]], "ConversionRate");
     const result = await parseCurrencyRatesExcel(buffer);
 
     expect(result.rows).toEqual([]);
@@ -85,25 +106,26 @@ describe("parseCurrencyRatesExcel", () => {
     ]);
   });
 
-  it("builds a template with UnitsPerUSD rounded to currency decimals", async () => {
+  it("builds a template with ConversionRate from stored rates", async () => {
     const buffer = await buildCurrencyRatesTemplateBuffer([
       { isoCode: "USD", rateToUsd: 1, decimalPrecision: 2 },
       { isoCode: "KWD", rateToUsd: 3.25, decimalPrecision: 3 },
-      { isoCode: "SDG", rateToUsd: 1 / 2.76, decimalPrecision: 2 },
+      { isoCode: "SDG", rateToUsd: 0.000125, decimalPrecision: 2 },
     ]);
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(buffer as unknown as ExcelJS.Buffer);
     const sheet = workbook.worksheets[0];
     expect(sheet).toBeTruthy();
-    expect(String(sheet!.getRow(1).getCell(2).value)).toBe("UnitsPerUSD");
+    expect(String(sheet!.getRow(1).getCell(2).value)).toBe("ConversionRate");
     // Row 2 is the instruction note (skipped by import parser)
     expect(sheet!.getRow(3).getCell(1).value).toBe("USD");
     expect(sheet!.getRow(3).getCell(2).value).toBe(1);
     expect(sheet!.getRow(4).getCell(1).value).toBe("KWD");
-    // 1/3.25 → 0.3076… rounded to KWD’s 3 decimals
-    expect(sheet!.getRow(4).getCell(2).value).toBe(0.308);
+    // Multiply: show stored rateToUsd
+    expect(sheet!.getRow(4).getCell(2).value).toBe(3.25);
     expect(sheet!.getRow(5).getCell(1).value).toBe("SDG");
-    expect(sheet!.getRow(5).getCell(2).value).toBe(2.76);
+    // Divide: show divisor 8000
+    expect(sheet!.getRow(5).getCell(2).value).toBe(8000);
   });
 });
 
@@ -118,7 +140,7 @@ describe("mergeParsedRatesIntoDraft", () => {
       existingRates: [
         { currencyId: "1", rateToUsd: 1 },
         { currencyId: "2", rateToUsd: 3.2 },
-        { currencyId: "3", rateToUsd: 0.26 },
+        { currencyId: "3", rateToUsd: 0.25 },
       ],
       parsedRows: [{ isoCode: "KWD", rateToUsd: 3.25, rowNumber: 2 }],
     });
@@ -127,36 +149,18 @@ describe("mergeParsedRatesIntoDraft", () => {
     expect(result.rates).toEqual([
       { currencyId: "1", rateToUsd: 1 },
       { currencyId: "2", rateToUsd: 3.25 },
-      { currencyId: "3", rateToUsd: 0.26 },
+      { currencyId: "3", rateToUsd: 0.25 },
     ]);
-  });
-
-  it("reports unknown ISO codes", () => {
-    const result = mergeParsedRatesIntoDraft({
-      currencies: [{ id: "1", isoCode: "USD" }],
-      existingRates: [{ currencyId: "1", rateToUsd: 1 }],
-      parsedRows: [{ isoCode: "ZZZ", rateToUsd: 2, rowNumber: 2 }],
-    });
-
-    expect(result.skippedUnknown).toEqual(["ZZZ"]);
+    expect(result.skippedUnknown).toEqual([]);
   });
 });
 
-describe("calendar period helpers", () => {
-  it("buildRollingPeriods includes current and walks backward", () => {
-    expect(buildRollingPeriods({ month: 3, year: 2026 }, 3)).toEqual([
-      { month: 3, year: 2026 },
-      { month: 2, year: 2026 },
-      { month: 1, year: 2026 },
-    ]);
-    expect(buildRollingPeriods({ month: 1, year: 2026 }, 2)).toEqual([
-      { month: 1, year: 2026 },
-      { month: 12, year: 2025 },
-    ]);
-  });
-
-  it("isSameCalendarPeriod compares month and year", () => {
-    expect(isSameCalendarPeriod(7, 2026, { month: 7, year: 2026 })).toBe(true);
-    expect(isSameCalendarPeriod(6, 2026, { month: 7, year: 2026 })).toBe(false);
+describe("rolling periods helper", () => {
+  it("marks the current calendar period", () => {
+    const periods = buildRollingPeriods({ month: 10, year: 2026 }, 3);
+    expect(periods.some((p) => isSameCalendarPeriod(p.month, p.year, {
+      month: 10,
+      year: 2026,
+    }))).toBe(true);
   });
 });

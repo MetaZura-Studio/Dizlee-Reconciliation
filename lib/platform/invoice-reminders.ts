@@ -10,6 +10,7 @@ import {
   listInvoiceMonitoringLanes,
   type InvoiceMonitoringLane,
 } from "@/lib/dizlee/invoices-monitoring";
+import { filterPartnerIdsWithInvoiceUploadEnabled } from "@/lib/platform/partner-invoice-upload-access";
 import { getActiveEmailTemplate } from "@/lib/platform/email-templates";
 import {
   DEFAULT_NOTIFICATION_DELIVERY_CHANNEL,
@@ -169,6 +170,14 @@ export async function sendMissingInvoiceReminders(
         partnerIds.add(lane.partnerId);
       }
     }
+  }
+
+  const enabledPartnerIds = shouldSendPartner
+    ? await filterPartnerIdsWithInvoiceUploadEnabled([...partnerIds])
+    : [];
+  partnerIds.clear();
+  for (const id of enabledPartnerIds) {
+    partnerIds.add(id);
   }
 
   let emailRecipients: Awaited<ReturnType<typeof prepareEmailDelivery>> = [];

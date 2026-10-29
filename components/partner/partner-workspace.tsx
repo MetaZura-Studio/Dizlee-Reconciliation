@@ -1,6 +1,6 @@
 /**
  * Partner portal shell with navigation, notifications, and sign-out.
- * Frames dashboard, reports, invoices, and inbox for partner users.
+ * Frames dashboard, nested Reports (upload / history), invoices, and inbox.
  */
 
 "use client";
@@ -128,8 +128,15 @@ export function PartnerWorkspace({
   const navItems = useMemo<AppShellNavItem[]>(
     () => [
       { href: "/partner", label: "Dashboard", icon: "home" },
-      { href: "/partner/upload", label: "Upload Report", icon: "file" },
-      { href: "/partner/reports", label: "Reports history", icon: "file" },
+      {
+        href: "/partner/reports",
+        label: "Reports",
+        icon: "file",
+        children: [
+          { href: "/partner/upload", label: "Upload Report", icon: "file" },
+          { href: "/partner/reports", label: "Report History", icon: "file" },
+        ],
+      },
       {
         href: "/partner/revenue-share",
         label: "RS Reports",

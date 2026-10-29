@@ -50,8 +50,8 @@ export async function createPartnerInvoice(
     actionId,
   ] = await Promise.all([
     prisma.partner.findFirst({
-      where: { id: input.partnerId },
-      select: { name: true },
+      where: { id: input.partnerId, isDeleted: false },
+      select: { name: true, invoiceUploadEnabled: true },
     }),
     prisma.currency.findFirst({
       where: { isoCode: BASE_CURRENCY_ISO_CODE, isDeleted: false },
@@ -65,6 +65,13 @@ export async function createPartnerInvoice(
 
   if (!partner) {
     throw new InvoiceUploadError("Partner not found", 404);
+  }
+
+  if (!partner.invoiceUploadEnabled) {
+    throw new InvoiceUploadError(
+      "Invoice upload is currently disabled by Dizlee",
+      403,
+    );
   }
 
   if (!baseCurrency) {

@@ -110,9 +110,15 @@ function buildInvoicesQuery(filters: PartnerInvoiceListFilters): string {
 type InvoicesTableProps = {
   initialResult: PartnerInvoiceListResult;
   filterOptions: PartnerInvoiceFilterOptions;
+  /** Dizlee gate — hide empty-state upload CTA when closed. */
+  uploadEnabled?: boolean;
 };
 
-export function InvoicesTable({ initialResult, filterOptions }: InvoicesTableProps) {
+export function InvoicesTable({
+  initialResult,
+  filterOptions,
+  uploadEnabled = true,
+}: InvoicesTableProps) {
   const router = useRouter();
   const { filters } = initialResult;
 
@@ -372,10 +378,17 @@ export function InvoicesTable({ initialResult, filterOptions }: InvoicesTablePro
       {initialResult.totalCount === 0 ? (
         <EmptyState
           title="No invoices match your filters"
+          description={
+            uploadEnabled
+              ? undefined
+              : "Invoice upload is currently closed by Dizlee."
+          }
           action={
-            <Link href="/partner/invoices/upload" className={ui.btnSecondary}>
-              Upload an invoice
-            </Link>
+            uploadEnabled ? (
+              <Link href="/partner/invoices/upload" className={ui.btnSecondary}>
+                Upload an invoice
+              </Link>
+            ) : undefined
           }
         />
       ) : (

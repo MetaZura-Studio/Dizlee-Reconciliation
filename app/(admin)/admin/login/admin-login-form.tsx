@@ -22,6 +22,7 @@ const LOGIN_ERROR_KEYS: Record<string, keyof typeof ERROR_CATALOG> = {
   AccessDenied: "UNAUTHORIZED",
   CredentialsSignin: "INVALID_CREDENTIALS",
   AccountSuspended: "ACCOUNT_SUSPENDED",
+  AccountInactive: "ACCOUNT_NOT_ACTIVE",
   RATE_LIMITED: "RATE_LIMITED",
 };
 
