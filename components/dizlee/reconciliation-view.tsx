@@ -585,57 +585,55 @@ export function ReconciliationView({
       <PageCard>
         <PageHeader title="Reconciliation" />
 
-        <div className="border-b border-border">
-          <nav className="-mb-px flex gap-6">
-            {[
-              { id: "compare" as const, label: "Compare Reports" },
-              { id: "history" as const, label: "History" },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => {
-                  setActiveTab(tab.id);
-                  router.replace(
-                    tab.id === "history"
-                      ? "/dizlee/reconciliation?tab=history"
-                      : "/dizlee/reconciliation?tab=compare",
-                  );
-                  if (tab.id === "history") {
-                    setError(null);
-                    setAppliedHistoryFilters({});
-                    skipHistorySearchEffect.current = true;
-                    setHistorySearch("");
-                    void loadHistory(1, {}, "");
-                    return;
-                  }
-
-                  const restored = consumeCompareFiltersRestore();
-                  if (!restored) {
-                    return;
-                  }
-                  skipLaneSearchEffect.current = true;
-                  setMonth(restored.month);
-                  setYear(restored.year);
-                  setSearchBy(restored.searchBy);
-                  setEntityId(restored.entityId ?? "");
-                  setLaneStatus(restored.status);
-                  setLaneSearch(restored.search ?? "");
-                  setCompareSortBy(restored.sortBy);
-                  setCompareSortDir(restored.sortDir);
+        <div className="mb-5 flex flex-wrap gap-2 border-b border-border pb-3">
+          {[
+            { id: "compare" as const, label: "Compare Reports" },
+            { id: "history" as const, label: "History" },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => {
+                setActiveTab(tab.id);
+                router.replace(
+                  tab.id === "history"
+                    ? "/dizlee/reconciliation?tab=history"
+                    : "/dizlee/reconciliation?tab=compare",
+                );
+                if (tab.id === "history") {
                   setError(null);
-                  void loadLanes(restored);
-                }}
-                className={`border-b-2 px-1 pb-3 text-sm font-medium ${
-                  activeTab === tab.id
-                    ? "border-primary text-foreground"
-                    : "border-transparent text-foreground-subtle hover:text-foreground-muted"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </nav>
+                  setAppliedHistoryFilters({});
+                  skipHistorySearchEffect.current = true;
+                  setHistorySearch("");
+                  void loadHistory(1, {}, "");
+                  return;
+                }
+
+                const restored = consumeCompareFiltersRestore();
+                if (!restored) {
+                  return;
+                }
+                skipLaneSearchEffect.current = true;
+                setMonth(restored.month);
+                setYear(restored.year);
+                setSearchBy(restored.searchBy);
+                setEntityId(restored.entityId ?? "");
+                setLaneStatus(restored.status);
+                setLaneSearch(restored.search ?? "");
+                setCompareSortBy(restored.sortBy);
+                setCompareSortDir(restored.sortDir);
+                setError(null);
+                void loadLanes(restored);
+              }}
+              className={
+                activeTab === tab.id
+                  ? "rounded-lg border border-primary/25 bg-primary-muted px-3.5 py-1.5 text-sm font-semibold text-primary"
+                  : "rounded-lg border border-transparent px-3.5 py-1.5 text-sm font-medium text-foreground-muted hover:bg-surface-muted hover:text-foreground"
+              }
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
         {error ? <p className={`mt-6 ${ui.alertError}`}>{error}</p> : null}

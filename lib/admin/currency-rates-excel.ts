@@ -1,12 +1,14 @@
 /**
- * Admin currency rate Excel import/export — parses ISO + rate columns from uploaded workbooks.
- * Validates against platform base currency; returns row-level issues without throwing on bad rows.
+ * Admin currency rate Excel import/export — parses ISO + conversion rate columns.
+ * Preferred: ConversionRate (Admin field; multiply vs divide by ISO).
+ * Legacy UnitsPerUSD / RateToUSD headers still accepted.
  */
 import ExcelJS from "exceljs";
 
 import {
+  adminConversionRateFromStored,
   formatRateInput,
-  localPerUsdFromStoredRateToUsd,
+  storedRateToUsdFromAdminConversion,
   storedRateToUsdFromLocalPerUsd,
 } from "@/lib/admin/currency-rate-input";
 import {
@@ -15,7 +17,7 @@ import {
 } from "@/lib/platform/currency-rates";
 import { decimalPrecisionForCurrency } from "@/lib/platform/format-money";
 
-type RateColumnKind = "storedRateToUsd" | "localPerUsd";
+type RateColumnKind = "storedRateToUsd" | "localPerUsd" | "adminConversion";
 
 export type ParsedCurrencyRateRow = {
   isoCode: string;
@@ -69,8 +71,8 @@ function parseRate(value: ExcelJS.CellValue): number | null {
 
 /**
  * Parse currency rate Excel.
- * Preferred headers: ISO | UnitsPerUSD (local units per 1 USD).
- * Legacy RateToUSD / Rate / RateToKWD still accepted as stored rateToUsd.
+ * Preferred headers: ISO | ConversionRate (Admin conversion rate).
+ * Legacy UnitsPerUSD (= local per 1 USD for all) and RateToUSD still accepted.
  */
 export async function parseCurrencyRatesExcel(
   buffer: ArrayBuffer | Buffer | Uint8Array,
@@ -101,9 +103,18 @@ export async function parseCurrencyRatesExcel(
       isoCol = colNumber;
     }
     if (
-      header === "unitsperusd" ||
-      header === "localperusd" ||
-      header === "ratefromusd"
+      header === "conversionrate" ||
+      header === "conversion" ||
+      header === "adminrate"
+    ) {
+      rateCol = colNumber;
+      rateKind = "adminConversion";
+    }
+    if (
+      rateKind === null &&
+      (header === "unitsperusd" ||
+        header === "localperusd" ||
+        header === "ratefromusd")
     ) {
       rateCol = colNumber;
       rateKind = "localPerUsd";
@@ -131,7 +142,7 @@ export async function parseCurrencyRatesExcel(
         {
           rowNumber: 1,
           message:
-            "Missing required headers. Expected ISO and UnitsPerUSD columns.",
+            "Missing required headers. Expected ISO and ConversionRate columns.",
         },
       ],
     };
@@ -176,10 +187,14 @@ export async function parseCurrencyRatesExcel(
       return;
     }
 
-    const rateToUsd =
-      rateKind === "localPerUsd"
-        ? storedRateToUsdFromLocalPerUsd(rawRate)
-        : rawRate;
+    let rateToUsd: number | null;
+    if (rateKind === "adminConversion") {
+      rateToUsd = storedRateToUsdFromAdminConversion(rawRate, isoRaw);
+    } else if (rateKind === "localPerUsd") {
+      rateToUsd = storedRateToUsdFromLocalPerUsd(rawRate);
+    } else {
+      rateToUsd = rawRate;
+    }
 
     if (rateToUsd === null) {
       issues.push({
@@ -219,8 +234,8 @@ export async function parseCurrencyRatesExcel(
 }
 
 /**
- * Downloadable import template: ISO + UnitsPerUSD (= how many local units equal 1 USD).
- * Values are rounded to each currency’s money decimal precision (USD/SDG 2, KWD/BHD 3).
+ * Downloadable import template: ISO + ConversionRate (Admin conversion field).
+ * Values use each currency’s money decimal precision for display.
  */
 export async function buildCurrencyRatesTemplateBuffer(
   currencies: Array<{
@@ -233,13 +248,13 @@ export async function buildCurrencyRatesTemplateBuffer(
   const sheet = workbook.addWorksheet("Rates");
   sheet.columns = [
     { header: "ISO", key: "iso", width: 12 },
-    { header: "UnitsPerUSD", key: "rate", width: 18 },
+    { header: "ConversionRate", key: "rate", width: 18 },
   ];
 
   // Instruction row (ignored by parser — no valid ISO in column A)
   sheet.addRow({
     iso: "",
-    rate: "Enter how many units of each currency equal 1 USD (e.g. KWD 0.308, SDG 2.76). USD must stay 1.",
+    rate: "Enter conversion rate (Multiply: LC×rate=USD for KWD/SAR/JOD/BHD; Divide: LC÷rate=USD for IQD/SDG/SSP). USD must stay 1.",
   });
   sheet.getRow(2).font = { italic: true, color: { argb: "FF64748B" } };
 
@@ -248,7 +263,7 @@ export async function buildCurrencyRatesTemplateBuffer(
       currency.decimalPrecision ??
       decimalPrecisionForCurrency(currency.isoCode);
     const numFmt =
-      precision <= 0 ? "0" : `0.${"0".repeat(precision)}`;
+      precision <= 0 ? "0" : `0.${"#".repeat(precision)}`;
 
     if (currency.isoCode === BASE_CURRENCY_ISO_CODE) {
       const row = sheet.addRow({
@@ -259,13 +274,14 @@ export async function buildCurrencyRatesTemplateBuffer(
       continue;
     }
 
-    const localPerUsd = localPerUsdFromStoredRateToUsd(
+    const conversion = adminConversionRateFromStored(
       currency.rateToUsd === undefined ? null : currency.rateToUsd,
+      currency.isoCode,
     );
     const display =
-      localPerUsd === null
+      conversion === null
         ? ""
-        : Number(formatRateInput(localPerUsd, precision));
+        : Number(formatRateInput(conversion, precision));
     const row = sheet.addRow({
       iso: currency.isoCode,
       rate: display === "" || Number.isNaN(display) ? "" : display,

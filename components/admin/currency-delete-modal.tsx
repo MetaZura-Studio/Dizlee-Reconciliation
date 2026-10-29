@@ -70,7 +70,7 @@ export function CurrencyDeleteModal({
           <ModalCloseButton onClick={onClose} disabled={submitting} />
         </div>
         <p className="mt-2 text-sm text-foreground-muted">
-          This will soft-delete{" "}
+          This will delete{" "}
           <span className="font-medium text-foreground">{currency.isoCode}</span>.
           Currencies in use by OpCos, reports, or invoices cannot be deleted.
         </p>

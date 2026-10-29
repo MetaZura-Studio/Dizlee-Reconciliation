@@ -25,11 +25,12 @@ import type {
 } from "@/lib/admin/currencies.shared";
 import {
   CURRENT_MONTH_RATES_ONLY_MESSAGE,
+  adminConversionRateFromStored,
   formatRateInput,
-  localPerUsdFromStoredRateToUsd,
   sanitizeRateInput,
-  storedRateToUsdFromLocalPerUsd,
+  storedRateToUsdFromAdminConversion,
 } from "@/lib/admin/currency-rate-input";
+import { currencyFxFactorLabel } from "@/lib/platform/currency-fx-factor";
 import { paginateItems } from "@/lib/ui/list-pagination";
 import { cn, ui } from "@/lib/ui/classes";
 import { nextSortState, type SortDirection } from "@/lib/ui/sort";
@@ -48,11 +49,12 @@ type RateStatusFilter = "all" | "set" | "missing";
 
 function toFormRows(rates: MonthlyRateRow[]): RateFormRow[] {
   return rates.map((rate) => {
-    const localPerUsd =
+    const conversionRate =
       rate.isBase
         ? 1
-        : localPerUsdFromStoredRateToUsd(
+        : adminConversionRateFromStored(
             rate.rateToUsd === undefined ? null : rate.rateToUsd,
+            rate.isoCode,
           );
     return {
       currencyId: rate.currencyId,
@@ -60,9 +62,9 @@ function toFormRows(rates: MonthlyRateRow[]): RateFormRow[] {
       symbol: rate.symbol,
       decimalPrecision: rate.decimalPrecision,
       rateInput:
-        localPerUsd === null || localPerUsd === undefined
+        conversionRate === null || conversionRate === undefined
           ? ""
-          : formatRateInput(localPerUsd, rate.decimalPrecision),
+          : formatRateInput(conversionRate, rate.decimalPrecision),
       isBase: rate.isBase,
     };
   });
@@ -231,12 +233,15 @@ export function CurrencyRatesSection({
           return { currencyId: row.currencyId, rateToUsd: null };
         }
 
-        const localPerUsd = Number.parseFloat(trimmed);
-        if (Number.isNaN(localPerUsd)) {
+        const conversionRate = Number.parseFloat(trimmed);
+        if (Number.isNaN(conversionRate)) {
           throw new Error(`Invalid rate for ${row.isoCode}`);
         }
 
-        const rateToUsd = storedRateToUsdFromLocalPerUsd(localPerUsd);
+        const rateToUsd = storedRateToUsdFromAdminConversion(
+          conversionRate,
+          row.isoCode,
+        );
         if (rateToUsd === null) {
           throw new Error(`Invalid rate for ${row.isoCode}`);
         }
@@ -421,9 +426,10 @@ export function CurrencyRatesSection({
             <p className="text-sm text-foreground-muted">
               {canEdit ? (
                 <>
-                  Enter how many units of each currency equal{" "}
-                  <strong>1 USD</strong> (example: 1 USD = 0.308 KWD). Use each
-                  currency’s decimal precision (USD/SDG 2, KWD/BHD 3).
+                  Enter the <strong>conversion rate</strong> from the OpCo
+                  closing-rate file. Most currencies{" "}
+                  <strong>multiply</strong> (LC × rate = USD); IQD, SDG, and SSP{" "}
+                  <strong>divide</strong> (LC ÷ rate = USD).
                 </>
               ) : (
                 <>
@@ -552,13 +558,15 @@ export function CurrencyRatesSection({
                         direction={sortDir}
                         onSort={applyCurrencySort}
                       />
-                      <DataTableTh align="right">1 USD = ?</DataTableTh>
+                      <DataTableTh align="right">Conversion rate</DataTableTh>
+                      <DataTableTh align="center">Factor</DataTableTh>
                       <DataTableTh align="center">Status</DataTableTh>
                     </tr>
                   </DataTableHead>
                   <tbody>
                     {pagedRows.items.map((row) => {
                       const missing = !rowHasRate(row);
+                      const factorLabel = currencyFxFactorLabel(row.isoCode);
                       return (
                         <DataTableRow
                           key={row.currencyId}
@@ -575,12 +583,12 @@ export function CurrencyRatesSection({
                           <DataTableTd align="right">
                             {row.isBase ? (
                               <span className="text-foreground-muted">
-                                1.00 (USD locked)
+                                1 (USD locked)
                               </span>
                             ) : canEdit ? (
                               <div className="ml-auto flex max-w-xs items-center gap-2">
                                 <span className="shrink-0 text-xs text-foreground-subtle">
-                                  1 USD =
+                                  1 {row.isoCode} →
                                 </span>
                                 <input
                                   type="text"
@@ -603,17 +611,23 @@ export function CurrencyRatesSection({
                                   placeholder="Not set"
                                   className={cn(ui.input, "text-right tabular-nums")}
                                   disabled={busy}
-                                  aria-label={`${row.isoCode} units per 1 USD`}
+                                  aria-label={`${row.isoCode} conversion rate`}
                                 />
-                                <span className="shrink-0 text-xs text-foreground-subtle">
-                                  {row.isoCode}
-                                </span>
                               </div>
                             ) : (
                               <span className="text-foreground-muted tabular-nums">
                                 {row.rateInput.trim()
-                                  ? `1 USD = ${row.rateInput} ${row.isoCode}`
+                                  ? row.rateInput
                                   : "Not set"}
+                              </span>
+                            )}
+                          </DataTableTd>
+                          <DataTableTd align="center">
+                            {row.isBase ? (
+                              <span className="text-foreground-subtle">—</span>
+                            ) : (
+                              <span className="text-sm text-foreground-muted">
+                                {factorLabel}
                               </span>
                             )}
                           </DataTableTd>

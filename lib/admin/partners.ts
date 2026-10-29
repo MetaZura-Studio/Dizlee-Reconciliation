@@ -183,6 +183,13 @@ export async function deletePartner(
     throw new PartnerActionError("Partner not found", 404);
   }
 
+  const userCount = await prisma.user.count({
+    where: { partnerId, isDeleted: false },
+  });
+  if (userCount > 0) {
+    throw new PartnerActionError("PARTNER_HAS_USERS");
+  }
+
   await prisma.partner.update({
     where: { id: partnerId },
     data: {

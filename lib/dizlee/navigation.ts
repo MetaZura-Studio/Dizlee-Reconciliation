@@ -7,19 +7,40 @@ export type DizleeNavItem = {
   label: string;
   href: string;
   description?: string;
+  children?: DizleeNavItem[];
 };
 
 export const DIZLEE_NAV_ITEMS: DizleeNavItem[] = [
   { label: "Dashboard", href: "/dizlee" },
-  { label: "Reports", href: "/dizlee/reports", description: "Reports history" },
+  {
+    label: "Reports",
+    href: "/dizlee/reports",
+    description: "Report history, revenue share, and OpCo–Partner revenue",
+    children: [
+      {
+        label: "Reports",
+        href: "/dizlee/reports",
+        description: "Reports history",
+      },
+      {
+        label: "RS Reports",
+        href: "/dizlee/revenue-share",
+        description: "OpCo revenue share Excel reports",
+      },
+      {
+        label: "Partner RS Reports",
+        href: "/dizlee/partner-revenue-share",
+        description: "Partner Revenue Share reports sent after reconciliation",
+      },
+      {
+        label: "OpCo–Partner revenue",
+        href: "/dizlee/period-revenue",
+        description: "OpCo–Partner gross sales from OpCo reports",
+      },
+    ],
+  },
   { label: "Invoices", href: "/dizlee/invoices" },
   { label: "Reconciliation", href: "/dizlee/reconciliation" },
-  { label: "RS Reports", href: "/dizlee/revenue-share" },
-  {
-    label: "Partner RS",
-    href: "/dizlee/partner-revenue-share",
-    description: "Partner Revenue Share reports sent after reconciliation",
-  },
   {
     label: "Communications",
     href: "/dizlee/communications",

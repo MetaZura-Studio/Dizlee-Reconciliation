@@ -9,7 +9,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { FieldLabel, Input, Select } from "@/components/ui/field";
+import { FieldLabel, Select } from "@/components/ui/field";
 import { FileDropField } from "@/components/ui/file-drop-field";
 import {
   FormLayout,
@@ -41,11 +41,17 @@ const MONTHS = [
   "December",
 ];
 
-export function InvoiceUploadForm() {
+type InvoiceUploadFormProps = {
+  /** When false, form is replaced with a closed message (Dizlee gate). */
+  uploadEnabled?: boolean;
+};
+
+export function InvoiceUploadForm({
+  uploadEnabled = true,
+}: InvoiceUploadFormProps) {
   const defaultPeriod = getDefaultPeriod();
   const [year, setYear] = useState(defaultPeriod.year);
   const [month, setMonth] = useState(defaultPeriod.month);
-  const [invoiceNumber, setInvoiceNumber] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [successInvoiceId, setSuccessInvoiceId] = useState<string | null>(null);
@@ -55,6 +61,20 @@ export function InvoiceUploadForm() {
   const yearOptions = getPeriodYearOptions();
   const maxMonth = getMaxMonthForYear(year);
   const monthOptions = MONTHS.slice(0, maxMonth);
+
+  if (!uploadEnabled) {
+    return (
+      <PageSection
+        title="Invoice upload closed"
+        description="Dizlee has temporarily disabled invoice upload for your account. You will be notified when upload is open again."
+        className="p-3 sm:p-4"
+      >
+        <Link href="/partner/invoices" className="text-sm underline">
+          ← Back to invoices
+        </Link>
+      </PageSection>
+    );
+  }
 
   function handleYearChange(nextYear: number) {
     setYear(nextYear);
@@ -77,9 +97,6 @@ export function InvoiceUploadForm() {
     const formData = new FormData();
     formData.append("year", String(year));
     formData.append("month", String(month));
-    if (invoiceNumber.trim()) {
-      formData.append("invoiceNumber", invoiceNumber.trim());
-    }
     formData.append("file", file);
 
     setIsSubmitting(true);
@@ -104,7 +121,6 @@ export function InvoiceUploadForm() {
       setSuccessInvoiceId(payload.invoiceId ?? "");
       toast.success("Invoice uploaded successfully.");
       setFile(null);
-      setInvoiceNumber("");
       form.reset();
     } catch {
       setError("Failed to upload invoice");
@@ -123,7 +139,7 @@ export function InvoiceUploadForm() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <PageSection
             title="Invoice details"
-            description="Choose the billing period, optional invoice number, and PDF."
+            description="Choose the billing period and PDF. Invoice number is assigned automatically."
             className="p-3 sm:p-4"
           >
             <div className="grid gap-3 sm:grid-cols-2">
@@ -165,21 +181,6 @@ export function InvoiceUploadForm() {
                     </option>
                   ))}
                 </Select>
-              </div>
-
-              <div className="sm:col-span-2">
-                <FieldLabel htmlFor="invoice-number">
-                  Invoice number (optional)
-                </FieldLabel>
-                <Input
-                  id="invoice-number"
-                  name="invoiceNumber"
-                  type="text"
-                  maxLength={64}
-                  value={invoiceNumber}
-                  onChange={(event) => setInvoiceNumber(event.target.value)}
-                  placeholder="Auto-generated if left blank"
-                />
               </div>
 
               <div className="sm:col-span-2">
@@ -233,7 +234,7 @@ export function InvoiceUploadForm() {
           <li>
             Period: {MONTHS[month - 1]} {year}.
           </li>
-          <li>Leave invoice number blank to auto-generate.</li>
+          <li>Invoice number is assigned automatically on upload.</li>
         </ul>
       </HelpPanel>
     </FormLayout>

@@ -44,6 +44,8 @@ export type PartnerDashboardData = {
   pendingCount: number;
   /** Whether a partner→client invoice exists for this period. */
   periodInvoiceUploaded: boolean;
+  /** Dizlee gate: Partner may upload invoices when true. */
+  invoiceUploadEnabled: boolean;
   opcoSummaries: OpcoSubmissionSummary[];
   recentUploads: RecentUploadSummary[];
 };
@@ -95,8 +97,8 @@ export async function getPartnerDashboard(
   const [partner, opcoLinks, periodReports, recentReports, periodInvoices] =
     await Promise.all([
       prisma.partner.findFirst({
-        where: { id: partnerId },
-        select: { name: true },
+        where: { id: partnerId, isDeleted: false },
+        select: { name: true, invoiceUploadEnabled: true },
       }),
       prisma.opcoPartnerLink.findMany({
         where: { partnerId, ...ACTIVE_OPCO_PARTNER_LINK_FILTER },
@@ -188,6 +190,7 @@ export async function getPartnerDashboard(
     changeRequestedCount,
     pendingCount,
     periodInvoiceUploaded,
+    invoiceUploadEnabled: partner?.invoiceUploadEnabled === true,
     opcoSummaries,
     recentUploads: recentReports.map((report) => ({
       reportId: report.id.toString(),

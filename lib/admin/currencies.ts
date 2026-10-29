@@ -37,6 +37,7 @@ function mapCurrency(row: {
 
 export async function listCurrencies(): Promise<CurrencyListItem[]> {
   const currencies = await prisma.currency.findMany({
+    where: { isDeleted: false },
     select: {
       id: true,
       isoCode: true,

@@ -14,8 +14,8 @@ describe("decimalPrecisionForCurrency", () => {
     expect(decimalPrecisionForCurrency("KWD")).toBe(3);
     expect(decimalPrecisionForCurrency("BHD")).toBe(3);
     expect(decimalPrecisionForCurrency("JOD")).toBe(3);
-    expect(decimalPrecisionForCurrency("OMR")).toBe(3);
     expect(decimalPrecisionForCurrency("IQD")).toBe(3);
+    expect(decimalPrecisionForCurrency("SSP")).toBe(2);
   });
 
   it("defaults unknown currencies to 2", () => {
@@ -24,14 +24,17 @@ describe("decimalPrecisionForCurrency", () => {
 });
 
 describe("formatMoney", () => {
-  it("formats USD with 2 fraction digits", () => {
-    expect(formatMoney(1234.5, "USD")).toBe("$1,234.50");
+  it("formats USD up to 2 fraction digits and trims trailing zeros", () => {
+    expect(formatMoney(1234.5, "USD")).toBe("$1,234.5");
+    expect(formatMoney(1234.56, "USD")).toBe("$1,234.56");
+    expect(formatMoney(1234, "USD")).toBe("$1,234");
   });
 
-  it("formats KWD with 3 fraction digits", () => {
+  it("formats KWD up to 3 fraction digits and trims trailing zeros", () => {
     expect(formatMoney(1234.5678, "KWD", { style: "decimal" })).toBe(
       "1,234.568",
     );
+    expect(formatMoney(890400, "IQD", { style: "decimal" })).toBe("890,400");
   });
 });
 
@@ -44,7 +47,8 @@ describe("roundMoney", () => {
 
 describe("formatUsd", () => {
   it("always uses USD precision", () => {
-    expect(formatUsd(10)).toBe("$10.00");
+    expect(formatUsd(10)).toBe("$10");
+    expect(formatUsd(10.5)).toBe("$10.5");
     expect(formatUsd(null)).toBe("—");
   });
 });

@@ -57,26 +57,25 @@ export function formatMoney(
   const digits = decimalPrecisionForCurrency(iso);
   const style = options.style ?? "currency";
 
+  // Omit trailing zeros on wholes; keep up to currency precision when needed.
+  const fractionOpts = {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: digits,
+    useGrouping: true,
+  } as const;
+
   try {
     if (style === "decimal") {
-      return amount.toLocaleString("en-US", {
-        minimumFractionDigits: digits,
-        maximumFractionDigits: digits,
-        useGrouping: true,
-      });
+      return amount.toLocaleString("en-US", fractionOpts);
     }
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: iso,
-      minimumFractionDigits: digits,
+      minimumFractionDigits: 0,
       maximumFractionDigits: digits,
     }).format(amount);
   } catch {
-    return `${amount.toLocaleString("en-US", {
-      minimumFractionDigits: digits,
-      maximumFractionDigits: digits,
-      useGrouping: true,
-    })} ${iso}`;
+    return `${amount.toLocaleString("en-US", fractionOpts)} ${iso}`;
   }
 }
 

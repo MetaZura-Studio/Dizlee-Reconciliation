@@ -129,6 +129,12 @@ When the user later asks to update the ERD / [`04_DATABASE_SCHEMA_FOR_CURSOR.md`
 - Object storage folder: `partner-revenue-share/`
 - Retention: cron purges reports older than current month − 3 months
 
+### Applied migration — Partner invoice upload enabled
+- Migration: `prisma/migrations/20261028140000_partner_invoice_upload_enabled`
+- Table `partners`: add `invoice_upload_enabled BOOLEAN NOT NULL DEFAULT true` (`invoiceUploadEnabled`)
+- Dizlee toggles per Partner; when false, Partner portal cannot upload Partner→Dizlee invoices
+- Seed template: `PARTNER_INVOICE_UPLOAD_OPEN` (INTIMATION) — sent on OFF→ON
+
 ## Source of truth until ERD is refreshed
 1. [`prisma/schema.prisma`](prisma/schema.prisma)
 2. Files under [`prisma/migrations/`](prisma/migrations/)

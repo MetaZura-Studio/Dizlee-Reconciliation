@@ -17,7 +17,9 @@ import {
   hashPasswordResetToken,
   type PasswordResetPurpose,
 } from "@/lib/auth/password-reset";
+import { isPortalOrgActiveForLogin } from "@/lib/auth/portal-org-active";
 import type { AppSessionUser } from "@/lib/auth/types";
+import { normalizeRoleCode } from "@/lib/auth/types";
 import { prisma } from "@/lib/prisma";
 import { DomainError } from "@/lib/errors/app-error";
 
@@ -72,7 +74,15 @@ export async function issuePasswordResetForUser(
 ): Promise<{ token: string; emailResult: Awaited<ReturnType<typeof sendPasswordEmail>> }> {
   const user = await prisma.user.findFirst({
     where: { id: userId, isDeleted: false },
-    select: { id: true, email: true, name: true, status: { select: { code: true } } },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      opcoId: true,
+      partnerId: true,
+      status: { select: { code: true } },
+      role: { select: { code: true } },
+    },
   });
 
   if (!user) {
@@ -80,6 +90,16 @@ export async function issuePasswordResetForUser(
   }
 
   if (user.status.code !== "ACTIVE") {
+    throw new PasswordFlowError("User account is not active");
+  }
+
+  const role = normalizeRoleCode(user.role.code);
+  const orgActive = await isPortalOrgActiveForLogin({
+    role,
+    opcoId: user.opcoId,
+    partnerId: user.partnerId,
+  });
+  if (!orgActive) {
     throw new PasswordFlowError("User account is not active");
   }
 
@@ -123,6 +143,7 @@ export async function setPasswordWithToken(rawInput: {
     },
     include: {
       status: true,
+      role: true,
     },
   });
 
@@ -135,6 +156,16 @@ export async function setPasswordWithToken(rawInput: {
   }
 
   if (user.status.code !== "ACTIVE") {
+    throw new PasswordFlowError("This account is not active", 403);
+  }
+
+  const role = normalizeRoleCode(user.role.code);
+  const orgActive = await isPortalOrgActiveForLogin({
+    role,
+    opcoId: user.opcoId,
+    partnerId: user.partnerId,
+  });
+  if (!orgActive) {
     throw new PasswordFlowError("This account is not active", 403);
   }
 
@@ -218,6 +249,16 @@ export async function requestForgotPassword(rawInput: {
     "If an account exists for that email, we sent a password reset link.";
 
   if (!user || user.status.code !== "ACTIVE") {
+    return { message: genericMessage };
+  }
+
+  const role = normalizeRoleCode(user.role.code);
+  const orgActive = await isPortalOrgActiveForLogin({
+    role,
+    opcoId: user.opcoId,
+    partnerId: user.partnerId,
+  });
+  if (!orgActive) {
     return { message: genericMessage };
   }
 

@@ -283,7 +283,6 @@ export function PartnerPortalRevenueShareView({
                           onSort={() => applySort("opco")}
                         />
                         <DataTableTh>Period</DataTableTh>
-                        <DataTableTh>Retention</DataTableTh>
                         <SortableDataTableTh
                           label="Received"
                           active={sortBy === "sentAt"}
@@ -301,11 +300,6 @@ export function PartnerPortalRevenueShareView({
                           </DataTableTd>
                           <DataTableTd className="text-foreground-muted">
                             {row.periodLabel}
-                          </DataTableTd>
-                          <DataTableTd className="text-foreground-muted">
-                            {row.retentionLabel === "none"
-                              ? "—"
-                              : row.retentionLabel}
                           </DataTableTd>
                           <DataTableTd className="text-foreground-muted">
                             {row.sentAtLabel}

@@ -70,9 +70,8 @@ export function PartnerDeleteModal({
           <ModalCloseButton onClick={onClose} disabled={submitting} />
         </div>
         <p className="mt-2 text-sm text-foreground-muted">
-          This will soft-delete{" "}
+          This will delete{" "}
           <span className="font-medium text-foreground">{partner.name}</span>.
-          Linked users are not deleted; reassign or deactivate them separately.
         </p>
 
         {error ? <p className={`mt-3 ${ui.alertError}`}>{error}</p> : null}

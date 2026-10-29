@@ -155,6 +155,16 @@ export const ERROR_CATALOG = {
     message: "OPCO ID AND PARTNER ID REQUIRED",
     status: 400,
   },
+  OPCO_HAS_USERS: {
+    code: 163,
+    message: "OPCO HAS USERS",
+    status: 409,
+  },
+  PARTNER_HAS_USERS: {
+    code: 164,
+    message: "PARTNER HAS USERS",
+    status: 409,
+  },
 
   // Users 180–199
   EMAIL_ALREADY_EXISTS: {
@@ -453,6 +463,11 @@ export const ERROR_CATALOG = {
     message: "INVOICE UPLOAD FAILED",
     status: 400,
   },
+  PARTNER_INVOICE_UPLOAD_DISABLED: {
+    code: 338,
+    message: "PARTNER INVOICE UPLOAD DISABLED",
+    status: 403,
+  },
 
   // Reconciliation 360–399
   RECONCILIATION_NOT_FOUND: {
@@ -628,6 +643,9 @@ const MESSAGE_ALIASES: Record<string, ErrorKey> = {
   "One or more selected Partners were not found.":
     "SELECTED_PARTNERS_NOT_FOUND",
   "opcoId and partnerId are required.": "OPCO_ID_PARTNER_ID_REQUIRED",
+  "This organization has users and cannot be deleted.": "OPCO_HAS_USERS",
+  "This OpCo has users and cannot be deleted.": "OPCO_HAS_USERS",
+  "This Partner has users and cannot be deleted.": "PARTNER_HAS_USERS",
   "A user with this email already exists": "EMAIL_ALREADY_EXISTS",
   "Admin accounts cannot be managed here": "ADMIN_ACCOUNT_FORBIDDEN",
   "You cannot delete your own account": "CANNOT_DELETE_OWN_ACCOUNT",
@@ -707,6 +725,8 @@ const MESSAGE_ALIASES: Record<string, ErrorKey> = {
   "Invoice file is not available in storage.": "INVOICE_FILE_UNAVAILABLE",
   "Only Dizlee → OpCo or Partner → Dizlee invoices can be marked paid.":
     "INVOICE_MARK_PAID_FORBIDDEN",
+  "Invoice upload is currently disabled by Dizlee":
+    "PARTNER_INVOICE_UPLOAD_DISABLED",
   "Reconciliation not found": "RECONCILIATION_NOT_FOUND",
   "Reconciliation not found.": "RECONCILIATION_NOT_FOUND",
   "Invalid reconciliation id": "INVALID_RECONCILIATION_ID",

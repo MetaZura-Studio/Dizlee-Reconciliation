@@ -19,6 +19,15 @@ vi.mock("@/lib/dizlee/reports-monitoring", () => ({
     mockedListReportMonitoringLanes(...args),
 }));
 
+const mockedFilterPartnersInvoiceUpload = vi.fn(
+  async (ids: string[]) => ids,
+);
+
+vi.mock("@/lib/platform/partner-invoice-upload-access", () => ({
+  filterPartnerIdsWithInvoiceUploadEnabled: (...args: unknown[]) =>
+    mockedFilterPartnersInvoiceUpload(...(args as [string[]])),
+}));
+
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     user: {
@@ -266,5 +275,59 @@ describe("runAutomaticSubmissionReminders", () => {
       reason: "no_recipients",
     });
     expect(mockedSendBroadcastNotification).not.toHaveBeenCalled();
+  });
+
+  it("filters partners with invoice upload disabled for INVOICE templates", async () => {
+    mockedGetReminderSettings.mockResolvedValue({
+      remindersEnabled: true,
+      reminderValue: 3,
+      reminderUnit: "days",
+      schedule: {
+        enabled: true,
+        dueDayOfMonth: 10,
+        intimations: [
+          {
+            id: "inv1",
+            dayOfMonth: 7,
+            templateCode: "INVOICE_SUBMISSION",
+            audience: "partner" as const,
+          },
+        ],
+        reminders: [],
+      },
+    });
+    mockLanes([
+      lane({
+        opcoId: "1",
+        partnerId: "10",
+        opcoStatus: "Submitted",
+        partnerStatus: "Missing",
+      }),
+      lane({
+        opcoId: "2",
+        partnerId: "20",
+        opcoStatus: "Submitted",
+        partnerStatus: "Missing",
+      }),
+    ]);
+    mockedFilterPartnersInvoiceUpload.mockResolvedValueOnce(["20"]);
+
+    const result = await runAutomaticSubmissionReminders({
+      now: new Date(2026, 6, 7, 12, 0, 0),
+      fromUserId: BigInt(99),
+    });
+
+    expect(result.status).toBe("sent");
+    expect(mockedFilterPartnersInvoiceUpload).toHaveBeenCalledWith(
+      expect.arrayContaining(["10", "20"]),
+    );
+    expect(mockedSendBroadcastNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: expect.objectContaining({
+          messageSource: "INVOICE_SUBMISSION",
+          partnerIds: ["20"],
+        }),
+      }),
+    );
   });
 });

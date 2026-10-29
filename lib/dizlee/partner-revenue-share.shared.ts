@@ -13,14 +13,15 @@ export type PartnerRsRetentionOptions = {
   line2: PartnerRsRetentionLineOptions;
 };
 
+/** Defaults: 10% then 5% (cascading order = line1, then line2). */
 export const DEFAULT_PARTNER_RS_RETENTION_OPTIONS: PartnerRsRetentionOptions = {
-  line1: { enabled: true, percent: 5 },
-  line2: { enabled: true, percent: 10 },
+  line1: { enabled: true, percent: 10 },
+  line2: { enabled: true, percent: 5 },
 };
 
-/** @deprecated Prefer DEFAULT_PARTNER_RS_RETENTION_OPTIONS.line1.percent */
-export const PARTNER_RS_RETENTION_5_PERCENT = 5;
 /** @deprecated Prefer DEFAULT_PARTNER_RS_RETENTION_OPTIONS.line2.percent */
+export const PARTNER_RS_RETENTION_5_PERCENT = 5;
+/** @deprecated Prefer DEFAULT_PARTNER_RS_RETENTION_OPTIONS.line1.percent */
 export const PARTNER_RS_RETENTION_10_PERCENT = 10;
 
 function clampRetentionPercent(value: number): number {
@@ -80,22 +81,22 @@ export function parsePartnerRsRetentionOptions(
     };
   }
 
-  // Legacy shape: { includeRetention5, includeRetention10 }
+  // Legacy shape: { includeRetention5, includeRetention10 } → apply 10% then 5%.
   if ("includeRetention5" in body || "includeRetention10" in body) {
     return {
       line1: {
         enabled:
-          typeof body.includeRetention5 === "boolean"
-            ? body.includeRetention5
+          typeof body.includeRetention10 === "boolean"
+            ? body.includeRetention10
             : DEFAULT_PARTNER_RS_RETENTION_OPTIONS.line1.enabled,
-        percent: PARTNER_RS_RETENTION_5_PERCENT,
+        percent: PARTNER_RS_RETENTION_10_PERCENT,
       },
       line2: {
         enabled:
-          typeof body.includeRetention10 === "boolean"
-            ? body.includeRetention10
+          typeof body.includeRetention5 === "boolean"
+            ? body.includeRetention5
             : DEFAULT_PARTNER_RS_RETENTION_OPTIONS.line2.enabled,
-        percent: PARTNER_RS_RETENTION_10_PERCENT,
+        percent: PARTNER_RS_RETENTION_5_PERCENT,
       },
     };
   }
