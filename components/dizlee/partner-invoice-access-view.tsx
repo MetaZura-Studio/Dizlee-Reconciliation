@@ -106,6 +106,7 @@ export function PartnerInvoiceAccessView({
   const [sortDir, setSortDir] = useState<SortDirection>(
     initialResult.filters.sortDir,
   );
+  const [prevInitial, setPrevInitial] = useState(initialResult);
   const debouncedSearch = useDebouncedValue(search, 300);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [listPending, startListTransition] = useTransition();
@@ -115,13 +116,14 @@ export function PartnerInvoiceAccessView({
     null,
   );
 
-  useEffect(() => {
+  if (initialResult !== prevInitial) {
+    setPrevInitial(initialResult);
     setResult(initialResult);
     setSearch(initialResult.filters.search ?? "");
     setStatus(initialResult.filters.status);
     setSortBy(initialResult.filters.sortBy);
     setSortDir(initialResult.filters.sortDir);
-  }, [initialResult]);
+  }
 
   const currentFilters = useCallback((): PartnerInvoiceAccessFilters => {
     return {

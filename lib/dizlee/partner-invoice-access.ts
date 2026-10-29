@@ -13,10 +13,7 @@ import type {
   PartnerInvoiceAccessResult,
   PartnerInvoiceAccessStatusFilter,
 } from "@/lib/dizlee/partner-invoice-access.shared";
-import {
-  PARTNER_INVOICE_ACCESS_PAGE_SIZE,
-  parsePartnerInvoiceAccessFilters,
-} from "@/lib/dizlee/partner-invoice-access.shared";
+import { PARTNER_INVOICE_ACCESS_PAGE_SIZE } from "@/lib/dizlee/partner-invoice-access.shared";
 import { writePlatformAuditLog } from "@/lib/platform/audit-log";
 import { formatAppDateTime } from "@/lib/platform/format-datetime";
 import { getCurrentPeriod } from "@/lib/platform/period";
