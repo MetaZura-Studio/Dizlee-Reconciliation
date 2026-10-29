@@ -350,7 +350,7 @@ function BillingSectionView({
   return (
     <DashboardSection
       tone="billing"
-      title="Billing & revenue"
+      title="Billing & sales"
       action={
         <Link
           href={allInvoicesHref}
@@ -363,7 +363,7 @@ function BillingSectionView({
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard label="Invoices" value={kpis.invoices} href={allInvoicesHref} tone="blue" />
         <KpiCard
-          label="Total revenue (paid OpCos)"
+          label="Total sales (paid OpCos)"
           value={formatUsd(kpis.totalRevenuePaidUsd)}
           href={paidInvoicesHref}
           tone="teal"
@@ -391,7 +391,7 @@ function BillingSectionView({
 
       <div className="grid gap-4 lg:grid-cols-2">
         <DonutChart
-          title="Revenue by OpCo (paid)"
+          title="Sales by OpCo (paid)"
           segments={billing.revenueByOpco}
           formatValue={(value) => formatUsd(value)}
           getSegmentHref={(segment) =>

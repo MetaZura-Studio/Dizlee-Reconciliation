@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  ACCOUNT_INACTIVE_SIGNIN_ERROR,
   ACCOUNT_SUSPENDED_SIGNIN_ERROR,
   RATE_LIMITED_SIGNIN_ERROR,
   resolveCredentialsSignInError,
@@ -16,6 +17,16 @@ describe("resolveCredentialsSignInError", () => {
         status: 401,
       }),
     ).toBe(ACCOUNT_SUSPENDED_SIGNIN_ERROR);
+  });
+
+  it("maps AccountInactive from next-auth", () => {
+    expect(
+      resolveCredentialsSignInError({
+        ok: false,
+        error: ACCOUNT_INACTIVE_SIGNIN_ERROR,
+        status: 401,
+      }),
+    ).toBe(ACCOUNT_INACTIVE_SIGNIN_ERROR);
   });
 
   it("maps rate limit status", () => {
@@ -49,6 +60,14 @@ describe("ACCOUNT_SUSPENDED client copy", () => {
   it("tells the user to contact support", () => {
     expect(formatAppError("ACCOUNT_SUSPENDED")).toBe(
       "Your account has been suspended. Contact support.",
+    );
+  });
+});
+
+describe("ACCOUNT_NOT_ACTIVE client copy", () => {
+  it("tells the user the account is inactive", () => {
+    expect(formatAppError("ACCOUNT_NOT_ACTIVE")).toBe(
+      "Your account is inactive. Contact your administrator.",
     );
   });
 });

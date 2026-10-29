@@ -23,6 +23,10 @@ import {
   BASE_CURRENCY_RATE,
   getMonthlyRatesForPeriod,
 } from "@/lib/platform/currency-rates";
+import {
+  formatDizleeOpcoInvoiceNumber,
+  parseDizleeOpcoInvoiceSequence,
+} from "@/lib/dizlee/invoice-number";
 import { buildOpcoInvoicePdf } from "@/lib/dizlee/invoice-pdf";
 import { formatAppMonthYear } from "@/lib/platform/format-datetime";
 import { formatMoney, roundMoney } from "@/lib/platform/format-money";
@@ -143,6 +147,8 @@ export type CreateOpcoInvoiceFormOptions = {
   /** Period FX rates (local → USD) for dual-currency preview and create. */
   fxRates: Array<{ currencyId: string; rateToUsd: number }>;
   fxPeriod: { month: number; year: number };
+  /** Next global API-seq for Dizlee→OpCo (preview; reserved on send). */
+  nextInvoiceSequence: number;
 };
 
 export class InvoiceActionError extends DomainError {
@@ -347,18 +353,21 @@ export async function getCreateOpcoInvoiceFormOptions(params?: {
   const month = params?.month ?? now.month;
   const year = params?.year ?? now.year;
 
-  const [opcos, currencies, bankAccounts, fxRates] = await Promise.all([
-    prisma.opco.findMany({
-      orderBy: { name: "asc" },
-      select: { id: true, name: true, defaultCurrencyId: true },
-    }),
-    prisma.currency.findMany({
-      orderBy: { isoCode: "asc" },
-      select: { id: true, isoCode: true, symbol: true },
-    }),
-    getInvoiceBankAccounts(),
-    getMonthlyRatesForPeriod(month, year),
-  ]);
+  const invoiceTypeId = await getLookupId("INVOICE_TYPE", "CLIENT_TO_OPCO");
+  const [opcos, currencies, bankAccounts, fxRates, nextInvoiceSequence] =
+    await Promise.all([
+      prisma.opco.findMany({
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, defaultCurrencyId: true },
+      }),
+      prisma.currency.findMany({
+        orderBy: { isoCode: "asc" },
+        select: { id: true, isoCode: true, symbol: true },
+      }),
+      getInvoiceBankAccounts(),
+      getMonthlyRatesForPeriod(month, year),
+      allocateDizleeOpcoInvoiceSequence(invoiceTypeId),
+    ]);
 
   const ratesByCurrencyId = new Map(
     fxRates.map((rate) => [rate.currencyId, rate.rateToUsd]),
@@ -391,15 +400,42 @@ export async function getCreateOpcoInvoiceFormOptions(params?: {
       rateToUsd,
     })),
     fxPeriod: { month, year },
+    nextInvoiceSequence,
   };
 }
 
-function buildInvoiceNumber(
-  opcoId: bigint,
-  month: number,
-  year: number,
-): string {
-  return `INV-${year}${String(month).padStart(2, "0")}-${opcoId.toString()}-${Date.now()}`;
+/**
+ * Next global sequential number for Dizlee→OpCo invoices.
+ * Continues past legacy INV-* rows by using max(parsed API-seq, CLIENT_TO_OPCO count).
+ */
+async function allocateDizleeOpcoInvoiceSequence(
+  invoiceTypeId: number,
+): Promise<number> {
+  const [count, recent] = await Promise.all([
+    prisma.invoice.count({
+      where: { invoiceTypeId, isDeleted: false },
+    }),
+    prisma.invoice.findMany({
+      where: {
+        invoiceTypeId,
+        isDeleted: false,
+        invoiceNumber: { startsWith: "API-" },
+      },
+      select: { invoiceNumber: true },
+      orderBy: { id: "desc" },
+      take: 200,
+    }),
+  ]);
+
+  let maxSeq = 0;
+  for (const row of recent) {
+    const seq = parseDizleeOpcoInvoiceSequence(row.invoiceNumber);
+    if (seq !== null && seq > maxSeq) {
+      maxSeq = seq;
+    }
+  }
+
+  return Math.max(maxSeq, count) + 1;
 }
 
 function validateCreateInput(input: CreateOpcoInvoiceInput): CreateOpcoInvoiceLineInput[] {
@@ -462,7 +498,7 @@ export async function createOpcoInvoice(
 
   const opco = await prisma.opco.findFirst({
     where: { id: opcoId },
-    select: { id: true, defaultCurrencyId: true },
+    select: { id: true, name: true, defaultCurrencyId: true },
   });
   if (!opco) {
     throw new InvoiceActionError("OpCo not found.", 404);
@@ -546,7 +582,13 @@ export async function createOpcoInvoice(
   }
 
   const now = new Date();
-  const invoiceNumber = buildInvoiceNumber(opcoId, input.month, input.year);
+  const sequence = await allocateDizleeOpcoInvoiceSequence(invoiceTypeId);
+  const invoiceNumber = formatDizleeOpcoInvoiceNumber({
+    sequence,
+    month: input.month,
+    year: input.year,
+    opcoName: opco.name,
+  });
 
   const invoice = await prisma.invoice.create({
     data: {

@@ -122,6 +122,10 @@ export function resolveNotificationHref(
     }
   }
 
+  if (subject === "Invoice upload is open" && portal === "partner") {
+    return "/partner/invoices/upload";
+  }
+
   if (/invoice/i.test(subject)) {
     if (
       portal === "opco" &&

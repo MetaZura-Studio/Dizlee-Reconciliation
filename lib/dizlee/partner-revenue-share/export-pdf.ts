@@ -166,7 +166,7 @@ export async function buildPartnerRevenueSharePdf(
       ? [
           "Sr. No",
           "Service Names",
-          "Gross Revenue (LC)",
+          "Gross Sales (LC)",
           "Regulatory Fee %",
           "Partner RS%",
           "Partner RS Amount",
@@ -174,7 +174,7 @@ export async function buildPartnerRevenueSharePdf(
       : [
           "Sr. No",
           "Service Names",
-          "Gross Revenue (LC)",
+          "Gross Sales (LC)",
           "Partner RS%",
           "Partner RS Amount",
         ],
@@ -229,14 +229,6 @@ export async function buildPartnerRevenueSharePdf(
   );
 
   doc.y = y + 14;
-  doc.font("Helvetica").fontSize(9).fillColor("#555555");
-  doc.text(
-    "Note: Partner RS% is configured by Admin on Service–Partner maps for this OpCo.",
-    left,
-    doc.y,
-    { width: contentWidth },
-  );
-  doc.moveDown(1);
 
   const summaryLeft = left;
   const summaryLabelWidth = 220;
@@ -247,8 +239,8 @@ export async function buildPartnerRevenueSharePdf(
     ["TOTAL RS (LC)", formatExportMoney(report.totalRsLc, moneyLc)],
     ["TOTAL RS (USD)", formatUsd2(report.totalRsUsd)],
     [
-      "Exchange rate (1 USD = local)",
-      Number(report.exchangeRateLocalPerUsd).toFixed(2),
+      "Conversion rate",
+      Number(report.conversionRate).toFixed(2),
     ],
   ];
   for (const line of report.retentionLines) {

@@ -27,7 +27,10 @@ import { hashPassword } from "../lib/auth/password";
 import { normalizeServiceKey } from "../lib/platform/service-partner-map";
 import { APP_SETTINGS_SEED } from "./seed-data/app-settings";
 import { CURRENCY_RATE_SEEDS } from "./seed-data/currency-rates";
-import { CURRENCY_SEEDS } from "./seed-data/currencies";
+import {
+  CURRENCY_SEEDS,
+  REMOVED_CURRENCY_ISO_CODES,
+} from "./seed-data/currencies";
 import {
   assertUniqueSlugs,
   validateSeedLinks,
@@ -87,6 +90,8 @@ async function seedCurrencies() {
         symbol: currency.symbol,
         decimalPrecision: currency.decimalPrecision,
         isDeleted: false,
+        deletedAt: null,
+        deletedByUserId: null,
       },
       create: {
         isoCode: currency.isoCode,
@@ -95,6 +100,19 @@ async function seedCurrencies() {
       },
     });
     currencyIds.set(currency.isoCode, record.id);
+  }
+
+  if (REMOVED_CURRENCY_ISO_CODES.length > 0) {
+    await prisma.currency.updateMany({
+      where: {
+        isoCode: { in: [...REMOVED_CURRENCY_ISO_CODES] },
+        isDeleted: false,
+      },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+      },
+    });
   }
 
   for (const [isoCode, rates] of Object.entries(CURRENCY_RATE_SEEDS)) {

@@ -46,13 +46,14 @@ export function exportMoneyNumber(
   return roundMoney(value, currencyIsoCode);
 }
 
-/** Excel number format for money (e.g. #,##0.00 / #,##0.000). */
+/** Excel number format for money (optional decimals up to currency precision). */
 export function excelMoneyNumFmt(currencyIsoCode: string): string {
   const digits = decimalPrecisionForCurrency(currencyIsoCode);
   if (digits <= 0) {
     return "#,##0";
   }
-  return `#,##0.${"0".repeat(digits)}`;
+  // `#` drops trailing zeros (890400 → 890,400 not 890,400.000).
+  return `#,##0.${"#".repeat(digits)}`;
 }
 
 /** Percent as a plain number (e.g. 25 for 25%), not Excel fraction. */
@@ -65,5 +66,5 @@ export function exportPercentNumber(
   return Number(value.toFixed(2));
 }
 
-/** Show percent number with a % suffix while keeping the cell numeric. */
-export const EXCEL_PERCENT_NUM_FMT = '0.00"%"';
+/** Show percent number with a % suffix; omit trailing .00 on wholes. */
+export const EXCEL_PERCENT_NUM_FMT = '0.##"%"';

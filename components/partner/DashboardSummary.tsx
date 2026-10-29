@@ -27,8 +27,13 @@ function reportsHref(year: number, month: number, status?: string): string {
   return `/partner/reports?${params.toString()}`;
 }
 
-function invoicesHref(year: number, month: number, hasInvoice: boolean): string {
-  if (!hasInvoice) {
+function invoicesHref(
+  year: number,
+  month: number,
+  hasInvoice: boolean,
+  uploadEnabled: boolean,
+): string {
+  if (!hasInvoice && uploadEnabled) {
     return "/partner/invoices/upload";
   }
   const params = new URLSearchParams({
@@ -63,10 +68,25 @@ export function DashboardSummary({ data }: DashboardSummaryProps) {
         />
         <StatCard
           label="Period invoice"
-          value={data.periodInvoiceUploaded ? "Uploaded" : "Missing"}
-          hint="Partner → client invoice for this month"
+          value={
+            data.periodInvoiceUploaded
+              ? "Uploaded"
+              : data.invoiceUploadEnabled
+                ? "Missing"
+                : "Closed"
+          }
+          hint={
+            data.invoiceUploadEnabled
+              ? "Partner → client invoice for this month"
+              : "Invoice upload closed by Dizlee"
+          }
           tone="blue"
-          href={invoicesHref(data.year, data.month, data.periodInvoiceUploaded)}
+          href={invoicesHref(
+            data.year,
+            data.month,
+            data.periodInvoiceUploaded,
+            data.invoiceUploadEnabled,
+          )}
         />
       </div>
 

@@ -7,7 +7,10 @@ import { SignOutButton } from "@/components/auth/sign-out-button";
 import { NotificationsBell } from "@/components/dizlee/notifications-bell";
 import { AppShell, type AppShellNavItem } from "@/components/layout/app-shell";
 import { IconChevronLeft, IconChevronRight } from "@/components/ui/icons";
-import { DIZLEE_NAV_ITEMS } from "@/lib/dizlee/navigation";
+import {
+  DIZLEE_NAV_ITEMS,
+  type DizleeNavItem,
+} from "@/lib/dizlee/navigation";
 import { cn, ui } from "@/lib/ui/classes";
 
 function iconForHref(href: string): AppShellNavItem["icon"] {
@@ -20,17 +23,32 @@ function iconForHref(href: string): AppShellNavItem["icon"] {
       return "invoice";
     case "/dizlee/reconciliation":
       return "compare";
+    case "/dizlee/revenue-share":
+    case "/dizlee/partner-revenue-share":
+    case "/dizlee/period-revenue":
+    case "/dizlee/reporting":
+      return "chart";
     case "/dizlee/communications":
       return "layers";
     case "/dizlee/notifications":
       return "bell";
     case "/dizlee/activity":
       return "layers";
-    case "/dizlee/reporting":
-      return "chart";
     default:
       return "file";
   }
+}
+
+function mapNavItem(item: DizleeNavItem): AppShellNavItem {
+  return {
+    label: item.label,
+    href:
+      item.href === "/dizlee/notifications"
+        ? "/dizlee/notifications?tab=inbox"
+        : item.href,
+    icon: iconForHref(item.href),
+    children: item.children?.map(mapNavItem),
+  };
 }
 
 type DizleeWorkspaceProps = {
@@ -178,12 +196,7 @@ export function DizleeWorkspace({
   const navItems = useMemo<AppShellNavItem[]>(
     () =>
       DIZLEE_NAV_ITEMS.map((item) => ({
-        ...item,
-        href:
-          item.href === "/dizlee/notifications"
-            ? "/dizlee/notifications?tab=inbox"
-            : item.href,
-        icon: iconForHref(item.href),
+        ...mapNavItem(item),
         badge:
           item.href === "/dizlee/notifications" && unreadCount > 0
             ? unreadCount

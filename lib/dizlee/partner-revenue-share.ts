@@ -11,6 +11,7 @@ import {
   formatAppDate,
   formatAppMonthYear,
 } from "@/lib/platform/format-datetime";
+import { adminConversionRateFromStored } from "@/lib/admin/currency-rate-input";
 import { getOpcoReportFx } from "@/lib/platform/report-fx";
 import {
   matchServiceMapRow,
@@ -64,8 +65,15 @@ export type PartnerRsReport = {
   partnerName: string;
   period: DashboardPeriod;
   currencyCode: string;
-  /** Local currency units per 1 USD (template exchange rate). */
+  /**
+   * Local currency units per 1 USD (used for LC → USD math: USD = LC / rate).
+   * Equal to 1 / rateToUsd.
+   */
   exchangeRateLocalPerUsd: number;
+  /**
+   * Admin conversion rate for display (multiply = USD per 1 LC; divide = divisor).
+   */
+  conversionRate: number;
   lines: PartnerRsLine[];
   totalGrossLc: number;
   totalRsLc: number;
@@ -184,21 +192,30 @@ export function partnerRsUsdFromLc(
   return totalRsLc / localPerUsd;
 }
 
+/** Single retention step: percent of the given base (USD). */
 export function partnerRsRetentionAmount(
-  totalRsUsd: number,
+  baseUsd: number,
   retentionPercent: number,
 ): number {
-  return (totalRsUsd * retentionPercent) / 100;
+  return (baseUsd * retentionPercent) / 100;
 }
 
+/**
+ * Retention lines cascade: each % is taken from the remaining balance after
+ * prior lines (line1 then line2), not independently from TOTAL RS USD.
+ */
 export function partnerRsRetentionLines(
   totalRsUsd: number,
   options: PartnerRsRetentionOptions = DEFAULT_PARTNER_RS_RETENTION_OPTIONS,
 ): Array<{ percent: number; amountUsd: number }> {
-  return enabledPartnerRsRetentionPercents(options).map((percent) => ({
-    percent,
-    amountUsd: partnerRsRetentionAmount(totalRsUsd, percent),
-  }));
+  let remaining = totalRsUsd;
+  const lines: Array<{ percent: number; amountUsd: number }> = [];
+  for (const percent of enabledPartnerRsRetentionPercents(options)) {
+    const amountUsd = partnerRsRetentionAmount(remaining, percent);
+    lines.push({ percent, amountUsd });
+    remaining -= amountUsd;
+  }
+  return lines;
 }
 
 export function partnerRsNetAmountUsd(
@@ -402,6 +419,8 @@ export async function buildPartnerRsReportForReconciliation(
   }
 
   const localPerUsd = 1 / fx.rateToUsd;
+  const conversionRate =
+    adminConversionRateFromStored(fx.rateToUsd, fx.currencyCode) ?? localPerUsd;
   const mapRows = maps.map((row) => ({
     serviceKey: row.serviceKey,
     serviceName: row.serviceName,
@@ -440,6 +459,7 @@ export async function buildPartnerRsReportForReconciliation(
     period: periodFromParts(reconciliation.month, reconciliation.year),
     currencyCode: fx.currencyCode,
     exchangeRateLocalPerUsd: localPerUsd,
+    conversionRate,
     lines,
     totalGrossLc,
     totalRsLc,

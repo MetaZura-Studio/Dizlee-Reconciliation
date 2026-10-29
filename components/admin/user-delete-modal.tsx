@@ -70,7 +70,7 @@ export function UserDeleteModal({
           <ModalCloseButton onClick={onClose} disabled={submitting} />
         </div>
         <p className="mt-2 text-sm text-foreground-muted">
-          This will deactivate and soft-delete{" "}
+          This will delete{" "}
           <span className="font-medium text-foreground">{user.email}</span>. The
           user will no longer be able to sign in.
         </p>

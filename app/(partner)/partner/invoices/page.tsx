@@ -3,6 +3,7 @@ import Link from "next/link";
 import { InvoicesTable } from "@/components/partner/InvoicesTable";
 import { PageCard, PageHeader } from "@/components/ui/page";
 import { ui } from "@/lib/ui/classes";
+import { getPartnerInvoiceUploadEnabled } from "@/lib/platform/partner-invoice-upload-access";
 import { requirePartnerSession } from "@/lib/partner/auth";
 import {
   getPartnerInvoiceFilterOptions,
@@ -39,23 +40,41 @@ export default async function PartnerInvoicesPage({
     toSearchParams(await searchParams),
   );
 
-  const [result, filterOptions] = await Promise.all([
+  const [result, filterOptions, uploadEnabled] = await Promise.all([
     searchInvoicesForPartner(partnerId, filters),
     getPartnerInvoiceFilterOptions(),
+    getPartnerInvoiceUploadEnabled(partnerId),
   ]);
 
   return (
     <PageCard>
       <PageHeader
         title="Invoices"
-        description="View partner-to-client invoices and track lifecycle status with Dizlee."
+        description={
+          uploadEnabled
+            ? "View partner-to-client invoices and track lifecycle status with Dizlee."
+            : "View invoices. Upload is currently closed by Dizlee."
+        }
         actions={
-          <Link href="/partner/invoices/upload" className={ui.btnPrimary}>
-            Upload invoice
-          </Link>
+          uploadEnabled ? (
+            <Link href="/partner/invoices/upload" className={ui.btnPrimary}>
+              Upload invoice
+            </Link>
+          ) : (
+            <span
+              className={`${ui.btnSecondary} cursor-not-allowed opacity-60`}
+              title="Invoice upload is currently disabled by Dizlee"
+            >
+              Upload invoice
+            </span>
+          )
         }
       />
-      <InvoicesTable initialResult={result} filterOptions={filterOptions} />
+      <InvoicesTable
+        initialResult={result}
+        filterOptions={filterOptions}
+        uploadEnabled={uploadEnabled}
+      />
     </PageCard>
   );
 }

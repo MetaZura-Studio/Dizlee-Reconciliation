@@ -131,6 +131,8 @@ model Partner {
   id              BigInt   @id @default(autoincrement())
   name            String   @db.VarChar(255)
   statusId        Int      @map("status_id")
+  /// When false, Partner portal cannot upload Partner→Dizlee invoices (Dizlee toggle).
+  invoiceUploadEnabled Boolean @default(true) @map("invoice_upload_enabled")
   createdByUserId BigInt?  @map("created_by_user_id")
   updatedByUserId BigInt?  @map("updated_by_user_id")
   createdAt       DateTime @default(now()) @map("created_at")
@@ -755,9 +757,15 @@ model RevenueShareReportItem {
   opcoAmountUsd          Decimal? @map("opco_amount_usd") @db.Decimal(18, 4)
   partnerAmountUsd       Decimal? @map("partner_amount_usd") @db.Decimal(18, 4)
   regulatoryFeePercent   Decimal  @map("regulatory_fee_percent") @db.Decimal(5, 2)
+  /// Regulatory fee amount in OpCo local currency (LC-first).
   regulatoryFeeAmount    Decimal  @map("regulatory_fee_amount") @db.Decimal(18, 4)
+  /// Net revenue in OpCo local currency (LC-first).
   netRevenue             Decimal  @map("net_revenue") @db.Decimal(18, 4)
   revenueSharePercent    Decimal? @map("revenue_share_percent") @db.Decimal(18, 4)
+  /// Revenue share amount in OpCo local currency.
+  revenueShareAmountLc   Decimal? @map("revenue_share_amount_lc") @db.Decimal(18, 4)
+  /// Revenue share amount in USD (FX of LC share).
+  revenueShareAmountUsd  Decimal? @map("revenue_share_amount_usd") @db.Decimal(18, 4)
   sortOrder              Int      @map("sort_order")
 
   report  RevenueShareReport @relation(fields: [revenueShareReportId], references: [id])

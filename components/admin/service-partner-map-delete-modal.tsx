@@ -73,7 +73,7 @@ export function ServicePartnerMapDeleteModal({
           <ModalCloseButton onClick={onClose} disabled={submitting} />
         </div>
         <p className="mt-2 text-sm text-foreground-muted">
-          Soft-delete mapping for{" "}
+          This will delete the mapping for{" "}
           <span className="font-medium text-foreground">{map.serviceName}</span>{" "}
           → {map.partnerName}.
         </p>

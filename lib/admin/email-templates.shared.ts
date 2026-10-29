@@ -77,6 +77,8 @@ export const EMAIL_TEMPLATE_PLACEHOLDERS: Record<string, string[]> = {
   ],
   PASSWORD_INVITE: ["name", "link", "expiryHours"],
   PASSWORD_FORGOT: ["name", "link", "expiryHours"],
+  PARTNER_INVOICE_UPLOAD_OPEN: [],
+  PARTNER_RS_REPORT: ["period"],
 };
 
 export function isEmailTemplateCategory(
@@ -122,6 +124,7 @@ export const PROTECTED_SYSTEM_EMAIL_TEMPLATE_CODES = [
   "RECONCILIATION_ALERT_OPCO",
   "RECONCILIATION_ALERT_PARTNER",
   "PARTNER_RS_REPORT",
+  "PARTNER_INVOICE_UPLOAD_OPEN",
 ] as const;
 
 export function isProtectedSystemEmailTemplate(code: string): boolean {

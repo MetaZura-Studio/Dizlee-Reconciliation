@@ -1,11 +1,11 @@
 /**
- * Excel builder for the Dizlee Revenue Share Report.
+ * Excel builder for the Dizlee Revenue Share Report (LC-first share math).
  */
 
 import ExcelJS from "exceljs";
 
 import {
-  resolveRevenueShareAmount,
+  revenueShareAmountUsdFromLc,
   type RevenueShareReport,
 } from "@/lib/dizlee/revenue-share";
 import {
@@ -59,8 +59,9 @@ export async function buildRevenueShareWorkbook(
     "Amount as per opco in usd",
     "Amount as per partner in usd",
     "Regulatory Fee %",
-    "Net Revenue",
-    "Revenue share amount",
+    "Net Sales (LC)",
+    "Revenue share amount (LC)",
+    "Revenue share amount (USD)",
     "Revenue Share %",
   ]);
   sheet.getRow(1).font = { bold: true };
@@ -76,7 +77,11 @@ export async function buildRevenueShareWorkbook(
       null,
       null,
       null,
+      null,
     ]);
+
+    const shareLc = line.revenueShareAmountLc;
+    const shareUsd = revenueShareAmountUsdFromLc(shareLc, report.rateToUsd);
 
     setNumericCell(
       row.getCell(3),
@@ -100,26 +105,21 @@ export async function buildRevenueShareWorkbook(
     );
     setNumericCell(
       row.getCell(7),
-      exportMoneyNumber(line.netRevenue, moneyIso),
-      usdFmt,
+      exportMoneyNumber(line.netRevenue, report.opcoCurrencyCode),
+      localFmt,
     );
     setNumericCell(
       row.getCell(8),
-      exportMoneyNumber(
-        resolveRevenueShareAmount({
-          opcoName: report.opcoName,
-          opcoAmountUsd: line.opcoAmountUsd,
-          netRevenue: line.netRevenue,
-          revenueSharePercent: line.revenueSharePercent,
-          regulatoryFee: line.regulatoryFee,
-          regulatoryFeePercent: line.regulatoryFeePercent,
-        }),
-        moneyIso,
-      ),
-      usdFmt,
+      exportMoneyNumber(shareLc, report.opcoCurrencyCode),
+      localFmt,
     );
     setNumericCell(
       row.getCell(9),
+      exportMoneyNumber(shareUsd, moneyIso),
+      usdFmt,
+    );
+    setNumericCell(
+      row.getCell(10),
       exportPercentNumber(line.revenueSharePercent),
       EXCEL_PERCENT_NUM_FMT,
     );
@@ -133,7 +133,8 @@ export async function buildRevenueShareWorkbook(
     { width: 36 },
     { width: 18 },
     { width: 16 },
-    { width: 22 },
+    { width: 28 },
+    { width: 30 },
     { width: 18 },
   ];
 

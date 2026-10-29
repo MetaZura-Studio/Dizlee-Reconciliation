@@ -475,7 +475,9 @@ describe("parseOpcoReportWithMapping", () => {
     const row03 = sheet.addRow(["App2", 50, 0.003]);
     row03.getCell(3).numFmt = "0.0%";
     sheet.addRow(["App3", 40, "3%"]);
-    sheet.addRow(["App4", 20, 0.01]); // no numFmt — treat (0,1] as Excel fraction
+    // Bare 0.50 / 0.01 = display percents (WYSIWYG), not Excel fractions
+    sheet.addRow(["App4", 20, 0.01]);
+    sheet.addRow(["App5", 10, 0.5]);
     const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
 
     const parsed = await parseOpcoReportWithMapping(buffer, {
@@ -487,13 +489,14 @@ describe("parseOpcoReportWithMapping", () => {
       aggregateDailyRows: false,
     });
 
-    expect(parsed.pickerLines).toHaveLength(4);
+    expect(parsed.pickerLines).toHaveLength(5);
     expect(parsed.pickerLines[0]?.revenueSharePercent).toBe(3);
     expect(parsed.pickerLines[0]?.sourceColumns.revenue_share_percent).toBe(3);
     expect(parsed.pickerLines[0]?.sourceColumns["dizlee_share_%"]).toBe(3);
     expect(parsed.pickerLines[1]?.revenueSharePercent).toBe(0.3);
     expect(parsed.pickerLines[2]?.revenueSharePercent).toBe(3);
-    expect(parsed.pickerLines[3]?.revenueSharePercent).toBe(1);
+    expect(parsed.pickerLines[3]?.revenueSharePercent).toBe(0.01);
+    expect(parsed.pickerLines[4]?.revenueSharePercent).toBe(0.5);
   });
 
   it("parsePercentAsDisplayed maps Excel fractions and text percents", () => {
@@ -516,6 +519,20 @@ describe("parseOpcoReportWithMapping", () => {
     const text = sheet.getCell("A4");
     text.value = "3%";
     expect(parsePercentAsDisplayed(text)).toBe(3);
+
+    const bareHalf = sheet.getCell("A5");
+    bareHalf.value = 0.5;
+    expect(parsePercentAsDisplayed(bareHalf)).toBe(0.5);
+
+    const textHalf = sheet.getCell("A6");
+    textHalf.value = "0.50%";
+    expect(parsePercentAsDisplayed(textHalf)).toBe(0.5);
+
+    // Quoted "%" suffix is display percent, not Excel fraction
+    const literal = sheet.getCell("A7");
+    literal.value = 63;
+    literal.numFmt = '0.00"%"';
+    expect(parsePercentAsDisplayed(literal)).toBe(63);
   });
 
   it("keeps only rows matching the Aggregator Name filter", async () => {

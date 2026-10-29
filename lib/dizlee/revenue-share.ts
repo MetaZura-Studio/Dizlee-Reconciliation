@@ -1,18 +1,19 @@
 /**
- * Dizlee Revenue Share Report: readiness + OpCo/Partner USD rows for Excel export.
+ * Dizlee Revenue Share Report: readiness + OpCo/Partner rows for Excel export.
  *
- * Formulas:
- * - OpCo USD = OpCo local amount × Admin monthly USD rate
+ * Formulas (LC-first):
+ * - OpCo USD = OpCo local amount × Admin monthly USD rate (display / gross FX)
  * - Partner USD = Partner line amount (already USD)
  * - Revenue Share % = OpCo report_line_items.revenue_share_percent
  *   (fallback: sourceColumns.revenue_share_percent for older rows)
  * - Regulatory Fee % = Admin Service–Partner map regulatory_fee_percent
  *   for the OpCo + service (0% when unmapped)
- * - Regulatory Fee = OpCo USD × Regulatory Fee % / 100
- * - Net Revenue = OpCo USD − Regulatory Fee
- * - Revenue share amount = Net Revenue × Revenue Share %
- *   Exception (Zain Jordan): (OpCo USD × RS %) then deduct fee % from that share
- *     → (OpCo USD × RS % / 100) × (1 − Fee % / 100)
+ * - Regulatory Fee (LC) = OpCo LC × Regulatory Fee % / 100
+ * - Net Sales (LC) = OpCo LC − Regulatory Fee
+ * - Revenue share amount (LC) = Net Sales × Revenue Share %
+ *   Exception (Zain Jordan): (OpCo LC × RS %) then deduct fee % from that share
+ *     → (OpCo LC × RS % / 100) × (1 − Fee % / 100)
+ * - Revenue share amount (USD) = RS LC × Admin monthly rateToUsd
  *
  * Gate: latest OpCo report and latest Partner report for every Partner
  * that appears in the OpCo file for the period (not every linked Partner).
@@ -60,15 +61,21 @@ export type RevenueShareLine = {
   opcoAmountUsd: number | null;
   partnerAmountUsd: number | null;
   regulatoryFeePercent: number;
+  /** Regulatory fee amount in OpCo local currency. */
   regulatoryFee: number;
+  /** Net sales in OpCo local currency. */
   netRevenue: number;
   revenueSharePercent: number | null;
+  /** Revenue share amount in OpCo local currency (null when share % or LC gross missing). */
+  revenueShareAmountLc: number | null;
 };
 
 export type RevenueShareReport = {
   opcoId: string;
   opcoName: string;
   opcoCurrencyCode: string;
+  /** Admin monthly rate: USD per 1 local (same as OpCo gross FX). */
+  rateToUsd: number;
   period: DashboardPeriod;
   lines: RevenueShareLine[];
 };
@@ -184,7 +191,7 @@ export function netRevenueFromGross(grossAmount: number, regulatoryFee: number):
   return grossAmount - regulatoryFee;
 }
 
-/** Net Revenue × revenue share % — blank when either side is missing. */
+/** Net Sales × revenue share % — blank when either side is missing. */
 export function revenueShareAmountFromNet(
   netRevenue: number | null,
   revenueSharePercent: number | null,
@@ -203,7 +210,7 @@ export function isJordanRevenueShareOpco(opcoName: string): boolean {
 
 /**
  * Zain Jordan: (Gross × RS %) then deduct regulatory fee % from that share.
- * Example: 8266.76 × 3% = 248.00; 248.00 − 10% = 223.20.
+ * Gross is OpCo LC (LC-first). Example on LC then FX to USD at export.
  * Blank when gross or share % is missing; clamps negatives to 0.
  */
 export function revenueShareAmountJordan(
@@ -220,10 +227,11 @@ export function revenueShareAmountJordan(
   return Math.max(0, shareOnGross - feeOnShare);
 }
 
-/** Resolve Excel / display RS amount (Jordan vs default fee-then-share). */
+/** Resolve RS amount in OpCo LC (Jordan vs default fee-then-share). */
 export function resolveRevenueShareAmount(params: {
   opcoName: string;
-  opcoAmountUsd: number | null;
+  /** OpCo gross in local currency (LC-first). */
+  opcoAmountLocal: number | null;
   netRevenue: number;
   revenueSharePercent: number | null;
   regulatoryFee: number;
@@ -231,15 +239,26 @@ export function resolveRevenueShareAmount(params: {
 }): number | null {
   if (isJordanRevenueShareOpco(params.opcoName)) {
     return revenueShareAmountJordan(
-      params.opcoAmountUsd,
+      params.opcoAmountLocal,
       params.revenueSharePercent,
       params.regulatoryFeePercent ?? 0,
     );
   }
   return revenueShareAmountFromNet(
-    params.opcoAmountUsd == null ? null : params.netRevenue,
+    params.opcoAmountLocal == null ? null : params.netRevenue,
     params.revenueSharePercent,
   );
+}
+
+/** FX RS LC → USD using stored rateToUsd (USD per 1 local). */
+export function revenueShareAmountUsdFromLc(
+  revenueShareAmountLc: number | null,
+  rateToUsd: number,
+): number | null {
+  if (revenueShareAmountLc == null || !Number.isFinite(rateToUsd) || rateToUsd <= 0) {
+    return null;
+  }
+  return revenueShareAmountLc * rateToUsd;
 }
 
 export function resolveRegulatoryFeePercentForService(params: {
@@ -264,6 +283,8 @@ export function buildRevenueShareLine(input: {
   partnerId: string;
   partnerName: string;
   serviceName: string;
+  /** Required for Jordan share-then-fee path. */
+  opcoName?: string;
   opcoAmountLocal?: number | null;
   opcoAmountUsd: number | null;
   partnerAmountUsd?: number | null;
@@ -281,11 +302,25 @@ export function buildRevenueShareLine(input: {
     input.partnerAmountUsd === undefined ? null : input.partnerAmountUsd;
   const regulatoryFeePercent =
     input.regulatoryFeePercent ?? input.vatPercent ?? 0;
-  const grossForFee = opcoAmountUsd ?? 0;
+  // Fee / net / share are LC-first (OpCo local gross).
+  const grossForFee = opcoAmountLocal ?? 0;
   const regulatoryFee = regulatoryFeeFromPercent(
     grossForFee,
     regulatoryFeePercent,
   );
+  const netRevenue = netRevenueFromGross(grossForFee, regulatoryFee);
+  const revenueSharePercent = resolveRevenueSharePercent({
+    revenueSharePercent: input.revenueSharePercent,
+    sourceColumns: source,
+  });
+  const revenueShareAmountLc = resolveRevenueShareAmount({
+    opcoName: input.opcoName ?? "",
+    opcoAmountLocal,
+    netRevenue,
+    revenueSharePercent,
+    regulatoryFee,
+    regulatoryFeePercent,
+  });
   return {
     partnerId: input.partnerId,
     partnerName: input.partnerName,
@@ -295,11 +330,9 @@ export function buildRevenueShareLine(input: {
     partnerAmountUsd,
     regulatoryFeePercent,
     regulatoryFee,
-    netRevenue: netRevenueFromGross(grossForFee, regulatoryFee),
-    revenueSharePercent: resolveRevenueSharePercent({
-      revenueSharePercent: input.revenueSharePercent,
-      sourceColumns: source,
-    }),
+    netRevenue,
+    revenueSharePercent,
+    revenueShareAmountLc,
   };
 }
 
@@ -307,6 +340,7 @@ export function buildRevenueShareLine(input: {
 export function mapRevenueShareLinesToItemCreates(params: {
   revenueShareReportId: number;
   lines: RevenueShareLine[];
+  rateToUsd: number;
 }): Array<{
   revenueShareReportId: number;
   partnerId: bigint | null;
@@ -318,6 +352,8 @@ export function mapRevenueShareLinesToItemCreates(params: {
   regulatoryFeeAmount: number;
   netRevenue: number;
   revenueSharePercent: number | null;
+  revenueShareAmountLc: number | null;
+  revenueShareAmountUsd: number | null;
   sortOrder: number;
 }> {
   return params.lines.map((line, index) => ({
@@ -331,6 +367,11 @@ export function mapRevenueShareLinesToItemCreates(params: {
     regulatoryFeeAmount: line.regulatoryFee,
     netRevenue: line.netRevenue,
     revenueSharePercent: line.revenueSharePercent,
+    revenueShareAmountLc: line.revenueShareAmountLc,
+    revenueShareAmountUsd: revenueShareAmountUsdFromLc(
+      line.revenueShareAmountLc,
+      params.rateToUsd,
+    ),
     sortOrder: index,
   }));
 }
@@ -663,6 +704,7 @@ export async function buildRevenueShareReport(params: {
           partnerId: partner.partnerId,
           partnerName: partner.partnerName,
           serviceName,
+          opcoName: readiness.opcoName,
           opcoAmountLocal: opcoLocal ? opcoLocal.amount : null,
           opcoAmountUsd: opco ? opco.amount : null,
           partnerAmountUsd: partnerLine ? partnerLine.amount : null,
@@ -681,6 +723,7 @@ export async function buildRevenueShareReport(params: {
     opcoId: readiness.opcoId,
     opcoName: readiness.opcoName,
     opcoCurrencyCode: fx.currencyCode,
+    rateToUsd: fx.rateToUsd,
     period: readiness.period,
     lines,
   };
@@ -874,6 +917,7 @@ export async function generateAndPersistRevenueShareReport(params: {
   const itemRows = mapRevenueShareLinesToItemCreates({
     revenueShareReportId: row.id,
     lines: built.lines,
+    rateToUsd: built.rateToUsd,
   });
 
   await prisma.revenueShareReportItem.deleteMany({
