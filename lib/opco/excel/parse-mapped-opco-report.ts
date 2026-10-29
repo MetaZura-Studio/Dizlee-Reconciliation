@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Parse OpCo report Excel using Admin-configured column mapping.
  */
 import ExcelJS from "exceljs";
@@ -16,6 +16,7 @@ import {
   resolveOpcoRowFilters,
 } from "@/lib/admin/opco-report-mappings.shared";
 import { ReportParseError } from "@/lib/platform/excel/parse-report";
+import { isExcelFractionalPercentFmt } from "@/lib/platform/excel/percent-format";
 import {
   aggregateLinesByDescription,
   normalizeServiceKey,
@@ -85,8 +86,9 @@ function roundDisplayedPercent(value: number): number {
 }
 
 /**
- * Map Excel revenue-share cells to the percent humans see in the file.
- * Excel stores 3% as 0.03 — this returns 3. True 0.3% (stored 0.003) returns 0.3.
+ * Map Excel revenue-share cells to the percent humans see in the file (WYSIWYG).
+ * Excel fractional % formats store 3% as 0.03 — this returns 3.
+ * Bare numbers are already display percents: 0.50 stays 0.50 (not 50).
  */
 export function parsePercentAsDisplayed(cell: ExcelJS.Cell): number | null {
   const value = cell.value;
@@ -94,11 +96,11 @@ export function parsePercentAsDisplayed(cell: ExcelJS.Cell): number | null {
     return null;
   }
 
-  const isPercentFmt = String(cell.numFmt ?? "").includes("%");
+  const isPercentFmt = isExcelFractionalPercentFmt(String(cell.numFmt ?? ""));
   const numeric = numericCellValue(value);
 
   if (numeric !== null) {
-    if (isPercentFmt || (numeric > 0 && numeric <= 1)) {
+    if (isPercentFmt) {
       return roundDisplayedPercent(numeric * 100);
     }
     return roundDisplayedPercent(numeric);
@@ -119,9 +121,6 @@ export function parsePercentAsDisplayed(cell: ExcelJS.Cell): number | null {
   );
   if (Number.isNaN(parsed)) {
     return null;
-  }
-  if (parsed > 0 && parsed <= 1) {
-    return roundDisplayedPercent(parsed * 100);
   }
   return roundDisplayedPercent(parsed);
 }
@@ -298,7 +297,7 @@ export async function parseOpcoReportWithMapping(
 
   if (!serviceCol || !revenueCol) {
     throw new ReportParseError(
-      `Missing mapped columns. Expected Service "${config.serviceColumn}" and Revenue "${config.revenueColumn}".`,
+      `Missing mapped columns. Expected Service "${config.serviceColumn}" and Sales "${config.revenueColumn}".`,
     );
   }
   for (const filter of resolvedFilters) {

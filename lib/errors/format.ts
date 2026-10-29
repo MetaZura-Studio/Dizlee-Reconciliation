@@ -16,8 +16,8 @@ import {
 const CLIENT_MESSAGES: Partial<Record<ErrorKey, string>> = {
   INVALID_CREDENTIALS: "Login failed. Check your email and password.",
   USER_NOT_FOUND: "Login failed. Check your email and password.",
-  USER_NOT_ACTIVE: "This account is not active. Contact your administrator.",
-  ACCOUNT_NOT_ACTIVE: "This account is not active. Contact your administrator.",
+  USER_NOT_ACTIVE: "Your account is inactive. Contact your administrator.",
+  ACCOUNT_NOT_ACTIVE: "Your account is inactive. Contact your administrator.",
   ACCOUNT_SUSPENDED: "Your account has been suspended. Contact support.",
   PASSWORD_LINK_INVALID: "This password link is invalid.",
   PASSWORD_LINK_EXPIRED: "This password link has expired.",
@@ -44,6 +44,11 @@ const CLIENT_MESSAGES: Partial<Record<ErrorKey, string>> = {
   STORAGE_NOT_CONFIGURED: "File upload failed. Please try again.",
   STORAGE_OBJECT_NOT_FOUND: "File not found.",
   INVOICE_UPLOAD_FAILED: "Invoice upload failed. Please try again.",
+  PARTNER_INVOICE_UPLOAD_DISABLED:
+    "Invoice upload is currently disabled by Dizlee.",
+  OPCO_HAS_USERS: "This organization has users and cannot be deleted.",
+  PARTNER_HAS_USERS: "This organization has users and cannot be deleted.",
+  CURRENCY_IN_USE: "This currency is in use and cannot be deleted.",
   SYSTEM_ERROR: "Something went wrong. Please try again.",
   UNMAPPED_ERROR: "Something went wrong. Please try again.",
 };
@@ -152,7 +157,10 @@ export function formatAppError(
         key === "USER_NOT_ACTIVE" ||
         key === "ACCOUNT_NOT_ACTIVE" ||
         key === "ACCOUNT_SUSPENDED" ||
-        key === "REPORT_COLUMNS_UNRECOGNIZED")
+        key === "REPORT_COLUMNS_UNRECOGNIZED" ||
+        key === "OPCO_HAS_USERS" ||
+        key === "PARTNER_HAS_USERS" ||
+        key === "CURRENCY_IN_USE")
     ) {
       return clientMessageForKey(key);
     }

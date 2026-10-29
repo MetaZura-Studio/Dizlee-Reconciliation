@@ -1,8 +1,10 @@
 /**
  * Live user eligibility for an existing JWT/session.
- * Login already checks ACTIVE + not deleted; this re-checks after suspend/delete.
+ * Login already checks user ACTIVE + portal org ACTIVE; this re-checks after
+ * suspend/delete or OpCo/Partner inactivation.
  */
 
+import { isPortalOrgActiveForLogin } from "@/lib/auth/portal-org-active";
 import { isAppRole, normalizeRoleCode, type AppRole } from "@/lib/auth/types";
 import { prisma } from "@/lib/prisma";
 
@@ -50,6 +52,15 @@ export async function loadActiveAuthUser(
   }
 
   if (role === "partner" && !user.partnerId) {
+    return null;
+  }
+
+  const orgActive = await isPortalOrgActiveForLogin({
+    role,
+    opcoId: user.opcoId,
+    partnerId: user.partnerId,
+  });
+  if (!orgActive) {
     return null;
   }
 

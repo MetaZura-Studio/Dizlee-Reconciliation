@@ -1,8 +1,9 @@
 /**
- * NextAuth credentials `authorize` throws this message for suspended users
- * (after a valid password check). Login forms map it to ACCOUNT_SUSPENDED.
+ * NextAuth credentials `authorize` throws these after a valid password check.
+ * Login forms map them to ACCOUNT_SUSPENDED / ACCOUNT_NOT_ACTIVE.
  */
 export const ACCOUNT_SUSPENDED_SIGNIN_ERROR = "AccountSuspended";
+export const ACCOUNT_INACTIVE_SIGNIN_ERROR = "AccountInactive";
 
 /** Thrown from authorize when login email rate limit is exceeded. */
 export const RATE_LIMITED_SIGNIN_ERROR = "RATE_LIMITED";
@@ -21,6 +22,9 @@ export function resolveCredentialsSignInError(result: {
   }
   if (result?.error === ACCOUNT_SUSPENDED_SIGNIN_ERROR) {
     return ACCOUNT_SUSPENDED_SIGNIN_ERROR;
+  }
+  if (result?.error === ACCOUNT_INACTIVE_SIGNIN_ERROR) {
+    return ACCOUNT_INACTIVE_SIGNIN_ERROR;
   }
   return "CredentialsSignin";
 }

@@ -29,26 +29,13 @@ export type ComparedRow = {
     | "MISSING_IN_OPCO";
 };
 
-/**
- * Text before the first hyphen (optional spaces around `-`).
- * "FIFA Tutorials - GBOnline" → "FIFA Tutorials"; "GameZilla-GBOnline" → "GameZilla".
- */
-export function extractServicePrefix(description: string): string {
-  const trimmed = description.trim();
-  if (!trimmed) {
-    return trimmed;
-  }
-  return trimmed.split(/\s*-\s*/, 2)[0]?.trim() || trimmed;
-}
-
-/** Canonical service key: hyphen prefix, then lowercase with spaces stripped. */
+/** Canonical service key: full description, lowercase with spaces stripped. */
 export function normalizeServiceName(
   description: string | null,
   lineNumber: number,
 ): string {
   const raw = description?.trim() || `line-${lineNumber}`;
-  const base = extractServicePrefix(raw).toLowerCase();
-  return base.replace(/\s+/g, "");
+  return raw.toLowerCase().replace(/\s+/g, "");
 }
 
 /** Prefer billable amount. Callers pass USD (OpCo local converted; Partner usageUsd or amount). */
@@ -92,9 +79,7 @@ function aggregateLines(
   for (const line of lines) {
     const serviceCode = normalizeServiceName(line.description, line.lineNumber);
     const amount = lineAmountUsd(line);
-    const displayDescription = line.description?.trim()
-      ? extractServicePrefix(line.description)
-      : line.description;
+    const displayDescription = line.description?.trim() || line.description;
     const existing = map.get(serviceCode);
 
     if (existing) {

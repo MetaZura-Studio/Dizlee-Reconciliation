@@ -307,6 +307,11 @@ export function validateBroadcastRecipients(input: SendBroadcastInput): {
 export async function sendBroadcastNotification(params: {
   input: SendBroadcastInput;
   fromUserId: string;
+  /**
+   * Create inbox/system notification immediately, but send SMTP emails without
+   * blocking the caller (used by Partner invoice-upload open toggles).
+   */
+  deferEmail?: boolean;
   onEmailProgress?: (progress: {
     sent: number;
     failed: number;
@@ -472,21 +477,12 @@ export async function sendBroadcastNotification(params: {
     select: { id: true },
   });
 
-  const emailResult = requireEmailConfigured
-    ? emailRecipients.length > 0
-      ? await sendNotificationEmails({
-          recipients: emailRecipients,
-          subject,
-          body,
-          purpose: "INTIMATION",
-          notificationId: notification.id,
-          actorUserId: fromUserId,
-          correlationId: emailCorrelationId ?? undefined,
-          onProgress: params.onEmailProgress,
-        })
-      : null
-    : await maybeSendEventEmails({
-        channel: deliveryChannel,
+  const sendEmails = async () => {
+    if (requireEmailConfigured) {
+      if (emailRecipients.length === 0) {
+        return null;
+      }
+      return sendNotificationEmails({
         recipients: emailRecipients,
         subject,
         body,
@@ -496,6 +492,19 @@ export async function sendBroadcastNotification(params: {
         correlationId: emailCorrelationId ?? undefined,
         onProgress: params.onEmailProgress,
       });
+    }
+    return maybeSendEventEmails({
+      channel: deliveryChannel,
+      recipients: emailRecipients,
+      subject,
+      body,
+      purpose: "INTIMATION",
+      notificationId: notification.id,
+      actorUserId: fromUserId,
+      correlationId: emailCorrelationId ?? undefined,
+      onProgress: params.onEmailProgress,
+    });
+  };
 
   const recipientCount = recipientCreates.length;
   const parts: string[] = [];
@@ -511,6 +520,28 @@ export async function sendBroadcastNotification(params: {
     deliveryChannel === "EMAIL"
       ? `Notification recorded for ${parts.join(" and ")}.`
       : `Notification sent to ${parts.join(" and ")}.`;
+
+  if (params.deferEmail && deliverySendsEmail(deliveryChannel)) {
+    void sendEmails().catch((error) => {
+      console.error(
+        "[sendBroadcastNotification] Background email send failed:",
+        error,
+      );
+    });
+    return {
+      id: notification.id.toString(),
+      message: formatDeliveryMessage({
+        channel: deliveryChannel,
+        baseMessage,
+        emailResult: null,
+      }),
+      recipientCount,
+      deliveryChannel,
+      emailsSent: 0,
+    };
+  }
+
+  const emailResult = await sendEmails();
 
   return {
     id: notification.id.toString(),

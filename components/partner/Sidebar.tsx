@@ -15,7 +15,7 @@ type NavItem = {
 const NAV_ITEMS: NavItem[] = [
   { href: "/partner", label: "Dashboard" },
   { href: "/partner/upload", label: "Upload Report" },
-  { href: "/partner/reports", label: "Reports" },
+  { href: "/partner/reports", label: "Report History" },
   { href: "/partner/invoices", label: "Invoices" },
   { href: "/partner/notifications", label: "Notifications" },
 ];

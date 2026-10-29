@@ -171,7 +171,7 @@ describe("mapParsedLinesToPreview", () => {
 
     expect(lines[0]).toMatchObject({
       description: "7adir",
-      amount: "28.00",
+      amount: "28",
       exchangeRate: "0.2667",
       amountUsd: "7.47",
     });

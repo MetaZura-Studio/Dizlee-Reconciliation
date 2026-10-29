@@ -196,6 +196,13 @@ export async function deleteOpco(
     throw new OpcoActionError("OpCo not found", 404);
   }
 
+  const userCount = await prisma.user.count({
+    where: { opcoId, isDeleted: false },
+  });
+  if (userCount > 0) {
+    throw new OpcoActionError("OPCO_HAS_USERS");
+  }
+
   await prisma.opco.update({
     where: { id: opcoId },
     data: {

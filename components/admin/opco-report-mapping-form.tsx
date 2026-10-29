@@ -384,7 +384,7 @@ export function OpcoReportMappingForm({
     <PageCard>
       <PageHeader
         title={`Report mapping — ${mapping.opcoName}`}
-        description="Upload a sample OpCo Excel, choose the sheet tab first, then map Service, Partner, Revenue, and optional Revenue share %."
+        description="Upload a sample OpCo Excel, choose the sheet tab first, then map Service, Partner, Sales, and optional Revenue share %."
         actions={
           <Link href="/admin/opcos" className={ui.btnSecondary}>
             Back to OpCos
@@ -547,7 +547,7 @@ export function OpcoReportMappingForm({
               </label>
 
               <label className="block text-sm">
-                <FieldLegend required>Revenue (gross amount)</FieldLegend>
+                <FieldLegend required>Sales (gross amount)</FieldLegend>
                 <select
                   className={ui.select}
                   value={revenueColumn}
@@ -739,7 +739,7 @@ export function OpcoReportMappingForm({
             <p className="self-center text-xs text-foreground-subtle">
               {mapping.isConfigured
                 ? "Mapping looks complete for uploads."
-                : "Mapping incomplete — pick a sheet, then Service, Revenue, Revenue share %, and Partner."}
+                : "Mapping incomplete — pick a sheet, then Service, Sales, Revenue share %, and Partner."}
             </p>
           </div>
         </form>

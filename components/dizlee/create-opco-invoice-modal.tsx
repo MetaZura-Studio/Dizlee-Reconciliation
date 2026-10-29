@@ -15,6 +15,7 @@ import type {
   CreateOpcoInvoiceLineInput,
 } from "@/lib/dizlee/invoices";
 import type { InvoiceBankDetails } from "@/lib/dizlee/invoice-bank-details";
+import { formatDizleeOpcoInvoiceNumber } from "@/lib/dizlee/invoice-number";
 import {
   convertInvoiceLinesToUsd,
   resolveRateToUsd,
@@ -276,8 +277,43 @@ function CreateOpcoInvoiceModalInner({
       return;
     }
     setError(null);
+    // Refresh next sequence so preview matches what send is likely to assign.
+    const params = new URLSearchParams({
+      form: "create",
+      month: String(month),
+      year: String(year),
+    });
+    void fetch(`/api/dizlee/invoices?${params.toString()}`)
+      .then(async (response) => {
+        const payload = await response.json();
+        if (!response.ok) {
+          return;
+        }
+        const options = payload.data as CreateOpcoInvoiceFormOptions;
+        setFormOptions((current) =>
+          current
+            ? { ...current, nextInvoiceSequence: options.nextInvoiceSequence }
+            : options,
+        );
+      })
+      .catch(() => {
+        // Keep existing sequence from initial form load.
+      });
     setStep("preview");
   };
+
+  const previewInvoiceNumber =
+    selectedOpco &&
+    formOptions != null &&
+    Number.isInteger(formOptions.nextInvoiceSequence) &&
+    formOptions.nextInvoiceSequence >= 1
+      ? formatDizleeOpcoInvoiceNumber({
+          sequence: formOptions.nextInvoiceSequence,
+          month,
+          year,
+          opcoName: selectedOpco.name,
+        })
+      : "—";
 
   const submit = async () => {
     setSubmitting(true);
@@ -383,7 +419,7 @@ function CreateOpcoInvoiceModalInner({
                 </div>
               ) : null}
               <DizleeOpcoInvoiceDocument
-                invoiceNumber="INV-DRAFT"
+                invoiceNumber={previewInvoiceNumber}
                 issuedAt={new Date().toISOString()}
                 billedPartyName={selectedOpco?.name ?? "—"}
                 currencyCode={selectedCurrency?.isoCode ?? "USD"}
@@ -414,7 +450,7 @@ function CreateOpcoInvoiceModalInner({
                     </p>
                   </div>
                   <DizleeOpcoInvoiceDocument
-                    invoiceNumber="INV-DRAFT"
+                    invoiceNumber={previewInvoiceNumber}
                     issuedAt={new Date().toISOString()}
                     billedPartyName={selectedOpco?.name ?? "—"}
                     currencyCode="USD"
