@@ -7,7 +7,10 @@ import { SignOutButton } from "@/components/auth/sign-out-button";
 import { NotificationsBell } from "@/components/dizlee/notifications-bell";
 import { AppShell, type AppShellNavItem } from "@/components/layout/app-shell";
 import { IconChevronLeft, IconChevronRight } from "@/components/ui/icons";
-import { DIZLEE_NAV_ITEMS } from "@/lib/dizlee/navigation";
+import {
+  DIZLEE_NAV_ITEMS,
+  type DizleeNavItem,
+} from "@/lib/dizlee/navigation";
 import { cn, ui } from "@/lib/ui/classes";
 
 function iconForHref(href: string): AppShellNavItem["icon"] {
@@ -36,11 +39,7 @@ function iconForHref(href: string): AppShellNavItem["icon"] {
   }
 }
 
-function mapNavItem(item: {
-  label: string;
-  href: string;
-  children?: Array<{ label: string; href: string; children?: unknown[] }>;
-}): AppShellNavItem {
+function mapNavItem(item: DizleeNavItem): AppShellNavItem {
   return {
     label: item.label,
     href:
