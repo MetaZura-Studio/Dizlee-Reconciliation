@@ -563,7 +563,7 @@ export async function createOpcoInvoice(
   });
   if (duplicate) {
     throw new InvoiceActionError(
-      "An invoice for this OpCo and period already exists.",
+      "An invoice has already been generated and sent to this OpCo for this month.",
       409,
     );
   }

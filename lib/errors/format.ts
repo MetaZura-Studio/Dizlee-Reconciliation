@@ -46,6 +46,8 @@ const CLIENT_MESSAGES: Partial<Record<ErrorKey, string>> = {
   INVOICE_UPLOAD_FAILED: "Invoice upload failed. Please try again.",
   PARTNER_INVOICE_UPLOAD_DISABLED:
     "Invoice upload is currently disabled by Dizlee.",
+  INVOICE_ALREADY_EXISTS:
+    "An invoice has already been generated and sent to this OpCo for this month.",
   OPCO_HAS_USERS: "This organization has users and cannot be deleted.",
   PARTNER_HAS_USERS: "This organization has users and cannot be deleted.",
   CURRENCY_IN_USE: "This currency is in use and cannot be deleted.",
@@ -160,7 +162,8 @@ export function formatAppError(
         key === "REPORT_COLUMNS_UNRECOGNIZED" ||
         key === "OPCO_HAS_USERS" ||
         key === "PARTNER_HAS_USERS" ||
-        key === "CURRENCY_IN_USE")
+        key === "CURRENCY_IN_USE" ||
+        key === "INVOICE_ALREADY_EXISTS")
     ) {
       return clientMessageForKey(key);
     }

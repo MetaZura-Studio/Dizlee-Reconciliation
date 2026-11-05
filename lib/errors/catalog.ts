@@ -712,6 +712,8 @@ const MESSAGE_ALIASES: Record<string, ErrorKey> = {
   "An invoice already exists for this period": "INVOICE_ALREADY_EXISTS",
   "An invoice for this OpCo and period already exists.":
     "INVOICE_ALREADY_EXISTS",
+  "An invoice has already been generated and sent to this OpCo for this month.":
+    "INVOICE_ALREADY_EXISTS",
   "Invoice number is already in use": "INVOICE_NUMBER_IN_USE",
   "Invoice is already marked as paid.": "INVOICE_ALREADY_PAID",
   "Invalid invoice period month.": "INVOICE_PERIOD_MONTH_INVALID",
