@@ -70,6 +70,25 @@ export function InvoiceDetailModal({
                 usdFxRate={detail.usdFxRate}
                 periodLabel={detail.periodLabel}
               />
+              {detail.attachments.length > 0 ? (
+                <div className="print:hidden">
+                  <h3 className="text-sm font-medium text-foreground-muted">
+                    Attachments
+                  </h3>
+                  <ul className="mt-2 space-y-2">
+                    {detail.attachments.map((attachment) => (
+                      <li key={attachment.id} className="text-sm">
+                        <a
+                          href={attachment.downloadUrl}
+                          className="text-foreground-muted underline hover:text-foreground"
+                        >
+                          {attachment.filename}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
             </div>
           ) : null}
         </div>
