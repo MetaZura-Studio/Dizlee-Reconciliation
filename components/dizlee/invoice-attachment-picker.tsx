@@ -181,9 +181,13 @@ export function InvoiceAttachmentPicker({
                 key={attachment.fileId}
                 className="flex items-center justify-between gap-3 rounded-md border border-border bg-surface-muted/40 px-3 py-2 text-sm"
               >
-                <span className="truncate text-foreground">
+                <a
+                  href={`/api/dizlee/invoices/attachments/${attachment.fileId}`}
+                  className="min-w-0 truncate text-foreground-muted underline hover:text-foreground"
+                  title={`Download ${attachment.filename}`}
+                >
                   {attachment.filename}
-                </span>
+                </a>
                 <Button
                   type="button"
                   variant="secondary"

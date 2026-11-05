@@ -484,9 +484,17 @@ function CreateOpcoInvoiceModalInner({
               <p className="font-medium text-foreground">
                 Attachments ({attachments.length})
               </p>
-              <ul className="mt-1 list-inside list-disc text-foreground-muted">
+              <ul className="mt-1 space-y-1 text-foreground-muted">
                 {attachments.map((attachment) => (
-                  <li key={attachment.fileId}>{attachment.filename}</li>
+                  <li key={attachment.fileId}>
+                    <a
+                      href={`/api/dizlee/invoices/attachments/${attachment.fileId}`}
+                      className="underline hover:text-foreground"
+                      title={`Download ${attachment.filename}`}
+                    >
+                      {attachment.filename}
+                    </a>
+                  </li>
                 ))}
               </ul>
             </div>
