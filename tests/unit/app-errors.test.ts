@@ -132,6 +132,23 @@ describe("formatAppError", () => {
     ).toBe("Format is incorrect.");
   });
 
+  it("surfaces duplicate OpCo invoice copy over create fallback", () => {
+    expect(
+      formatAppError(
+        {
+          error: {
+            code: ERROR_CATALOG.INVOICE_ALREADY_EXISTS.code,
+            key: "INVOICE_ALREADY_EXISTS" as ErrorKey,
+            message: "INVOICE ALREADY EXISTS",
+          },
+        },
+        "Failed to create invoice",
+      ),
+    ).toBe(
+      "An invoice has already been generated and sent to this OpCo for this month.",
+    );
+  });
+
   it("surfaces human-readable domain errors over upload fallback", () => {
     expect(
       formatAppError(
