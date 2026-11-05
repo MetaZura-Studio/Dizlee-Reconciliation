@@ -12,6 +12,10 @@ import {
   parseInvoiceSignatoriesJson,
   type InvoiceBankDetails,
 } from "@/lib/dizlee/invoice-bank-details";
+import {
+  mapInvoiceAttachmentViews,
+  type InvoiceAttachmentView,
+} from "@/lib/dizlee/invoice-attachments";
 import { getOpcoLookupId } from "@/lib/opco/lookups";
 import { shouldAutoAcknowledgeOpcoInvoice } from "@/lib/opco/invoices/acknowledgement";
 import { formatPeriodLabel } from "@/lib/opco/period";
@@ -86,6 +90,7 @@ export type OpcoInvoiceDetail = {
   lineItems: OpcoInvoiceLineItem[];
   includeUsdCopy: boolean;
   usdFxRate: number | null;
+  attachments: InvoiceAttachmentView[];
 };
 
 export type OpcoInvoiceFilterOptions = {
@@ -152,22 +157,7 @@ function buildWhere(
 
 function mapInvoiceDetail(
   invoice: Prisma.InvoiceGetPayload<{
-    include: {
-      opco: { select: { name: true } };
-      partner: { select: { name: true } };
-      invoiceStatus: { select: { code: true; label: true } };
-      paymentStatus: { select: { code: true; label: true } };
-      currency: { select: { isoCode: true } };
-      items: {
-        orderBy: { sortOrder: "asc" };
-        select: {
-          description: true;
-          quantity: true;
-          unitPrice: true;
-          lineTotal: true;
-        };
-      };
-    };
+    include: typeof invoiceDetailInclude;
   }>,
 ): OpcoInvoiceDetail {
   const signatories = parseInvoiceSignatoriesJson(invoice.bankDetailsJson);
@@ -200,6 +190,10 @@ function mapInvoiceDetail(
       invoice.usdFxRate === null || invoice.usdFxRate === undefined
         ? null
         : toNumber(invoice.usdFxRate),
+    attachments: mapInvoiceAttachmentViews(
+      invoice.attachments,
+      `/api/opco/invoices/${invoice.id.toString()}/attachments`,
+    ),
   };
 }
 
@@ -404,6 +398,15 @@ const invoiceDetailInclude = {
       quantity: true,
       unitPrice: true,
       lineTotal: true,
+    },
+  },
+  attachments: {
+    where: { isDeleted: false },
+    orderBy: { sortOrder: "asc" as const },
+    select: {
+      id: true,
+      fileId: true,
+      file: { select: { filename: true, sizeBytes: true } },
     },
   },
 } satisfies Prisma.InvoiceInclude;

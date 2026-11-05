@@ -135,6 +135,12 @@ When the user later asks to update the ERD / [`04_DATABASE_SCHEMA_FOR_CURSOR.md`
 - Dizlee toggles per Partner; when false, Partner portal cannot upload Partner→Dizlee invoices
 - Seed template: `PARTNER_INVOICE_UPLOAD_OPEN` (INTIMATION) — sent on OFF→ON
 
+### Applied migration — Invoice attachments
+- Migration: `prisma/migrations/20261104120000_invoice_attachments`
+- Table `invoice_attachments`: supporting files on Dizlee→OpCo invoices (`invoice_id`, `file_id`, `sort_order`, soft-delete/audit)
+- Index: `idx_invoice_attachments_invoice_sort` (`invoice_id`, `sort_order`)
+- App: any file format, max 5 files × 20 MB; downloads force `Content-Disposition: attachment`
+
 ## Source of truth until ERD is refreshed
 1. [`prisma/schema.prisma`](prisma/schema.prisma)
 2. Files under [`prisma/migrations/`](prisma/migrations/)

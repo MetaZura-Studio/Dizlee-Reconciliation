@@ -22,6 +22,7 @@ async function clearTransactionalData() {
     prisma.emailDelivery.deleteMany(),
     prisma.notification.deleteMany(),
     prisma.invoiceActivityLog.deleteMany(),
+    prisma.invoiceAttachment.deleteMany(),
     prisma.invoiceItem.deleteMany(),
     prisma.reconciliationItem.deleteMany(),
     prisma.partnerRevenueShareReportItem.deleteMany(),

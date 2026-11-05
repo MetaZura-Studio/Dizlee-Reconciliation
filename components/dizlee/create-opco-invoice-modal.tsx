@@ -2,6 +2,11 @@
 
 import { useEffect, useState } from "react";
 
+import {
+  InvoiceAttachmentPicker,
+  invoiceAttachmentFileIds,
+  type PendingAttachment,
+} from "@/components/dizlee/invoice-attachment-picker";
 import { DeliveryChannelPicker } from "@/components/shared/delivery-channel-picker";
 import { DizleeOpcoInvoiceDocument } from "@/components/shared/dizlee-opco-invoice-document";
 import { Button } from "@/components/ui/button";
@@ -119,6 +124,7 @@ function CreateOpcoInvoiceModalInner({
   const [approvedBy, setApprovedBy] = useState("");
   const [deliveryChannel, setDeliveryChannel] =
     useState<NotificationDeliveryChannel>(DEFAULT_NOTIFICATION_DELIVERY_CHANNEL);
+  const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const [lineItems, setLineItems] = useState<CreateOpcoInvoiceLineInput[]>([
     emptyLine(),
   ]);
@@ -334,6 +340,7 @@ function CreateOpcoInvoiceModalInner({
           effectiveCopyMode === "local_and_usd" && rateToUsd !== null
             ? rateToUsd
             : undefined,
+        attachmentFileIds: invoiceAttachmentFileIds(attachments),
       };
       const response = await fetch("/api/dizlee/invoices", {
         method: "POST",
@@ -472,6 +479,18 @@ function CreateOpcoInvoiceModalInner({
               description="Choose how the OpCo is notified when this invoice is sent."
             />
           </div>
+          {attachments.length > 0 ? (
+            <div className="print:hidden rounded-md border border-border bg-surface-muted/40 px-3 py-2 text-sm">
+              <p className="font-medium text-foreground">
+                Attachments ({attachments.length})
+              </p>
+              <ul className="mt-1 list-inside list-disc text-foreground-muted">
+                {attachments.map((attachment) => (
+                  <li key={attachment.fileId}>{attachment.filename}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           {error ? <p className={ui.alertError}>{error}</p> : null}
           <div className="flex justify-end gap-3 print:hidden">
             <Button
@@ -805,6 +824,12 @@ function CreateOpcoInvoiceModalInner({
               Quantity × Amount is the line total (e.g. 2 × 10.50 = 21.00).
             </p>
           </div>
+
+          <InvoiceAttachmentPicker
+            attachments={attachments}
+            onChange={setAttachments}
+            disabled={submitting}
+          />
 
           {error ? <p className={ui.alertError}>{error}</p> : null}
 
