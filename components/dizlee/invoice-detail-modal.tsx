@@ -123,19 +123,45 @@ export function InvoiceDetailModal({
           </dl>
 
           {detail.isDigital ? (
-            <DizleeOpcoInvoiceCopies
-              invoiceNumber={detail.invoiceNumber ?? `Invoice #${detail.id}`}
-              issuedAt={detail.uploadedAt}
-              billedPartyName={detail.opcoName}
-              currencyCode={detail.currencyCode}
-              lineItems={detail.lineItems}
-              bankDetails={detail.bankDetails}
-              preparedBy={detail.preparedBy}
-              approvedBy={detail.approvedBy}
-              includeUsdCopy={detail.includeUsdCopy}
-              usdFxRate={detail.usdFxRate}
-              periodLabel={detail.period.label}
-            />
+            <>
+              <DizleeOpcoInvoiceCopies
+                invoiceNumber={detail.invoiceNumber ?? `Invoice #${detail.id}`}
+                issuedAt={detail.uploadedAt}
+                billedPartyName={detail.opcoName}
+                currencyCode={detail.currencyCode}
+                lineItems={detail.lineItems}
+                bankDetails={detail.bankDetails}
+                preparedBy={detail.preparedBy}
+                approvedBy={detail.approvedBy}
+                includeUsdCopy={detail.includeUsdCopy}
+                usdFxRate={detail.usdFxRate}
+                periodLabel={detail.period.label}
+              />
+              {detail.attachments.length > 0 ? (
+                <div>
+                  <h3 className="text-sm font-medium text-foreground-muted">
+                    Attachments
+                  </h3>
+                  <ul className="mt-2 space-y-2">
+                    {detail.attachments.map((attachment) => (
+                      <li key={attachment.id} className="text-sm">
+                        <a
+                          href={attachment.downloadUrl}
+                          className="text-foreground-muted underline hover:text-foreground"
+                        >
+                          {attachment.filename}
+                        </a>
+                        {attachment.sizeBytes != null ? (
+                          <span className="ml-2 text-foreground-subtle">
+                            ({formatBytes(attachment.sizeBytes)})
+                          </span>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </>
           ) : (
             <>
               <div>

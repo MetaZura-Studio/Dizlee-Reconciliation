@@ -27,13 +27,21 @@ import {
   formatDizleeOpcoInvoiceNumber,
   parseDizleeOpcoInvoiceSequence,
 } from "@/lib/dizlee/invoice-number";
+import {
+  mapInvoiceAttachmentViews,
+  resolveInvoiceAttachmentFiles,
+  type InvoiceAttachmentView,
+} from "@/lib/dizlee/invoice-attachments";
 import { buildOpcoInvoicePdf } from "@/lib/dizlee/invoice-pdf";
 import { formatAppMonthYear } from "@/lib/platform/format-datetime";
 import { formatMoney, roundMoney } from "@/lib/platform/format-money";
 import { prisma } from "@/lib/prisma";
 import { isFuturePeriod } from "@/lib/platform/period";
 import { notifyOpcoUsers } from "@/lib/platform/notify-opco";
-import { saveStoredObject } from "@/lib/platform/storage/object-storage";
+import {
+  readStoredObject,
+  saveStoredObject,
+} from "@/lib/platform/storage/object-storage";
 import { prepareEmailDelivery } from "@/lib/platform/notification-delivery";
 import {
   DEFAULT_NOTIFICATION_DELIVERY_CHANNEL,
@@ -115,6 +123,7 @@ export type InvoiceDetail = {
   lineItems: InvoiceLineItemView[];
   includeUsdCopy: boolean;
   usdFxRate: number | null;
+  attachments: InvoiceAttachmentView[];
 };
 
 export type CreateOpcoInvoiceLineInput = {
@@ -138,6 +147,8 @@ export type CreateOpcoInvoiceInput = {
   includeUsdCopy?: boolean;
   /** Local → USD rate snapshotted with includeUsdCopy. */
   usdFxRate?: number;
+  /** Optional supporting files (any format) uploaded before create. */
+  attachmentFileIds?: string[];
 };
 
 export type CreateOpcoInvoiceFormOptions = {
@@ -481,6 +492,10 @@ export async function createOpcoInvoice(
   const lineItems = validateCreateInput(input);
   const actorId = BigInt(actorUserId);
   const opcoId = BigInt(input.opcoId);
+  const pendingAttachments = await resolveInvoiceAttachmentFiles({
+    attachmentFileIds: input.attachmentFileIds ?? [],
+    userId: actorId,
+  });
 
   let deliveryChannel: NotificationDeliveryChannel =
     DEFAULT_NOTIFICATION_DELIVERY_CHANNEL;
@@ -684,10 +699,33 @@ export async function createOpcoInvoice(
     },
   });
 
+  if (pendingAttachments.length > 0) {
+    await prisma.invoiceAttachment.createMany({
+      data: pendingAttachments.map((attachment, index) => ({
+        invoiceId: invoice.id,
+        fileId: attachment.fileId,
+        sortOrder: index,
+        createdByUserId: actorId,
+        updatedByUserId: actorId,
+      })),
+    });
+  }
+
   const refreshed = await getInvoiceDetail(invoice.id.toString());
   if (!refreshed) {
     throw new InvoiceActionError("Failed to load created invoice.", 500);
   }
+
+  const extraEmailAttachments = await Promise.all(
+    pendingAttachments.map(async (attachment) => {
+      const content = await readStoredObject(attachment.storageKey);
+      return {
+        filename: attachment.filename,
+        content,
+        contentType: attachment.mimeType ?? "application/octet-stream",
+      };
+    }),
+  );
 
   await notifyOpcoUsers({
     opcoId,
@@ -704,13 +742,17 @@ export async function createOpcoInvoice(
       month: refreshed.period.month,
       year: refreshed.period.year,
     },
-    attachmentFileIds: [pdfFile.id],
+    attachmentFileIds: [
+      pdfFile.id,
+      ...pendingAttachments.map((attachment) => attachment.fileId),
+    ],
     emailAttachments: [
       {
         filename: pdfFilename,
         content: pdfBuffer,
         contentType: "application/pdf",
       },
+      ...extraEmailAttachments,
     ],
   });
 
@@ -917,6 +959,15 @@ export async function getInvoiceDetail(id: string): Promise<InvoiceDetail | null
           lineTotal: true,
         },
       },
+      attachments: {
+        where: { isDeleted: false },
+        orderBy: { sortOrder: "asc" },
+        select: {
+          id: true,
+          fileId: true,
+          file: { select: { filename: true, sizeBytes: true } },
+        },
+      },
     },
   });
 
@@ -1031,6 +1082,15 @@ function mapInvoiceDetail(
           lineTotal: true;
         };
       };
+      attachments: {
+        where: { isDeleted: false };
+        orderBy: { sortOrder: "asc" };
+        select: {
+          id: true;
+          fileId: true;
+          file: { select: { filename: true; sizeBytes: true } };
+        };
+      };
     };
   }>,
   bankDetails: InvoiceBankDetails | null = null,
@@ -1083,6 +1143,10 @@ function mapInvoiceDetail(
       invoice.usdFxRate === null || invoice.usdFxRate === undefined
         ? null
         : toNumber(invoice.usdFxRate),
+    attachments: mapInvoiceAttachmentViews(
+      invoice.attachments ?? [],
+      `/api/dizlee/invoices/${invoice.id.toString()}/attachments`,
+    ),
   };
 }
 

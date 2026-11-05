@@ -609,6 +609,7 @@ const MESSAGE_ALIASES: Record<string, ErrorKey> = {
   "File is empty.": "FILE_EMPTY",
   "File name is required.": "FILE_NAME_REQUIRED",
   "Each attachment must be 10 MB or smaller.": "FILE_TOO_LARGE",
+  "Each attachment must be 20 MB or smaller.": "FILE_TOO_LARGE",
   "Attachment type is not allowed. Use PDF, images (not SVG), Excel, CSV, or TXT.":
     "ATTACHMENT_TYPE_NOT_ALLOWED",
   "File must be an Excel workbook (.xlsx)": "INVALID_EXCEL_FILE",

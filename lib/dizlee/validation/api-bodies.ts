@@ -99,6 +99,11 @@ export const createOpcoInvoiceBodySchema = z.object({
   includeUsdCopy: z.coerce.boolean().optional(),
   /** Local → USD rate used for the USD page (required when includeUsdCopy). */
   usdFxRate: z.coerce.number().positive().optional(),
+  /** Optional supporting files uploaded via /api/dizlee/invoices/attachments. */
+  attachmentFileIds: z.preprocess((value) => {
+    if (value == null) return [];
+    return value;
+  }, z.array(z.coerce.string()).max(5)),
 });
 
 export const runReconciliationBodySchema = z.object({
