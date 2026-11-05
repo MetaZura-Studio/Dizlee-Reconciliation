@@ -386,6 +386,7 @@ model File {
   reports                  Report[]
   opcoReportSubmissions    OpcoReportSubmission[]
   notificationAttachments  NotificationAttachment[]
+  invoiceAttachments       InvoiceAttachment[]
   invoices                 Invoice[]
   opcoReportMappings       OpcoReportMapping[]
   revenueShareReports      RevenueShareReport[]
@@ -938,11 +939,32 @@ model Invoice {
   invoiceStatus  Lookup               @relation("InvoiceStatus", fields: [invoiceStatusId], references: [id])
   paymentStatus  Lookup?              @relation("InvoicePaymentStatus", fields: [paymentStatusId], references: [id])
   items          InvoiceItem[]
+  attachments    InvoiceAttachment[]
   activityLogs   InvoiceActivityLog[]
 
   @@unique([partnerId, month, year, invoiceTypeId], map: "uq_partner_period_invoices")
   @@unique([opcoId, month, year, invoiceTypeId], map: "uq_client_period_invoices")
   @@map("invoices")
+}
+
+model InvoiceAttachment {
+  id              BigInt    @id @default(autoincrement())
+  invoiceId       BigInt    @map("invoice_id")
+  fileId          BigInt    @map("file_id")
+  sortOrder       Int       @default(0) @map("sort_order")
+  createdByUserId BigInt?   @map("created_by_user_id")
+  updatedByUserId BigInt?   @map("updated_by_user_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  isDeleted       Boolean   @default(false) @map("is_deleted")
+  deletedByUserId BigInt?   @map("deleted_by_user_id")
+  deletedAt       DateTime? @map("deleted_at")
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id])
+  file    File    @relation(fields: [fileId], references: [id])
+
+  @@index([invoiceId, sortOrder], map: "idx_invoice_attachments_invoice_sort")
+  @@map("invoice_attachments")
 }
 
 model InvoiceItem {
