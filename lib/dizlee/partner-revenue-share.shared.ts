@@ -11,6 +11,12 @@ export type PartnerRsRetentionLineOptions = {
 export type PartnerRsRetentionOptions = {
   line1: PartnerRsRetentionLineOptions;
   line2: PartnerRsRetentionLineOptions;
+  /**
+   * Optional Admin-display conversion rate override for this send only
+   * (same convention as Currencies / Partner RS PDF "Conversion rate").
+   * When omitted, build uses the system monthly rate.
+   */
+  conversionRate?: number;
 };
 
 /** Defaults: 10% then 5% (cascading order = line1, then line2). */
@@ -56,6 +62,25 @@ function parseRetentionLine(
   };
 }
 
+/** Positive finite conversion rate from request body, or undefined if absent. */
+export function parsePartnerRsConversionRate(
+  raw: unknown,
+): number | undefined {
+  if (raw == null || raw === "") {
+    return undefined;
+  }
+  const value =
+    typeof raw === "number"
+      ? raw
+      : typeof raw === "string"
+        ? Number.parseFloat(raw.trim())
+        : NaN;
+  if (!Number.isFinite(value) || value <= 0) {
+    return undefined;
+  }
+  return value;
+}
+
 export function parsePartnerRsRetentionOptions(
   raw: unknown,
 ): PartnerRsRetentionOptions {
@@ -66,6 +91,7 @@ export function parsePartnerRsRetentionOptions(
     };
   }
   const body = raw as Record<string, unknown>;
+  const conversionRate = parsePartnerRsConversionRate(body.conversionRate);
 
   // New shape: { line1, line2 }
   if ("line1" in body || "line2" in body) {
@@ -78,6 +104,7 @@ export function parsePartnerRsRetentionOptions(
         body.line2,
         DEFAULT_PARTNER_RS_RETENTION_OPTIONS.line2,
       ),
+      ...(conversionRate !== undefined ? { conversionRate } : {}),
     };
   }
 
@@ -98,12 +125,14 @@ export function parsePartnerRsRetentionOptions(
             : DEFAULT_PARTNER_RS_RETENTION_OPTIONS.line2.enabled,
         percent: PARTNER_RS_RETENTION_5_PERCENT,
       },
+      ...(conversionRate !== undefined ? { conversionRate } : {}),
     };
   }
 
   return {
     line1: { ...DEFAULT_PARTNER_RS_RETENTION_OPTIONS.line1 },
     line2: { ...DEFAULT_PARTNER_RS_RETENTION_OPTIONS.line2 },
+    ...(conversionRate !== undefined ? { conversionRate } : {}),
   };
 }
 
