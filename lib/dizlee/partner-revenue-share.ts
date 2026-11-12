@@ -11,7 +11,10 @@ import {
   formatAppDate,
   formatAppMonthYear,
 } from "@/lib/platform/format-datetime";
-import { adminConversionRateFromStored } from "@/lib/admin/currency-rate-input";
+import {
+  adminConversionRateFromStored,
+  storedRateToUsdFromAdminConversion,
+} from "@/lib/admin/currency-rate-input";
 import { getOpcoReportFx } from "@/lib/platform/report-fx";
 import {
   matchServiceMapRow,
@@ -192,6 +195,57 @@ export function partnerRsUsdFromLc(
   return totalRsLc / localPerUsd;
 }
 
+/**
+ * Resolve Partner RS FX from the system monthly rate, optionally overridden by
+ * an Admin-display conversion rate for this send only.
+ */
+export function resolvePartnerRsReportFx(input: {
+  systemRateToUsd: number;
+  currencyCode: string;
+  conversionRate?: number;
+}): {
+  rateToUsd: number;
+  localPerUsd: number;
+  conversionRate: number;
+} {
+  const { systemRateToUsd, currencyCode, conversionRate: manual } = input;
+  if (
+    !Number.isFinite(systemRateToUsd) ||
+    systemRateToUsd <= 0
+  ) {
+    throw new PartnerRevenueShareError(
+      `No USD rate for ${currencyCode} in this period. Set it in Admin Currencies before sending the Partner RS report.`,
+      400,
+    );
+  }
+
+  let rateToUsd = systemRateToUsd;
+  if (manual !== undefined) {
+    if (!Number.isFinite(manual) || manual <= 0) {
+      throw new PartnerRevenueShareError(
+        "Conversion rate must be a positive number.",
+        400,
+      );
+    }
+    const overridden = storedRateToUsdFromAdminConversion(manual, currencyCode);
+    if (overridden === null || overridden <= 0) {
+      throw new PartnerRevenueShareError(
+        "Conversion rate must be a positive number.",
+        400,
+      );
+    }
+    rateToUsd = overridden;
+  }
+
+  const localPerUsd = 1 / rateToUsd;
+  const conversionRate =
+    manual !== undefined
+      ? manual
+      : (adminConversionRateFromStored(rateToUsd, currencyCode) ?? localPerUsd);
+
+  return { rateToUsd, localPerUsd, conversionRate };
+}
+
 /** Single retention step: percent of the given base (USD). */
 export function partnerRsRetentionAmount(
   baseUsd: number,
@@ -357,6 +411,41 @@ export function buildPartnerRsLines(params: {
     });
 }
 
+/** System Admin conversion rate for the reconciliation OpCo + period (for UI prefill). */
+export async function getPartnerRsSystemConversionRate(
+  reconciliationId: number,
+): Promise<{ currencyCode: string; conversionRate: number }> {
+  const reconciliation = await prisma.reconciliation.findFirst({
+    where: { id: reconciliationId, isDeleted: false },
+    select: { opcoId: true, month: true, year: true },
+  });
+  if (!reconciliation) {
+    throw new PartnerRevenueShareError("Reconciliation not found.", 404);
+  }
+
+  const fx = await getOpcoReportFx({
+    opcoId: reconciliation.opcoId,
+    month: reconciliation.month,
+    year: reconciliation.year,
+  });
+
+  if (fx.rateToUsd === null || !Number.isFinite(fx.rateToUsd) || fx.rateToUsd <= 0) {
+    throw new PartnerRevenueShareError(
+      `No USD rate for ${fx.currencyCode} in this period. Set it in Admin Currencies before sending the Partner RS report.`,
+      400,
+    );
+  }
+
+  const conversionRate =
+    adminConversionRateFromStored(fx.rateToUsd, fx.currencyCode) ??
+    1 / fx.rateToUsd;
+
+  return {
+    currencyCode: fx.currencyCode,
+    conversionRate,
+  };
+}
+
 export async function buildPartnerRsReportForReconciliation(
   reconciliationId: number,
   retentionOptions: PartnerRsRetentionOptions = DEFAULT_PARTNER_RS_RETENTION_OPTIONS,
@@ -418,9 +507,11 @@ export async function buildPartnerRsReportForReconciliation(
     );
   }
 
-  const localPerUsd = 1 / fx.rateToUsd;
-  const conversionRate =
-    adminConversionRateFromStored(fx.rateToUsd, fx.currencyCode) ?? localPerUsd;
+  const { localPerUsd, conversionRate } = resolvePartnerRsReportFx({
+    systemRateToUsd: fx.rateToUsd,
+    currencyCode: fx.currencyCode,
+    conversionRate: retentionOptions.conversionRate,
+  });
   const mapRows = maps.map((row) => ({
     serviceKey: row.serviceKey,
     serviceName: row.serviceName,

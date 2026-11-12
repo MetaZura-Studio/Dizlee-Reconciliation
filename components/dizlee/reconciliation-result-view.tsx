@@ -39,6 +39,7 @@ import {
   type NotificationDeliveryChannel,
 } from "@/lib/dizlee/notifications/broadcast.shared";
 import type { ReconciliationAlertTemplates } from "@/lib/dizlee/notifications/reconciliation-alerts";
+import { formatRateInput } from "@/lib/admin/currency-rate-input";
 import {
   DEFAULT_PARTNER_RS_RETENTION_OPTIONS,
   type PartnerRsRetentionOptions,
@@ -127,6 +128,14 @@ export function ReconciliationResultView({
       line1: { ...DEFAULT_PARTNER_RS_RETENTION_OPTIONS.line1 },
       line2: { ...DEFAULT_PARTNER_RS_RETENTION_OPTIONS.line2 },
     });
+  const [partnerRsConversionRateInput, setPartnerRsConversionRateInput] =
+    useState("");
+  const [partnerRsConversionRateLoading, setPartnerRsConversionRateLoading] =
+    useState(false);
+  const [partnerRsConversionCurrencyCode, setPartnerRsConversionCurrencyCode] =
+    useState<string | null>(null);
+  const [partnerRsRetentionFormError, setPartnerRsRetentionFormError] =
+    useState<string | null>(null);
   const [partnerRsPreviewOpen, setPartnerRsPreviewOpen] = useState(false);
   const [partnerRsPreviewLoading, setPartnerRsPreviewLoading] = useState(false);
   const [partnerRsPreviewError, setPartnerRsPreviewError] = useState<
@@ -151,13 +160,65 @@ export function ReconciliationResultView({
     }
   }
 
-  function openPartnerRsRetentionDialog() {
+  async function openPartnerRsRetentionDialog() {
     setPartnerRsRetentionOptions({
       line1: { ...DEFAULT_PARTNER_RS_RETENTION_OPTIONS.line1 },
       line2: { ...DEFAULT_PARTNER_RS_RETENTION_OPTIONS.line2 },
     });
+    setPartnerRsConversionRateInput("");
+    setPartnerRsConversionCurrencyCode(null);
+    setPartnerRsRetentionFormError(null);
     setPartnerRsRetentionOpen(true);
     setError(null);
+    setPartnerRsConversionRateLoading(true);
+    try {
+      const response = await fetch(
+        `/api/dizlee/reconciliation/${detail.id}/partner-rs/conversion-rate`,
+      );
+      const payload = (await response.json().catch(() => null)) as {
+        data?: { currencyCode?: string; conversionRate?: number };
+        error?: string;
+      } | null;
+      if (!response.ok) {
+        throw new Error(
+          formatAppError(payload, "Could not load the system conversion rate."),
+        );
+      }
+      const rate = payload?.data?.conversionRate;
+      if (typeof rate !== "number" || !Number.isFinite(rate) || rate <= 0) {
+        throw new Error("Could not load the system conversion rate.");
+      }
+      setPartnerRsConversionCurrencyCode(
+        typeof payload?.data?.currencyCode === "string"
+          ? payload.data.currencyCode
+          : null,
+      );
+      setPartnerRsConversionRateInput(formatRateInput(rate));
+      setPartnerRsRetentionOptions((current) => ({
+        ...current,
+        conversionRate: rate,
+      }));
+    } catch (loadError) {
+      setPartnerRsRetentionOpen(false);
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : "Could not load the system conversion rate.",
+      );
+    } finally {
+      setPartnerRsConversionRateLoading(false);
+    }
+  }
+
+  function partnerRsRetentionPayload(): PartnerRsRetentionOptions | null {
+    const parsed = Number.parseFloat(partnerRsConversionRateInput.trim());
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      return null;
+    }
+    return {
+      ...partnerRsRetentionOptions,
+      conversionRate: parsed,
+    };
   }
   const [alertOpen, setAlertOpen] = useState(false);
   const [alerting, setAlerting] = useState(false);
@@ -558,7 +619,7 @@ export function ReconciliationResultView({
               partnerRsSending ||
               partnerRsRetentionOpen
             }
-            onClick={openPartnerRsRetentionDialog}
+            onClick={() => void openPartnerRsRetentionDialog()}
           >
             {partnerRsPreviewLoading ? "Building preview…" : "Send report"}
           </Button>
@@ -814,12 +875,18 @@ export function ReconciliationResultView({
       <Modal
         open={partnerRsRetentionOpen}
         title="Retention on Partner RS report"
-        onClose={() => setPartnerRsRetentionOpen(false)}
+        onClose={() => {
+          if (partnerRsConversionRateLoading) {
+            return;
+          }
+          setPartnerRsRetentionOpen(false);
+        }}
         className="max-w-md"
       >
         <p className="text-sm text-foreground-muted">
           Choose up to two retention lines and edit each percent. Net amount to
-          Partner subtracts only the enabled lines.
+          Partner subtracts only the enabled lines. Conversion rate is pre-filled
+          from Admin Currencies for this period; edit only for this send.
         </p>
         <div className="mt-4 space-y-4">
           {(
@@ -838,6 +905,7 @@ export function ReconciliationResultView({
                   <input
                     type="checkbox"
                     checked={line.enabled}
+                    disabled={partnerRsConversionRateLoading}
                     onChange={(event) =>
                       setPartnerRsRetentionOptions((current) => ({
                         ...current,
@@ -857,7 +925,9 @@ export function ReconciliationResultView({
                     min={0}
                     max={100}
                     step={0.01}
-                    disabled={!line.enabled}
+                    disabled={
+                      !line.enabled || partnerRsConversionRateLoading
+                    }
                     value={line.percent}
                     onChange={(event) => {
                       const next = Number.parseFloat(event.target.value);
@@ -876,11 +946,45 @@ export function ReconciliationResultView({
               </div>
             );
           })}
+          <div className="space-y-1.5">
+            <label
+              htmlFor="partner-rs-conversion-rate"
+              className="text-sm font-medium text-foreground"
+            >
+              Conversion rate
+              {partnerRsConversionCurrencyCode
+                ? ` (${partnerRsConversionCurrencyCode})`
+                : ""}
+            </label>
+            <input
+              id="partner-rs-conversion-rate"
+              type="text"
+              inputMode="decimal"
+              autoComplete="off"
+              disabled={partnerRsConversionRateLoading}
+              value={
+                partnerRsConversionRateLoading
+                  ? "Loading…"
+                  : partnerRsConversionRateInput
+              }
+              onChange={(event) => {
+                setPartnerRsConversionRateInput(event.target.value);
+                setPartnerRsRetentionFormError(null);
+              }}
+              className="h-9 w-full rounded-md border border-border-strong bg-background px-2 text-sm disabled:opacity-50"
+            />
+          </div>
+          {partnerRsRetentionFormError ? (
+            <p className="text-sm text-danger" role="alert">
+              {partnerRsRetentionFormError}
+            </p>
+          ) : null}
         </div>
         <div className="mt-6 flex flex-wrap justify-end gap-2">
           <Button
             type="button"
             variant="secondary"
+            disabled={partnerRsConversionRateLoading}
             onClick={() => setPartnerRsRetentionOpen(false)}
           >
             Cancel
@@ -888,7 +992,17 @@ export function ReconciliationResultView({
           <Button
             type="button"
             variant="primary"
-            onClick={() => void openPartnerRsPreview(partnerRsRetentionOptions)}
+            disabled={partnerRsConversionRateLoading}
+            onClick={() => {
+              const payload = partnerRsRetentionPayload();
+              if (!payload) {
+                setPartnerRsRetentionFormError(
+                  "Enter a positive conversion rate before continuing.",
+                );
+                return;
+              }
+              void openPartnerRsPreview(payload);
+            }}
           >
             Continue to preview
           </Button>
