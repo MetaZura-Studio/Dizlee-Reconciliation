@@ -1,7 +1,7 @@
 /**
  * POST — Dizlee portal.
  * Build Partner RS PDF for a completed reconciliation (preview only; no send).
- * Body: { line1?: { enabled, percent }, line2?: { enabled, percent } }
+ * Body: { line1?, line2?, conversionRate? }
  */
 
 import { NextResponse } from "next/server";

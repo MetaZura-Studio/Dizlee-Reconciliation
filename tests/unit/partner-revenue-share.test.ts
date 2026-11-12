@@ -17,10 +17,12 @@ import {
   PARTNER_RS_RETENTION_10_PERCENT,
   PARTNER_RS_RETENTION_5_PERCENT,
   resolvePartnerRsPercentForService,
+  resolvePartnerRsReportFx,
   type PartnerRsReport,
 } from "@/lib/dizlee/partner-revenue-share";
 import {
   formatPartnerRsRetentionLabel,
+  parsePartnerRsConversionRate,
   parsePartnerRsRetentionOptions,
   serializePartnerRsRetentionPercentsJson,
 } from "@/lib/dizlee/partner-revenue-share.shared";
@@ -214,6 +216,20 @@ describe("partner revenue share formulas", () => {
       line1: { enabled: true, percent: 3 },
       line2: { enabled: false, percent: 10 },
     });
+    expect(
+      parsePartnerRsRetentionOptions({
+        line1: { enabled: true, percent: 10 },
+        line2: { enabled: true, percent: 5 },
+        conversionRate: 0.27,
+      }),
+    ).toEqual({
+      line1: { enabled: true, percent: 10 },
+      line2: { enabled: true, percent: 5 },
+      conversionRate: 0.27,
+    });
+    expect(parsePartnerRsConversionRate("1310")).toBe(1310);
+    expect(parsePartnerRsConversionRate(0)).toBeUndefined();
+    expect(parsePartnerRsConversionRate(-1)).toBeUndefined();
     // Legacy body still accepted → mapped to 10% line then 5% line
     expect(
       parsePartnerRsRetentionOptions({
@@ -252,6 +268,54 @@ describe("partner revenue share formulas", () => {
         retentionPercents: [],
       }),
     ).toContain("with no retention");
+  });
+
+  it("uses system rate when conversion override is omitted", () => {
+    // SAR multiply: stored rateToUsd 0.27 → conversion rate 0.27
+    const system = resolvePartnerRsReportFx({
+      systemRateToUsd: 0.27,
+      currencyCode: "SAR",
+    });
+    expect(system.conversionRate).toBe(0.27);
+    expect(system.localPerUsd).toBeCloseTo(1 / 0.27, 8);
+    expect(partnerRsUsdFromLc(300, system.localPerUsd)).toBeCloseTo(
+      300 * 0.27,
+      8,
+    );
+  });
+
+  it("applies manual conversion rate override for USD math", () => {
+    const system = resolvePartnerRsReportFx({
+      systemRateToUsd: 0.27,
+      currencyCode: "SAR",
+    });
+    const manual = resolvePartnerRsReportFx({
+      systemRateToUsd: 0.27,
+      currencyCode: "SAR",
+      conversionRate: 0.3,
+    });
+    expect(manual.conversionRate).toBe(0.3);
+    expect(manual.rateToUsd).toBe(0.3);
+    expect(manual.localPerUsd).not.toBeCloseTo(system.localPerUsd, 8);
+    expect(partnerRsUsdFromLc(300, manual.localPerUsd)).toBeCloseTo(90, 8);
+
+    // IQD divide: Admin conversion 1400 → store rateToUsd ≈ 1/1400
+    const iraqManual = resolvePartnerRsReportFx({
+      systemRateToUsd: 1 / 1310,
+      currencyCode: "IQD",
+      conversionRate: 1400,
+    });
+    expect(iraqManual.conversionRate).toBe(1400);
+    expect(iraqManual.rateToUsd).toBeCloseTo(1 / 1400, 8);
+    expect(partnerRsUsdFromLc(1400, iraqManual.localPerUsd)).toBeCloseTo(
+      1400 * iraqManual.rateToUsd,
+      8,
+    );
+    const iraqSystem = resolvePartnerRsReportFx({
+      systemRateToUsd: 1 / 1310,
+      currencyCode: "IQD",
+    });
+    expect(iraqManual.rateToUsd).not.toBeCloseTo(iraqSystem.rateToUsd, 8);
   });
 
   it("resolves Partner RS% from matching map for the Partner", () => {
